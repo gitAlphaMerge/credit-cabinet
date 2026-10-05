@@ -1,0 +1,30 @@
+# секреты — никогда в репо
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# go
+/bin/
+*.exe
+
+# данные и модели — тяжёлые, в репо только ссылкой
+data/raw/
+*.csv.gz
+*.parquet
+*.pkl
+*.joblib
+
+# мусор систем
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
