@@ -1,0 +1,42 @@
+# Шлёт в топик «коммиты» тг-группы сообщение на каждый пуш и PR.
+# Секреты репо: TG_BOT_TOKEN, TG_CHAT_ID, TG_COMMITS_THREAD.
+name: tg-commits
+
+on:
+  push:
+  pull_request:
+    types: [opened, closed, reopened]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Собрать текст и отправить в тг
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_THREAD: ${{ secrets.TG_COMMITS_THREAD }}
+        run: |
+          # текст собирает jq прямо из события GitHub — сообщения коммитов в шелл не подставляются
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            TEXT=$(jq -r '
+              "🔨 " + .pusher.name + " → " + (.ref | sub("refs/heads/"; "")) + "\n" +
+              ([.commits[] |
+                "• " + (.message | split("\n")[0]) +
+                (([.added[], .modified[]] | unique) as $f
+                  | if ($f | length) > 0 then "\n   " + ($f[:5] | join(", ")) + (if ($f | length) > 5 then " …" else "" end) else "" end)
+              ] | join("\n")) +
+              "\n" + .compare' "$GITHUB_EVENT_PATH")
+          else
+            TEXT=$(jq -r '
+              (if .action == "closed" and .pull_request.merged then "✅ PR влит"
+               elif .action == "closed" then "🚫 PR закрыт"
+               else "🔀 новый PR" end) +
+              " · " + .pull_request.user.login + "\n" + .pull_request.title + "\n" + .pull_request.html_url' "$GITHUB_EVENT_PATH")
+          fi
+          # пустой пуш (например удаление ветки) не шлём
+          [ -z "$TEXT" ] && exit 0
+          jq -n --arg chat "$TG_CHAT_ID" --arg thread "$TG_THREAD" --arg text "$TEXT" \
+            '{chat_id: $chat, message_thread_id: ($thread | tonumber), text: $text, disable_web_page_preview: true}' \
+          | curl -sf -X POST "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
+              -H 'Content-Type: application/json' -d @- > /dev/null
