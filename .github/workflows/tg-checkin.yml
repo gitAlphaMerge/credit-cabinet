@@ -1,0 +1,29 @@
+# Каждый вечер в 21:00 МСК напоминает в топике «чекины», что до 22:00 ждём отчёт.
+# Работает до финала онлайн-этапа (26.10), дальше молчит сам.
+name: tg-checkin
+
+on:
+  schedule:
+    - cron: "0 18 * * *"   # 18:00 UTC = 21:00 МСК
+  workflow_dispatch:       # ручной запуск из вкладки Actions — для проверки
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Напомнить про чекин
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_THREAD: ${{ secrets.TG_CHECKIN_THREAD }}
+        run: |
+          # после 26.10 напоминания не нужны
+          [ "$(TZ=Europe/Moscow date +%Y%m%d)" -gt 20261026 ] && exit 0
+          TEXT="⏰ чекин до 22:00, три строчки:
+          сделал
+          дальше
+          застрял"
+          jq -n --arg chat "$TG_CHAT_ID" --arg thread "$TG_THREAD" --arg text "$TEXT" \
+            '{chat_id: $chat, message_thread_id: ($thread | tonumber), text: $text}' \
+          | curl -sf -X POST "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
+              -H 'Content-Type: application/json' -d @- > /dev/null
