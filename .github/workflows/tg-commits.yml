@@ -21,9 +21,9 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             TEXT=$(jq -r '
               "🔨 " + .pusher.name + " → " + (.ref | sub("refs/heads/"; "")) + "\n" +
-              ([.commits[] |
+              ([(.commits // [])[] |
                 "• " + (.message | split("\n")[0]) +
-                (([.added[], .modified[]] | unique) as $f
+                (([(.added // [])[], (.modified // [])[]] | unique) as $f
                   | if ($f | length) > 0 then "\n   " + ($f[:5] | join(", ")) + (if ($f | length) > 5 then " …" else "" end) else "" end)
               ] | join("\n")) +
               "\n" + .compare' "$GITHUB_EVENT_PATH")
