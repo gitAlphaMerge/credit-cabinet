@@ -27,13 +27,18 @@ jobs:
           BOARD=$(python3 - <<'PY'
           import pathlib, re
           names = {'artem': 'Артём', 'liza': 'Лиза', 'tonya': 'Тоня', 'tolya': 'Толя', 'sasha': 'Саша'}
+          # тг-ники: у кого ноль галочек — бот тегает лично
+          tg = {'artem': '@BWRheal', 'liza': '@lovuhoney', 'tonya': '@aanekhh', 'tolya': '@fudjio1337', 'sasha': '@rutorsup'}
           rows = []
           for t in pathlib.Path('hw').glob('*/TASK.md'):
               s = t.read_text(encoding='utf-8')
               done = len(re.findall(r'^- \[[xX]\]', s, re.M))
               total = done + len(re.findall(r'^- \[ \]', s, re.M))
               if total:
-                  rows.append((done / total, done, total, names.get(t.parent.name, t.parent.name)))
+                  who = names.get(t.parent.name, t.parent.name)
+                  if done == 0:
+                      who += ' ' + tg.get(t.parent.name, '')
+                  rows.append((done / total, done, total, who))
           rows.sort(reverse=True)
           for share, done, total, who in rows:
               bar = '▓' * round(share * 10) + '░' * (10 - round(share * 10))
