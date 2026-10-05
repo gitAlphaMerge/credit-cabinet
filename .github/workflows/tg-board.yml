@@ -1,0 +1,25 @@
+# Доска задач в тг: при изменении hw/*/TASK.md перерисовывает закреплённое сообщение
+# и пишет в топик задач, что добавилось и что закрылось.
+name: tg-board
+
+on:
+  push:
+    branches: [main]
+    paths: ["hw/*/TASK.md"]
+  workflow_dispatch:
+
+jobs:
+  board:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # нужна история, чтобы сравнить задачи до и после пуша
+      - name: Обновить доску и уведомить
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_BOARD_THREAD: ${{ secrets.TG_BOARD_THREAD }}
+          TG_BOARD_MSG: ${{ secrets.TG_BOARD_MSG }}
+          TG_TASKS_THREAD: ${{ secrets.TG_TASKS_THREAD }}
+        run: python3 .github/scripts/board.py "${{ github.event.before }}"
