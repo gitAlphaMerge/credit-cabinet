@@ -17,6 +17,8 @@ jobs:
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           TG_THREAD: ${{ secrets.TG_CHECKIN_THREAD }}
         run: |
+          # топик чекинов ещё не задан — молчим, а не падаем
+          [ -z "$TG_THREAD" ] && exit 0
           # после 26.10 напоминания не нужны
           [ "$(TZ=Europe/Moscow date +%Y%m%d)" -gt 20261026 ] && exit 0
           TEXT="⏰ чекин до 22:00, три строчки:
