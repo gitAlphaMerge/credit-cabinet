@@ -1,8 +1,8 @@
 # Кого GitHub сам зовёт на ревью PR. Это приглашение, а не замок: на бесплатном плане PR не блокируется.
 *                    @alexregrets
 # ML — Лиза смотрит всё, что трогает модель
-/ml/                 @Elizaveta11-me @alexregrets
+/services/ml-model/  @Elizaveta11-me @alexregrets
 # бэк и инфра — Артём
-/api/                @bwrrr
+/services/api/       @bwrrr
 /docker-compose.yml  @bwrrr @alexregrets
 /.github/workflows/  @alexregrets
