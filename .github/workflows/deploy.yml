@@ -1,0 +1,49 @@
+# Деплой: каждый пуш в main → код уезжает на сервер (Yandex Cloud) и пересобирается docker compose.
+# Сервер в GitHub не ходит: Actions сам заливает архив по SSH. Секреты: DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_USER.
+# Живой адрес: https://158-160-212-36.sslip.io (Caddy на сервере, вне репо; /api/* → api:8080).
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false   # два деплоя подряд не дерутся, второй ждёт первый
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ключ для сервера
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Залить код и пересобрать
+        env:
+          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+        run: |
+          git archive --format=tar.gz HEAD -o /tmp/app.tgz
+          scp -i ~/.ssh/deploy /tmp/app.tgz "$TARGET:/tmp/app.tgz"
+          # новая папка с нуля, чтобы удалённые из репо файлы не оставались на сервере; .env сервера переносится
+          ssh -i ~/.ssh/deploy "$TARGET" '
+            set -e
+            rm -rf ~/credit-cabinet.new && mkdir ~/credit-cabinet.new
+            tar xzf /tmp/app.tgz -C ~/credit-cabinet.new
+            cp ~/credit-cabinet/.env ~/credit-cabinet.new/.env 2>/dev/null || true
+            rm -rf ~/credit-cabinet.old && mv ~/credit-cabinet ~/credit-cabinet.old && mv ~/credit-cabinet.new ~/credit-cabinet
+            cd ~/credit-cabinet
+            sudo docker compose up --build -d --remove-orphans
+            sudo docker image prune -f > /dev/null
+          '
+
+      - name: Проверка, что поднялось
+        run: |
+          sleep 5
+          curl -sf --retry 5 --retry-delay 3 "https://${{ secrets.DEPLOY_HOST }}" -k -o /dev/null || true
+          curl -sf --retry 5 --retry-delay 3 https://158-160-212-36.sslip.io/api/health
