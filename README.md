@@ -20,3 +20,28 @@
 
 Каждый день до 22:00 — три строчки в чат: сделал / дальше / застрял.
 Сдача домашки — ср 7.10 23:59. Демо — чт 8.10 19:00. Репетиция на мок-кейсе — 11–12.10 (уточняется).
+
+## Как поднять за 2 минуты
+
+### Сервисы и лимиты памяти
+- api (Go API): порт 8080, mem_limit: 64m
+- ml-model (Python-модель, заглушка): порт 5000, mem_limit: 384m
+- frontend (Nginx): порт ${FRONTEND_PORT:-80}, mem_limit: 64m
+
+Суммарно: 512M / 600M max.
+
+### Запуск
+```bash
+docker compose up --build -d
+```
+
+### Проверка работы
+- Healthcheck Go API: `curl http://localhost:8080/health`
+- Скоринг Go API: `curl -X POST http://localhost:8080/score`
+- Фронтенд: открыть в браузере `http://localhost` (или порт из FRONTEND_PORT)
+- Контроль лимитов памяти: `docker stats --no-stream`
+
+### Остановка
+```bash
+docker compose down
+```
