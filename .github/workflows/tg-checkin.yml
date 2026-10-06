@@ -1,4 +1,4 @@
-# Каждый вечер в 21:00 МСК: табло прогресса по галочкам в hw/*/TASK.md + напоминание о чекине.
+# Каждый вечер в 21:00 МСК: итоги дня (кто что сделал, очки, MVP), табло по галочкам и напоминание о чекине.
 # Работает до финала онлайн-этапа (26.10), дальше молчит сам.
 name: tg-checkin
 
@@ -7,49 +7,27 @@ on:
     - cron: "0 18 * * *"   # 18:00 UTC = 21:00 МСК
   workflow_dispatch:       # ручной запуск из вкладки Actions — для проверки
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   remind:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # нужна история, чтобы понять, какие пункты закрылись за день
 
-      - name: Табло и напоминание
+      - name: Итоги дня и напоминание о чекине
         env:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           TG_THREAD: ${{ secrets.TG_CHECKIN_THREAD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # топик чекинов ещё не задан — молчим, а не падаем
           [ -z "$TG_THREAD" ] && exit 0
-          # после 26.10 напоминания не нужны
+          # после 26.10 итоги не нужны
           [ "$(TZ=Europe/Moscow date +%Y%m%d)" -gt 20261026 ] && exit 0
-          # табло: для каждого hw/<имя>/TASK.md считаем [x] и [ ], сортируем по доле сделанного
-          BOARD=$(python3 - <<'PY'
-          import pathlib, re
-          names = {'artem': 'Артём', 'liza': 'Лиза', 'tonya': 'Тоня', 'tolya': 'Толя', 'sasha': 'Саша'}
-          # тг-ники: у кого ноль галочек — бот тегает лично
-          tg = {'artem': '@BWRheal', 'liza': '@lovuhoney', 'tonya': '@aanekhh', 'tolya': '@fudjio1337', 'sasha': '@rutorsup'}
-          rows = []
-          for t in pathlib.Path('hw').glob('*/TASK.md'):
-              s = t.read_text(encoding='utf-8')
-              done = len(re.findall(r'^- \[[xX]\]', s, re.M))
-              total = done + len(re.findall(r'^- \[ \]', s, re.M))
-              if total:
-                  who = names.get(t.parent.name, t.parent.name)
-                  if done == 0:
-                      who += ' ' + tg.get(t.parent.name, '')
-                  rows.append((done / total, done, total, who))
-          rows.sort(reverse=True)
-          for share, done, total, who in rows:
-              bar = '▓' * round(share * 10) + '░' * (10 - round(share * 10))
-              print(f"{bar} {done}/{total} {who}")
-          PY
-          )
-          TEXT="📊 табло на сегодня
-          $BOARD
-
-          ⏰ чекин до 22:00: сделал / дальше / застрял"
-          jq -n --arg chat "$TG_CHAT_ID" --arg thread "$TG_THREAD" --arg text "$TEXT" \
-            '{chat_id: $chat, message_thread_id: ($thread | tonumber), text: $text}' \
-          | curl -sf -X POST "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
-              -H 'Content-Type: application/json' -d @- > /dev/null
+          python3 .github/scripts/digest.py
