@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>6 · Состояния</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui.css">
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+.box{display:flex;flex-direction:column;gap:14px;padding:24px;border-radius:var(--r-card);background:var(--card);border:1px solid var(--line-soft)}
+.box h2{font-size:20px;font-weight:800;letter-spacing:-0.01em}
+.ib{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.sk{border-radius:8px;background:#ECECEE}
+.n{width:24px;height:24px;border-radius:12px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none}
+</style>
+</head>
+<body>
+<div style="width:1280px;background:var(--bg);padding:48px 80px">
+  <div class="col" style="gap:8px;margin-bottom:28px">
+    <span class="eyebrow">Что видит клиент, когда что-то пошло не так</span>
+    <h1 style="font-size:36px;font-weight:800;letter-spacing:-0.02em">Состояния: пусто, ошибка файла, сервер молчит, загрузка</h1>
+    <p class="muted" style="font-size:16px">Правило для всех: введённое не теряется, всегда есть кнопка «позвать менеджера».</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
+    <section class="box">
+      <span class="eyebrow">Нет выписки</span>
+      <div class="row" style="gap:14px;align-items:flex-start"><span class="ib" style="background:var(--bg)"><svg class="i" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+        <div class="col" style="gap:4px"><h2>Без выписки покажем только примерную оценку</h2><p class="muted">Точную сумму и платёж считаем по движению денег на счёте. Выписка выгружается из интернет-банка за пару минут.</p></div></div>
+      <div class="row" style="gap:10px"><span class="btn btn-primary btn-sm">Загрузить выписку</span><span class="btn btn-ghost btn-sm">Всё равно продолжить</span></div>
+    </section>
+
+    <section class="box">
+      <span class="eyebrow">Не тот файл</span>
+      <div class="row" style="gap:14px;align-items:flex-start"><span class="ib" style="background:var(--neg-bg);color:var(--neg)"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></span>
+        <div class="col" style="gap:4px"><h2>В файле нет колонки «сумма»</h2><p class="muted">vypiska.csv · похоже, это выгрузка контрагентов, а не операций.</p></div></div>
+      <div class="col" style="gap:10px;padding:16px;border-radius:var(--r-in);background:var(--bg)">
+        <b class="small">Как выгрузить выписку</b>
+        <div class="row small" style="gap:10px"><span class="n">1</span>Интернет-банк → Счета → нужный счёт</div>
+        <div class="row small" style="gap:10px"><span class="n">2</span>Выписка → период 12 месяцев</div>
+        <div class="row small" style="gap:10px"><span class="n">3</span>Формат CSV или 1С → Скачать</div>
+      </div>
+      <div class="row" style="gap:10px"><span class="btn btn-primary btn-sm">Загрузить другой файл</span></div>
+    </section>
+
+    <section class="box">
+      <span class="eyebrow">Сервер не ответил за 10 секунд</span>
+      <div class="row" style="gap:14px;align-items:flex-start"><span class="ib" style="background:var(--warn-bg);color:var(--warn)"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        <div class="col" style="gap:4px"><h2>Не получилось посчитать</h2><p class="muted">Ваши ответы и выписка сохранены, заново вводить не нужно.</p></div></div>
+      <div class="row" style="gap:10px"><span class="btn btn-primary btn-sm">Повторить</span><span class="btn btn-ghost btn-sm">Позвать менеджера</span></div>
+    </section>
+
+    <section class="box" aria-label="Загрузка ответа">
+      <span class="eyebrow">Считаем: скелетон вместо крутилки</span>
+      <div class="sk" style="height:76px;border-radius:var(--r-card);background:#F7EFE1"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+        <div class="col" style="gap:8px;padding:14px;border:1px solid var(--line-soft);border-radius:var(--r-in)"><span class="sk" style="height:10px;width:60%"></span><span class="sk" style="height:26px;width:90%"></span></div>
+        <div class="col" style="gap:8px;padding:14px;border-radius:var(--r-in);background:#2A2A30"><span class="sk" style="height:10px;width:60%;background:#3A3A42"></span><span class="sk" style="height:26px;width:90%;background:#3A3A42"></span></div>
+        <div class="col" style="gap:8px;padding:14px;border:1px solid var(--line-soft);border-radius:var(--r-in)"><span class="sk" style="height:10px;width:60%"></span><span class="sk" style="height:26px;width:90%"></span></div>
+      </div>
+      <div class="row" style="gap:6px;align-items:flex-end;height:70px"><span class="sk" style="flex:1;height:60%"></span><span class="sk" style="flex:1;height:45%"></span><span class="sk" style="flex:1;height:75%"></span><span class="sk" style="flex:1;height:40%"></span><span class="sk" style="flex:1;height:35%"></span><span class="sk" style="flex:1;height:55%"></span><span class="sk" style="flex:1;height:65%"></span><span class="sk" style="flex:1;height:85%"></span><span class="sk" style="flex:1;height:58%"></span><span class="sk" style="flex:1;height:46%"></span><span class="sk" style="flex:1;height:70%"></span><span class="sk" style="flex:1;height:90%"></span></div>
+    </section>
+  </div>
+</div>
+</body>
+</html>

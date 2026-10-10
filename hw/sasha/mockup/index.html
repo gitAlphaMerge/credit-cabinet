@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кредитный помощник · макет</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F5F7; --card:#FFFFFF; --ink:#111114; --ink2:#5B5B66; --ink3:#9A9AA6; --line:#E6E6EB;
+  --accent:#EF3124; --accent-soft:#FDECEA;
+  --ok:#1F9D55; --ok-soft:#E7F6EE; --warn:#C27C0E; --warn-soft:#FDF3E1; --mute-soft:#EFEFF3;
+  --r:18px;
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:Manrope,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45}
+.top{display:flex;align-items:center;gap:10px;padding:18px 28px;background:var(--card);border-bottom:1px solid var(--line)}
+.dot{width:28px;height:28px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:800}
+.top b{font-weight:700}.top span{color:var(--ink3);margin-left:auto;font-size:13px}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:20px;max-width:1240px;margin:24px auto;padding:0 16px}
+.card{background:var(--card);border-radius:var(--r);padding:22px;border:1px solid var(--line)}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);font-weight:700;margin-bottom:14px}
+/* chat */
+.chat{display:flex;flex-direction:column;gap:12px}
+.msg{max-width:88%;padding:12px 15px;border-radius:16px;animation:in .3s ease both}
+.agent{background:var(--bg);border-top-left-radius:6px}
+.user{background:var(--ink);color:#fff;margin-left:auto;border-top-right-radius:6px}
+.file{display:flex;gap:10px;align-items:center;background:var(--card);border:1px dashed var(--ink3);color:var(--ink)}
+.file svg{flex:none}
+.steps{display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:13px;color:var(--ink2)}
+.steps div::before{content:"✓ ";color:var(--ok);font-weight:700}
+.known{margin-top:18px;border-top:1px solid var(--line);padding-top:16px;display:grid;gap:10px}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px}
+.row em{font-style:normal;color:var(--ink2)}
+.badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.b-ok{background:var(--ok-soft);color:var(--ok)}.b-warn{background:var(--warn-soft);color:var(--warn)}.b-mute{background:var(--mute-soft);color:var(--ink3)}
+/* result */
+.status{display:flex;gap:14px;align-items:flex-start;background:var(--warn-soft);border-radius:14px;padding:16px 18px;margin-bottom:20px}
+.status .ic{width:40px;height:40px;border-radius:12px;background:var(--warn);display:grid;place-items:center;flex:none}
+.status b{font-size:19px;display:block}.status p{color:var(--ink2);font-size:14px}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+.num{background:var(--bg);border-radius:14px;padding:14px}
+.num small{color:var(--ink2);font-size:12px;display:block;margin-bottom:4px}
+.num b{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.num.hi{background:var(--ink);color:#fff}.num.hi small{color:#B9B9C4}
+.num i{font-style:normal;font-size:12px;color:var(--ok);font-weight:700}
+.sec{margin-top:20px}
+.why{display:grid;gap:8px}
+.why div{display:flex;gap:10px;font-size:14px}.why div::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:8px;flex:none}
+.act{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px;transition:border-color .15s}
+.act:hover{border-color:var(--ink)}
+.act .n{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:800;display:grid;place-items:center;flex:none}
+.act p{flex:1;font-size:14px}.act p small{display:block;color:var(--ink2);font-size:12px}
+.act .d{font-weight:800;color:var(--ok);white-space:nowrap}
+.btn{border:0;font:inherit;font-weight:700;padding:12px 18px;border-radius:12px;cursor:pointer}
+.btn.p{background:var(--accent);color:#fff}.btn.s{background:var(--bg);color:var(--ink)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+svg text{font-family:Manrope,sans-serif}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-top:6px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:860px){.wrap{grid-template-columns:1fr}.nums{grid-template-columns:1fr 1fr}.num.hi{grid-column:span 2}.top span{display:none}}
+</style>
+</head>
+<body>
+<div class="top"><div class="dot">₽</div><b>Кредитный помощник</b><span>макет · сценарий «кассовый разрыв» · данные синтетические</span></div>
+
+<div class="wrap">
+  <section class="card">
+    <h2>Диалог</h2>
+    <div class="chat">
+      <div class="msg agent">Здравствуйте! На что нужны деньги?</div>
+      <div class="msg user">Крупный заказчик платит через 60 дней, а зарплату и аренду платить сейчас. Нужно 1,5 млн</div>
+      <div class="msg agent">Понял, похоже на кассовый разрыв. Когда и из чего планируете вернуть?</div>
+      <div class="msg user">Из оплаты от ООО «СтройГрад», они переводят каждый месяц</div>
+      <div class="msg file"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.8"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
+        <div><b>vypiska_12m.csv</b><div class="steps"><div>посчитали поток за 12 месяцев</div><div>нашли текущие платежи по долгам</div><div>прогнали стресс: выручка −30%</div></div></div></div>
+      <div class="msg agent">Оплаты от «СтройГрад» видны в выписке, но 3 из 12 пришли с опозданием больше чем на 2 месяца. Поэтому сейчас я засчитываю только часть этого потока. Справа, что можно сделать.</div>
+    </div>
+    <div class="known">
+      <h2>Что мы уже знаем</h2>
+      <div class="row"><em>Сумма</em><b>1 500 000 ₽</b><span class="badge b-warn">со слов</span></div>
+      <div class="row"><em>Цель</em><b>кассовый разрыв</b><span class="badge b-warn">со слов</span></div>
+      <div class="row"><em>Источник возврата</em><b>ООО «СтройГрад»</b><span class="badge b-ok">подтверждено</span></div>
+      <div class="row"><em>Поток в месяц</em><b>120 000 ₽</b><span class="badge b-ok">подтверждено</span></div>
+      <div class="row"><em>Договор с заказчиком</em><b>нет</b><span class="badge b-mute">не проверено</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="status">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div><b>Можно подавать после одного шага</b><p>Решение принимает банк. Мы показываем, с чем заявка придёт к нему сильнее.</p></div>
+    </div>
+    <div class="nums">
+      <div class="num"><small>Доступно сейчас</small><b>1 015 000 ₽</b></div>
+      <div class="num hi"><small>После шага 1</small><b>1 523 000 ₽</b> <i>+508 000 ₽</i></div>
+      <div class="num"><small>Платёж в месяц</small><b>≈ 141 800 ₽</b></div>
+    </div>
+
+    <h2>Поток по месяцам</h2>
+    <svg id="chart" viewBox="0 0 640 220" width="100%" role="img" aria-label="Приход и расход по месяцам"></svg>
+    <div class="legend"><span style="--c:#111114">приход</span><span style="--c:#D9D9E0">расход</span><span style="--c:#EF3124">платёж по кредиту</span><span style="--c:#C27C0E">приход при −30%</span></div>
+
+    <div class="sec"><h2>Почему так</h2>
+      <div class="why">
+        <div>Свободный поток сейчас 120 000 ₽ в месяц: покрывает платёж 1,5 млн только на 85% (нужно 125%)</div>
+        <div>3 из 12 оплат от главного заказчика пришли с опозданием 60+ дней, поэтому часть его денег не засчитана</div>
+        <div>Если выручка упадёт на 30%, текущий поток платёж не выдержит</div>
+      </div>
+    </div>
+
+    <div class="sec"><h2>Следующий шаг</h2>
+      <div class="act"><div class="n">1</div><p>Загрузите договор с «СтройГрад»<small>подтвердит регулярный приход 60 000 ₽ в месяц</small></p><span class="d">+508 000 ₽</span></div>
+      <div class="act"><div class="n">2</div><p>Посмотрите кредитную линию вместо кредита<small>берёте частями, проценты только за выбранное</small></p><span class="d">дешевле</span></div>
+    </div>
+
+    <div class="btns"><button class="btn p">Загрузить договор</button><button class="btn s">Скачать досье для банка</button><button class="btn s">Позвать менеджера</button></div>
+  </section>
+</div>
+
+<script>
+const inflow=[410,395,180,420,405,200,415,430,190,400,420,410];
+const outflow=[330,325,320,335,330,325,340,335,330,330,335,340];
+const pay=141.8, m=["окт","ноя","дек","янв","фев","мар","апр","май","июн","июл","авг","сен"];
+const s=document.getElementById("chart"),H=180,max=460,x0=34,w=(640-x0)/12;
+const y=v=>H-v/max*H+10;let g="";
+[0,200,400].forEach(v=>g+=`<line x1="${x0}" x2="640" y1="${y(v)}" y2="${y(v)}" stroke="#E6E6EB"/><text x="0" y="${y(v)+4}" font-size="10" fill="#9A9AA6">${v}к</text>`);
+inflow.forEach((v,i)=>{const X=x0+i*w+6;
+ g+=`<rect x="${X}" y="${y(v)}" width="${w/2-7}" height="${H+10-y(v)}" rx="4" fill="#111114"/>`;
+ g+=`<rect x="${X+w/2-5}" y="${y(outflow[i])}" width="${w/2-7}" height="${H+10-y(outflow[i])}" rx="4" fill="#D9D9E0"/>`;
+ g+=`<text x="${X+w/2-6}" y="212" font-size="10" fill="#9A9AA6" text-anchor="middle">${m[i]}</text>`;});
+const lp=inflow.map((v,i)=>`${x0+i*w+w/2},${y(v*0.7)}`).join(" ");
+g+=`<polyline points="${lp}" fill="none" stroke="#C27C0E" stroke-width="2" stroke-dasharray="5 4"/>`;
+g+=`<line x1="${x0}" x2="640" y1="${y(pay)}" y2="${y(pay)}" stroke="#EF3124" stroke-width="2"/>`;
+s.innerHTML=g;
+</script>
+</body>
+</html>

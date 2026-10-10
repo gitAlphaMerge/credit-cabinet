@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>2 · Разговор и выписка</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui.css">
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+.msg{max-width:76%;padding:12px 16px;border-radius:18px}
+.agent{align-self:flex-start;background:var(--bg);border-bottom-left-radius:6px}
+.me{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:6px}
+.who{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--ink-2)}
+.ava{width:24px;height:24px;border-radius:8px;background:var(--ink);display:flex;align-items:center;justify-content:center;color:#fff}
+.fld{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line-soft)}
+.fld .k{font-size:12px;color:var(--ink-2)}
+.fld .v{font-weight:700}
+.chk{display:flex;align-items:center;gap:10px;font-size:14px}
+.dot{width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none}
+</style>
+</head>
+<body>
+<div style="width:1280px;min-height:1000px;background:var(--bg)">
+<header class="top">
+  <div class="brand"><span class="brand-mark"><svg class="i i-sm" viewBox="0 0 24 24" style="color:#fff"><path d="M4 17l5-5 4 4 7-8"/></svg></span>[Название продукта]</div>
+  <nav class="steps" aria-label="Шаги">
+    <span class="s done"><b>✓</b>Задача</span><span class="sep"></span>
+    <span class="s on"><b>2</b>Разговор и выписка</span><span class="sep"></span>
+    <span class="s"><b>3</b>Ответ</span>
+  </nav>
+  <a href="#manager" class="btn btn-ghost btn-sm"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Позвать менеджера</a>
+</header>
+
+<main style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;padding:32px 80px;align-items:start">
+  <section class="card col" aria-live="polite" style="gap:14px;padding:24px">
+    <div class="who"><span class="ava"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/></svg></span>Помощник</div>
+    <div class="msg agent">На что нужны деньги?</div>
+    <div class="msg me">Кассовый разрыв: заказчик платит через 60 дней, а зарплату платить сейчас. Нужно 1,5 млн на год</div>
+    <div class="msg agent">Понял. Когда и из чего планируете вернуть?</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      <span class="chip" style="background:var(--ink);color:#fff;border-color:var(--ink)">Из оплаты по договору</span>
+      <span class="chip">Из текущей выручки</span>
+      <span class="chip">Пока не знаю</span>
+    </div>
+    <div class="msg agent">Чтобы проверить, загрузите выписку по счёту за 12 месяцев. По ней посчитаем, хватит ли денег на платёж.</div>
+
+    <div class="row" style="gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-in);max-width:520px">
+      <span class="dot" style="width:40px;height:40px;border-radius:10px;background:var(--ok-bg);color:var(--ok)"><svg class="i" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg></span>
+      <div class="col" style="gap:2px;flex:1"><b>vypiska_2025-10_2026-09.csv</b><span class="muted small">1 248 операций · с октября 2025 по сентябрь 2026</span></div>
+      <span class="muted small">Заменить</span>
+    </div>
+
+    <div class="col" style="gap:10px;padding:16px;border-radius:var(--r-in);background:var(--bg);max-width:520px">
+      <div class="chk"><span class="dot" style="background:var(--ok);color:#fff"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>Прочитали 1 248 операций</div>
+      <div class="chk"><span class="dot" style="background:var(--ok);color:#fff"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>Посчитали, сколько остаётся в месяц</div>
+      <div class="chk"><span class="dot" style="background:var(--ok);color:#fff"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>Нашли платежи по текущим кредитам</div>
+      <div class="chk" style="font-weight:700"><span class="dot" style="border:2px solid var(--ink);"><span style="width:8px;height:8px;border-radius:4px;background:var(--ink)"></span></span>Проверяем худший сценарий: выручка −30%</div>
+    </div>
+
+    <div class="row" style="gap:5px;padding:12px 16px;border-radius:18px;background:var(--bg);align-self:flex-start" aria-label="Помощник печатает">
+      <span style="width:7px;height:7px;border-radius:4px;background:var(--ink-3)"></span><span style="width:7px;height:7px;border-radius:4px;background:var(--ink-2)"></span><span style="width:7px;height:7px;border-radius:4px;background:var(--ink-3)"></span>
+    </div>
+
+    <div class="row" style="gap:8px;margin-top:6px;padding-top:16px;border-top:1px solid var(--line-soft)">
+      <label for="m" style="position:absolute;left:-9999px">Сообщение</label>
+      <input id="m" type="text" placeholder="Напишите ответ" style="flex:1;min-width:0;min-height:48px;font:inherit;padding:0 16px;border-radius:var(--r-btn);border:1px solid var(--line);background:#fff">
+      <a href="03-result.html" class="btn btn-primary">Посчитать</a>
+    </div>
+  </section>
+
+  <aside class="card col" style="gap:4px;padding:24px">
+    <div class="eyebrow">Что мы уже знаем</div>
+    <div class="row" style="justify-content:space-between;margin-top:10px"><b>Подтверждено документами</b><b class="num">2 из 6</b></div>
+    <div class="row" style="gap:4px;margin:8px 0 14px">
+      <span style="flex:1;height:8px;border-radius:4px;background:var(--ok-gfx)"></span><span style="flex:1;height:8px;border-radius:4px;background:var(--ok-gfx)"></span><span style="flex:1;height:8px;border-radius:4px;background:var(--warn-gfx)"></span><span style="flex:1;height:8px;border-radius:4px;background:var(--warn-gfx)"></span><span style="flex:1;height:8px;border-radius:4px;background:var(--warn-gfx)"></span><span style="flex:1;height:8px;border-radius:4px;background:var(--muted-bg)"></span>
+    </div>
+    <div class="fld"><div class="col"><span class="k">Сумма</span><span class="v num">1 500 000 ₽</span></div><span class="badge b-said"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M7 7h4v4H8v3M14 7h4v4h-3v3"/></svg>со слов</span></div>
+    <div class="fld"><div class="col"><span class="k">Цель</span><span class="v">Кассовый разрыв</span></div><span class="badge b-said"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M7 7h4v4H8v3M14 7h4v4h-3v3"/></svg>со слов</span></div>
+    <div class="fld"><div class="col"><span class="k">Срок</span><span class="v">12 месяцев</span></div><span class="badge b-said"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M7 7h4v4H8v3M14 7h4v4h-3v3"/></svg>со слов</span></div>
+    <div class="fld"><div class="col"><span class="k">Остаётся в месяц</span><span class="v num">120 000 ₽</span></div><span class="badge b-ok"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>подтверждено</span></div>
+    <div class="fld"><div class="col"><span class="k">Из чего вернёте</span><span class="v">Оплата заказчика</span></div><span class="badge b-ok"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>подтверждено</span></div>
+    <div class="fld"><div class="col"><span class="k">Договор с заказчиком</span><span class="v">нет</span></div><span class="badge b-no"><svg class="i i-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2.2-2.4 3.7M12 17h.01"/></svg>не проверено</span></div>
+    <p class="muted small" style="margin-top:10px">Банк верит тому, что подтверждено документом. Чем больше зелёного, тем сильнее заявка.</p>
+  </aside>
+</main>
+</div>
+</body>
+</html>

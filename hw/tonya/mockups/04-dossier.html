@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>4 · Папка для банка</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui.css">
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);padding:14px 20px}
+td{padding:14px 20px;border-top:1px solid var(--line-soft);vertical-align:middle}
+td.f{font-weight:700}
+td.e{color:var(--ink-2);font-size:14px}
+tr.gap td{background:#FCF7F0}
+.seg{flex:1;height:10px;border-radius:5px}
+</style>
+</head>
+<body>
+<div style="width:1280px;background:var(--bg);padding-bottom:48px">
+<header class="top">
+  <div class="brand"><span class="brand-mark"><svg class="i i-sm" viewBox="0 0 24 24" style="color:#fff"><path d="M4 17l5-5 4 4 7-8"/></svg></span>[Название продукта]</div>
+  <a href="03-result.html" class="btn btn-ghost btn-sm"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Назад к ответу</a>
+</header>
+
+<main class="col" style="gap:16px;max-width:1120px;margin:0 auto;padding:32px 0 0">
+  <section class="card" style="padding:28px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:32px;align-items:center">
+    <div class="col" style="gap:8px">
+      <span class="eyebrow">Папка для банка · ООО «[Название клиента]»</span>
+      <h1 style="font-size:32px;font-weight:800;letter-spacing:-0.02em;line-height:1.15">Готово к передаче: подтверждено 7 из 9 полей</h1>
+      <p class="muted">Сотрудник банка сразу видит, что подтверждено документом, что со слов клиента и что ещё не проверено. Меньше вопросов, меньше возвратов на доуточнение.</p>
+    </div>
+    <div class="col" style="gap:12px">
+      <div class="row" style="align-items:baseline;gap:8px"><span class="num" style="font-size:56px;font-weight:800;line-height:1">7</span><span class="muted" style="font-size:20px;font-weight:700">/ 9 подтверждено</span></div>
+      <div class="row" style="gap:4px">
+        <span class="seg" style="background:var(--ok-gfx)"></span><span class="seg" style="background:var(--ok-gfx)"></span><span class="seg" style="background:var(--ok-gfx)"></span><span class="seg" style="background:var(--ok-gfx)"></span><span class="seg" style="background:var(--ok-gfx)"></span><span class="seg" style="background:var(--ok-gfx)"></span><span class="seg" style="background:var(--ok-gfx)"></span><span class="seg" style="background:var(--warn-gfx)"></span><span class="seg" style="background:var(--muted-bg)"></span>
+      </div>
+      <div class="row small" style="gap:14px;flex-wrap:wrap"><span class="badge b-ok">подтверждено 7</span><span class="badge b-said">со слов 1</span><span class="badge b-no">не проверено 1</span></div>
+    </div>
+  </section>
+
+  <section class="card" style="overflow:hidden">
+    <table>
+      <thead><tr><th>Поле</th><th>Значение</th><th>Источник</th><th>Чем подтверждено</th></tr></thead>
+      <tbody>
+        <tr><td class="f">Сумма</td><td>1 500 000 ₽</td><td><span class="badge b-said">со слов</span></td><td class="e">заявка клиента</td></tr>
+        <tr><td class="f">Цель</td><td>Кассовый разрыв</td><td><span class="badge b-ok">подтверждено</span></td><td class="e">платежи поставщикам и зарплата в выписке</td></tr>
+        <tr><td class="f">Срок</td><td>12 мес</td><td><span class="badge b-ok">подтверждено</span></td><td class="e">заказчик платит через 60 дней, видно по выписке</td></tr>
+        <tr><td class="f">Оборот в месяц</td><td>2 340 000 ₽</td><td><span class="badge b-ok">подтверждено</span></td><td class="e">выписка, 12 мес</td></tr>
+        <tr><td class="f">Остаётся в месяц</td><td>120 000 ₽</td><td><span class="badge b-ok">подтверждено</span></td><td class="e">выписка, 12 мес</td></tr>
+        <tr><td class="f">Текущие кредиты</td><td>1 платёж, 38 000 ₽</td><td><span class="badge b-ok">подтверждено</span></td><td class="e">выписка, назначение платежа</td></tr>
+        <tr><td class="f">Крупнейший клиент</td><td>41% выручки</td><td><span class="badge b-ok">подтверждено</span></td><td class="e">выписка, ИНН контрагента</td></tr>
+        <tr><td class="f">Из чего вернёт</td><td>Оплата по договору</td><td><span class="badge b-ok">подтверждено</span></td><td class="e">поступления от того же ИНН</td></tr>
+        <tr class="gap"><td class="f">Договор с заказчиком</td><td>нет</td><td><span class="badge b-no">не проверено</span></td><td class="e">ждём загрузку · <a href="#upload" style="color:var(--ink);font-weight:700">загрузить</a></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+    <div class="card col" style="gap:4px;padding:18px"><span class="eyebrow">Инструмент</span><b>Овердрафт под кассовый разрыв</b></div>
+    <div class="card col" style="gap:4px;padding:18px"><span class="eyebrow">Хватает ли денег платить</span><b class="num">0,85 сейчас · 1,27 с договором</b></div>
+    <div class="card col" style="gap:4px;padding:18px"><span class="eyebrow">Ставка в расчёте</span><b class="num">24%, верх диапазона</b></div>
+  </section>
+
+  <div class="row" style="gap:12px">
+    <a href="#pdf" class="btn btn-primary"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Скачать PDF</a>
+    <a href="#manager" class="btn btn-ghost">Передать менеджеру</a>
+  </div>
+</main>
+</div>
+</body>
+</html>
