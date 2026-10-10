@@ -1,7 +1,7 @@
 """Синтетическая выписка МСБ, сценарий «кассовый разрыв»: ООО, кровля и фасады, УСН.
 
 Запуск из корня репо:  python data/synthetic/gen_statement.py
-Пишет data/synthetic/cash_gap.csv и data/golden.json. Детерминирована (SEED): перезапуск даёт тот же файл.
+Пишет data/synthetic/cash_gap.csv (golden.json собирает gen_scenarios.py). Детерминирована (SEED): перезапуск даёт тот же файл.
 
 Колонки CSV: date, amount, counterparty, purpose, label.
 amount: плюс = поступление, минус = списание, в рублях.
@@ -13,7 +13,6 @@ label: ответ для проверки ядра, в настоящей вып
 import calendar
 import csv
 import datetime as dt
-import json
 import random
 from pathlib import Path
 
@@ -35,7 +34,6 @@ REQUESTED = 1_500_000
 
 MAIN = "ООО «ГенПодряд-Центр»"
 OUT = Path(__file__).resolve().parent
-ROOT = OUT.parent.parent
 
 rnd = random.Random(SEED)
 ops = []
@@ -189,57 +187,6 @@ stress_flow = avg("inflow") * (1 - STRESS) - avg("mandatory") - avg("operating")
 main_share = sum(o["amount"] for o in ops if o["counterparty"] == MAIN) / sum(mo["inflow"] for mo in months)
 gap_months = [mo["month"] for mo in months if mo["flow"] < 0]
 
-
-def band(x, tol=0.05):
-    return {"value": int(round(x, -3)), "min": int(round(x * (1 - tol), -3)), "max": int(round(x * (1 + tol), -3))}
-
-
-golden = {
-    "version": "2026-10-10",
-    "how_to_use": "Ядро получает CSV без колонки label и анкету с нуждой. Ответ ядра сверяется с expected: статус и инструмент точно, суммы внутри min..max.",
-    "assumptions": {
-        "rate": RATE, "rate_note": "допущение; заменить ставкой из hw/tolya/instruments.md (верх диапазона, «от X%» → X+3)",
-        "term_months": TERM, "dscr_min": DSCR_MIN,
-        "flow": "среднее за 12 месяцев: inflow − mandatory − operating; financing, transfer, owner не считаются",
-        "limit": "аннуитет: платёж = поток / dscr_min, лимит = платёж × (1 − (1+r/12)^−n) / (r/12)",
-        "stress": "выручка −30%, операционные −30% вместе с ней, обязательные не меняются; это код причины, а не стоп",
-    },
-    "scenarios": [{
-        "id": "cash_gap",
-        "file": "data/synthetic/cash_gap.csv",
-        "story": "ООО, кровля и фасады, 3+ лет. Главный заказчик платит раз в два месяца через 60 дней после акта, зарплата и налоги каждый месяц. Нужно 1,5 млн на год, вернуть из оплаты по договору.",
-        "questionnaire": {"form": "ООО", "need": "кассовый разрыв", "sector": "стройка", "years": "больше 3", "trend": "в плюс"},
-        "need": {"purpose": "кассовый разрыв", "amount_rub": REQUESTED, "term_months": TERM, "repay_from": "оплата по договору"},
-        "expected": {
-            "stage": 1,
-            "status": "можно после шага",
-            "instrument": "овердрафт",
-            "flow_month_rub": band(flow, 0.03),
-            "limit_rub": {"now": band(limit_now), "after_actions": band(limit_after)},
-            "after_actions": [{"action": "загрузить договор с главным заказчиком",
-                               "effect": f"+{round(flow_after - flow):,} ₽/мес к подтверждённому потоку".replace(",", " "),
-                               "missing_key": "contract_main_customer"}],
-            "reasons": ["CONCENTRATION_ONE_CUSTOMER", "STRESS_NEGATIVE_FLOW"],
-            "missing": ["contract_main_customer", "reconciliation_act"],
-            "stops_fired": [],
-        },
-        "evidence": {
-            "operations": N_OPS,
-            "opening_balance_rub": START_BALANCE,
-            "period": f"{months[0]['month']} .. {months[-1]['month']}",
-            "avg_month_rub": {k: round(avg(k)) for k in ("inflow", "mandatory", "operating", "flow")},
-            "main_customer_share": round(main_share, 3),
-            "negative_flow_months": gap_months,
-            "stress_flow_month_rub": round(stress_flow),
-            "min_balance_rub": round(min_bal), "min_balance_date": min_day.isoformat(),
-            "traps": ["заём учредителя +300 000 ₽ (financing) не выручка",
-                      "перевод между своими счетами ±200 000 ₽ (transfer) не выручка и не расход",
-                      "дивиденды −150 000 ₽ (owner) не обязательное списание"],
-            "months": months,
-        },
-    }],
-}
-(ROOT / "data" / "golden.json").write_text(json.dumps(golden, ensure_ascii=False, indent=2), encoding="utf-8")
 
 print(f"ops={N_OPS} flow={flow:,.0f} now={limit_now:,.0f} after={limit_after:,.0f} "
       f"stress={stress_flow:,.0f} main={main_share:.0%} gap={gap_months} min_bal={min_bal:,.0f} {min_day} open={START_BALANCE:,.0f}")
