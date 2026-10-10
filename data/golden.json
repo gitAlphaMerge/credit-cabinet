@@ -1,0 +1,185 @@
+{
+  "version": "2026-10-10",
+  "how_to_use": "Ядро получает CSV без колонки label и анкету с нуждой. Ответ ядра сверяется с expected: статус и инструмент точно, суммы внутри min..max.",
+  "assumptions": {
+    "rate": 0.24,
+    "rate_note": "допущение; заменить ставкой из hw/tolya/instruments.md (верх диапазона, «от X%» → X+3)",
+    "term_months": 12,
+    "dscr_min": 1.25,
+    "flow": "среднее за 12 месяцев: inflow − mandatory − operating; financing, transfer, owner не считаются",
+    "limit": "аннуитет: платёж = поток / dscr_min, лимит = платёж × (1 − (1+r/12)^−n) / (r/12)",
+    "stress": "выручка −30%, операционные −30% вместе с ней, обязательные не меняются; это код причины, а не стоп"
+  },
+  "scenarios": [
+    {
+      "id": "cash_gap",
+      "file": "data/synthetic/cash_gap.csv",
+      "story": "ООО, кровля и фасады, 3+ лет. Главный заказчик платит раз в два месяца через 60 дней после акта, зарплата и налоги каждый месяц. Нужно 1,5 млн на год, вернуть из оплаты по договору.",
+      "questionnaire": {
+        "form": "ООО",
+        "need": "кассовый разрыв",
+        "sector": "стройка",
+        "years": "больше 3",
+        "trend": "в плюс"
+      },
+      "need": {
+        "purpose": "кассовый разрыв",
+        "amount_rub": 1500000,
+        "term_months": 12,
+        "repay_from": "оплата по договору"
+      },
+      "expected": {
+        "stage": 1,
+        "status": "можно после шага",
+        "instrument": "овердрафт",
+        "flow_month_rub": {
+          "value": 120000,
+          "min": 116000,
+          "max": 124000
+        },
+        "limit_rub": {
+          "now": {
+            "value": 1015000,
+            "min": 964000,
+            "max": 1066000
+          },
+          "after_actions": {
+            "value": 1523000,
+            "min": 1447000,
+            "max": 1599000
+          }
+        },
+        "after_actions": [
+          {
+            "action": "загрузить договор с главным заказчиком",
+            "effect": "+60 000 ₽/мес к подтверждённому потоку",
+            "missing_key": "contract_main_customer"
+          }
+        ],
+        "reasons": [
+          "CONCENTRATION_ONE_CUSTOMER",
+          "STRESS_NEGATIVE_FLOW"
+        ],
+        "missing": [
+          "contract_main_customer",
+          "reconciliation_act"
+        ],
+        "stops_fired": []
+      },
+      "evidence": {
+        "operations": 1248,
+        "opening_balance_rub": 914000,
+        "period": "2025-10 .. 2026-09",
+        "avg_month_rub": {
+          "inflow": 1011236,
+          "mandatory": 504637,
+          "operating": 386600,
+          "flow": 120000
+        },
+        "main_customer_share": 0.788,
+        "negative_flow_months": [
+          "2025-10",
+          "2025-12",
+          "2026-02",
+          "2026-04",
+          "2026-06",
+          "2026-08"
+        ],
+        "stress_flow_month_rub": -67391,
+        "min_balance_rub": 34885,
+        "min_balance_date": "2026-01-22",
+        "traps": [
+          "заём учредителя +300 000 ₽ (financing) не выручка",
+          "перевод между своими счетами ±200 000 ₽ (transfer) не выручка и не расход",
+          "дивиденды −150 000 ₽ (owner) не обязательное списание"
+        ],
+        "months": [
+          {
+            "month": "2025-10",
+            "inflow": 406637,
+            "mandatory": 488695,
+            "operating": 331348,
+            "flow": -413406
+          },
+          {
+            "month": "2025-11",
+            "inflow": 1911066,
+            "mandatory": 499739,
+            "operating": 438102,
+            "flow": 973225
+          },
+          {
+            "month": "2025-12",
+            "inflow": 82853,
+            "mandatory": 490923,
+            "operating": 338535,
+            "flow": -746605
+          },
+          {
+            "month": "2026-01",
+            "inflow": 1653644,
+            "mandatory": 536737,
+            "operating": 386682,
+            "flow": 730225
+          },
+          {
+            "month": "2026-02",
+            "inflow": 138266,
+            "mandatory": 486161,
+            "operating": 360176,
+            "flow": -708071
+          },
+          {
+            "month": "2026-03",
+            "inflow": 1695760,
+            "mandatory": 494336,
+            "operating": 347112,
+            "flow": 854312
+          },
+          {
+            "month": "2026-04",
+            "inflow": 426826,
+            "mandatory": 537159,
+            "operating": 356336,
+            "flow": -466668
+          },
+          {
+            "month": "2026-05",
+            "inflow": 1884761,
+            "mandatory": 496777,
+            "operating": 514685,
+            "flow": 873299
+          },
+          {
+            "month": "2026-06",
+            "inflow": 81981,
+            "mandatory": 496506,
+            "operating": 440768,
+            "flow": -855293
+          },
+          {
+            "month": "2026-07",
+            "inflow": 1870601,
+            "mandatory": 540921,
+            "operating": 403732,
+            "flow": 925948
+          },
+          {
+            "month": "2026-08",
+            "inflow": 135012,
+            "mandatory": 496679,
+            "operating": 376133,
+            "flow": -737801
+          },
+          {
+            "month": "2026-09",
+            "inflow": 1847430,
+            "mandatory": 491009,
+            "operating": 345587,
+            "flow": 1010834
+          }
+        ]
+      }
+    }
+  ]
+}
