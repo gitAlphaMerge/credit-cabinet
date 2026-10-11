@@ -2,19 +2,29 @@ version: '3.8'
 
 services:
   api:
-    build: ./services/api
+    build:
+      context: .
+      dockerfile: Dockerfile.api
     ports:
       - "8080:8080"
-    mem_limit: 64m
+    environment:
+      - ML_URL=http://ml-model:5000
+      - PORT=8080
+    depends_on:
+      ml-model:
+        condition: service_started
+    networks:
+      - internal-net
 
   ml-model:
-    build: ./services/ml-model
-    ports:
-      - "5000:5000"
-    mem_limit: 384m
+    build:
+      context: ./ml-model
+      dockerfile: Dockerfile
+    expose:
+      - "5000"
+    networks:
+      - internal-net
 
-  frontend:
-    build: ./services/frontend
-    ports:
-      - "80:80"
-    mem_limit: 64m
+networks:
+  internal-net:
+    driver: bridge
