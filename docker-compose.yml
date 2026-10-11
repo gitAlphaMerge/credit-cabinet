@@ -1,12 +1,32 @@
 services:
   api:
-    build: ./services/api
+    build:
+      context: .
+      dockerfile: Dockerfile.api
     ports:
       - "8080:8080"
-    mem_limit: 64m
+    environment:
+      - ML_URL=http://ml-model:5000
+      - PORT=8080
+    depends_on:
+      ml-model:
+        condition: service_started
+    networks:
+      - internal-net
 
   ml-model:
     build:
+feature/artem-proxy-wire
+      context: ./ml-model
+      dockerfile: Dockerfile
+    expose:
+      - "5000"
+    networks:
+      - internal-net
+
+networks:
+  internal-net:
+    driver: bridge
       context: .
       dockerfile: services/ml-model/Dockerfile
     restart: unless-stopped
