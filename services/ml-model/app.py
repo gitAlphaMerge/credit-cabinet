@@ -1,6 +1,7 @@
 """Окошко ml-model: GET /health, POST /score. Только стандартная библиотека, чтобы жюри поднимало без pip.
 
-Путь запроса: security (проверки) → cores (какое ядро) → ядро → translate (язык сайта) → journal (запись решения).
+Путь запроса: security (проверки) → guards (договор не выше истории платежей) → cores (какое ядро) → ядро
+→ translate (язык сайта) → journal (запись решения).
 Контракт полей: context/api-contract.md (черновик).
 """
 import hashlib
@@ -11,6 +12,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import cores
+import guards
 import journal
 import security
 from core_stub import UnknownStatement
@@ -52,9 +54,13 @@ class Handler(BaseHTTPRequestHandler):
         core_id = cores.route(req["questionnaire"])
         score_fn, version = cores.REGISTRY[core_id]
         need = dict(req["need"])
-        contract = req["confirmed_fields"].get("contract_main_customer")
+        confirmed = req["confirmed_fields"].get("contract_main_customer")
+        claimed = need.pop("contract_with_main_customer", None)
+        contract, basis = (confirmed, "confirmed") if confirmed else (claimed, "client_said") if claimed else (None, None)
+        contract_note = None
         if contract:
-            need["contract_with_main_customer"] = contract
+            need["contract_with_main_customer"], contract_note = guards.cap_contract(req["statement_csv"], contract)
+            contract_note["basis"] = basis
 
         try:
             core = score_fn(req["statement_csv"], need, req["questionnaire"])
@@ -73,6 +79,8 @@ class Handler(BaseHTTPRequestHandler):
             "core": core,
             "view": to_view(core, need, params["rate"], params["dscr_min"]),
         }
+        # откуда «после шага»: подтверждено документом / со слов клиента; урезано ли до истории платежей
+        decision["view"]["contract"] = contract_note
         journal.write({
             "decision_id": decision["decision_id"],
             "created_at": decision["created_at"],
