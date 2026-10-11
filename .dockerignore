@@ -1,0 +1,6 @@
+.git
+.env
+.env.*
+hw/
+**/__pycache__
+services/ml-model/journal/
