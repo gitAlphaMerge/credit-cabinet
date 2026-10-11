@@ -9,6 +9,7 @@ services:
     build:
       context: .
       dockerfile: services/ml-model/Dockerfile
+    restart: unless-stopped
     ports:
       - "127.0.0.1:5000:5000"   # только с этой машины: снаружи кухня закрыта
     volumes:

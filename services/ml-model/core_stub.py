@@ -10,7 +10,8 @@ import os
 import sys
 from pathlib import Path
 
-FIXTURES = Path(os.getenv("FIXTURES_DIR", Path(__file__).resolve().parents[2] / "data" / "synthetic"))
+# путь из репо считаем только без FIXTURES_DIR: в докере файл лежит в /app, трёх папок над ним нет
+FIXTURES = Path(os.getenv("FIXTURES_DIR") or Path(__file__).resolve().parents[2] / "data" / "synthetic")
 sys.path.insert(0, str(FIXTURES))
 from reference import PARAMS, reference  # noqa: E402
 
