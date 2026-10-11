@@ -5,18 +5,32 @@
 """
 import importlib.util
 import os
+import tempfile
 from pathlib import Path
 
 import core_stub
 
 REGISTRY = {"stub": (core_stub.score, core_stub.MODEL_VERSION)}
 
+
+def _from_path(score):
+    """Ядро по контракту check_golden.py читает выписку из файла, окошко держит её текстом: кладём во временный файл."""
+    def run(statement_csv, need, questionnaire):
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", encoding="utf-8", newline="", delete=False) as f:
+            f.write(statement_csv)
+        try:
+            return score(f.name, need, questionnaire)
+        finally:
+            os.unlink(f.name)
+    return run
+
+
 _liza = Path(__file__).with_name("core.py")
 if _liza.exists():
     _spec = importlib.util.spec_from_file_location("core", _liza)
     _mod = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_mod)
-    REGISTRY["liza"] = (_mod.score, getattr(_mod, "MODEL_VERSION", "liza-dev"))
+    REGISTRY["liza"] = (_from_path(_mod.score), getattr(_mod, "MODEL_VERSION", "liza-0.1"))
 
 DEFAULT = os.getenv("CORE_ID", "stub")
 
