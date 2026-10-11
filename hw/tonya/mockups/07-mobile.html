@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>7 · Мобилка 375</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui.css">
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+.phone{width:375px;height:812px;border-radius:28px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--line);flex:none}
+.ptop{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--line-soft)}
+.pbody{flex:1;display:flex;flex-direction:column;gap:12px;padding:16px;overflow:hidden}
+.pfoot{padding:12px 16px 20px;background:var(--card);border-top:1px solid var(--line-soft)}
+.need{display:flex;gap:12px;align-items:center;padding:14px;border-radius:var(--r-in);background:var(--card);border:1px solid var(--line-soft)}
+.need b{display:block;font-size:15px}.need span{font-size:13px;color:var(--ink-2)}
+.msg{max-width:84%;padding:10px 14px;border-radius:16px;font-size:14px}
+.agent{align-self:flex-start;background:var(--card);border-bottom-left-radius:6px}
+.me{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:6px}
+.lbl{font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:10px}
+</style>
+</head>
+<body>
+<div style="width:1365px;background:#E4E5E7;padding:48px 60px">
+  <div class="row" style="gap:60px;align-items:flex-start">
+
+    <div class="col"><div class="lbl">Старт</div>
+    <div class="phone">
+      <div class="ptop"><div class="brand" style="font-size:15px"><span class="brand-mark" style="width:24px;height:24px"><svg class="i i-sm" viewBox="0 0 24 24" style="color:#fff"><path d="M4 17l5-5 4 4 7-8"/></svg></span>[Продукт]</div><span class="small muted">Шаг 1 из 3</span></div>
+      <div class="pbody">
+        <h1 style="font-size:26px;line-height:1.12;font-weight:800;letter-spacing:-0.02em">Сколько бизнес может взять в кредит и как получить больше</h1>
+        <p class="muted small">2 вопроса и выписка по счёту. Без анкет на 4 страницы.</p>
+        <div class="col" style="gap:8px;margin-top:4px">
+          <div class="need" style="border:2px solid var(--ink)"><div><b>Кассовый разрыв</b><span>заказчик платит позже, чем нужно платить зарплату</span></div></div>
+          <div class="need"><div><b>Закупка под контракт</b><span>есть заказ, нужны материалы</span></div></div>
+          <div class="need"><div><b>Оборудование</b><span>станок, техника, транспорт</span></div></div>
+          <div class="need"><div><b>Сезон</b><span>запас до высокого сезона</span></div></div>
+          <div class="need"><div><b>Рост</b><span>новая точка, команда</span></div></div>
+          <div class="need" style="border:1px dashed #9A9AA6;background:transparent"><div><b>Опишу сам</b><span>сразу в чат</span></div></div>
+        </div>
+      </div>
+      <div class="pfoot"><span class="btn btn-primary" style="width:100%">Дальше</span></div>
+    </div></div>
+
+    <div class="col"><div class="lbl">Разговор: панель свёрнута</div>
+    <div class="phone">
+      <div class="ptop"><div class="brand" style="font-size:15px"><span class="brand-mark" style="width:24px;height:24px"><svg class="i i-sm" viewBox="0 0 24 24" style="color:#fff"><path d="M4 17l5-5 4 4 7-8"/></svg></span>[Продукт]</div><span class="btn btn-ghost btn-sm" style="min-height:36px;padding:0 10px;font-size:13px">Менеджер</span></div>
+      <div class="row" style="justify-content:space-between;gap:10px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line-soft)">
+        <div class="col" style="gap:6px;flex:1"><b class="small">Подтверждено 2 из 6</b><div class="row" style="gap:3px"><span style="flex:1;height:6px;border-radius:3px;background:var(--ok-gfx)"></span><span style="flex:1;height:6px;border-radius:3px;background:var(--ok-gfx)"></span><span style="flex:1;height:6px;border-radius:3px;background:var(--warn-gfx)"></span><span style="flex:1;height:6px;border-radius:3px;background:var(--warn-gfx)"></span><span style="flex:1;height:6px;border-radius:3px;background:var(--warn-gfx)"></span><span style="flex:1;height:6px;border-radius:3px;background:var(--muted-bg)"></span></div></div>
+        <svg class="i" viewBox="0 0 24 24" aria-label="Развернуть"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="pbody">
+        <div class="msg agent">На что нужны деньги?</div>
+        <div class="msg me">Кассовый разрыв: заказчик платит через 60 дней, нужно 1,5 млн</div>
+        <div class="msg agent">Когда и из чего планируете вернуть?</div>
+        <div class="row" style="gap:6px;flex-wrap:wrap"><span class="chip" style="font-size:13px;min-height:36px">Из оплаты по договору</span><span class="chip" style="font-size:13px;min-height:36px">Из выручки</span><span class="chip" style="font-size:13px;min-height:36px">Пока не знаю</span></div>
+        <div class="col" style="gap:8px;padding:14px;border:1px dashed #9A9AA6;border-radius:var(--r-in);background:var(--card)">
+          <b class="small">Выписка по счёту за 12 месяцев</b>
+          <span class="muted small">CSV из интернет-банка. По ней посчитаем, хватит ли денег на платёж.</span>
+          <span class="btn btn-ghost btn-sm" style="align-self:flex-start">Выбрать файл</span>
+        </div>
+      </div>
+      <div class="pfoot row" style="gap:8px"><span style="flex:1;min-height:44px;border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;padding:0 14px;color:var(--ink-3);font-size:14px">Напишите ответ</span><span class="btn btn-primary" style="min-height:44px;padding:0 14px"><svg class="i i-sm" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+    </div></div>
+
+    <div class="col"><div class="lbl">Ответ</div>
+    <div class="phone">
+      <div class="ptop"><div class="brand" style="font-size:15px"><span class="brand-mark" style="width:24px;height:24px"><svg class="i i-sm" viewBox="0 0 24 24" style="color:#fff"><path d="M4 17l5-5 4 4 7-8"/></svg></span>[Продукт]</div><span class="small muted">Шаг 3 из 3</span></div>
+      <div class="pbody">
+        <div class="status st-step" style="padding:16px;gap:12px">
+          <span class="ico" style="width:36px;height:36px;border-radius:10px"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <div class="col" style="gap:4px"><b style="font-size:18px;line-height:1.2">Можно подавать после одного шага</b><span class="small">Договор с заказчиком добавит 508 000 ₽.</span></div>
+        </div>
+        <div class="card col" style="gap:2px;padding:14px"><span class="eyebrow">Можно взять сейчас</span><span class="num" style="font-size:28px;font-weight:800">1 015 000 ₽</span></div>
+        <div class="col" style="gap:2px;padding:14px;border-radius:var(--r-card);background:var(--ink);color:#fff"><span class="eyebrow" style="color:#B8B8C2">После шага</span><span class="num" style="font-size:28px;font-weight:800">1 523 000 ₽</span><span class="small" style="color:#5FD49A;font-weight:700">+508 000 ₽</span></div>
+        <div class="card row" style="justify-content:space-between;padding:14px"><span class="eyebrow">Платёж в месяц</span><b class="num">141 800 ₽</b></div>
+        <div class="card col" style="gap:8px;padding:14px">
+          <span class="eyebrow">Хватает ли денег платить</span>
+          <div style="position:relative;height:8px;border-radius:4px;background:var(--muted-bg)"><div style="width:42%;height:8px;border-radius:4px;background:var(--warn-gfx)"></div><span style="position:absolute;left:62.5%;top:-4px;width:2px;height:16px;background:var(--ink)"></span></div>
+          <span class="small muted"><b class="num" style="color:var(--ink)">0,85</b> при нужных 1,25</span>
+        </div>
+      </div>
+      <div class="pfoot col" style="gap:8px"><span class="btn btn-primary" style="width:100%">Загрузить договор</span><span class="btn btn-ghost btn-sm" style="width:100%">Папка для банка</span></div>
+    </div></div>
+
+  </div>
+</div>
+</body>
+</html>
