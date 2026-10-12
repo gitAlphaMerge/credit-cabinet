@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Иконки Qwen · №2</title>
+<style>
+body { margin: 0; padding: 24px; background: #f3f4f5; font: 13px Manrope, system-ui, sans-serif; color: #6b6b70; }
+.row { display: flex; gap: 32px; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sq { width: 48px; height: 48px; border-radius: 14px; background: #fbe8e7; display: grid; place-items: center; }
+.sq svg { width: 24px; height: 24px; }
+.big svg { width: 96px; height: 96px; background: #fff; border-radius: 12px; }
+</style>
+<div class="row" id="r"></div>
+<script>
+const H = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#EF3124" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">';
+const icons = {
+  'find': '<circle cx="10.5" cy="10.5" r="6.5"/><line x1="15" y1="15" x2="20" y2="20"/><path d="M10.5 8v5M8 10.5h5"/>',
+  'assess': '<path d="M14 4.5H5.5V19.5H19.5V10"/><path d="M8.5 12.5l2.5 2.5L15.5 10"/>',
+  'loan': '<rect x="4.5" y="5.5" width="15" height="14" rx="2"/><line x1="8.5" y1="3.5" x2="8.5" y2="7"/><line x1="15.5" y1="3.5" x2="15.5" y2="7"/><line x1="8.5" y1="12.5" x2="12.5" y2="12.5"/>',
+  'chat': '<path d="M4.5 18.5V8.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4.5 3z"/><line x1="8.5" y1="9.5" x2="15.5" y2="9.5"/><line x1="8.5" y1="12.5" x2="12.5" y2="12.5"/>'
+};
+const r = document.getElementById('r');
+for (const [k, v] of Object.entries(icons)) {
+  r.insertAdjacentHTML('beforeend', `<div class="cell"><div class="sq">${H}${v}</svg></div><div class="big">${H}${v}</svg></div>${k}</div>`);
+}
+</script>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 384">
+  <style>
+    :root { --accent: #EF3124; --accent-soft: #FBE8E7; --white: #FFFFFF; --bg: #F3F4F5; --ink: #0B0B0C; }
+    .bg-white { fill: var(--white); } .bg-neutral { fill: var(--bg); } .bg-soft { fill: var(--accent-soft); }
+    .shape-accent { fill: var(--accent); } .shape-soft { fill: var(--accent-soft); } .shape-ink { fill: var(--ink); }
+    .ring-accent { fill: none; stroke: var(--accent); stroke-width: 8; }
+    .ring-soft { fill: none; stroke: var(--accent-soft); stroke-width: 8; }
+    .ring-ink { fill: none; stroke: var(--ink); stroke-width: 8; }
+  </style>
+  <g id="tile-1-1" transform="translate(0 0)"><rect class="bg-white" width="64" height="64"/><path class="shape-accent" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"/></g>
+  <g id="tile-1-2" transform="translate(64 0)"><rect class="bg-neutral" width="64" height="64"/><circle class="shape-accent" cx="32" cy="32" r="22"/></g>
+  <g id="tile-1-3" transform="translate(128 0)"><rect class="bg-soft" width="64" height="64"/><path class="shape-accent" transform="rotate(90 32 32)" d="M0 0 H64 L0 64 Z"/></g>
+  <g id="tile-1-4" transform="translate(192 0)"><rect class="bg-white" width="64" height="64"/><path class="shape-accent" transform="rotate(180 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"/></g>
+  <g id="tile-1-5" transform="translate(256 0)"><rect class="bg-neutral" width="64" height="64"/><circle class="ring-accent" cx="32" cy="32" r="20"/></g>
+  <g id="tile-1-6" transform="translate(320 0)"><rect class="bg-white" width="64" height="64"/><rect class="shape-ink" x="8" y="26" width="48" height="12" rx="6"/></g>
+  <g id="tile-2-1" transform="translate(0 64)"><rect class="bg-soft" width="64" height="64"/><path class="shape-soft" transform="rotate(90 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"/></g>
+  <g id="tile-2-2" transform="translate(64 64)"><rect class="bg-white" width="64" height="64"/><path class="shape-accent" transform="rotate(180 32 32)" d="M0 0 H64 L0 64 Z"/></g>
+  <g id="tile-2-3" transform="translate(128 64)"><rect class="bg-neutral" width="64" height="64"/><rect class="shape-accent" x="8" y="26" width="48" height="12" rx="6"/></g>
+  <g id="tile-2-4" transform="translate(192 64)"><rect class="bg-soft" width="64" height="64"/><path class="shape-accent" transform="rotate(180 32 32)" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"/></g>
+  <g id="tile-2-5" transform="translate(256 64)"><rect class="bg-white" width="64" height="64"/><circle class="shape-soft" cx="32" cy="32" r="22"/></g>
+  <g id="tile-2-6" transform="translate(320 64)"><rect class="bg-neutral" width="64" height="64"/><circle class="ring-accent" cx="32" cy="32" r="20"/></g>
+  <g id="tile-3-1" transform="translate(0 128)"><rect class="bg-neutral" width="64" height="64"/><circle class="ring-ink" cx="32" cy="32" r="20"/></g>
+  <g id="tile-3-2" transform="translate(64 128)"><rect class="bg-white" width="64" height="64"/><path class="shape-accent" transform="rotate(270 32 32)" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"/></g>
+  <g id="tile-3-3" transform="translate(128 128)"><rect class="bg-soft" width="64" height="64"/><circle class="shape-accent" cx="32" cy="32" r="22"/></g>
+  <g id="tile-3-4" transform="translate(192 128)"><rect class="bg-neutral" width="64" height="64"/><path class="shape-accent" d="M0 32 A32 32 0 0 1 64 32 Z"/></g>
+  <g id="tile-3-5" transform="translate(256 128)"><rect class="bg-white" width="64" height="64"/><path class="shape-ink" d="M0 0 H64 L0 64 Z"/></g>
+  <g id="tile-3-6" transform="translate(320 128)"><rect class="bg-soft" width="64" height="64"/><rect class="shape-accent" x="8" y="26" width="48" height="12" rx="6"/></g>
+  <g id="tile-4-1" transform="translate(0 192)"><rect class="bg-white" width="64" height="64"/><path class="shape-accent" transform="rotate(270 32 32)" d="M0 0 H64 L0 64 Z"/></g>
+  <g id="tile-4-2" transform="translate(64 192)"><rect class="bg-neutral" width="64" height="64"/><circle class="shape-soft" cx="32" cy="32" r="22"/></g>
+  <g id="tile-4-3" transform="translate(128 192)"><rect class="bg-white" width="64" height="64"/><circle class="ring-accent" cx="32" cy="32" r="20"/></g>
+  <g id="tile-4-4" transform="translate(192 192)"><rect class="bg-soft" width="64" height="64"/><path class="shape-soft" transform="rotate(90 32 32)" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"/></g>
+  <g id="tile-4-5" transform="translate(256 192)"><rect class="bg-neutral" width="64" height="64"/><rect class="shape-ink" x="8" y="26" width="48" height="12" rx="6"/></g>
+  <g id="tile-4-6" transform="translate(320 192)"><rect class="bg-white" width="64" height="64"/><path class="shape-accent" transform="rotate(270 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"/></g>
+  <g id="tile-5-1" transform="translate(0 256)"><rect class="bg-soft" width="64" height="64"/><path class="shape-accent" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"/></g>
+  <g id="tile-5-2" transform="translate(64 256)"><rect class="bg-white" width="64" height="64"/><path class="shape-accent" transform="rotate(90 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"/></g>
+  <g id="tile-5-3" transform="translate(128 256)"><rect class="bg-neutral" width="64" height="64"/><circle class="ring-accent" cx="32" cy="32" r="20"/></g>
+  <g id="tile-5-4" transform="translate(192 256)"><rect class="bg-white" width="64" height="64"/><path class="shape-soft" d="M0 0 H64 L0 64 Z"/></g>
+  <g id="tile-5-5" transform="translate(256 256)"><rect class="bg-soft" width="64" height="64"/><circle class="shape-accent" cx="32" cy="32" r="22"/></g>
+  <g id="tile-5-6" transform="translate(320 256)"><rect class="bg-neutral" width="64" height="64"/><path class="shape-accent" transform="rotate(180 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"/></g>
+  <g id="tile-6-1" transform="translate(0 320)"><rect class="bg-neutral" width="64" height="64"/><rect class="shape-accent" x="8" y="26" width="48" height="12" rx="6"/></g>
+  <g id="tile-6-2" transform="translate(64 320)"><rect class="bg-soft" width="64" height="64"/><circle class="shape-accent" cx="32" cy="32" r="22"/></g>
+  <g id="tile-6-3" transform="translate(128 320)"><rect class="bg-white" width="64" height="64"/><path class="shape-soft" transform="rotate(270 32 32)" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"/></g>
+  <g id="tile-6-4" transform="translate(192 320)"><rect class="bg-neutral" width="64" height="64"/><circle class="ring-accent" cx="32" cy="32" r="20"/></g>
+  <g id="tile-6-5" transform="translate(256 320)"><rect class="bg-white" width="64" height="64"/><path class="shape-accent" transform="rotate(180 32 32)" d="M0 0 H64 L0 64 Z"/></g>
+  <g id="tile-6-6" transform="translate(320 320)"><rect class="bg-soft" width="64" height="64"/><path class="shape-accent" transform="rotate(90 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"/></g>
+</svg>
