@@ -1,7 +1,20 @@
-# Промпты под картинки сайта · 12.10
+# Промпты под картинки сайта · v2, 12.10
 
-Куда: места, которые Тоня пометила зелёными звёздами в фигме (лендинг 46:149, анкета 50:301). Сейчас там иконки и узор из кода, картинки их заменят.
-Промпты на английском: модели держат его лучше. Текста на картинках нет нигде: весь текст живёт в вёрстке.
+Куда: места, которые Тоня пометила зелёными звёздами в фигме (лендинг 46:149, анкета 50:301).
+Цель v2: всё, что нагенерим, потом **редактируется в Claude Design** с дизайн-системой «Кредитный агент · Альфа».
+
+## Главное правило: два вида выхода
+
+Claude Design собирает экраны из HTML и SVG. SVG там правится до точки: цвет, форма, размер. Растровая картинка (PNG) только двигается и масштабируется как есть.
+
+| что | чем генерим | выход | что потом можно править в Claude Design |
+|---|---|---|---|
+| узор (№1) | чат ChatGPT / Qwen / Gemini, **текстом** | SVG-код | всё: цвета, плитки, размер сетки |
+| иконки (№2, №3) | чат ChatGPT / Qwen / Gemini, **текстом** | SVG-код | всё: толщина линии, цвета, детали |
+| 3D-объекты для hero (№4) | картинка: ChatGPT / Nano Banana / Qwen-Image / Canva | PNG, каждый объект отдельным файлом, без фона | расстановку, размер, порядок слоёв, тень под ними |
+| иллюстрация «Зачем спрашиваем» (№5) | картинка, так же | PNG отдельными объектами | так же |
+
+Отсюда три правила для картинок: **без текста** (текст живёт в вёрстке), **без фона** (прозрачный или однотонный под вырез), **один объект на файл** (компоновку делаем в Claude Design, а не в нейронке).
 
 ## Палитра (в каждом промпте, не убирать)
 
@@ -16,105 +29,120 @@
 
 Пропорция: красный и розовый 60%, белый и серый 30%, чёрный и зелёный не больше 10%.
 
-## На что тратить что
+## Куда складывать
 
-| инструмент | что ему отдать | почему |
-|---|---|---|
-| ChatGPT (1–2 генерации) | **набор из 4 иконок одним листом** (№2) | одна генерация = 4 одинаковые по стилю иконки, прозрачный фон, OpenAI это умеет параметром |
-| Nano Banana | hero-картинка (№1 B) и «Зачем спрашиваем» (№4) | у Google есть шаблон «минимализм и негативное пространство», ровно наш случай |
-| Qwen | узор (№1 A) и иконки нужд (№3) | честный негатив-промпт, рисует геометрию чисто |
-| Canva | узор для фона (№1 A) как запасной | Magic Media берёт только текст промпта, стиль выбираешь кнопкой |
-
-Порядок: сначала №2 в ChatGPT (дороже всего, сделать один раз и хорошо), потом №1 в Nano Banana и Qwen, лучшее выбираем глазами.
+Всё в `hw/tonya/generated/`, имя по номеру: `01-pattern.svg`, `02-icon-find.svg`, `04-coins.png`. Клод загружает их в дизайн-систему (группы Patterns, Icons, Illustrations), и в Claude Design они уже под рукой вместе с токенами. Тоне показать до сайта: места её, финальное слово её.
 
 ---
 
-## №1 · Hero, большая звезда справа от заголовка (квадрат, 400×400 на сайте)
+## №1 · Узор на месте большой звезды (SVG-кодом)
 
-Тоня за обедом хотела «узорчик прикольный», поэтому два варианта: A узор, B объект.
+Вставляешь в обычный чат (ChatGPT, Qwen Chat или Gemini), не в генератор картинок.
 
-### A · Узор (Qwen, Canva)
+```
+Write a single self-contained SVG file, nothing else in the answer except the code.
 
-**Qwen** (разрешение 1328×1328):
-```
-A seamless square geometric pattern in Bauhaus style: a 6 by 6 grid of square tiles, each tile holding one flat shape: a quarter circle, a half circle, a full disc, a ring, a diagonal triangle or a short rounded bar, rotated in different directions. Strictly flat vector colors: Alfa red #EF3124, pale pink #FBE8E7, white #FFFFFF, light grey #F3F4F5, with a few near-black #0B0B0C shapes as accents (no more than one in eight tiles). Crisp edges, no gradients, no shadows, no texture, no text. Ultra HD, 4K.
-```
-Негатив-промпт:
-```
-text, letters, logo, watermark, gradient, 3d, shadow, blur, noise, texture, people, photo, low resolution, distorted shapes, messy composition
+Purpose: a decorative square pattern for the hero section of a business banking website. It will be edited later in a design tool, so the code must be clean and editable.
+
+Canvas: viewBox="0 0 384 384", no width or height attributes.
+Grid: 6 by 6 square tiles of 64 by 64.
+Each tile: a background rect plus exactly one flat shape chosen from: quarter circle, half circle, full disc, ring (stroke 8), right triangle, short rounded bar. Rotate shapes in steps of 90 degrees so the grid feels rhythmic, not random noise.
+
+Colors: define them once as CSS variables in a <style> block and use only these, via classes:
+--accent: #EF3124; --accent-soft: #FBE8E7; --white: #FFFFFF; --bg: #F3F4F5; --ink: #0B0B0C.
+Tile backgrounds use only white, bg and accent-soft. Shapes are mostly accent, some accent-soft, and ink in at most 4 tiles.
+
+Code rules: group each tile in <g id="tile-ROW-COL">, use plain <rect>, <circle>, <path>; no filters, no gradients, no masks, no text, no embedded images, no scripts. Round coordinates to whole numbers.
 ```
 
-**Canva** (Magic Media → стиль «Без стиля» или «Минимализм», квадрат):
-```
-Flat geometric Bauhaus tile pattern, square grid of circles, quarter circles, half circles and triangles, colors only red #EF3124, pale pink #FBE8E7, white and light grey #F3F4F5, a few black #0B0B0C accents, crisp flat vector, no text, no gradients
-```
+Если ритм не нравится, второй заход: `Keep the same code structure and palette. Change only the shapes in rows 2 and 5 so there are more half circles. Return the full SVG again.`
 
-### B · Объект (Nano Banana, формат 1:1)
-
-Шаблон Google «минимализм и негативное пространство» + «стилизованная иллюстрация»:
+**Запасной вариант картинкой** (Canva Magic Media или Qwen-Image), если SVG выйдет скучным. Тогда в Claude Design он только картинкой, без правки:
 ```
-A minimalist 3D illustration for the hero section of a business banking website. A single sculptural composition placed slightly right of center: a stack of three smooth rounded coins, a short ascending bar chart made of soft rounded blocks, and a small calendar card with one day highlighted, arranged as if resting on an invisible surface. Matte clay material with soft studio lighting from the top left and gentle contact shadows. Color palette strictly: Alfa red #EF3124 for the main forms, pale pink #FBE8E7 for secondary forms, white #FFFFFF highlights, one tiny accent in green #13A463 on the highest bar. Background is a flat light grey #F3F4F5 with large empty space around the objects. Friendly, calm, trustworthy mood for small business owners. No text, no numbers, no logos, no people, no watermark.
+Flat geometric Bauhaus tile pattern, 6 by 6 square grid of quarter circles, half circles, discs, rings and triangles, colors only red #EF3124, pale pink #FBE8E7, white #FFFFFF and light grey #F3F4F5, a few black #0B0B0C accents, crisp flat vector, no text, no gradients, no shadows
 ```
+Qwen-Image: 1328×1328, негатив-промпт `text, letters, logo, watermark, gradient, 3d, shadow, blur, noise, texture, people, photo, low resolution, distorted shapes`.
 
 ---
 
-## №2 · Четыре иконки фич на лендинге (ChatGPT, одной генерацией)
+## №2 · Четыре иконки фич на лендинге (SVG-кодом)
 
-Подбор финансирования · Оценка и рекомендации · Управление кредитом · Всегда рядом. На сайте 48×48 в розовом квадрате, рисуем крупно, потом режем.
-Настройки, если есть выбор: `1536x1024`, качество high, прозрачный фон.
+Подбор финансирования · Оценка и рекомендации · Управление кредитом · Всегда рядом. На сайте 24 px внутри розового квадрата 48 px.
 
 ```
-Intended use: a set of four feature icons for a business banking website, displayed small (48 px) next to headings.
+Write four separate SVG icons, each in its own code block, nothing else in the answer.
 
-Scene: one landscape sheet with four separate icons in a single row, evenly spaced, each centered in its own equal cell with generous padding. Fully transparent background, no backdrop, no checkerboard.
+Purpose: feature icons for a business banking website, shown at 24 px inside a pale pink square. They will be edited later in a design tool, so keep the code minimal and editable.
 
-Icons, left to right:
-1. "Find financing": a magnifying glass over a rounded coin.
-2. "Assessment and recommendations": a clipboard with a checkmark.
-3. "Loan management": a calendar card with one highlighted day and a small coin.
-4. "Always here": a rounded chat bubble with two short lines inside.
+Every icon: viewBox="0 0 24 24", fill="none", stroke="#EF3124", stroke-width="1.8", stroke-linecap="round", stroke-linejoin="round". Line icons only, no fills, no text. Simple geometry, 2 to 5 shapes per icon, readable at 24 px. Same visual weight and corner style across all four.
 
-Style, identical for all four: soft 3D clay icons, simple rounded geometry, strong silhouettes that read at 48 px, same camera angle (slight top-down three-quarter view), same soft light from the top left, same scale. Colors strictly from this palette: main forms Alfa red #EF3124, secondary forms pale pink #FBE8E7, highlights white #FFFFFF, small details near-black #0B0B0C. No other colors.
+1. "Find financing": a magnifying glass with a small plus inside the lens.
+2. "Assessment and recommendations": a square with a checkmark, the top-right corner of the square open.
+3. "Loan management": a calendar with two binding rings and one short line for a date.
+4. "Always here": a rounded chat bubble with a tail at the bottom-left and two short text lines inside.
 
-Constraints: no text, no letters, no numbers, no logos or trademarks, no watermark, no drop shadows outside the icon, clean edges with no halos or fringing.
+Code rules: plain <path>, <circle>, <rect>, <line>; no transforms, no groups unless needed, whole or .5 coordinates.
 ```
 
-Если первая генерация почти ок, вторая только правкой (шаблон OpenAI):
+## №3 · Иконки карточек анкеты «Что вам нужно?» (SVG-кодом)
+
+Тот же чат, сразу следом, чтобы стиль совпал:
 ```
-Change only icon 3: make the calendar simpler, fewer details. Keep everything else the same, including colors, lighting, camera angle, scale and the transparent background. Do not add new elements, text or logos.
-```
-
----
-
-## №3 · Иконки карточек анкеты «Что вам нужно?» (Qwen или Nano Banana)
-
-Старт бизнеса · Закупка · Кассовый разрыв · Другое. Те же правила, что №2, чтобы стиль совпал: если №2 вышел хорошим, приложи его картинкой и допиши «same style as the attached icons».
-
-**Nano Banana** (1:1, по одной иконке, меняешь только строку предмета):
-```
-A single soft 3D clay icon for a business banking form, centered on a plain white #FFFFFF background with lots of padding. Subject: [a small rocket lifting off from a coin | a cardboard box with a pale pink lid | a coin bridging a small gap between two blocks | four small rounded shapes in a 2 by 2 grid]. Simple rounded geometry, strong silhouette readable at 40 px, slight top-down three-quarter view, soft light from the top left. Colors strictly: Alfa red #EF3124 main forms, pale pink #FBE8E7 secondary forms, white highlights, tiny near-black #0B0B0C details. No text, no logos, no watermark.
-```
-
-**Qwen** (1328×1328): тот же текст, плюс негатив-промпт из №1 A.
-
----
-
-## №4 · «Зачем мы спрашиваем данные?» (Nano Banana, 4:5)
-
-Блок справа от анкеты, мягкий розовый градиент. Картинка встаёт в верх блока, текст под ней.
-```
-A minimalist 3D illustration, portrait 4:5. Bottom half: a small open folder made of matte pale pink #FBE8E7 clay with three rounded document cards peeking out, the front card marked only with a red #EF3124 checkmark shape and a tiny green #13A463 dot. A soft red #EF3124 shield shape rests against the folder, meaning the data is protected. Top half: completely empty flat background fading from white #FFFFFF to pale pink #FBE8E7, left for text. Soft studio light from the top left, gentle contact shadow. Calm, safe, trustworthy mood. No text, no letters, no logos, no people, no watermark.
+Same style and the same rules as the four icons above. Four more icons:
+1. "Start a business": a small rocket at a 45 degree angle with a short exhaust line.
+2. "Purchasing stock": a box in three-quarter view, the top edge of the lid visible.
+3. "Cash gap": a pulse line that dips once and comes back up.
+4. "Other": a small house with a door, simple roof.
 ```
 
 ---
 
-## Что делаем с готовым
+## №4 · 3D-объекты для hero (картинкой, каждый объект отдельно)
 
-Скидываешь в `hw/tonya/generated/` (имя по номеру: `01b-hero.png`, `02-features.png`) или прямо в чат, Клод режет лист, жмёт в webp и ставит на сайт вместо иконок и узора. Тоне показать до сайта: места её, финальное слово её.
+Если узор из №1 Тоне не зашёл, на место звезды ставим композицию из 3D-объектов. Генерим их **по одному**, одинаковым светом, без фона, а складываем в Claude Design. Так можно двигать, менять размер и выкидывать лишнее.
+
+Объекты: (a) стопка из трёх монет, (b) столбики роста из трёх скруглённых блоков, (c) карточка-календарь с одним выделенным днём, (d) щит со скруглёнными углами.
+
+**ChatGPT** (прозрачный фон умеет сам; настройки, если есть выбор: 1024×1024, качество high, фон transparent). Одна генерация = один объект, меняешь только строку `Object:`.
+```
+Intended use: one isolated 3D object for a website hero. It will be placed and arranged together with other objects in a design tool, so it must stand alone.
+
+Object: [a stack of three smooth rounded coins | three rounded blocks rising like a bar chart, the tallest with a tiny green #13A463 top | a small calendar card with one highlighted day | a rounded shield].
+
+Style: soft 3D clay, matte, simple rounded geometry, slight top-down three-quarter view, soft light from the top left. Colors strictly: main forms Alfa red #EF3124, secondary forms pale pink #FBE8E7, highlights white #FFFFFF, tiny details near-black #0B0B0C.
+
+Background: fully transparent, object centered with generous padding. No backdrop, no floor, no shadow outside the object, clean edges with no halos or fringing.
+Constraints: no text, no numbers, no letters, no logos, no watermark.
+```
+
+**Nano Banana** (1:1). Прозрачный фон в документации Gemini не обещан, поэтому однотонный фон под вырез, вырезаешь потом кнопкой «удалить фон» в Canva:
+```
+A single isolated 3D object for a website, centered on a perfectly flat, uniform light grey #F3F4F5 background with generous padding, no floor, no horizon, no cast shadow on the background. Object: [один из списка выше]. Soft matte 3D clay, simple rounded geometry, slight top-down three-quarter view, soft light from the top left. Colors strictly: Alfa red #EF3124 main forms, pale pink #FBE8E7 secondary forms, white highlights, tiny near-black #0B0B0C details. No text, no numbers, no logos, no watermark.
+```
+
+**Qwen-Image** (1328×1328): тот же текст, что для Nano Banana, плюс негатив-промпт `text, letters, logo, watermark, floor, horizon, background objects, cast shadow, gradient background, low resolution, distorted shapes, messy composition`.
+
+## №5 · «Зачем мы спрашиваем данные?» (картинкой, объекты отдельно)
+
+Объекты: (a) открытая папка из бледно-розовой глины с тремя карточками-документами, на передней только красная галочка, (b) щит из №4, его переиспользуем. Фон блока даёт вёрстка (градиент из токенов), его не генерим. Промпт тот же, что в №4, строка `Object:`:
+```
+a small open folder made of pale pink #FBE8E7 clay with three rounded document cards peeking out, the front card marked only with a red #EF3124 checkmark shape and a tiny green #13A463 dot
+```
+
+---
+
+## В Claude Design
+
+Открываешь новый дизайн с системой «Кредитный агент · Альфа», загружаешь файлы из `hw/tonya/generated/` и пишешь:
+```
+Use the design system "Кредитный агент · Альфа". Place 01-pattern.svg into the hero illustration slot (400 by 400, radius-art corners). Use the SVG icons from 02 and 03 inside 48 px squares filled with accent-soft, radius 14. Keep all colors as tokens from the system, do not introduce new colors.
+```
+Готовый дизайн кидаешь Клоду ссылкой со словами «перенеси на сайт».
 
 ## Источники
 
-- OpenAI, GPT Image Generation Models Prompting Guide: порядок «сцена → объект → детали → ограничения», назвать назначение картинки, прозрачный фон и чистые края для иконок, шаблон правки «Change only X, keep everything else the same». https://developers.openai.com/cookbook/examples/multimodal/image-gen-models-prompting-guide.md
-- Google, Gemini API · Image generation: шаблоны «стилизованная иллюстрация» и «минимализм и негативное пространство» (объект не в центре, большое пустое поле под текст), «чем конкретнее, тем больше контроля». https://ai.google.dev/gemini-api/docs/image-generation
-- Qwen, README Qwen-Image: разрешения (1:1 = 1328×1328), негатив-промпт, хвост «Ultra HD, 4K», текст на картинке в кавычках. https://github.com/QwenLM/Qwen-Image
+- OpenAI, GPT Image Generation Models Prompting Guide: назвать назначение картинки, порядок «сцена → объект → детали → ограничения», прозрачный фон (`background="transparent"`, PNG), чистые края без ореолов, правка «Change only X, keep everything else the same». https://developers.openai.com/cookbook/examples/multimodal/image-gen-models-prompting-guide.md
+- Google, Gemini API · Image generation: шаблоны «стилизованная иллюстрация» и «минимализм и негативное пространство», «чем конкретнее, тем больше контроля». Про прозрачный фон в доке ничего не нашёл, поэтому однотонный фон и вырез. https://ai.google.dev/gemini-api/docs/image-generation
+- Qwen, README Qwen-Image: разрешения (1:1 = 1328×1328), негатив-промпт. https://github.com/QwenLM/Qwen-Image
 - Canva, справка Magic Media: модель берёт только текст промпта, чем конкретнее, тем лучше. Официального гайда по Dream Lab не нашёл. https://www.canva.com/help/using-magic-media/
+- SVG-кодом вместо картинки: это моё решение под Claude Design, не из гайдов.
