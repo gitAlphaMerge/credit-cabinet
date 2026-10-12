@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Анкета · Кредитный агент</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/">
+      <span class="logo-mark"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill-rule="evenodd" d="M12.2975 11.0981L10.25 5.04891C10.056 4.45979 9.82608 4 9.05018 4C8.27428 4 8.03719 4.45979 7.82885 5.04891L5.7023 11.0981H7.13916L7.62769 9.66121H10.3433L10.8031 11.0981H12.2975ZM9.90511 8.44707H8.01564L8.9927 5.57336L9.90511 8.44707ZM12.5921 14H5.40784V12.5631H12.5921V14Z" fill="#fff"/></svg></span>
+      Альфа-Банк <span class="biz">Бизнес</span>
+    </a>
+    <nav class="nav" aria-label="Разделы">
+      <a href="/" aria-current="page">Подбор финансирования</a>
+      <a href="/#cabinet">Кредитный кабинет</a>
+      <a href="/#features">Аналитика</a>
+      <a href="/#features">О продукте</a>
+    </nav>
+    <a class="user" href="#" aria-label="Профиль"><svg class="line" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></a>
+  </div>
+</header>
+
+<main class="page">
+  <div class="wrap">
+    <div>
+      <span class="tag"><svg class="line" viewBox="0 0 24 24"><path d="M9 4h6l1 2h3v15H5V6h3z"/><path d="M9 11h6M9 15h4"/></svg>Анкета для подбора финансирования</span>
+      <h1>Расскажите о своём бизнесе: мы подберём лучшее решение</h1>
+      <p class="lead">Ответьте на несколько вопросов, это займёт не более 3 минут. Чем больше мы узнаем о бизнесе, тем точнее подберём финансирование</p>
+
+      <form class="form" id="form" novalidate>
+        <fieldset>
+          <legend><span class="qn"><i>1</i>Что Вам нужно?</span><small>Выберите, какую задачу Вы хотите решить с помощью финансирования</small></legend>
+          <div class="needs">
+            <label><input class="sr" type="radio" name="need" value="старт" required><span class="need">
+              <span class="ic"><svg class="line" viewBox="0 0 24 24"><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2c.8-.8.8-2.2 0-3s-2.2-.8-3 0z"/><path d="M12 15l-3-3a20 20 0 0 1 9-9c2 0 3 1 3 3a20 20 0 0 1-9 9z"/><path d="M9 12H4s.5-3 2-4 5 0 5 0M12 15v5s3-.5 4-2 0-5 0-5"/></svg></span>
+              <span><b>Старт бизнеса</b><span>финансирование на открытие нового дела</span></span></span></label>
+            <label><input class="sr" type="radio" name="need" value="закупка"><span class="need">
+              <span class="ic"><svg class="line" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg></span>
+              <span><b>Закупка</b><span>пополнение товарных запасов, сырья, материалов</span></span></span></label>
+            <label><input class="sr" type="radio" name="need" value="кассовый разрыв"><span class="need">
+              <span class="ic"><svg class="line" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span>
+              <span><b>Кассовый разрыв</b><span>поддержка оборотных средств и текущих платежей</span></span></span></label>
+            <label><input class="sr" type="radio" name="need" value="другое"><span class="need">
+              <span class="ic"><svg class="line" viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-5 7 5v11M10 21v-6h4v6"/></svg></span>
+              <span><b>Другое</b><span>расширение, инвестиции, рефинансирование и т.д.</span></span></span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend><span class="qn"><i>2</i>Кто Вы?</span></legend>
+          <div class="pills">
+            <label><input class="sr" type="radio" name="form" value="ИП" required><span class="pill"><span class="dot"></span>ИП</span></label>
+            <label><input class="sr" type="radio" name="form" value="ООО"><span class="pill"><span class="dot"></span>ООО</span></label>
+            <label><input class="sr" type="radio" name="form" value="АО"><span class="pill"><span class="dot"></span>АО</span></label>
+            <label><input class="sr" type="radio" name="form" value="другое"><span class="pill"><span class="dot"></span>Другое</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <div class="select">
+            <label for="sector" class="qn"><i>3</i>В какой сфере работаете?</label>
+            <select id="sector" name="sector" required>
+              <option value="">IT, производство, торговля, услуги...</option>
+              <option>IT</option><option>Производство</option><option>Торговля</option><option>Услуги</option>
+              <option>Строительство</option><option>Общепит</option><option>Транспорт и логистика</option><option>Другое</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend><span class="qn"><i>4</i>Сколько лет на рынке?</span></legend>
+          <div class="pills">
+            <label><input class="sr" type="radio" name="years" value="меньше 1" required><span class="pill"><span class="dot"></span>Менее 1 года</span></label>
+            <label><input class="sr" type="radio" name="years" value="1-3"><span class="pill"><span class="dot"></span>1–3 года</span></label>
+            <label><input class="sr" type="radio" name="years" value="3-5"><span class="pill"><span class="dot"></span>3–5 лет</span></label>
+            <label><input class="sr" type="radio" name="years" value="больше 5"><span class="pill"><span class="dot"></span>Более 5 лет</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend><span class="qn"><i>5</i>Как работает бизнес?</span></legend>
+          <div class="pills">
+            <label><input class="sr" type="radio" name="trend" value="в плюс" required><span class="pill"><span class="dot"></span>Прибыльный</span></label>
+            <label><input class="sr" type="radio" name="trend" value="в минус"><span class="pill"><span class="dot"></span>Убыточный</span></label>
+            <label><input class="sr" type="radio" name="trend" value="в ноль"><span class="pill"><span class="dot"></span>В ноль</span></label>
+          </div>
+        </fieldset>
+
+        <div class="form-foot">
+          <span class="left" id="left" aria-live="polite">Осталось ответить: 5</span>
+          <button class="btn btn-primary" type="submit" id="go" disabled>Продолжить</button>
+        </div>
+        <div class="done" id="done" role="status">Анкета сохранена. Дальше разговор с агентом и выписка по счёту: экран «Разговор v2» сейчас собирается.</div>
+      </form>
+    </div>
+
+    <aside>
+      <div class="why">
+        <h2>Зачем мы спрашиваем данные?</h2>
+        <div class="why-item"><span class="ic"><svg class="line" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>
+          <div><b>Понимаем Ваши цели</b><span>Подбираем подходящий инструмент финансирования</span></div></div>
+        <div class="why-item"><span class="ic"><svg class="line" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-6"/></svg></span>
+          <div><b>Анализируем бизнес</b><span>Оцениваем текущее состояние и перспективы</span></div></div>
+        <div class="why-item"><span class="ic"><svg class="line" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span>
+          <div><b>Сверяем с условиями банка</b><span>Покажем, каких условий не хватает и как их закрыть</span></div></div>
+        <div class="why-item"><span class="ic"><svg class="line" viewBox="0 0 24 24"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg></span>
+          <div><b>Предлагаем оптимальные условия</b><span>Рассматриваем все продукты Альфа-Банка с учётом Вашего бизнеса</span></div></div>
+        <div class="why-card"><span class="ic" style="width:40px;height:40px;background:var(--accent-soft)"><svg class="line" viewBox="0 0 24 24" style="width:20px;height:20px"><path d="M5 12l5 5L20 7"/></svg></span>
+          <div><b>Всего несколько шагов до решения</b><span>Вы всегда можете вернуться и продолжить позже</span></div></div>
+      </div>
+      <div class="manager"><a class="btn btn-primary" href="#">Позвать менеджера</a></div>
+    </aside>
+  </div>
+</main>
+
+<script>
+(() => {
+  const form = document.getElementById('form');
+  const go = document.getElementById('go');
+  const left = document.getElementById('left');
+  const names = ['need', 'form', 'sector', 'years', 'trend'];
+  const KEY = 'anketa-v1';
+
+  const answers = () => Object.fromEntries(names.map(n => [n, (new FormData(form).get(n) || '').toString()]));
+
+  function sync() {
+    const a = answers();
+    const missing = names.filter(n => !a[n]).length;
+    go.disabled = missing > 0;
+    left.textContent = missing ? `Осталось ответить: ${missing}` : 'Всё заполнено';
+  }
+
+  // черновик анкеты живёт только в этой вкладке
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(KEY) || '{}');
+    for (const [n, v] of Object.entries(saved)) {
+      const el = form.elements[n];
+      if (el && v) el.value = v;
+    }
+  } catch (e) {}
+
+  form.addEventListener('change', () => {
+    try { sessionStorage.setItem(KEY, JSON.stringify(answers())); } catch (e) {}
+    sync();
+  });
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (go.disabled) return;
+    document.getElementById('done').classList.add('on');
+  });
+
+  sync();
+})();
+</script>
+</body>
+</html>
