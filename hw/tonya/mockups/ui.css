@@ -1,0 +1,62 @@
+/* Мокапы кредитного агента v2 · токены Альфы (alfa-ui-primitives), серый текста затемнён до AA */
+:root{
+  --bg:#F3F4F5; --card:#FFFFFF; --muted-bg:#E9E9EB; --line:#DCDCDD; --line-soft:#ECECEE;
+  --ink:#0E0E10; --ink-2:#55555F; --ink-3:#8A8A8E;
+  --accent:#EF3124; --accent-press:#D41F12;
+  --ok:#0E7A45; --ok-bg:#E7F6EF; --ok-gfx:#2FC26E;
+  --warn:#8A5A08; --warn-bg:#F7EBD9; --warn-gfx:#F6BF65;
+  --neg:#B8180A; --neg-bg:#FBE8E7;
+  --info:#0060CA; --info-bg:#D6E8FC;
+  --r-btn:12px; --r-in:14px; --r-card:20px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:inherit}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--r-card)}
+.row{display:flex;align-items:center}
+.col{display:flex;flex-direction:column}
+
+/* шапка */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 40px;background:var(--card);border-bottom:1px solid var(--line-soft)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px}
+.brand-mark{width:28px;height:28px;border-radius:8px;background:var(--ink);display:flex;align-items:center;justify-content:center}
+.steps{display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600;color:var(--ink-2)}
+.steps .s{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px}
+.steps .s b{width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--muted-bg);color:var(--ink-2)}
+.steps .s.on{background:var(--ink);color:#fff}
+.steps .s.on b{background:#fff;color:var(--ink)}
+.steps .s.done b{background:var(--ok-bg);color:var(--ok)}
+.steps .sep{width:16px;height:1px;background:var(--line)}
+
+/* кнопки */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:var(--r-btn);font:inherit;font-weight:700;text-decoration:none;border:1px solid transparent;cursor:pointer;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-dark{background:var(--ink);color:#fff}
+.btn-ghost{background:var(--card);border-color:var(--line);color:var(--ink)}
+.btn-sm{min-height:40px;padding:0 14px;font-size:14px}
+
+/* бейджи источника */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}
+.b-said{background:var(--warn-bg);color:var(--warn)}
+.b-no{background:var(--muted-bg);color:var(--ink-2)}
+
+/* статусы */
+.status{display:flex;gap:16px;align-items:flex-start;padding:24px;border-radius:var(--r-card)}
+.status .ico{flex:none;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.st-ok{background:var(--ok-bg)} .st-ok .ico{background:var(--ok);color:#fff}
+.st-step{background:var(--warn-bg)} .st-step .ico{background:#C27C0E;color:#fff}
+.st-alt{background:var(--info-bg)} .st-alt .ico{background:var(--info);color:#fff}
+.st-human{background:var(--muted-bg)} .st-human .ico{background:var(--ink-2);color:#fff}
+
+/* чипы */
+.chip{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);font:inherit;font-size:14px;font-weight:600;color:var(--ink)}
+
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i-sm{width:14px;height:14px}
+svg.i-lg{width:24px;height:24px}

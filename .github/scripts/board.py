@@ -56,7 +56,9 @@ def board_text():
         its = items(p.read_text(encoding="utf-8"))
         done = sum(d for d, _ in its)
         head = p.read_text(encoding="utf-8").splitlines()[0]
-        deadline = head.split("—")[-1].strip() if "—" in head else ""
+        # срок — хвост заголовка с «до …»; старый формат держал его после длинного тире
+        m = re.search(r"\bдо\s.+$", head)
+        deadline = m.group(0).strip() if m else (head.split("—")[-1].strip() if "—" in head else "")
         lines.append(f"{NAMES[n]} · {done}/{len(its)} · {deadline}")
         lines += [f"  ▫️ {t}" for d, t in its if not d]
         lines.append("")
