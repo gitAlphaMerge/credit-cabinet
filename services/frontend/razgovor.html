@@ -18,8 +18,8 @@
 .chat-head .btn { margin-left: auto; padding: 10px 16px; font-size: 14px; background: var(--bg); color: var(--ink); }
 .feed { flex: 1; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
 .msg { max-width: 78%; padding: 12px 16px; border-radius: 16px; font-size: 15px; line-height: 1.45; animation: rise 200ms ease-out; }
-.msg.agent { background: var(--bg); border-top-left-radius: 4px; align-self: flex-start; }
-.msg.user { background: var(--accent); color: #fff; border-top-right-radius: 4px; align-self: flex-end; }
+.msg.m-agent { background: var(--bg); border-top-left-radius: 4px; align-self: flex-start; }
+.msg.m-user { background: var(--accent); color: #fff; border-top-right-radius: 4px; align-self: flex-end; }
 .msg.typing { color: var(--ink-3); letter-spacing: 3px; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 14px; }
@@ -209,7 +209,7 @@ dialog p { color: var(--ink-2); margin: 8px 0 18px; font-size: 15px; }
   // ---------- лента
   function say(role, html) {
     const el = document.createElement('div');
-    el.className = 'msg ' + role;
+    el.className = 'msg m-' + role;
     el.innerHTML = html;
     feed.appendChild(el);
     el.scrollIntoView({ block: 'end', behavior: 'smooth' });
@@ -225,7 +225,7 @@ dialog p { color: var(--ink-2); margin: 8px 0 18px; font-size: 15px; }
     return el;
   }
   async function agent(text) {
-    const t = block('···', 'msg agent typing');
+    const t = block('···', 'msg m-agent typing');
     await sleep(500 + Math.random() * 300);
     t.remove();
     say('agent', text);
@@ -344,7 +344,7 @@ dialog p { color: var(--ink-2); margin: 8px 0 18px; font-size: 15px; }
     await analyse(rows);
   }
   async function analyse(rows) {
-    const list = block('<ul class="steps-list"></ul>', 'msg agent').firstChild;
+    const list = block('<ul class="steps-list"></ul>', 'msg m-agent').firstChild;
     const steps = [`Читаю ${rows.toLocaleString('ru-RU')} операций`, 'Считаю поток по месяцам', 'Ищу платежи по текущим кредитам', 'Стресс-тест: выручка −30%'];
     const call = score();
     for (const s of steps) { await sleep(450); const li = document.createElement('li'); li.textContent = s; list.appendChild(li); }
@@ -453,8 +453,9 @@ dialog p { color: var(--ink-2); margin: 8px 0 18px; font-size: 15px; }
 
   function chart(flow, payment) {
     const W = 560, H = 160, pad = 24, bw = (W - pad) / flow.length;
-    const max = Math.max(...flow.map(f => Math.abs(f.flow)), payment) || 1;
-    const y0 = H / 2, k = (H / 2 - 12) / max;
+    // ось нуля там, где нужно: без минусовых месяцев низ не пустует
+    const top = Math.max(...flow.map(f => f.flow), payment, 0), bottom = Math.min(...flow.map(f => f.flow), 0);
+    const k = (H - 28) / ((top - bottom) || 1), y0 = 12 + top * k;
     const bars = flow.map((f, i) => {
       const h = Math.abs(f.flow) * k, x = pad + i * bw + 3, y = f.flow >= 0 ? y0 - h : y0;
       const m = f.month.slice(5);
