@@ -96,8 +96,7 @@
           <span class="left" id="left" aria-live="polite">Осталось ответить: 5</span>
           <button class="btn btn-primary" type="submit" id="go" disabled>Продолжить</button>
         </div>
-        <div class="done" id="done" role="status">Анкета сохранена. Дальше разговор с агентом и выписка по счёту: экран «Разговор v2» сейчас собирается.</div>
-      </form>
+              </form>
     </div>
 
     <aside>
@@ -114,13 +113,20 @@
         <div class="why-card"><span class="ic" style="width:40px;height:40px;background:var(--accent-soft)"><svg class="line" viewBox="0 0 24 24" style="width:20px;height:20px"><path d="M5 12l5 5L20 7"/></svg></span>
           <div><b>Всего несколько шагов до решения</b><span>Вы всегда можете вернуться и продолжить позже</span></div></div>
       </div>
-      <div class="manager"><a class="btn btn-primary" href="#">Позвать менеджера</a></div>
+      <div class="manager"><button class="btn btn-primary" type="button" id="mgrBtn">Позвать менеджера</button></div>
     </aside>
   </div>
 </main>
 
+<dialog id="mgr" style="border:0;border-radius:16px;padding:24px;max-width:420px">
+  <b style="font-size:18px">Менеджер на связи</b>
+  <p style="color:var(--ink-2);margin:8px 0 18px">В прототипе менеджер не подключён. В продукте он получит ваши ответы, повторять ничего не придётся.</p>
+  <form method="dialog"><button class="btn btn-primary">Понятно</button></form>
+</dialog>
+
 <script>
 (() => {
+  document.getElementById('mgrBtn').onclick = () => document.getElementById('mgr').showModal();
   const form = document.getElementById('form');
   const go = document.getElementById('go');
   const left = document.getElementById('left');
@@ -153,7 +159,8 @@
   form.addEventListener('submit', e => {
     e.preventDefault();
     if (go.disabled) return;
-    document.getElementById('done').classList.add('on');
+    try { sessionStorage.setItem(KEY, JSON.stringify(answers())); } catch (e) {}
+    location.href = 'razgovor.html';
   });
 
   sync();

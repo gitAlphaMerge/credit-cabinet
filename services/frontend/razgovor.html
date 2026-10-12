@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Разговор с агентом · Кредитный агент</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>
+.talk { padding: 32px 0 64px; }
+.talk .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; align-items: start; }
+.chat { background: #fff; border-radius: var(--r); display: flex; flex-direction: column; min-height: 640px; }
+.chat-head { display: flex; align-items: center; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.chat-head b { font-size: 16px; }
+.chat-head small { display: block; color: var(--ink-3); font-size: 12px; }
+.chat-head .btn { margin-left: auto; padding: 10px 16px; font-size: 14px; background: var(--bg); color: var(--ink); }
+.feed { flex: 1; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 78%; padding: 12px 16px; border-radius: 16px; font-size: 15px; line-height: 1.45; animation: rise 200ms ease-out; }
+.msg.agent { background: var(--bg); border-top-left-radius: 4px; align-self: flex-start; }
+.msg.user { background: var(--accent); color: #fff; border-top-right-radius: 4px; align-self: flex-end; }
+.msg.typing { color: var(--ink-3); letter-spacing: 3px; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 14px; }
+.chip { font: inherit; font-size: 14px; font-weight: 600; padding: 9px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; cursor: pointer; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.composer { display: flex; gap: 10px; padding: 14px 22px 20px; border-top: 1px solid var(--line); }
+.composer input { flex: 1; font: inherit; font-size: 15px; border: 1.5px solid var(--line); border-radius: var(--r-in); padding: 12px 14px; }
+.composer input:focus { outline: none; border-color: var(--ink); }
+.composer .btn { padding: 12px 18px; font-size: 15px; }
+.drop { align-self: stretch; border: 1.5px dashed #b5b5b8; border-radius: var(--r-in); padding: 20px; text-align: center; font-size: 14px; color: var(--ink-2); animation: rise 200ms ease-out; }
+.drop.over { border-color: var(--accent); background: #fff8f7; }
+.drop b { display: block; color: var(--ink); font-size: 15px; margin-bottom: 4px; }
+.drop .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+.steps-list { list-style: none; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.steps-list li { display: flex; gap: 8px; align-items: center; color: var(--ink-2); animation: rise 200ms ease-out; }
+.steps-list li::before { content: ""; width: 16px; height: 16px; border-radius: 50%; background: var(--pos-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2313a463' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 12l4 4 8-8'/%3E%3C/svg%3E") center/12px no-repeat; flex: none; }
+
+.result { align-self: stretch; border: 1px solid var(--line); border-radius: var(--r); padding: 20px; display: grid; gap: 18px; animation: rise 250ms ease-out; }
+.status { display: flex; gap: 12px; align-items: center; }
+.status .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.status b { font-size: 20px; }
+.status-note { font-size: 12px; color: var(--ink-3); margin-top: -10px; }
+.s-ready .dot { background: var(--pos); }
+.s-ready_after_step .dot { background: #cb830f; }
+.s-other_instrument .dot { background: #0072ef; }
+.s-need_manager .dot { background: var(--ink-3); }
+.nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.nums div { background: var(--bg); border-radius: var(--r-in); padding: 14px; }
+.nums .dark { background: var(--ink); color: #fff; }
+.nums small { display: block; font-size: 12px; color: var(--ink-3); margin-bottom: 6px; }
+.nums .dark small { color: #b5b5b8; }
+.nums strong { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.nums em { display: block; font-style: normal; font-size: 13px; color: var(--pos); font-weight: 700; margin-top: 4px; }
+.eyebrow { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin-bottom: 8px; }
+.reasons { list-style: none; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.reasons li { display: flex; gap: 8px; }
+.reasons li::before { content: ""; width: 6px; height: 6px; margin-top: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+.next { display: flex; gap: 12px; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: var(--r-in); padding: 12px 14px; font-size: 14px; }
+.next span small { display: block; color: var(--ink-3); font-size: 12px; }
+.next .btn { padding: 10px 16px; font-size: 14px; flex: none; }
+.chart svg { width: 100%; height: auto; display: block; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-ghost { background: var(--bg); color: var(--ink); }
+.err { align-self: stretch; background: #fbe8e7; border-radius: var(--r-in); padding: 14px 16px; font-size: 14px; }
+.err .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+.known { background: #fff; border-radius: var(--r); padding: 22px; position: sticky; top: 16px; }
+.known h2 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+.known .share { font-size: 13px; color: var(--ink-3); margin-bottom: 14px; }
+.known .bar { height: 6px; border-radius: 3px; background: var(--bg); overflow: hidden; margin-bottom: 16px; }
+.known .bar i { display: block; height: 100%; background: var(--pos); width: 0; transition: width 400ms ease-out; }
+.field { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.field span:first-child { color: var(--ink-2); }
+.field b { display: block; color: var(--ink); font-size: 14px; }
+.badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.b-ok { color: var(--pos); background: var(--pos-soft); }
+.b-said { color: #8a5a06; background: #f7ebd9; }
+.b-none { color: var(--ink-3); background: var(--bg); }
+.badge.pulse { animation: pulse 600ms ease-out; }
+@keyframes pulse { 50% { transform: scale(1.15); } }
+
+dialog { border: 0; border-radius: var(--r); padding: 24px; max-width: 420px; }
+dialog::backdrop { background: rgba(11, 11, 12, .4); }
+dialog p { color: var(--ink-2); margin: 8px 0 18px; font-size: 15px; }
+
+@media (max-width: 960px) {
+  .talk .wrap { grid-template-columns: 1fr; }
+  .known { position: static; order: -1; }
+  .msg { max-width: 92%; }
+  .nums { grid-template-columns: 1fr; }
+  .chat-head .btn span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/">
+      <span class="logo-mark"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill-rule="evenodd" d="M12.2975 11.0981L10.25 5.04891C10.056 4.45979 9.82608 4 9.05018 4C8.27428 4 8.03719 4.45979 7.82885 5.04891L5.7023 11.0981H7.13916L7.62769 9.66121H10.3433L10.8031 11.0981H12.2975ZM9.90511 8.44707H8.01564L8.9927 5.57336L9.90511 8.44707ZM12.5921 14H5.40784V12.5631H12.5921V14Z" fill="#fff"/></svg></span>
+      Альфа-Банк <span class="biz">Бизнес</span>
+    </a>
+    <nav class="nav" aria-label="Разделы">
+      <a href="/" aria-current="page">Подбор финансирования</a>
+      <a href="/#cabinet">Кредитный кабинет</a>
+      <a href="/#features">Аналитика</a>
+      <a href="/#features">О продукте</a>
+    </nav>
+    <a class="user" href="#" aria-label="Профиль"><svg class="line" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></a>
+  </div>
+</header>
+
+<main class="talk">
+  <div class="wrap">
+    <section class="chat" aria-label="Разговор с агентом">
+      <div class="chat-head">
+        <span class="ic" style="width:40px;height:40px"><svg class="line" viewBox="0 0 24 24" style="width:20px;height:20px"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></span>
+        <div><b>Кредитный агент</b><small>Готовит заявку. Решение принимает банк</small></div>
+        <button class="btn btn-ghost" type="button" data-manager><span>Позвать </span>менеджера</button>
+      </div>
+      <div class="feed" id="feed" aria-live="polite"></div>
+      <div class="chips" id="chips"></div>
+      <form class="composer" id="composer">
+        <input id="input" autocomplete="off" placeholder="Напишите ответ" aria-label="Ваш ответ">
+        <button class="btn btn-primary" type="submit">Отправить</button>
+      </form>
+    </section>
+
+    <aside class="known" aria-label="Что мы уже знаем">
+      <h2>Что мы уже знаем</h2>
+      <div class="share" id="share">Подтверждено документами: 0 из 6</div>
+      <div class="bar"><i id="shareBar"></i></div>
+      <div id="fields"></div>
+    </aside>
+  </div>
+</main>
+
+<dialog id="mgr">
+  <b style="font-size:18px">Менеджер на связи</b>
+  <p>В прототипе менеджер не подключён. В продукте он получит весь разговор и выписку, повторять ничего не придётся.</p>
+  <form method="dialog"><button class="btn btn-primary">Понятно</button></form>
+</dialog>
+
+<script>
+(() => {
+  const API = '/api/score';
+  const DEMO = [
+    { file: 'cash_gap', title: 'Кровельщик', note: 'ООО, стройка, заказчик платит с задержкой' },
+    { file: 'equipment_leasing', title: 'Мебельный цех', note: 'ООО, нужен станок' },
+    { file: 'seasonal_ok', title: 'Садовый центр', note: 'ИП, сезонная выручка' },
+    { file: 'no_cashflow', title: 'Кофейня', note: 'ИП, денег впритык' },
+  ];
+  // анкета Тони → поля окошка (context/api-contract.md)
+  const NEED_MAP = { 'кассовый разрыв': 'кассовый разрыв', 'закупка': 'закупка под контракт', 'старт': 'рост' };
+  const YEARS_MAP = { 'меньше 1': 'меньше года', '1-3': '1–3', '3-5': 'больше 3', 'больше 5': 'больше 3' };
+  const TREND_MAP = { 'в плюс': 'в плюс', 'в минус': 'в минус', 'в ноль': 'около нуля' };
+
+  const $ = id => document.getElementById(id);
+  const feed = $('feed'), chips = $('chips'), input = $('input');
+  const rub = n => Math.round(n).toLocaleString('ru-RU') + ' ₽';
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  let anketa = {};
+  try { anketa = JSON.parse(sessionStorage.getItem('anketa-v1') || '{}'); } catch (e) {}
+
+  const state = {
+    need: { purpose: NEED_MAP[anketa.need] || null, asked_for: 'кредит' },
+    questionnaire: {
+      form: anketa.form || null,
+      years: anketa.need === 'старт' ? 'меньше года' : (YEARS_MAP[anketa.years] || null),
+      need: anketa.need || '', sector: anketa.sector || '', trend: TREND_MAP[anketa.trend] || '',
+    },
+    confirmed: {},
+    statement: null, statementName: '',
+    history: [],
+    waiting: null,
+  };
+
+  // ---------- панель «что мы уже знаем»
+  const FIELDS = [
+    ['purpose', 'Цель', () => state.need.purpose],
+    ['amount', 'Сумма', () => state.need.amount_rub && rub(state.need.amount_rub)],
+    ['term', 'Срок', () => state.need.term_months && state.need.term_months + ' мес'],
+    ['repay', 'Из чего вернёте', () => state.need.repay_from],
+    ['flow', 'Поток в месяц', () => state.flow != null && rub(state.flow)],
+    ['contract', 'Договор с заказчиком', () => {
+      const c = state.confirmed.contract_main_customer || state.need.contract_with_main_customer;
+      return c ? rub(c.sum_rub) + ' на ' + c.months + ' мес' : null;
+    }],
+  ];
+  const source = { purpose: 'said', amount: 'said', term: 'said', repay: 'said', flow: 'none', contract: 'none' };
+  const BADGE = { ok: ['b-ok', 'подтверждено'], said: ['b-said', 'со слов'], none: ['b-none', 'не проверено'] };
+
+  function renderKnown(changed) {
+    $('fields').innerHTML = FIELDS.map(([key, label, get]) => {
+      const v = get();
+      const [cls, text] = BADGE[v ? source[key] : 'none'];
+      return `<div class="field"><span>${label}<b>${v || '·'}</b></span>` +
+             `<span class="badge ${cls}${key === changed ? ' pulse' : ''}">${text}</span></div>`;
+    }).join('');
+    const ok = Object.values(source).filter(s => s === 'ok').length;
+    $('share').textContent = `Подтверждено документами: ${ok} из ${FIELDS.length}`;
+    $('shareBar').style.width = (ok / FIELDS.length * 100) + '%';
+  }
+
+  // ---------- лента
+  function say(role, html) {
+    const el = document.createElement('div');
+    el.className = 'msg ' + role;
+    el.innerHTML = html;
+    feed.appendChild(el);
+    el.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    state.history.push({ role, text: el.textContent });
+    return el;
+  }
+  function block(html, cls) {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.innerHTML = html;
+    feed.appendChild(el);
+    el.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    return el;
+  }
+  async function agent(text) {
+    const t = block('···', 'msg agent typing');
+    await sleep(500 + Math.random() * 300);
+    t.remove();
+    say('agent', text);
+  }
+  function offer(options, onPick) {
+    chips.innerHTML = '';
+    options.forEach(o => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = o;
+      b.onclick = () => answer(o);
+      chips.appendChild(b);
+    });
+    state.waiting = onPick;
+    input.focus({ preventScroll: true });
+  }
+  function answer(text) {
+    if (!state.waiting || !text.trim()) return;
+    const fn = state.waiting;
+    state.waiting = null;
+    chips.innerHTML = '';
+    say('user', text.replace(/</g, '&lt;'));
+    fn(text.trim());
+  }
+  $('composer').addEventListener('submit', e => { e.preventDefault(); answer(input.value); input.value = ''; });
+
+  const money = s => {
+    const m = s.replace(/\s/g, '').replace(',', '.').match(/(\d+(?:\.\d+)?)(млн|м|тыс|к)?/i);
+    if (!m) return null;
+    const k = { 'млн': 1e6, 'м': 1e6, 'тыс': 1e3, 'к': 1e3 }[(m[2] || '').toLowerCase()] || 1;
+    return Math.round(parseFloat(m[1]) * k);
+  };
+
+  // ---------- сценарий разговора: один вопрос за раз
+  async function start() {
+    renderKnown();
+    if (!anketa.need) {
+      await agent('Анкета не заполнена. <a href="anketa.html">Вернитесь к анкете</a>, это займёт 3 минуты.');
+      return;
+    }
+    const who = [state.questionnaire.form, state.questionnaire.sector].filter(Boolean).join(', ');
+    await agent(`Здравствуйте! Вижу по анкете: ${who}. Задам пару вопросов и попрошу выписку по счёту.`);
+    if (!state.need.purpose) return askPurpose();
+    askAmount();
+  }
+  async function askPurpose() {
+    await agent('На что именно нужны деньги?');
+    offer(['Оборудование', 'Сезон', 'Рост', 'Закупка под контракт', 'Кассовый разрыв'], v => {
+      state.need.purpose = v.toLowerCase();
+      renderKnown('purpose');
+      askAmount();
+    });
+  }
+  async function askAmount() {
+    await agent('Сколько нужно? Можно написать «1,5 млн» или «800 тыс».');
+    offer(['500 000 ₽', '1 500 000 ₽', '3 000 000 ₽'], async v => {
+      const n = money(v);
+      if (!n) { await agent('Не понял сумму. Напишите числом, например «1 500 000».'); return askAmount(); }
+      state.need.amount_rub = n;
+      renderKnown('amount');
+      askTerm();
+    });
+  }
+  async function askTerm() {
+    await agent('На какой срок?');
+    offer(['6 мес', '12 мес', '24 мес', '36 мес'], async v => {
+      const n = parseInt(v, 10);
+      if (!(n >= 1 && n <= 120)) { await agent('Срок от 1 до 120 месяцев, напишите числом.'); return askTerm(); }
+      state.need.term_months = n;
+      renderKnown('term');
+      askRepay();
+    });
+  }
+  async function askRepay() {
+    await agent('Когда и из чего планируете вернуть? Я сверю это с выпиской.');
+    offer(['Из оплаты по договору', 'Из текущей выручки', 'Из сезонной выручки'], v => {
+      state.need.repay_from = v.replace(/^Из /, '').toLowerCase();
+      renderKnown('repay');
+      if (/договор/i.test(v)) return askContract();
+      askStatement();
+    });
+  }
+  async function askContract() {
+    await agent('Какая сумма договора с главным заказчиком и на сколько месяцев?');
+    offer(['1 440 000 ₽ на 12 мес', 'Договора пока нет'], async v => {
+      if (/нет/i.test(v)) return askStatement();
+      const sum = money(v.split(/на/)[0]);
+      const months = parseInt((v.match(/на\s*(\d+)/) || [])[1] || '12', 10);
+      if (!sum) { await agent('Напишите так: «1 440 000 на 12 мес».'); return askContract(); }
+      state.need.contract_with_main_customer = { sum_rub: sum, months };
+      source.contract = 'said';
+      renderKnown('contract');
+      askStatement();
+    });
+  }
+  async function askStatement() {
+    await agent('Последний шаг: выписка по расчётному счёту за 12 месяцев, файлом CSV. По ней я проверю, что вы рассказали.');
+    const drop = block(`<b>Перетащите CSV сюда</b>колонки date, amount, counterparty, purpose
+      <div class="row"><label class="btn btn-primary" style="padding:10px 16px;font-size:14px">Выбрать файл<input type="file" accept=".csv,text/csv" hidden></label></div>
+      <div style="margin-top:14px">Нет выписки под рукой? Возьмите демо:</div>
+      <div class="row">${DEMO.map(d => `<button type="button" class="chip" data-demo="${d.file}" title="${d.note}">${d.title}</button>`).join('')}</div>`, 'drop');
+    const take = async (name, text) => { drop.remove(); await loaded(name, text); };
+    drop.querySelector('input').onchange = async e => { const f = e.target.files[0]; if (f) take(f.name, await f.text()); };
+    drop.querySelectorAll('[data-demo]').forEach(b => b.onclick = async () => {
+      const d = DEMO.find(x => x.file === b.dataset.demo);
+      const r = await fetch(`demo/${d.file}.csv`);
+      take(`${d.title} · демо.csv`, await r.text());
+    });
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', async e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) take(f.name, await f.text()); });
+  }
+  async function loaded(name, text) {
+    state.statement = text; state.statementName = name;
+    const rows = text.trim().split('\n').length - 1;
+    say('user', `Файл: ${name.replace(/</g, '&lt;')} · ${rows.toLocaleString('ru-RU')} операций`);
+    await analyse(rows);
+  }
+  async function analyse(rows) {
+    const list = block('<ul class="steps-list"></ul>', 'msg agent').firstChild;
+    const steps = [`Читаю ${rows.toLocaleString('ru-RU')} операций`, 'Считаю поток по месяцам', 'Ищу платежи по текущим кредитам', 'Стресс-тест: выручка −30%'];
+    const call = score();
+    for (const s of steps) { await sleep(450); const li = document.createElement('li'); li.textContent = s; list.appendChild(li); }
+    show(await call);
+  }
+
+  // ---------- окошко
+  async function score() {
+    const body = {
+      statement_csv: state.statement,
+      need: state.need,
+      questionnaire: state.questionnaire,
+      confirmed_fields: state.confirmed,
+      history: state.history.slice(-20),
+    };
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 30000);
+    try {
+      const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
+      const data = await r.json().catch(() => ({}));
+      return { ok: r.ok, code: r.status, data };
+    } catch (e) {
+      return { ok: false, code: 0, data: {} };
+    } finally { clearTimeout(timer); }
+  }
+
+  const STATUS = {
+    ready: 'Можно подавать',
+    ready_after_step: 'Можно подавать после одного шага',
+    other_instrument: 'Лучше подойдёт другой инструмент',
+    need_manager: 'Нужен разговор с менеджером',
+  };
+
+  async function show(res) {
+    if (!res.ok) return fail(res);
+    const v = res.data.view, n = v.numbers;
+    state.flow = res.data.core && res.data.core.flow_month_rub;
+    source.flow = 'ok';
+    if (state.confirmed.contract_main_customer) source.contract = 'ok';
+    renderKnown('flow');
+
+    const intro = {
+      ready: `Хорошая новость: заявка выглядит сильной. Инструмент: ${v.instrument}.`,
+      ready_after_step: `Сейчас можно взять ${rub(n.available_now)}, а после одного шага до ${rub(n.available_after)}.`,
+      other_instrument: `Вам выгоднее ${v.instrument}, чем кредит. Объясню ниже.`,
+      need_manager: 'Здесь нужен живой разговор с менеджером. Вот что я увидел в выписке.',
+    }[v.status];
+    await agent(intro);
+
+    const el = block(`
+      <div class="status s-${v.status}"><span class="dot"></span><b>${STATUS[v.status]}</b></div>
+      <div class="status-note">Решение принимает банк. Мы показываем, с чем ваша заявка придёт к нему сильнее.</div>
+      <div class="nums">
+        <div><small>Доступно сейчас</small><strong data-count="${n.available_now}">0</strong></div>
+        <div class="dark"><small>После шага</small><strong data-count="${n.available_after}">0</strong>${n.limit_delta > 0 ? `<em>+${rub(n.limit_delta)}</em>` : ''}</div>
+        <div><small>Платёж в месяц</small><strong data-count="${n.monthly_payment}">0</strong><small style="margin:6px 0 0">${n.term_months} мес · ставка ${Math.round(n.rate_used * 100)}%</small></div>
+      </div>
+      ${v.reasons.length ? `<div><div class="eyebrow">Почему так</div><ul class="reasons">${v.reasons.map(r => `<li>${r.text}</li>`).join('')}</ul></div>` : ''}
+      ${v.monthly_flow.length ? `<div class="chart"><div class="eyebrow">Поток по месяцам</div>${chart(v.monthly_flow, n.monthly_payment)}</div>` : ''}
+      ${v.next_steps.length ? `<div><div class="eyebrow">Следующий шаг</div><div style="display:grid;gap:8px">${v.next_steps.map(s => `
+        <div class="next"><span>${s.text}<small>подтвердит: ${s.confirms}</small></span>
+        <button class="btn btn-primary" type="button" data-step="${s.code}">Сделаю</button></div>`).join('')}</div></div>` : ''}
+      <div class="actions">
+        <button class="btn btn-ghost" type="button" data-manager>Позвать менеджера</button>
+        <a class="btn btn-ghost" href="anketa.html">Начать заново</a>
+      </div>`, 'result');
+    el.querySelectorAll('[data-count]').forEach(countUp);
+    el.querySelectorAll('[data-manager]').forEach(b => b.onclick = openManager);
+    el.querySelectorAll('[data-step]').forEach(b => b.onclick = () => doStep(b.dataset.step, el));
+    if (v.contract && v.contract.capped) {
+      await agent(`Договор больше, чем этот заказчик платил раньше, поэтому считаю по истории: не больше ${rub(v.contract.cap_month_rub)} в месяц.`);
+    }
+  }
+
+  async function doStep(code, el) {
+    if (code !== 'contract_main_customer') {
+      await agent('Этот документ в прототипе ещё не принимаем. Менеджер подскажет, как его передать.');
+      return;
+    }
+    const c = state.need.contract_with_main_customer || { sum_rub: 1440000, months: 12 };
+    say('user', `Загружаю договор: ${rub(c.sum_rub)} на ${c.months} мес`);
+    state.confirmed.contract_main_customer = c;
+    el.style.opacity = .5;
+    await agent('Принял договор, пересчитываю.');
+    const res = await score();
+    el.remove();
+    show(res);
+  }
+
+  async function fail(res) {
+    const why = res.data && res.data.error;
+    if (res.code === 422) {
+      await agent(`Не получилось прочитать выписку: ${why || 'формат не тот'}.`);
+      const e = block(`Выгрузите выписку из интернет-банка в CSV с колонками date, amount, counterparty, purpose. Пока ядро на сервере считает только демо-выписки.
+        <div class="row"><button class="chip" type="button" data-again>Загрузить другой файл</button></div>`, 'err');
+      e.querySelector('[data-again]').onclick = () => { e.remove(); askStatement(); };
+      return;
+    }
+    await agent(res.code ? 'Не получилось посчитать. Ответы сохранены.' : 'Сервер не ответил. Ответы сохранены.');
+    const e = block(`<div class="row"><button class="chip" type="button" data-retry>Повторить</button><button class="chip" type="button" data-manager>Позвать менеджера</button></div>`, 'err');
+    e.querySelector('[data-retry]').onclick = () => { e.remove(); analyse(state.statement.trim().split('\n').length - 1); };
+    e.querySelector('[data-manager]').onclick = openManager;
+  }
+
+  function chart(flow, payment) {
+    const W = 560, H = 160, pad = 24, bw = (W - pad) / flow.length;
+    const max = Math.max(...flow.map(f => Math.abs(f.flow)), payment) || 1;
+    const y0 = H / 2, k = (H / 2 - 12) / max;
+    const bars = flow.map((f, i) => {
+      const h = Math.abs(f.flow) * k, x = pad + i * bw + 3, y = f.flow >= 0 ? y0 - h : y0;
+      const m = f.month.slice(5);
+      return `<rect x="${x}" y="${y}" width="${bw - 6}" height="${Math.max(h, 1)}" rx="3" fill="${f.flow >= 0 ? '#13a463' : '#ef3124'}"><title>${f.month}: ${rub(f.flow)}</title></rect>` +
+             `<text x="${x + (bw - 6) / 2}" y="${H - 2}" font-size="10" text-anchor="middle" fill="#8a8a8e">${m}</text>`;
+    }).join('');
+    const py = y0 - payment * k;
+    const worst = flow.reduce((a, f) => f.flow < a.flow ? f : a, flow[0]);
+    return `<svg viewBox="0 0 ${W} ${H + 4}" role="img" aria-label="Поток по месяцам: худший месяц ${worst.month}, ${rub(worst.flow)}; платёж ${rub(payment)}">
+      <line x1="${pad}" x2="${W}" y1="${y0}" y2="${y0}" stroke="#dcdcdd"/>${bars}
+      <line x1="${pad}" x2="${W}" y1="${py}" y2="${py}" stroke="#0b0b0c" stroke-dasharray="4 4"/>
+      <text x="${W}" y="${py - 4}" font-size="10" text-anchor="end" fill="#0b0b0c">платёж ${rub(payment)}</text></svg>`;
+  }
+
+  function countUp(el) {
+    const to = +el.dataset.count, t0 = performance.now();
+    const step = t => {
+      const p = Math.min((t - t0) / 600, 1);
+      el.textContent = rub(to * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) el.textContent = rub(to);
+    else requestAnimationFrame(step);
+  }
+
+  function openManager() { $('mgr').showModal(); }
+  document.querySelectorAll('[data-manager]').forEach(b => b.onclick = openManager);
+
+  start();
+})();
+</script>
+</body>
+</html>
