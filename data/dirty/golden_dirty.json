@@ -1,0 +1,650 @@
+{
+  "version": "2026-10-11-realistic",
+  "how_to_use": "python data/realistic/check.py: ядро получает грязный файл, анкету и нужду; статус/инструмент/стопы сверяются точно, суммы в коридоре.",
+  "params": {
+    "rate": 0.24,
+    "dscr_min": 1.25,
+    "stress": 0.3,
+    "variable_share": 0.5,
+    "concentration": 0.7,
+    "cash_share": 0.3,
+    "min_months": 6,
+    "full_months": 12,
+    "min_ops": 30
+  },
+  "params_note": "rate 24% допущение; правила: context/stop-rules.md; эталон: data/synthetic/reference.py",
+  "scenarios": [
+    {
+      "id": "cash_gap",
+      "file": "data/dirty/st_01.csv",
+      "clean_file": "data/dirty/clean/cash_gap.csv",
+      "answers_file": "data/dirty/answers/cash_gap.labels.csv",
+      "story": "ООО, кровля и фасады, 3+ лет. Главный заказчик платит раз в два месяца через 60 дней после акта, зарплата и налоги каждый месяц. Нужно 1,5 млн на год, вернуть из оплаты по договору.",
+      "tests": "можно после шага; три ловушки (заём учредителя, перевод между счетами, дивиденды); цифры как в мокапе",
+      "questionnaire": {
+        "form": "ООО",
+        "need": "кассовый разрыв",
+        "sector": "стройка",
+        "years": "больше 3",
+        "trend": "в плюс"
+      },
+      "need": {
+        "purpose": "кассовый разрыв",
+        "amount_rub": 1500000,
+        "term_months": 12,
+        "repay_from": "оплата по договору",
+        "asked_for": "кредит",
+        "contract_with_main_customer": {
+          "sum_rub": 1440000,
+          "months": 12
+        }
+      },
+      "expected": {
+        "status": "можно после шага",
+        "instrument": "овердрафт",
+        "stops_fired": [],
+        "reasons": [
+          "CONCENTRATION_ONE_CUSTOMER",
+          "STRESS_NEGATIVE_FLOW",
+          "CASH_GAP"
+        ],
+        "missing": [
+          "contract_main_customer",
+          "reconciliation_act"
+        ],
+        "flow_month_rub": {
+          "value": 120000,
+          "min": 116000,
+          "max": 124000
+        },
+        "limit_rub": {
+          "now": {
+            "value": 1015000,
+            "min": 964000,
+            "max": 1066000
+          },
+          "after_actions": {
+            "value": 1523000,
+            "min": 1447000,
+            "max": 1599000
+          }
+        }
+      },
+      "evidence": {
+        "months": 12,
+        "operations": 1202,
+        "avg_month_rub": {
+          "inflow": 1011236,
+          "mandatory": -504607,
+          "operating": -386629,
+          "cash": 0,
+          "enforcement": 0
+        },
+        "flow_by_month": {
+          "2025-10": -963717,
+          "2025-11": 1369514,
+          "2025-12": -970961,
+          "2026-01": 1116128,
+          "2026-02": -811577,
+          "2026-03": 1328434,
+          "2026-04": -990328,
+          "2026-05": 1256061,
+          "2026-06": -884752,
+          "2026-07": 951704,
+          "2026-08": -1020130,
+          "2026-09": 1059624
+        },
+        "top_payer_share": 0.788,
+        "cash_share": 0.0,
+        "stress_flow_month_rub": -67382
+      }
+    },
+    {
+      "id": "cash_gap_small",
+      "file": "data/dirty/st_02.csv",
+      "clean_file": "data/dirty/clean/cash_gap_small.csv",
+      "answers_file": "data/dirty/answers/cash_gap_small.labels.csv",
+      "story": "Тот же клиент, что cash_gap, но просит 900 тыс.",
+      "tests": "можно подавать на той же выписке: статус зависит от суммы, а не только от выписки",
+      "questionnaire": {
+        "form": "ООО",
+        "need": "кассовый разрыв",
+        "sector": "стройка",
+        "years": "больше 3",
+        "trend": "в плюс"
+      },
+      "need": {
+        "purpose": "кассовый разрыв",
+        "amount_rub": 900000,
+        "term_months": 12,
+        "repay_from": "оплата по договору",
+        "asked_for": "кредит",
+        "contract_with_main_customer": {
+          "sum_rub": 1440000,
+          "months": 12
+        }
+      },
+      "expected": {
+        "status": "можно подавать",
+        "instrument": "овердрафт",
+        "stops_fired": [],
+        "reasons": [
+          "CONCENTRATION_ONE_CUSTOMER",
+          "STRESS_NEGATIVE_FLOW",
+          "CASH_GAP"
+        ],
+        "missing": [
+          "contract_main_customer",
+          "reconciliation_act"
+        ],
+        "flow_month_rub": {
+          "value": 120000,
+          "min": 116000,
+          "max": 124000
+        },
+        "limit_rub": {
+          "now": {
+            "value": 1015000,
+            "min": 964000,
+            "max": 1066000
+          },
+          "after_actions": {
+            "value": 1523000,
+            "min": 1447000,
+            "max": 1599000
+          }
+        }
+      },
+      "evidence": {
+        "months": 12,
+        "operations": 1202,
+        "avg_month_rub": {
+          "inflow": 1011236,
+          "mandatory": -504607,
+          "operating": -386629,
+          "cash": 0,
+          "enforcement": 0
+        },
+        "flow_by_month": {
+          "2025-10": -963717,
+          "2025-11": 1369514,
+          "2025-12": -970961,
+          "2026-01": 1116128,
+          "2026-02": -811577,
+          "2026-03": 1328434,
+          "2026-04": -990328,
+          "2026-05": 1256061,
+          "2026-06": -884752,
+          "2026-07": 951704,
+          "2026-08": -1020130,
+          "2026-09": 1059624
+        },
+        "top_payer_share": 0.788,
+        "cash_share": 0.0,
+        "stress_flow_month_rub": -67382
+      }
+    },
+    {
+      "id": "equipment_leasing",
+      "file": "data/dirty/st_03.csv",
+      "clean_file": "data/dirty/clean/equipment_leasing.csv",
+      "answers_file": "data/dirty/answers/equipment_leasing.labels.csv",
+      "story": "ООО, мебельный цех, 3+ лет. Хочет кредит 4,2 млн на новый форматно-раскроечный станок. Агент должен сказать: не кредит, а лизинг.",
+      "tests": "лучше другой инструмент; клиент просит кредит, ядро не должно молча считать кредит на станок",
+      "questionnaire": {
+        "form": "ООО",
+        "need": "оборудование",
+        "sector": "производство",
+        "years": "больше 3",
+        "trend": "в плюс"
+      },
+      "need": {
+        "purpose": "оборудование",
+        "amount_rub": 4200000,
+        "term_months": 36,
+        "repay_from": "текущая выручка",
+        "asked_for": "кредит"
+      },
+      "expected": {
+        "status": "лучше другой инструмент",
+        "instrument": "лизинг",
+        "stops_fired": [],
+        "reasons": [
+          "STRESS_NEGATIVE_FLOW",
+          "CASH_GAP"
+        ],
+        "missing": [],
+        "flow_month_rub": {
+          "value": 180000,
+          "min": 175000,
+          "max": 185000
+        },
+        "limit_rub": {
+          "now": {
+            "value": 3670000,
+            "min": 3487000,
+            "max": 3854000
+          },
+          "after_actions": {
+            "value": 3670000,
+            "min": 3487000,
+            "max": 3854000
+          }
+        }
+      },
+      "evidence": {
+        "months": 12,
+        "operations": 1096,
+        "avg_month_rub": {
+          "inflow": 1360363,
+          "mandatory": -549423,
+          "operating": -630940,
+          "cash": 0,
+          "enforcement": 0
+        },
+        "flow_by_month": {
+          "2025-10": -42038,
+          "2025-11": 173625,
+          "2025-12": 177614,
+          "2026-01": -12941,
+          "2026-02": 552404,
+          "2026-03": -214783,
+          "2026-04": 354229,
+          "2026-05": 557881,
+          "2026-06": -102254,
+          "2026-07": -91308,
+          "2026-08": 464704,
+          "2026-09": 342867
+        },
+        "top_payer_share": 0.34,
+        "cash_share": 0.0,
+        "stress_flow_month_rub": -38827
+      }
+    },
+    {
+      "id": "seasonal_ok",
+      "file": "data/dirty/st_04.csv",
+      "clean_file": "data/dirty/clean/seasonal_ok.csv",
+      "answers_file": "data/dirty/answers/seasonal_ok.labels.csv",
+      "story": "ИП, садовый центр, 4 года. Весной выручка втрое выше зимней, закупка за два месяца до сезона. Нужно 400 тыс на полгода под весеннюю закупку.",
+      "tests": "можно подавать; эквайринг не считать одним заказчиком; переводы на личную карту ИП не расход бизнеса",
+      "questionnaire": {
+        "form": "ИП",
+        "need": "сезон",
+        "sector": "торговля",
+        "years": "больше 3",
+        "trend": "в плюс"
+      },
+      "need": {
+        "purpose": "сезон",
+        "amount_rub": 400000,
+        "term_months": 6,
+        "repay_from": "весенняя выручка",
+        "asked_for": "кредит"
+      },
+      "expected": {
+        "status": "можно подавать",
+        "instrument": "кредитная линия",
+        "stops_fired": [],
+        "reasons": [
+          "STRESS_NEGATIVE_FLOW",
+          "CASH_GAP"
+        ],
+        "missing": [],
+        "flow_month_rub": {
+          "value": 95000,
+          "min": 92000,
+          "max": 98000
+        },
+        "limit_rub": {
+          "now": {
+            "value": 426000,
+            "min": 404000,
+            "max": 447000
+          },
+          "after_actions": {
+            "value": 426000,
+            "min": 404000,
+            "max": 447000
+          }
+        }
+      },
+      "evidence": {
+        "months": 12,
+        "operations": 865,
+        "avg_month_rub": {
+          "inflow": 506333,
+          "mandatory": -240574,
+          "operating": -170759,
+          "cash": 0,
+          "enforcement": 0
+        },
+        "flow_by_month": {
+          "2025-10": 214509,
+          "2025-11": -72366,
+          "2025-12": -5709,
+          "2026-01": 101506,
+          "2026-02": -148192,
+          "2026-03": 13860,
+          "2026-04": 260878,
+          "2026-05": 271888,
+          "2026-06": 223138,
+          "2026-07": 170952,
+          "2026-08": 19606,
+          "2026-09": 89930
+        },
+        "top_payer_share": 0.15,
+        "cash_share": 0.0,
+        "stress_flow_month_rub": -5672
+      }
+    },
+    {
+      "id": "enforcement",
+      "file": "data/dirty/st_05.csv",
+      "clean_file": "data/dirty/clean/enforcement.csv",
+      "answers_file": "data/dirty/answers/enforcement.labels.csv",
+      "story": "ООО, клининг, 2 года. Выручка ровная, но налоговая дважды списала долг инкассо, а приставы списали по суду с бывшим поставщиком.",
+      "tests": "нужен менеджер по стопу ENFORCEMENT, хотя поток положительный",
+      "questionnaire": {
+        "form": "ООО",
+        "need": "кассовый разрыв",
+        "sector": "услуги",
+        "years": "1–3",
+        "trend": "около нуля"
+      },
+      "need": {
+        "purpose": "кассовый разрыв",
+        "amount_rub": 500000,
+        "term_months": 12,
+        "repay_from": "текущая выручка",
+        "asked_for": "кредит"
+      },
+      "expected": {
+        "status": "нужен менеджер",
+        "instrument": "овердрафт",
+        "stops_fired": [
+          "ENFORCEMENT"
+        ],
+        "reasons": [
+          "STRESS_NEGATIVE_FLOW",
+          "CASH_GAP"
+        ],
+        "missing": [],
+        "flow_month_rub": {
+          "value": 40000,
+          "min": 39000,
+          "max": 41000
+        },
+        "limit_rub": {
+          "now": {
+            "value": 338000,
+            "min": 321000,
+            "max": 355000
+          },
+          "after_actions": {
+            "value": 338000,
+            "min": 321000,
+            "max": 355000
+          }
+        }
+      },
+      "evidence": {
+        "months": 12,
+        "operations": 580,
+        "avg_month_rub": {
+          "inflow": 899102,
+          "mandatory": -648504,
+          "operating": -182452,
+          "cash": 0,
+          "enforcement": -28146
+        },
+        "flow_by_month": {
+          "2025-10": 377604,
+          "2025-11": -191479,
+          "2025-12": 15290,
+          "2026-01": 49449,
+          "2026-02": 441671,
+          "2026-03": 153,
+          "2026-04": -52975,
+          "2026-05": -135323,
+          "2026-06": -21680,
+          "2026-07": -182396,
+          "2026-08": 181695,
+          "2026-09": -2010
+        },
+        "top_payer_share": 0.4,
+        "cash_share": 0.0,
+        "stress_flow_month_rub": -174995
+      }
+    },
+    {
+      "id": "no_cashflow",
+      "file": "data/dirty/st_06.csv",
+      "clean_file": "data/dirty/clean/no_cashflow.csv",
+      "answers_file": "data/dirty/answers/no_cashflow.labels.csv",
+      "story": "ИП, кофейня, 2 года. Выручка через эквайринг каждый день, но аренда, зарплата и закупка съедают больше, чем приходит.",
+      "tests": "нужен менеджер по стопу NO_FREE_CASHFLOW; агент говорит, что изменить, а не «отказ»",
+      "questionnaire": {
+        "form": "ИП",
+        "need": "кассовый разрыв",
+        "sector": "общепит",
+        "years": "1–3",
+        "trend": "в минус"
+      },
+      "need": {
+        "purpose": "кассовый разрыв",
+        "amount_rub": 700000,
+        "term_months": 12,
+        "repay_from": "текущая выручка",
+        "asked_for": "кредит"
+      },
+      "expected": {
+        "status": "нужен менеджер",
+        "instrument": "овердрафт",
+        "stops_fired": [
+          "NO_FREE_CASHFLOW"
+        ],
+        "reasons": [],
+        "missing": [],
+        "flow_month_rub": {
+          "value": -25000,
+          "max": 0
+        },
+        "limit_rub": {
+          "now": {
+            "value": 0,
+            "min": 0,
+            "max": 0
+          },
+          "after_actions": {
+            "value": 0,
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "evidence": {
+        "months": 12,
+        "operations": 1024,
+        "avg_month_rub": {
+          "inflow": 617324,
+          "mandatory": -397981,
+          "operating": -244343,
+          "cash": 0,
+          "enforcement": 0
+        },
+        "flow_by_month": {
+          "2025-10": -85929,
+          "2025-11": -78983,
+          "2025-12": 14165,
+          "2026-01": -6628,
+          "2026-02": -226280,
+          "2026-03": 164385,
+          "2026-04": -142180,
+          "2026-05": 58866,
+          "2026-06": 14205,
+          "2026-07": 333289,
+          "2026-08": -212923,
+          "2026-09": -131988
+        },
+        "top_payer_share": 0.07,
+        "cash_share": 0.0,
+        "stress_flow_month_rub": -136894
+      }
+    },
+    {
+      "id": "short_history",
+      "file": "data/dirty/st_07.csv",
+      "clean_file": "data/dirty/clean/short_history.csv",
+      "answers_file": "data/dirty/answers/short_history.labels.csv",
+      "story": "ИП, веб-студия, открылся в мае 2026. Пять месяцев истории, клиенты платят хорошо. Хочет миллион на найм двух разработчиков.",
+      "tests": "нужен менеджер по TOO_YOUNG; срабатывает и SHORT_STATEMENT, статус решает первый стоп",
+      "questionnaire": {
+        "form": "ИП",
+        "need": "рост",
+        "sector": "IT",
+        "years": "меньше года",
+        "trend": "в плюс"
+      },
+      "need": {
+        "purpose": "рост",
+        "amount_rub": 1000000,
+        "term_months": 12,
+        "repay_from": "новые заказы",
+        "asked_for": "кредит"
+      },
+      "expected": {
+        "status": "нужен менеджер",
+        "instrument": "кредит на развитие",
+        "stops_fired": [
+          "TOO_YOUNG",
+          "SHORT_STATEMENT"
+        ],
+        "reasons": [
+          "CASH_GAP"
+        ],
+        "missing": [
+          "statement_12m"
+        ],
+        "flow_month_rub": {
+          "value": 125000,
+          "min": 121000,
+          "max": 129000
+        },
+        "limit_rub": {
+          "now": {
+            "value": 1058000,
+            "min": 1005000,
+            "max": 1110000
+          },
+          "after_actions": {
+            "value": 1058000,
+            "min": 1005000,
+            "max": 1110000
+          }
+        }
+      },
+      "evidence": {
+        "months": 6,
+        "operations": 181,
+        "avg_month_rub": {
+          "inflow": 340594,
+          "mandatory": -99551,
+          "operating": -116043,
+          "cash": 0,
+          "enforcement": 0
+        },
+        "flow_by_month": {
+          "2026-04": -43521,
+          "2026-05": 240769,
+          "2026-06": 143296,
+          "2026-07": 132143,
+          "2026-08": 149086,
+          "2026-09": 128227
+        },
+        "top_payer_share": 0.45,
+        "cash_share": 0.0,
+        "stress_flow_month_rub": 57635
+      }
+    },
+    {
+      "id": "cash_out",
+      "file": "data/dirty/st_08.csv",
+      "clean_file": "data/dirty/clean/cash_out.csv",
+      "answers_file": "data/dirty/answers/cash_out.labels.csv",
+      "story": "ООО, торговля стройматериалами, 3+ лет. Обороты большие, но почти 40% поступлений уходит наличными. Хочет 2 млн на закупку под контракт.",
+      "tests": "нужен менеджер по CASH_OUT; текущий кредит (mandatory) уже уменьшает поток",
+      "questionnaire": {
+        "form": "ООО",
+        "need": "закупка под контракт",
+        "sector": "торговля",
+        "years": "больше 3",
+        "trend": "в плюс"
+      },
+      "need": {
+        "purpose": "закупка под контракт",
+        "amount_rub": 2000000,
+        "term_months": 12,
+        "repay_from": "оплата по контракту",
+        "asked_for": "кредит"
+      },
+      "expected": {
+        "status": "нужен менеджер",
+        "instrument": "кредитная линия",
+        "stops_fired": [
+          "CASH_OUT"
+        ],
+        "reasons": [
+          "STRESS_NEGATIVE_FLOW",
+          "CASH_GAP"
+        ],
+        "missing": [],
+        "flow_month_rub": {
+          "value": 110000,
+          "min": 107000,
+          "max": 113000
+        },
+        "limit_rub": {
+          "now": {
+            "value": 931000,
+            "min": 884000,
+            "max": 977000
+          },
+          "after_actions": {
+            "value": 931000,
+            "min": 884000,
+            "max": 977000
+          }
+        }
+      },
+      "evidence": {
+        "months": 12,
+        "operations": 1235,
+        "avg_month_rub": {
+          "inflow": 2216832,
+          "mandatory": -361344,
+          "operating": -903092,
+          "cash": -842396,
+          "enforcement": 0
+        },
+        "flow_by_month": {
+          "2025-10": -378000,
+          "2025-11": 167687,
+          "2025-12": -23778,
+          "2026-01": 1048339,
+          "2026-02": -622986,
+          "2026-03": 171116,
+          "2026-04": 191535,
+          "2026-05": 268900,
+          "2026-06": 268797,
+          "2026-07": -216636,
+          "2026-08": 447647,
+          "2026-09": -2620
+        },
+        "top_payer_share": 0.3,
+        "cash_share": 0.38,
+        "stress_flow_month_rub": -284122
+      }
+    }
+  ]
+}
