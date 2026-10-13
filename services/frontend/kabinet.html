@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кредитный кабинет · Кредитный агент</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>
+/* 4–5 · кабинет: Figma «4 страница» 75:807 (тур, ?tour=1) и «5 страница» 74:181 (без подсказок).
+   Зелёные звёзды макета были заглушками иконок: здесь линейные иконки сайта. */
+.kab { padding: 28px 0 56px; }
+.kab h1 { font-size: 40px; line-height: 1.2; font-weight: 800; letter-spacing: -0.02em; max-width: 620px; }
+.kab .lead { font-size: 20px; font-weight: 600; color: var(--ink-3); max-width: 600px; margin: 10px 0 18px; line-height: 1.2; }
+.kab-grid { display: grid; grid-template-columns: minmax(0, 694px) minmax(0, 1fr); gap: 56px; }
+.kab-grid > * { min-width: 0; }
+
+.box { background: #fff; border: 0.5px solid var(--line); border-radius: 15px; padding: 10px 22px 22px; }
+.box-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.box-head h2 { display: inline-block; font-size: 30px; font-weight: 700; line-height: 1.2; padding: 0 8px; margin-left: -8px; border-radius: 5px; }
+.box-head p { font-size: 15px; font-weight: 500; color: var(--ink-3); margin-top: 6px; }
+.chip-grey { background: var(--line); color: #0e0e10; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 2px #ececee; }
+
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 17px 49px; margin-top: 22px; }
+.tile { display: flex; gap: 14px; align-items: flex-start; border: 1px solid #ececee; border-radius: 14px; padding: 18px 20px; min-height: 86px; }
+.tile .t-ic { width: 40px; height: 40px; border-radius: 12px; background: var(--bg); color: var(--ink-2); display: grid; place-items: center; flex: none; }
+.tile .t-ic svg { width: 22px; height: 22px; }
+.tile small { display: block; font-size: 12px; font-weight: 500; color: #0e0e10; line-height: 1.1; max-width: 120px; }
+.tile b { display: block; font-size: 14px; color: #55555f; margin-top: 8px; }
+.tile .dash { display: block; width: 23px; height: 3px; background: #0e0e10; margin-top: 16px; }
+.progress { grid-column: 1 / -1; border: 1px solid #ececee; border-radius: 12px; padding: 10px 13px 14px; }
+.progress small { font-size: 12px; font-weight: 500; }
+.progress .row { display: flex; align-items: center; gap: 13px; margin-top: 8px; }
+.progress .track { flex: 1; height: 15px; border-radius: 20px; background: #e9e9eb; overflow: hidden; }
+.progress .track i { display: block; height: 100%; width: 0; background: var(--pos); }
+.progress b { font-size: 14px; }
+.start { display: flex; gap: 14px; background: var(--accent-soft); border-radius: 14px; padding: 17px 19px; margin-top: 17px; max-width: 419px; }
+.start .t-ic { width: 40px; height: 40px; border-radius: 12px; background: #fff; color: var(--accent); display: grid; place-items: center; flex: none; }
+.start b { display: block; font-size: 16px; line-height: 1.45; }
+.start span { font-size: 14px; color: #55555f; line-height: 1.45; }
+
+.chat { background: #fff; border: 0.5px solid var(--line); border-radius: 12px; padding: 10px 6px 6px 18px; display: flex; flex-direction: column; min-height: 597px; }
+.chat-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-right: 0; }
+.chat-head h2 { font-size: 20px; font-weight: 700; white-space: nowrap; }
+.online { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; color: var(--ink-3); }
+.online::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--pos); }
+.btn-sm { background: var(--accent); color: #fff; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; box-shadow: 0 4px 2px #ececee; }
+.btn-sm:hover { background: #d92a1e; }
+.history { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin-top: 18px; border: 0.9px solid #ececee; border-radius: 10px; padding: 7px 12px 7px 8px; font-size: 14px; font-weight: 600; background: #fff; cursor: pointer; font-family: inherit; color: var(--ink); }
+.history svg { width: 20px; height: 20px; color: var(--ink-2); }
+.bubble { position: relative; background: var(--bg); border-radius: 18px 18px 18px 6px; padding: 12px 16px 22px; margin: 17px 22px 0 0; font-size: 15px; line-height: 1.45; color: #0e0e10; }
+.bubble p + p { margin-top: 1.45em; }
+.bubble time { position: absolute; right: -24px; bottom: 2px; font-size: 7px; color: var(--ink); }
+.quick { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }
+.quick a { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+.quick a svg { width: 22px; height: 22px; color: var(--accent); flex: none; }
+.quick a span { background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 6px 10px; font-size: 13px; font-weight: 600; }
+.quick a:hover span { background: #f6d3d0; }
+.compose { display: flex; gap: 8px; border-top: 1px solid #ececee; padding: 16px 0 0; margin-top: auto; }
+.compose label { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px 0 16px; min-height: 48px; }
+.compose input { flex: 1; min-width: 0; border: 0; font: inherit; font-size: 15px; outline: none; background: transparent; }
+.compose label svg { width: 18px; height: 18px; color: var(--ink-2); flex: none; }
+.compose button { background: var(--accent); color: #fff; border: 0; border-radius: 12px; padding: 0 20px; min-height: 48px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.compose button:hover { background: #d92a1e; }
+
+/* тур «1 из 5» */
+.tour-dim { position: fixed; inset: 0; background: rgba(92, 92, 92, .5); z-index: 50; }
+.tour-on { position: relative; z-index: 51; background: #fff; }
+.tour-tip { position: absolute; z-index: 52; width: 330px; background: var(--accent); color: #fff; border-radius: 20px; padding: 7px 6px 10px 15px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.tour-tip::after { content: ""; position: absolute; left: var(--arrow, 233px); width: 0; height: 0; border: 9px solid transparent; }
+.tour-tip.below::after { top: -17px; border-bottom-color: var(--accent); }
+.tour-tip.above::after { bottom: -17px; border-top-color: var(--accent); }
+.tour-tip.side::after { right: -17px; left: auto; top: var(--arrow, 40px); border-left-color: var(--accent); }
+.tour-tip .n { font-size: 14px; font-weight: 700; }
+.tour-tip .bar { height: 6px; border-radius: 10px; background: #fff; margin: 8px 0 6px -9px; overflow: hidden; }
+.tour-tip .bar i { display: block; height: 100%; background: #b8b8c2; border-radius: 10px; transition: width .25s; }
+.tour-tip p { font-size: 15px; line-height: 1.4; letter-spacing: .1em; }
+.tour-tip .acts { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-right: 20px; }
+.tour-tip button { font: inherit; font-size: 15px; font-weight: 500; color: #fff; background: transparent; border: 0; cursor: pointer; }
+.tour-tip .next { border: 1px solid #fff; border-radius: 5px; width: 133px; height: 32px; }
+.tour-tip .next:hover { background: rgba(255,255,255,.12); }
+
+@media (max-width: 960px) {
+  .kab h1 { font-size: 30px; }
+  .kab .lead { font-size: 17px; }
+  .kab-grid { grid-template-columns: 1fr; gap: 24px; }
+  .box { padding: 12px 14px 16px; }
+  .box-head { flex-direction: column; gap: 10px; }
+  .box-head h2 { font-size: 24px; }
+  .chip-grey { white-space: normal; }
+  .compose button { padding: 0 14px; }
+  .chat-head h2 { white-space: normal; }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .tile { padding: 14px; gap: 10px; }
+  .chat { min-height: 520px; padding-left: 12px; }
+  .chat-head { flex-wrap: wrap; }
+  .bubble { margin-right: 26px; }
+  .tour-tip { width: min(330px, calc(100vw - 32px)); }
+}
+@media (max-width: 400px) { .tiles { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/">
+      <span class="logo-mark"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill-rule="evenodd" d="M12.2975 11.0981L10.25 5.04891C10.056 4.45979 9.82608 4 9.05018 4C8.27428 4 8.03719 4.45979 7.82885 5.04891L5.7023 11.0981H7.13916L7.62769 9.66121H10.3433L10.8031 11.0981H12.2975ZM9.90511 8.44707H8.01564L8.9927 5.57336L9.90511 8.44707ZM12.5921 14H5.40784V12.5631H12.5921V14Z" fill="#fff"/></svg></span>
+      Альфа-Банк <span class="biz">Бизнес</span>
+    </a>
+    <nav class="nav" aria-label="Разделы">
+      <a href="anketa.html">Подбор финансирования</a>
+      <a href="kabinet.html" aria-current="page">Кредитный кабинет</a>
+      <a href="/#features">Аналитика</a>
+      <a href="/#features">О продукте</a>
+    </nav>
+    <a class="user" href="#" aria-label="Профиль"><svg class="line" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></a>
+  </div>
+</header>
+
+<main class="kab">
+  <div class="wrap">
+    <h1>Ваш персональный ИИ-агент по финансированию</h1>
+    <p class="lead">Мы анализируем бизнес, подбираем подходящие кредитные продукты и сопровождаем на каждом этапе: от заявки до полного погашения</p>
+
+    <div class="kab-grid">
+      <section class="box" id="cabinet" aria-labelledby="cab-h">
+        <div class="box-head">
+          <div>
+            <h2 id="cab-h" data-tour="1">Кредитный кабинет</h2>
+            <p>Ваши кредиты, платежи и финансирование в одном месте</p>
+          </div>
+          <span class="chip-grey">Пока нет активных кредитов</span>
+        </div>
+
+        <div class="tiles" id="tiles">
+          <div class="tile" data-tour="2"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg></span><div><small>Сумма кредита</small><b class="num">0 ₽</b></div></div>
+          <div class="tile"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5c0-1 1.1-1.8 2.5-1.8s2.5.8 2.5 1.8-1.1 1.6-2.5 1.6-2.5.7-2.5 1.7 1.1 1.8 2.5 1.8 2.5-.8 2.5-1.8"/></svg></span><div><small>Ежемесячный платёж</small><b class="num">0 ₽</b></div></div>
+          <div class="tile"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg></span><div><small>Срок</small><b class="num">0 мес.</b></div></div>
+
+          <div class="progress" data-tour="3">
+            <small>Прогресс погашения</small>
+            <div class="row"><span class="track"><i></i></span><b class="num">0%</b></div>
+          </div>
+
+          <div class="tile"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg></span><div><small>Календарь и уведомления</small></div></div>
+          <div class="tile"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M16 13h2M4 7l12-3v3"/></svg></span><div><small>Остатки на счетах</small><b class="num">0 ₽</b></div></div>
+          <div class="tile"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><div><small>Следующий платёж</small><b class="num">0 ₽</b></div></div>
+          <div class="tile"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><path d="M4 19h16M7 16v-5M12 16V7M17 16v-8"/></svg></span><div><small>Показатели эффективности</small><span class="dash"></span></div></div>
+          <div class="tile"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><path d="M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/></svg></span><div><small>Имеющаяся информация о Вашем бизнесе</small></div></div>
+          <div class="tile"><span class="t-ic"><svg class="line" viewBox="0 0 24 24"><path d="M7 7h12l-3-3M17 17H5l3 3"/></svg></span><div><small>Транзакции</small></div></div>
+        </div>
+
+        <div class="start">
+          <span class="t-ic"><svg class="line" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg></span>
+          <div><b>Это только начало</b><span>Пройдёмся по основным разделам, чтобы Вы могли легко ориентироваться в продукте</span></div>
+        </div>
+      </section>
+
+      <section class="chat" aria-labelledby="chat-h" data-tour="4">
+        <div class="chat-head">
+          <div>
+            <h2 id="chat-h">Чат с ИИ-агентом</h2>
+            <span class="online">Онлайн</span>
+          </div>
+          <a class="btn-sm" href="anketa.html" data-tour="5">Подбор финансирования</a>
+        </div>
+        <button class="history" type="button"><svg class="line" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5M12 8v4l3 2"/></svg>История чата</button>
+
+        <div class="bubble">
+          <p>Привет! Я Ваш ИИ-агент по финансированию.</p>
+          <p>Я помогу подобрать подходящий кредит и подскажу, как улучшить условия. Задавайте вопросы или выберите один из вариантов ниже.</p>
+          <time id="now">10:24</time>
+        </div>
+
+        <nav class="quick" aria-label="Быстрые ответы">
+          <a href="razgovor.html"><svg class="line" viewBox="0 0 24 24"><path d="M4 19h16M7 16v-5M12 16V7M17 16v-8"/></svg><span>Проанализировать бизнес</span></a>
+          <a href="razgovor.html"><svg class="line" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 14v5h14v-5"/></svg><span>Загрузить документацию</span></a>
+          <a href="anketa.html"><svg class="line" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>Посмотреть варианты финансирования</span></a>
+          <a href="razgovor.html"><svg class="line" viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg><span>Обсудить проблему</span></a>
+        </nav>
+
+        <form class="compose" action="razgovor.html">
+          <label><input name="q" placeholder="Напишите сообщение..." aria-label="Сообщение агенту"><svg class="line" viewBox="0 0 24 24"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg></label>
+          <button type="submit">Отправить</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+(() => {
+  const now = new Date();
+  document.getElementById('now').textContent = now.toTimeString().slice(0, 5);
+
+  // тур: шаг 1 и «ИИ-чат» из макета Тони, тексты шагов 2, 3, 5 черновые
+  const STEPS = [
+    'Здесь находится вся информация о подходящем финансировании для вашего бизнеса, которым можно управлять',
+    'Сумма, платёж и срок появятся здесь, как только банк выдаст финансирование',
+    'Прогресс погашения: сколько уже выплачено и сколько осталось',
+    'Чат с ИИ-агентом: он разберёт выписку, объяснит, что мешает получить кредит, и подскажет следующий шаг',
+    'Подбор финансирования: короткая анкета, после неё агент считает лимит по вашей выписке',
+  ];
+  if (new URLSearchParams(location.search).get('tour') !== '1') return;
+
+  const dim = document.createElement('div');
+  dim.className = 'tour-dim';
+  const tip = document.createElement('div');
+  tip.className = 'tour-tip';
+  tip.setAttribute('role', 'dialog');
+  tip.innerHTML = '<span class="n"></span><div class="bar"><i></i></div><p></p><div class="acts"><button class="next" type="button">Дальше</button><button class="skip" type="button">Пропустить</button></div>';
+  document.body.append(dim, tip);
+
+  let i = 0, cur = null;
+  const end = () => {
+    dim.remove(); tip.remove();
+    if (cur) cur.classList.remove('tour-on');
+    history.replaceState(null, '', 'kabinet.html');
+  };
+  const show = () => {
+    if (cur) cur.classList.remove('tour-on');
+    cur = document.querySelector(`[data-tour="${i + 1}"]`);
+    cur.classList.add('tour-on');
+    cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    tip.querySelector('.n').textContent = `${i + 1} из ${STEPS.length}`;
+    tip.querySelector('.bar i').style.width = `${(i + 1) / STEPS.length * 100}%`;
+    tip.querySelector('p').textContent = STEPS[i];
+    tip.querySelector('.next').textContent = i === STEPS.length - 1 ? 'Понятно' : 'Дальше';
+    requestAnimationFrame(place);
+  };
+  const place = () => {
+    const r = cur.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, gap = 18;
+    let mode = r.top - h - gap > 0 ? 'above' : r.bottom + h + gap < innerHeight ? 'below' : 'side';
+    if (mode === 'side' && r.left - w - gap < 16) mode = 'pin';  // узкий экран, цель выше экрана: подсказка внизу экрана
+    tip.className = 'tour-tip ' + mode;
+    if (mode === 'pin') {
+      tip.style.left = (innerWidth - w) / 2 + scrollX + 'px';
+      tip.style.top = innerHeight - h - 16 + scrollY + 'px';
+      return;
+    }
+    if (mode === 'side') {
+      const top = Math.max(16, Math.min(r.top + 40, innerHeight - h - 16));
+      tip.style.left = r.left - w - gap + scrollX + 'px';
+      tip.style.top = top + scrollY + 'px';
+      tip.style.setProperty('--arrow', '24px');
+      return;
+    }
+    const left = Math.max(16, Math.min(r.left + r.width / 2 - w + 97, innerWidth - w - 16));
+    tip.style.left = left + scrollX + 'px';
+    tip.style.top = (mode === 'above' ? r.top - h - gap : r.bottom + gap) + scrollY + 'px';
+    tip.style.setProperty('--arrow', Math.max(16, Math.min(r.left + r.width / 2 - left - 9, w - 34)) + 'px');
+  };
+  tip.querySelector('.next').addEventListener('click', () => (++i < STEPS.length ? show() : end()));
+  tip.querySelector('.skip').addEventListener('click', end);
+  addEventListener('resize', () => cur && place());
+  addEventListener('scroll', () => cur && place(), { passive: true });
+  show();
+})();
+</script>
+</body>
+</html>
