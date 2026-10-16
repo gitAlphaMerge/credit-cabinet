@@ -1,0 +1,13 @@
+services:
+  alfa-intellect:
+    build: .
+    ports:
+      - "127.0.0.1:4173:4173"
+    environment:
+      HOST: 0.0.0.0
+      DATABASE_PATH: /app/var/alfa.sqlite
+    volumes:
+      - alfa_data:/app/var
+    mem_limit: 256m
+volumes:
+  alfa_data:

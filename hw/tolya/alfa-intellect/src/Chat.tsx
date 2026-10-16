@@ -1,0 +1,309 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  History,
+  Plus,
+  Maximize2,
+  Minimize2,
+  Paperclip,
+  ArrowUp,
+  Sparkles,
+  MessageSquare,
+  ArrowRight,
+  Pencil,
+  Check,
+  AlertTriangle,
+} from "lucide-react";
+import { useWorkspace } from "./context";
+import { Button, IconButton, Badge, CalculationView, Modal } from "./ui";
+import { api } from "./api";
+export function Chat({ full = false }: { full?: boolean }) {
+  const w = useWorkspace(),
+    [busy, setBusy] = useState(false),
+    [renaming, setRenaming] = useState(false),
+    [title, setTitle] = useState("");
+  const input = useRef<HTMLInputElement>(null),
+    end = useRef<HTMLDivElement>(null);
+  const chat =
+    w.state.chats.find((c) => c.id === w.activeChatId) || w.state.chats[0];
+  useEffect(
+    () => end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+    [chat?.messages.length, busy],
+  );
+  async function newChat() {
+    const c = await w.act("/chats", {});
+    w.setActiveChatId(c.id);
+  }
+  async function send(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!w.draft.trim() || busy) return;
+    const text = w.draft;
+    w.setDraft("");
+    setBusy(true);
+    try {
+      await api("/chats/" + chat.id + "/messages", { text });
+      await w.refresh();
+    } catch (e) {
+      w.error((e as Error).message);
+      await w.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+  function prompt(s: string) {
+    w.setDraft(s);
+  }
+  return (
+    <section className={"chat-shell " + (full ? "expanded" : "")}>
+      <header className="chat-header">
+        <div className="agent-avatar">
+          <Sparkles size={19} />
+        </div>
+        <div className="chat-header-title">
+          <button
+            className="unstyled"
+            onClick={() => {
+              setTitle(chat?.title || "");
+              setRenaming(true);
+            }}
+          >
+            <b>
+              {chat?.title || "Финансовый помощник"} <Pencil size={11} />
+            </b>
+          </button>
+          <small>
+            <span
+              className={w.config.aiConnected ? "pulse-dot" : "offline-dot"}
+            />
+            {w.config.aiConnected ? "ИИ подключён" : "ИИ не подключён · Демо"}
+          </small>
+        </div>
+        <IconButton label="Новый диалог" onClick={() => void newChat()}>
+          <Plus size={18} />
+        </IconButton>
+        <span data-tour="history">
+          <IconButton
+            label="Показать или скрыть историю"
+            onClick={() => w.setHistoryOpen(!w.historyOpen)}
+          >
+            <History size={18} />
+          </IconButton>
+        </span>
+        <IconButton
+          label={full ? "Совмещённый вид" : "Развернуть чат"}
+          onClick={() => w.go(full ? "/cabinet" : "/chat")}
+        >
+          {full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        </IconButton>
+      </header>
+      <div className="chat-layout">
+        {w.historyOpen && (
+          <aside className="chat-history">
+            <Button secondary onClick={() => void newChat()}>
+              <Plus size={16} /> Новый диалог
+            </Button>
+            <small className="eyebrow">ИСТОРИЯ ДИАЛОГОВ</small>
+            {w.state.chats.map((c) => (
+              <button
+                key={c.id}
+                className={c.id === chat?.id ? "active" : ""}
+                onClick={() => w.setActiveChatId(c.id)}
+              >
+                <MessageSquare size={16} />
+                <span>
+                  <b>{c.title}</b>
+                  <small>
+                    {c.selectionId ? "Связан с подбором" : "Обычный диалог"} ·{" "}
+                    {c.messages.length} сообщений
+                  </small>
+                </span>
+              </button>
+            ))}
+          </aside>
+        )}
+        <div className="chat-main">
+          <div className="messages">
+            {!chat?.messages.length ? (
+              <div className="chat-welcome">
+                <span className="welcome-orb">
+                  <Sparkles size={30} />
+                </span>
+                <h3>
+                  Давайте разберёмся
+                  <br />в ваших финансах
+                </h3>
+                <p>
+                  Я помогу собрать контекст, проверить расчёты и понять
+                  следующий шаг для {w.state.profile.name}.
+                </p>
+                <Badge tone={w.config.aiConnected ? "green" : "neutral"}>
+                  {w.config.aiConnected
+                    ? "Свободный диалог доступен"
+                    : "Сейчас доступен демонстрационный сценарий"}
+                </Badge>
+                <div className="starter-prompts">
+                  {[
+                    "Как оценить кредитную нагрузку?",
+                    "Какие документы нужны?",
+                    "Показать пример расчёта",
+                  ].map((t) => (
+                    <button key={t} onClick={() => prompt(t)}>
+                      {t}
+                      <ArrowRight size={16} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              chat.messages.map((m) => (
+                <div key={m.id} className={"message " + m.role}>
+                  {m.role === "assistant" && (
+                    <div className="message-agent">
+                      <Sparkles size={14} />
+                    </div>
+                  )}
+                  <div className="message-body">
+                    {m.mode === "demo" && (
+                      <Badge>Демо · программный сценарий</Badge>
+                    )}
+                    <p>{m.text}</p>
+                    {m.calculation && (
+                      <CalculationView c={m.calculation} />
+                    )}{" "}
+                    {m.warning && (
+                      <div className="alert">
+                        <AlertTriangle size={17} />
+                        {m.warning}
+                      </div>
+                    )}
+                    {m.proposal && (
+                      <div className="proposal">
+                        <b>
+                          Изменение:{" "}
+                          {w.config.fieldNames?.[m.proposal.field] ||
+                            m.proposal.field}{" "}
+                          → {m.proposal.value.toLocaleString("ru-RU")} ₽
+                        </b>
+                        <Button
+                          secondary
+                          onClick={async () => {
+                            await w.act("/financials", m.proposal);
+                            w.error(
+                              "Показатель сохранён с источником «со слов пользователя»",
+                            );
+                          }}
+                        >
+                          Подтвердить изменение <Check size={15} />
+                        </Button>
+                      </div>
+                    )}
+                    <time>
+                      {new Date(m.createdAt).toLocaleTimeString("ru-RU", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </time>
+                  </div>
+                </div>
+              ))
+            )}
+            {busy && (
+              <div className="message assistant">
+                <div className="message-agent">
+                  <Sparkles size={14} />
+                </div>
+                <div className="thinking">
+                  <i />
+                  <i />
+                  <i />
+                  <span>Готовим ответ…</span>
+                </div>
+              </div>
+            )}
+            <div ref={end} />
+          </div>
+          <form className="composer" onSubmit={send}>
+            <button
+              type="button"
+              className="finance-chat-cta"
+              onClick={() => w.go("/financing")}
+            >
+              Подобрать финансирование <ArrowRight size={16} />
+            </button>
+            <div className="composer-row">
+              <IconButton
+                label="Прикрепить документ"
+                type="button"
+                disabled={w.uploading}
+                onClick={() => input.current?.click()}
+              >
+                <Paperclip size={19} />
+              </IconButton>
+              <input
+                ref={input}
+                hidden
+                type="file"
+                accept=".csv,.xlsx,.docx,.pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void w.upload(file);
+                  e.target.value = "";
+                }}
+              />
+              <textarea
+                aria-label="Сообщение финансовому помощнику"
+                value={w.draft}
+                onChange={(e) => w.setDraft(e.target.value)}
+                placeholder="Спросите о вашем бизнесе…"
+                maxLength={4000}
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+              />
+              <button
+                className="send-button"
+                aria-label="Отправить сообщение"
+                disabled={busy || !w.draft.trim()}
+              >
+                <ArrowUp size={20} />
+              </button>
+            </div>
+            <small>
+              {w.uploading
+                ? "Извлекаем данные документа…"
+                : w.config.aiConnected
+                  ? "ИИ может ошибаться. Проверяйте источники и расчёты."
+                  : "Демо не заменяет свободный диалог с ИИ. Подключение — через серверный ключ."}
+            </small>
+          </form>
+        </div>
+      </div>
+      {renaming && (
+        <Modal title="Название диалога" onClose={() => setRenaming(false)}>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              await w.act("/chats/" + chat.id, { title }, "PATCH");
+              setRenaming(false);
+            }}
+          >
+            <input
+              autoFocus
+              aria-label="Название диалога"
+              required
+              maxLength={80}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <div className="modal-actions">
+              <Button>Сохранить</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </section>
+  );
+}
