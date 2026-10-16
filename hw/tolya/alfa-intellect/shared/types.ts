@@ -18,6 +18,7 @@ export type Profile = {
 };
 export type Fields = Record<string, string | number>;
 export type Doc = {
+  records?: Record<string, string | number>[];
   id: string;
   category: string;
   name: string;
@@ -106,6 +107,7 @@ export type AppState = {
   credit: Credit | null;
   notifications: Notice[];
   leads: {
+    note?: string;
     id: string;
     selectionId: string;
     phone: string;

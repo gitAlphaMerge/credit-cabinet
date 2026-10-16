@@ -34,7 +34,14 @@ export function App() {
     [bell, setBell] = useState(false),
     [tour, setTour] = useState(-1),
     [mobileNav, setMobileNav] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false),
+    [contactPhone, setContactPhone] = useState(""),
+    [contactNote, setContactNote] = useState(""),
+    [contactSent, setContactSent] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
+  const [financingDraft, cacheFinancingDraft] = useState<Record<string, any>>(
+    {},
+  );
   const [tourRect, setTourRect] = useState<DOMRect | null>(null);
   useEffect(() => {
     if (tour < 0) return;
@@ -80,6 +87,7 @@ export function App() {
     }
   }
   async function onAuth() {
+    cacheFinancingDraft({});
     await refresh();
     go("/cabinet");
   }
@@ -195,6 +203,9 @@ export function App() {
         setHistoryOpen,
         upload,
         uploading,
+        reviewDocument: setPending,
+        financingDraft,
+        cacheFinancingDraft,
       }}
     >
       <div className="workspace">
@@ -421,6 +432,15 @@ export function App() {
         )}
         <footer className="workspace-footer">
           <span>Альфа-Интеллект · MVP</span>
+          <button
+            className="text-button"
+            onClick={() => {
+              setContactSent(false);
+              setContactOpen(true);
+            }}
+          >
+            Обратиться к сотруднику <ArrowRight size={12} />
+          </button>
           <span>
             Данные остаются в локальной базе. Используйте тестовые документы.
           </span>
@@ -431,6 +451,68 @@ export function App() {
   return (
     <>
       {rendered}
+      {contactOpen && (
+        <Modal
+          title="Обратиться к сотруднику"
+          onClose={() => setContactOpen(false)}
+        >
+          <Badge tone="red">Демонстрационное обращение</Badge>
+          {contactSent ? (
+            <div className="success-state">
+              <Check size={24} />
+              <h3>Обращение сохранено</h3>
+              <p>
+                Это локальный пример передачи человеку. Сотруднику банка ничего
+                не отправлено.
+              </p>
+            </div>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await act("/consultations", {
+                  phone: contactPhone,
+                  note: contactNote,
+                });
+                setContactSent(true);
+              }}
+            >
+              <p className="fine-print">
+                Вы можете обратиться на любом этапе. В MVP сохраняется только
+                локальная запись.
+              </p>
+              <label className="field">
+                <span>Контактный телефон</span>
+                <input
+                  type="tel"
+                  required
+                  value={contactPhone}
+                  placeholder="+7 999 123-45-67"
+                  onChange={(e) => setContactPhone(e.target.value)}
+                />
+              </label>
+              <label className="field" style={{ marginTop: 18 }}>
+                <span>Что хотите обсудить?</span>
+                <textarea
+                  required
+                  minLength={5}
+                  maxLength={1000}
+                  rows={4}
+                  value={contactNote}
+                  onChange={(e) => setContactNote(e.target.value)}
+                />
+              </label>
+              <label className="checkbox-row">
+                <input required type="checkbox" />Я понимаю, что это
+                демонстрационное локальное обращение.
+              </label>
+              <Button>
+                Сохранить обращение <ArrowRight size={16} />
+              </Button>
+            </form>
+          )}
+        </Modal>
+      )}
       {toast && (
         <div className="toast" role="alert">
           <span>{toast}</span>

@@ -1,4 +1,5 @@
 import type { ReactNode, ButtonHTMLAttributes } from "react";
+import { useEffect, useRef } from "react";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -41,10 +42,16 @@ export function Button({
 export function IconButton({
   children,
   label,
+  className = "",
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
   return (
-    <button className="icon-button" aria-label={label} title={label} {...rest}>
+    <button
+      className={"icon-button " + className}
+      aria-label={label}
+      title={label}
+      {...rest}
+    >
       {children}
     </button>
   );
@@ -103,9 +110,52 @@ export function Modal({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const root = useRef<HTMLElement>(null),
+    closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null,
+      oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = requestAnimationFrame(() =>
+      root.current
+        ?.querySelector<HTMLElement>("button,input,textarea")
+        ?.focus(),
+    );
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current();
+      }
+      if (event.key === "Tab") {
+        const nodes = Array.from(
+          root.current?.querySelectorAll<HTMLElement>(
+            "button:not(:disabled),a[href],input:not([hidden]),select,textarea",
+          ) || [],
+        );
+        const first = nodes[0],
+          last = nodes.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    addEventListener("keydown", keyboard);
+    return () => {
+      cancelAnimationFrame(frame);
+      removeEventListener("keydown", keyboard);
+      document.body.style.overflow = oldOverflow;
+      previous?.focus();
+    };
+  }, []);
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section
+        ref={root}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -132,11 +182,13 @@ export function LineChart({
   labels = [],
   color = "#ef3124",
   height = 150,
+  description = "Динамика остатка основного долга",
 }: {
   values: number[];
   labels?: string[];
   color?: string;
   height?: number;
+  description?: string;
 }) {
   const min = Math.min(0, ...values),
     max = Math.max(1, ...values),
@@ -149,11 +201,7 @@ export function LineChart({
     .join(" ");
   return (
     <div className="line-chart">
-      <svg
-        viewBox={`0 0 600 ${height}`}
-        role="img"
-        aria-label="Динамика остатка основного долга"
-      >
+      <svg viewBox={`0 0 600 ${height}`} role="img" aria-label={description}>
         <defs>
           <linearGradient
             id={"fade" + color.slice(1)}

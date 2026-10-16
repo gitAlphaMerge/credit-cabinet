@@ -146,11 +146,16 @@ export function select(
     risks.push("Нужно уточнить контракт и срок поступления оплаты.");
   const eligible =
     !!product &&
+    ["ИП", "ООО", "АО"].includes(profile.form) &&
     profile.registered &&
     profile.stage === "operating" &&
     !profile.ageBand.includes("Менее") &&
     c.amount <= product.max &&
     c.term <= product.term;
+  if (!["ИП", "ООО", "АО"].includes(profile.form))
+    risks.push(
+      "Для этой формы бизнеса нужна индивидуальная консультация: демонстрационный каталог рассчитан на ИП, ООО и АО.",
+    );
   return {
     purpose,
     repayFrom: String(raw.repayFrom || "Требует уточнения").slice(0, 300),

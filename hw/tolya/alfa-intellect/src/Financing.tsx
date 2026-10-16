@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -39,10 +39,14 @@ const purposes = [
 ] as const;
 export function Financing() {
   const w = useWorkspace(),
-    [tab, setTab] = useState<"new" | "history">("new"),
-    [step, setStep] = useState(-1),
-    [selected, setSelected] = useState<string | null>(null),
-    [parentId, setParentId] = useState<string | undefined>(),
+    [tab, setTab] = useState<"new" | "history">(w.financingDraft.tab || "new"),
+    [step, setStep] = useState(w.financingDraft.step ?? -1),
+    [selected, setSelected] = useState<string | null>(
+      w.financingDraft.selected ?? null,
+    ),
+    [parentId, setParentId] = useState<string | undefined>(
+      w.financingDraft.parentId,
+    ),
     [dossier, setDossier] = useState(false),
     [contact, setContact] = useState(""),
     [confirmed, setConfirmed] = useState(false),
@@ -55,7 +59,11 @@ export function Financing() {
       ownFunds: 0,
       flow: w.state.financials.freeFlow ?? "",
       existing: w.state.financials.existing ?? 0,
+      ...w.financingDraft.form,
     });
+  useEffect(() => {
+    w.cacheFinancingDraft({ tab, step, selected, parentId, form });
+  }, [tab, step, selected, parentId, form]);
   const item = w.state.selections.find((s) => s.id === selected),
     parent = w.state.selections.find((s) => s.id === item?.parentId);
   function reset() {

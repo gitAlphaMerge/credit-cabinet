@@ -28,9 +28,18 @@ export function Cabinet() {
   useEffect(() => {
     if (c)
       api("/credit/forecast", { stress })
-        .then(setForecast)
+        .then((result) => {
+          setForecast(result);
+          if (result.available && result.after < 0) void w.refresh();
+        })
         .catch((e) => w.error(e.message));
-  }, [c?.id, stress, w.state.financials]);
+  }, [
+    c?.id,
+    stress,
+    w.state.financials.balance,
+    w.state.financials.incoming,
+    w.state.financials.expenses,
+  ]);
   async function discuss() {
     w.setDraft(
       c
@@ -249,8 +258,7 @@ export function Cabinet() {
             className="forecast-form"
             onSubmit={async (e) => {
               e.preventDefault();
-              for (const [field, value] of Object.entries(figures))
-                await w.act("/financials", { field, value });
+              await w.act("/forecast-assumptions", figures);
               setEditing(false);
             }}
           >

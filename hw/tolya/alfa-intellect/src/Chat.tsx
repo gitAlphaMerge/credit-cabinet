@@ -20,15 +20,20 @@ export function Chat({ full = false }: { full?: boolean }) {
   const w = useWorkspace(),
     [busy, setBusy] = useState(false),
     [renaming, setRenaming] = useState(false),
+    [sendingText, setSendingText] = useState(""),
+    [search, setSearch] = useState(""),
     [title, setTitle] = useState("");
   const input = useRef<HTMLInputElement>(null),
     end = useRef<HTMLDivElement>(null);
   const chat =
     w.state.chats.find((c) => c.id === w.activeChatId) || w.state.chats[0];
-  useEffect(
-    () => end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
-    [chat?.messages.length, busy],
-  );
+  useEffect(() => {
+    if (chat?.messages.length || busy)
+      void end.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+  }, [chat?.messages.length, busy]);
   async function newChat() {
     const c = await w.act("/chats", {});
     w.setActiveChatId(c.id);
@@ -37,6 +42,7 @@ export function Chat({ full = false }: { full?: boolean }) {
     e?.preventDefault();
     if (!w.draft.trim() || busy) return;
     const text = w.draft;
+    setSendingText(text);
     w.setDraft("");
     setBusy(true);
     try {
@@ -47,6 +53,7 @@ export function Chat({ full = false }: { full?: boolean }) {
       await w.refresh();
     } finally {
       setBusy(false);
+      setSendingText("");
     }
   }
   function prompt(s: string) {
@@ -102,22 +109,33 @@ export function Chat({ full = false }: { full?: boolean }) {
               <Plus size={16} /> Новый диалог
             </Button>
             <small className="eyebrow">ИСТОРИЯ ДИАЛОГОВ</small>
-            {w.state.chats.map((c) => (
-              <button
-                key={c.id}
-                className={c.id === chat?.id ? "active" : ""}
-                onClick={() => w.setActiveChatId(c.id)}
-              >
-                <MessageSquare size={16} />
-                <span>
-                  <b>{c.title}</b>
-                  <small>
-                    {c.selectionId ? "Связан с подбором" : "Обычный диалог"} ·{" "}
-                    {c.messages.length} сообщений
-                  </small>
-                </span>
-              </button>
-            ))}
+            <input
+              className="chat-search"
+              aria-label="Поиск диалогов"
+              placeholder="Найти диалог…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {w.state.chats
+              .filter((c) =>
+                c.title.toLowerCase().includes(search.toLowerCase()),
+              )
+              .map((c) => (
+                <button
+                  key={c.id}
+                  className={c.id === chat?.id ? "active" : ""}
+                  onClick={() => w.setActiveChatId(c.id)}
+                >
+                  <MessageSquare size={16} />
+                  <span>
+                    <b>{c.title}</b>
+                    <small>
+                      {c.selectionId ? "Связан с подбором" : "Обычный диалог"} ·{" "}
+                      {c.messages.length} сообщений
+                    </small>
+                  </span>
+                </button>
+              ))}
           </aside>
         )}
         <div className="chat-main">
@@ -205,6 +223,14 @@ export function Chat({ full = false }: { full?: boolean }) {
                   </div>
                 </div>
               ))
+            )}
+            {busy && sendingText && (
+              <div className="message user">
+                <div className="message-body">
+                  <p>{sendingText}</p>
+                  <time>Отправлено · ожидаем ответ</time>
+                </div>
+              </div>
             )}
             {busy && (
               <div className="message assistant">

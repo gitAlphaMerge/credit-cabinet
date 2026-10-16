@@ -11,6 +11,7 @@ export interface AIProvider {
     text: string;
     mode: string;
     calculation?: Calculation;
+    warning?: string;
     proposal?: { field: string; value: number };
   }>;
 }
@@ -23,7 +24,12 @@ export function contextOf(s: AppState, selectionId?: string) {
       .map((d) => ({
         category: d.category,
         period: d.period,
-        fields: d.fields,
+        fields: Object.fromEntries(
+          Object.entries(d.fields).map(([k, v]) => [
+            k,
+            typeof v === "string" ? v.slice(0, 500) : v,
+          ]),
+        ),
         source: d.name,
       })),
     credit: s.credit
@@ -38,7 +44,18 @@ export function contextOf(s: AppState, selectionId?: string) {
           },
         }
       : null,
-    selection: s.selections.find((x) => x.id === selectionId),
+    selection: (() => {
+      const selected = s.selections.find((x) => x.id === selectionId);
+      return selected
+        ? {
+            ...selected,
+            calculation: {
+              ...selected.calculation,
+              schedule: selected.calculation.schedule.slice(0, 6),
+            },
+          }
+        : undefined;
+    })(),
   };
 }
 export class DemoProvider implements AIProvider {
@@ -83,6 +100,7 @@ export class DemoProvider implements AIProvider {
               : "пример расчёта: 1 млн ₽, 24 месяца, демонстрационная ставка 24%. Уточните свои параметры в подборе.") +
             " Все цифры рассчитаны программно; это не банковское предложение.",
         calculation: c,
+        warning: warningFor(c),
       };
     }
     return {
@@ -90,6 +108,11 @@ export class DemoProvider implements AIProvider {
       text: `Я вижу сохранённый контекст: ${s.profile.name}, ${s.profile.sector || "отрасль пока не указана"}. Подтверждено документов: ${s.documents.filter((d) => d.confirmed).length}. Настоящий ИИ сейчас не подключён. В деморежиме можно пройти подбор, загрузить документ и проверить расчёт. Для свободного финансового диалога потребуется серверный OPENAI_API_KEY.`,
     };
   }
+}
+function warningFor(c?: Calculation) {
+  return c?.dscr !== null && c?.dscr !== undefined && c.dscr < 1.25
+    ? `Финансовое предупреждение: DSCR ${c.dscr} ниже порога модели 1,25. Свободный поток ${c.flow?.toLocaleString("ru-RU")} ₽, платёж ${c.monthlyPayment.toLocaleString("ru-RU")} ₽ и другие обязательства ${c.existing.toLocaleString("ru-RU")} ₽. Проверьте меньшую сумму или другой срок. Источник: ${c.source}`
+    : undefined;
 }
 const updateSchema = z.object({
   field: z.enum(["incoming", "expenses", "freeFlow", "existing"]),
@@ -110,9 +133,9 @@ export class OpenAIProvider implements AIProvider {
         content: JSON.stringify({
           context,
           history: history
-            .slice(-12)
-            .map((m) => ({ role: m.role, text: m.text.slice(0, 2000) })),
-        }).slice(0, 18000),
+            .slice(-8)
+            .map((m) => ({ role: m.role, text: m.text.slice(0, 1000) })),
+        }),
       },
     ];
     let calculation: Calculation | undefined;
@@ -189,6 +212,7 @@ export class OpenAIProvider implements AIProvider {
             "Нужны дополнительные сведения. Уточните задачу.",
           mode: "live",
           calculation,
+          warning: warningFor(calculation),
           proposal,
         };
       input.push(...response.output);
@@ -199,7 +223,10 @@ export class OpenAIProvider implements AIProvider {
           if (call.name === "read_context") result = context;
           else if (call.name === "calculate_financing") {
             calculation = calculate(financeInput.parse(args));
-            result = calculation;
+            result = {
+              ...calculation,
+              schedule: calculation.schedule.slice(0, 6),
+            };
           } else if (call.name === "propose_update") {
             proposal = updateSchema.parse(args);
             result = { pendingConfirmation: true, ...proposal };

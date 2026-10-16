@@ -4,10 +4,11 @@ import ExcelJS from "exceljs";
 import { Document, Packer, Paragraph } from "docx";
 import PDFDocument from "pdfkit";
 import { pathToFileURL } from "node:url";
+import { calculate } from "../server/finance";
 export async function createFixtures(dir: string) {
   await mkdir(dir, { recursive: true });
   let balance = 500000;
-  const rows = ["date,amount,counterparty,purpose,balance"];
+  const rows = ["date,amount,counterparty,purpose,balance,kind"];
   for (let m = 4; m <= 9; m++) {
     for (const [d, amount, counterparty, purpose] of [
       [3, 1200000, "Synthetic Customer", "Contract income"],
@@ -17,7 +18,7 @@ export async function createFixtures(dir: string) {
     ] as const) {
       balance += amount;
       rows.push(
-        `2026-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")},${amount},${counterparty},${purpose},${balance}`,
+        `2026-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")},${amount},${counterparty},${purpose},${balance},operating`,
       );
     }
   }
@@ -26,9 +27,18 @@ export async function createFixtures(dir: string) {
     resolve(dir, "balance.csv"),
     "category,balance\nperiod,2026-09-30\ncurrency,RUB\nassets,12500000\nliabilities,4500000\nequity,8000000\nreceivables,2300000\n",
   );
+  const schedule = calculate(
+    { amount: 3000000, term: 36, rate: 22 },
+    new Date("2026-02-16"),
+  ).schedule.slice(8);
   await writeFile(
     resolve(dir, "schedule.csv"),
-    "category,schedule\nperiod,2026-11-01\ncurrency,RUB\npayment,114566\nprincipal,59566\ninterest,55000\nbalance,2940434\n",
+    [
+      "date,payment,principal,interest,balance",
+      ...schedule.map((p) =>
+        [p.date, p.payment, p.principal, p.interest, p.balance].join(","),
+      ),
+    ].join("\n") + "\n",
   );
   const x = new ExcelJS.Workbook(),
     s = x.addWorksheet("Synthetic model");

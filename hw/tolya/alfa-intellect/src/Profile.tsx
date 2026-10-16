@@ -212,7 +212,16 @@ export function ProfilePage() {
                       <dd>
                         <span className="status-dot" />
                         {p.registryRecord
-                          ? "Данные подтверждены пользователем"
+                          ? {
+                              ACTIVE: "Действующая компания",
+                              LIQUIDATED: "Прекратила деятельность",
+                              LIQUIDATING: "В процессе ликвидации",
+                              REORGANIZING: "Реорганизация",
+                            }[String(p.registryRecord.status)] ||
+                            String(
+                              p.registryRecord.status ||
+                                "Статус требует уточнения",
+                            )
                           : "Регистрационные сведения не проверены"}
                       </dd>
                     </div>
@@ -341,10 +350,12 @@ export function ProfilePage() {
                   </button>
                 )}
                 {pending && (
-                  <small className="pending-note">
-                    Файл ожидает проверки: загрузите повторно, чтобы открыть
-                    подтверждение.
-                  </small>
+                  <button
+                    className="text-button pending-note"
+                    onClick={() => w.reviewDocument(pending)}
+                  >
+                    Проверить извлечённые данные
+                  </button>
                 )}
                 <button
                   className="fixture-link"

@@ -3,7 +3,8 @@ import { app } from "./app";
 import express from "express";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-const production = existsSync("dist/index.html");
+const production =
+  process.env.NODE_ENV !== "development" && existsSync("dist/index.html");
 app.use("/fixtures", express.static(resolve("fixtures")));
 if (production) {
   app.use(express.static(resolve("dist")));

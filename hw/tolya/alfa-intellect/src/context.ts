@@ -15,6 +15,9 @@ export type Workspace = {
   setHistoryOpen: (v: boolean) => void;
   upload: (file: File, category?: string) => Promise<void>;
   uploading: boolean;
+  reviewDocument: (doc: Doc) => void;
+  financingDraft: Record<string, any>;
+  cacheFinancingDraft: (draft: Record<string, any>) => void;
 };
 export const WorkspaceContext = createContext<Workspace | null>(null);
 export function useWorkspace() {

@@ -1,25 +1,25 @@
-date,amount,counterparty,purpose,balance
-2026-04-03,1200000,Synthetic Customer,Contract income,1700000
-2026-04-10,-300000,Synthetic Supplier,Materials,1400000
-2026-04-15,-350000,Synthetic Staff,Payroll,1050000
-2026-04-22,-130000,Synthetic Landlord,Rent and tax,920000
-2026-05-03,1200000,Synthetic Customer,Contract income,2120000
-2026-05-10,-300000,Synthetic Supplier,Materials,1820000
-2026-05-15,-350000,Synthetic Staff,Payroll,1470000
-2026-05-22,-130000,Synthetic Landlord,Rent and tax,1340000
-2026-06-03,1200000,Synthetic Customer,Contract income,2540000
-2026-06-10,-300000,Synthetic Supplier,Materials,2240000
-2026-06-15,-350000,Synthetic Staff,Payroll,1890000
-2026-06-22,-130000,Synthetic Landlord,Rent and tax,1760000
-2026-07-03,1200000,Synthetic Customer,Contract income,2960000
-2026-07-10,-300000,Synthetic Supplier,Materials,2660000
-2026-07-15,-350000,Synthetic Staff,Payroll,2310000
-2026-07-22,-130000,Synthetic Landlord,Rent and tax,2180000
-2026-08-03,1200000,Synthetic Customer,Contract income,3380000
-2026-08-10,-300000,Synthetic Supplier,Materials,3080000
-2026-08-15,-350000,Synthetic Staff,Payroll,2730000
-2026-08-22,-130000,Synthetic Landlord,Rent and tax,2600000
-2026-09-03,1200000,Synthetic Customer,Contract income,3800000
-2026-09-10,-300000,Synthetic Supplier,Materials,3500000
-2026-09-15,-350000,Synthetic Staff,Payroll,3150000
-2026-09-22,-130000,Synthetic Landlord,Rent and tax,3020000
+date,amount,counterparty,purpose,balance,kind
+2026-04-03,1200000,Synthetic Customer,Contract income,1700000,operating
+2026-04-10,-300000,Synthetic Supplier,Materials,1400000,operating
+2026-04-15,-350000,Synthetic Staff,Payroll,1050000,operating
+2026-04-22,-130000,Synthetic Landlord,Rent and tax,920000,operating
+2026-05-03,1200000,Synthetic Customer,Contract income,2120000,operating
+2026-05-10,-300000,Synthetic Supplier,Materials,1820000,operating
+2026-05-15,-350000,Synthetic Staff,Payroll,1470000,operating
+2026-05-22,-130000,Synthetic Landlord,Rent and tax,1340000,operating
+2026-06-03,1200000,Synthetic Customer,Contract income,2540000,operating
+2026-06-10,-300000,Synthetic Supplier,Materials,2240000,operating
+2026-06-15,-350000,Synthetic Staff,Payroll,1890000,operating
+2026-06-22,-130000,Synthetic Landlord,Rent and tax,1760000,operating
+2026-07-03,1200000,Synthetic Customer,Contract income,2960000,operating
+2026-07-10,-300000,Synthetic Supplier,Materials,2660000,operating
+2026-07-15,-350000,Synthetic Staff,Payroll,2310000,operating
+2026-07-22,-130000,Synthetic Landlord,Rent and tax,2180000,operating
+2026-08-03,1200000,Synthetic Customer,Contract income,3380000,operating
+2026-08-10,-300000,Synthetic Supplier,Materials,3080000,operating
+2026-08-15,-350000,Synthetic Staff,Payroll,2730000,operating
+2026-08-22,-130000,Synthetic Landlord,Rent and tax,2600000,operating
+2026-09-03,1200000,Synthetic Customer,Contract income,3800000,operating
+2026-09-10,-300000,Synthetic Supplier,Materials,3500000,operating
+2026-09-15,-350000,Synthetic Staff,Payroll,3150000,operating
+2026-09-22,-130000,Synthetic Landlord,Rent and tax,3020000,operating

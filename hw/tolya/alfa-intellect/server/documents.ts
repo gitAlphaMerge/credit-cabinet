@@ -68,19 +68,20 @@ export async function extract(
   if (text.length > 700000 || rows.length > 50000)
     throw new Error("Слишком большой документ: используйте до 50 000 строк.");
   const fields: Fields = {};
+  const records: Record<string, string | number>[] = [];
   let period = "Не определён";
   let currency = "RUB";
   let category = categoryHint || "";
   const kv = /^([A-Za-z][A-Za-z0-9]*)\s*[:,\t]\s*(.+)$/;
   for (const line of text.split("\n")) {
     const m = line.trim().match(kv);
-    if (m) {
+    if (m && rows[0]?.[0] !== "date") {
       const key = m[1],
         v = m[2].trim();
       if (key === "category") category = v;
       else if (key === "period") period = v;
       else if (key === "currency") currency = v;
-      else {
+      else if (key in fieldNames) {
         const n = Number(v.replace(/\s/g, "").replace(",", "."));
         fields[key] = v !== "" && Number.isFinite(n) ? n : v.slice(0, 1000);
       }
@@ -89,9 +90,15 @@ export async function extract(
   if (rows[0]?.[0] === "date" && rows[0].includes("amount")) {
     category = "statement";
     const headers = rows[0];
+    if (!headers.includes("kind"))
+      throw new Error(
+        "В шаблоне выписки нужна колонка kind: operating, financing, debt или transfer. Разметка не даёт принять получение кредита за операционный денежный поток.",
+      );
     const dates: string[] = [];
     let incoming = 0,
-      outgoing = 0;
+      outgoing = 0,
+      operatingFlow = 0,
+      debtPayments = 0;
     const months = new Set<string>();
     for (const row of rows.slice(1)) {
       if (!row.some(Boolean)) continue;
@@ -99,27 +106,91 @@ export async function extract(
       const amount = Number(
         row[headers.indexOf("amount")]?.replace(/\s/g, "").replace(",", "."),
       );
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(amount))
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        !Number.isFinite(Date.parse(date)) ||
+        !Number.isFinite(amount)
+      )
         throw new Error("Выписка: нужны дата YYYY-MM-DD и числовая amount.");
       dates.push(date);
       months.add(date.slice(0, 7));
       if (amount >= 0) incoming += amount;
       else outgoing -= amount;
+      const kind = row[headers.indexOf("kind")];
+      if (!["operating", "financing", "debt", "transfer"].includes(kind))
+        throw new Error(
+          "Неизвестная категория операции kind. Используйте подготовленный шаблон.",
+        );
+      if (kind === "operating") operatingFlow += amount;
+      if (kind === "debt" && amount < 0) debtPayments -= amount;
+      const record: Record<string, string | number> = {
+        date,
+        amount,
+        kind,
+        counterparty: row[headers.indexOf("counterparty")] || "",
+        purpose: row[headers.indexOf("purpose")] || "",
+      };
       if (headers.includes("balance")) {
         const b = Number(row[headers.indexOf("balance")]);
-        if (Number.isFinite(b)) fields.lastBalance = b;
+        if (Number.isFinite(b)) record.balance = b;
       }
+      records.push(record);
     }
     if (!dates.length) throw new Error("В выписке нет операций.");
     dates.sort();
+    records.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    if (typeof records.at(-1)?.balance === "number")
+      fields.lastBalance = records.at(-1)!.balance;
+    const first = new Date(dates[0]),
+      last = new Date(dates.at(-1)!);
+    const monthCount =
+      (last.getUTCFullYear() - first.getUTCFullYear()) * 12 +
+      last.getUTCMonth() -
+      first.getUTCMonth() +
+      1;
     period = dates[0] + " — " + dates.at(-1);
     Object.assign(fields, {
       inflow: incoming,
       outflow: outgoing,
-      freeFlow: Math.round((incoming - outgoing) / months.size),
-      months: months.size,
+      freeFlow: Math.round(operatingFlow / monthCount),
+      existingPayments: Math.round(debtPayments / monthCount),
+      months: monthCount,
       operations: dates.length,
     });
+  }
+  if (rows[0]?.[0] === "date" && rows[0].includes("payment")) {
+    category = "schedule";
+    const headers = rows[0];
+    for (const row of rows.slice(1)) {
+      if (!row.some(Boolean)) continue;
+      const record: Record<string, string | number> = { date: row[0] };
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(row[0]) ||
+        !Number.isFinite(Date.parse(row[0]))
+      )
+        throw new Error("График: нужна корректная дата YYYY-MM-DD.");
+      for (const key of ["payment", "principal", "interest", "balance"]) {
+        const value = Number(row[headers.indexOf(key)]);
+        if (!Number.isFinite(value) || value < 0)
+          throw new Error("График: неверное число " + key);
+        record[key] = value;
+      }
+      if (
+        Math.abs(
+          Number(record.payment) -
+            Number(record.principal) -
+            Number(record.interest),
+        ) > 0.1
+      )
+        throw new Error(
+          "График: платёж не равен сумме основного долга и процентов.",
+        );
+      records.push(record);
+    }
+    if (!records.length) throw new Error("График не содержит платежей.");
+    records.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    Object.assign(fields, records[0], { payments: records.length });
+    period = records[0].date + " — " + records.at(-1)!.date;
   }
   if (!category)
     category =
@@ -145,12 +216,17 @@ export async function extract(
     if (typeof v === "number" && !Number.isFinite(v))
       throw new Error("Некорректное число: " + k);
   }
-  return { category, period, currency, fields };
+  return { category, period, currency, fields, records };
 }
 export const fieldNames: Record<string, string> = {
   inflow: "Поступления по счёту",
   outflow: "Списания по счёту",
   freeFlow: "Средний свободный денежный поток / мес.",
+  existingPayments: "Средние действующие кредитные платежи / мес.",
+  incoming: "Ожидаемые поступления",
+  existing: "Действующие платежи",
+  date: "Дата первого платежа",
+  payments: "Платежей в графике",
   lastBalance: "Остаток по выписке",
   months: "Месяцев в выборке",
   operations: "Операций",

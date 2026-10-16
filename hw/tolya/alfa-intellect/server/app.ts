@@ -207,6 +207,22 @@ function lookupResponse(res: express.Response, data: any) {
   });
   res.json(data);
 }
+function activityName(code: string, fallback: string) {
+  const labels: Record<string, string> = {
+    "62": "Разработка программного обеспечения и IT",
+    "28": "Производство машин и оборудования",
+    "46": "Оптовая торговля",
+    "47": "Розничная торговля",
+    "41": "Строительство зданий",
+    "49": "Логистика и перевозки",
+    "56": "Общественное питание",
+    "45": "Автобизнес",
+    "85": "Образование",
+  };
+  return (
+    labels[code.slice(0, 2)] || fallback || "Деятельность требует уточнения"
+  );
+}
 app.post("/api/lookup", async (req, res) => {
   limit("lookup:" + res.locals.userId, 10);
   const inn = z
@@ -247,7 +263,11 @@ app.post("/api/lookup", async (req, res) => {
               .slice(0, 10)
           : undefined,
         region: party.data.address?.data?.region_with_type,
-        activity: "ОКВЭД " + party.data.okved,
+        activity: activityName(
+          party.data.okved || "",
+          stateOf(res.locals.userId).profile.sector,
+        ),
+        okved: party.data.okved,
         status: party.data.state.status,
         source: "DaData",
         demo: false,
@@ -312,6 +332,7 @@ app.post("/api/lookup/confirm", (req, res) => {
       source: z.string().max(100),
       demo: z.boolean().optional(),
       status: z.string().optional(),
+      okved: z.string().optional(),
     })
     .parse(candidate.data);
   s.profile = {
@@ -378,6 +399,8 @@ app.post("/api/documents/:id/confirm", (req, res) => {
   if (doc.category === "statement")
     Object.assign(s.financials, {
       freeFlow: doc.fields.freeFlow,
+      existing: doc.fields.existingPayments ?? 0,
+      freeFlowSource: doc.name + " · " + doc.period,
       ...("lastBalance" in doc.fields
         ? { balance: doc.fields.lastBalance }
         : {}),
@@ -516,6 +539,10 @@ app.post("/api/financials", (req, res) => {
     })
     .parse(req.body);
   s.financials[p.field] = p.value;
+  if (["incoming", "expenses", "balance"].includes(p.field))
+    s.financials.forecastSource =
+      "Предположения, подтверждённые пользователем " +
+      new Date().toISOString().slice(0, 10);
   s.financials[p.field + "Source"] =
     "Подтверждено пользователем " + new Date().toISOString().slice(0, 10);
   saveState(res.locals.userId, s);
@@ -578,6 +605,35 @@ app.post("/api/leads", (req, res) => {
   saveState(res.locals.userId, s);
   res.json(s);
 });
+app.post("/api/consultations", (req, res) => {
+  const s = stateOf(res.locals.userId);
+  const phone = phoneSchema.parse(req.body.phone);
+  const note = z.string().trim().min(5).max(1000).parse(req.body.note);
+  const existing = s.leads.find(
+    (l) =>
+      l.selectionId === "consultation" && l.note === note && l.phone === phone,
+  );
+  if (!existing)
+    s.leads.push({
+      id: randomUUID(),
+      selectionId: "consultation",
+      phone,
+      note,
+      createdAt: new Date().toISOString(),
+    });
+  notify(
+    s,
+    "consultation:" +
+      createHash("sha256")
+        .update(phone + note)
+        .digest("hex"),
+    "Обращение сохранено",
+    "Демонстрационное обращение сохранено локально. Сотруднику банка не отправлялось.",
+    "cabinet",
+  );
+  saveState(res.locals.userId, s);
+  res.json(s);
+});
 app.get("/api/dossier/:id", (req, res) => {
   const s = stateOf(res.locals.userId),
     selection = s.selections.find((x) => x.id === req.params.id);
@@ -602,14 +658,19 @@ app.get("/api/dossier/:id", (req, res) => {
 app.post("/api/credit/demo", (req, res) => {
   const s = stateOf(res.locals.userId);
   if (!s.credit) {
-    const calculation = calculate({
-      amount: 3000000,
-      term: 36,
-      rate: 22,
-      flow: 420000,
-      existing: 0,
-    });
     const paid = 8;
+    const started = new Date();
+    started.setUTCMonth(started.getUTCMonth() - paid);
+    const calculation = calculate(
+      {
+        amount: 3000000,
+        term: 36,
+        rate: 22,
+        flow: 420000,
+        existing: 0,
+      },
+      started,
+    );
     s.credit = {
       id: randomUUID(),
       calculation,
@@ -635,6 +696,24 @@ app.post("/api/credit/demo", (req, res) => {
     );
     saveState(res.locals.userId, s);
   }
+  res.json(s);
+});
+app.post("/api/forecast-assumptions", (req, res) => {
+  const values = z
+    .object({
+      balance: z.number().finite().min(0).max(1e9),
+      incoming: z.number().finite().min(0).max(1e9),
+      expenses: z.number().finite().min(0).max(1e9),
+    })
+    .strict()
+    .parse(req.body);
+  const s = stateOf(res.locals.userId);
+  Object.assign(s.financials, values, {
+    forecastSource:
+      "Предположения, подтверждённые пользователем " +
+      new Date().toISOString().slice(0, 10),
+  });
+  saveState(res.locals.userId, s);
   res.json(s);
 });
 app.post("/api/credit/forecast", (req, res) => {

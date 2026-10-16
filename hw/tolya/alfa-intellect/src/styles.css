@@ -1871,19 +1871,19 @@ small {
 }
 .chat-welcome {
   text-align: center;
-  padding: 25px 4px;
+  padding: 15px 4px;
 }
 .welcome-orb {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 66px;
-  height: 66px;
+  width: 50px;
+  height: 50px;
   background: radial-gradient(circle at 30% 25%, #ffebe7, #fff8f5);
   border: 1px solid #fae7df;
   box-shadow: 0 8px 35px #e54d1c0a;
   border-radius: 20px;
-  margin: 0 auto 24px;
+  margin: 0 auto 18px;
   color: var(--red);
   transform: rotate(-7deg);
 }
@@ -1910,7 +1910,7 @@ small {
 .starter-prompts {
   display: grid;
   gap: 8px;
-  margin: 25px 0 0;
+  margin: 18px 0 0;
   text-align: left;
 }
 .starter-prompts > button {
@@ -4540,6 +4540,18 @@ tbody tr:last-child td {
   }
   .formula {
     font-size: 9px;
+  }
+}
+@media (max-width: 560px) {
+  .workspace-footer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+  .workspace-footer > .text-button {
+    grid-column: 1/-1;
+    grid-row: 2;
+    justify-content: flex-start;
+    font-size: 10px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

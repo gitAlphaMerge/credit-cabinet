@@ -139,6 +139,20 @@ test("Сквозной API: сессия, изоляция, документ, ч
     .send({ selectionId: selection.body.id, phone: "+7 900 111-22-33" })
     .expect(200);
   assert.equal((await a.get("/api/state")).body.leads.length, 1);
+  await a
+    .post("/api/consultations")
+    .send({ phone: "+7 900 111-22-33", note: "Обсудить условия для проекта" })
+    .expect(200);
+  await a
+    .post("/api/consultations")
+    .send({ phone: "+7 900 111-22-33", note: "Обсудить условия для проекта" })
+    .expect(200);
+  assert.equal(
+    (await a.get("/api/state")).body.leads.filter(
+      (l: any) => l.selectionId === "consultation",
+    ).length,
+    1,
+  );
   await a.post("/api/credit/demo").send({}).expect(200);
   assert.equal((await a.get("/api/state")).body.credit.demo, true);
   const f = await a
@@ -146,6 +160,22 @@ test("Сквозной API: сессия, изоляция, документ, ч
     .send({ stress: true })
     .expect(200);
   assert.equal(f.body.available, true);
+  await a
+    .post("/api/forecast-assumptions")
+    .send({ balance: 0, incoming: 0, expenses: 500000 })
+    .expect(200);
+  const deficit = await a
+    .post("/api/credit/forecast")
+    .send({ stress: false })
+    .expect(200);
+  assert.ok(deficit.body.after < 0);
+  await a.post("/api/credit/forecast").send({ stress: false }).expect(200);
+  assert.equal(
+    (await a.get("/api/state")).body.notifications.filter((n: any) =>
+      n.key.startsWith("deficit:"),
+    ).length,
+    1,
+  );
   await a.post("/api/auth/logout").send({}).expect(200);
   await a.get("/api/state").expect(401);
   await a

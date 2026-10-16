@@ -13,7 +13,7 @@ for (const [category, file, field, expected] of [
   ["pnl", "pnl.pdf", "profit", 1260000],
   ["model", "model.xlsx", "plannedIncome", 1500000],
   ["plan", "plan.docx", "purpose", "Synthetic workshop equipment"],
-  ["schedule", "schedule.csv", "payment", 114566],
+  ["schedule", "schedule.csv", "payments", 28],
 ] as const)
   test("Извлечение " + category, async () => {
     const d = await extract(await readFile(join(dir, file)), file);
@@ -32,4 +32,29 @@ test("Неподдерживаемый файл, ложное расширени
   await assert.rejects(
     extract(Buffer.from("category,balance\nassets,3"), "x.csv"),
   );
+});
+test("Кредитные поступления и внутренние переводы не увеличивают операционный поток", async () => {
+  const data =
+    "date,amount,counterparty,purpose,balance,kind\n2026-06-01,500000,Customer,Sale,500000,operating\n2026-06-05,-200000,Supplier,Cost,300000,operating\n2026-06-10,3000000,Bank,Loan,3300000,financing\n2026-06-15,-50000,Bank,Repayment,3250000,debt\n2026-06-20,700000,Own,Transfer,3950000,transfer\n";
+  const d = await extract(Buffer.from(data), "statement.csv");
+  assert.equal(d.fields.freeFlow, 300000);
+  assert.equal(d.fields.existingPayments, 50000);
+  assert.equal(d.records.length, 5);
+  assert.equal(d.fields.date, undefined);
+});
+test("Полный график хранит даты и согласованные части платежа", async () => {
+  const d = await extract(
+    await readFile(join(dir, "schedule.csv")),
+    "schedule.csv",
+  );
+  assert.equal(d.records.length, 28);
+  assert.equal(d.records[0].date, "2026-11-16");
+  assert.ok(
+    Math.abs(
+      Number(d.records[0].payment) -
+        Number(d.records[0].principal) -
+        Number(d.records[0].interest),
+    ) < 0.02,
+  );
+  assert.equal(d.records.at(-1)!.balance, 0);
 });
