@@ -1,0 +1,415 @@
+# services/ml-model/core.py
+"""Ядро ступеньки 1: классификация операций и расчёт статуса.
+
+Контракт задаёт data/check_golden.py:
+    score(statement_csv, need, questionnaire) -> dict
+
+CSV приходит без колонки label. Метку ядро определяет по структурным признакам:
+тип контрагента, ИНН (если есть), структура назначения, знак суммы, пары операций.
+Ключевые слова — последний сигнал, чтобы код работал и на грязных выписках
+(с ИНН, сокращениями, без явных подсказок).
+
+Эталон для сверки: data/synthetic/reference.py.
+"""
+
+import csv
+from collections import defaultdict
+from datetime import datetime
+
+
+PARAMS = {
+    "rate": 0.24,             # годовая ставка; ДО ТАБЛИЦЫ ТОЛИ
+    "dscr_min": 1.25,         # минимальный DSCR: поток / платёж
+    "stress": 0.30,           # падение выручки в стрессе
+    "variable_share": 0.5,    # доля материалов в выручке по новому договору
+    "concentration": 0.70,    # доля одного заказчика, выше которой — концентрация
+    "cash_share": 0.30,       # доля наличных, выше которой — стоп CASH_OUT
+    "min_months": 6,          # меньше — TOO_YOUNG
+    "full_months": 12,        # меньше — SHORT_STATEMENT
+    "min_ops": 30,            # меньше — SHORT_STATEMENT
+    "pair_amount_tol": 0.15,  # допустимое расхождение сумм в паре «пришло — вернулось»
+    "pair_days": 180,         # окно между операциями пары
+}
+
+# ЧЕРНОВИК ДО ИНСТРУМЕНТОВ ТОЛИ
+INSTRUMENT = {
+    "кассовый разрыв": "овердрафт",
+    "закупка под контракт": "кредитная линия",
+    "оборудование": "лизинг",
+    "сезон": "кредитная линия",
+    "рост": "кредит на развитие",
+}
+
+# метки, идущие в свободный поток
+IN_LABELS = {"inflow"}
+OUT_LABELS = {"mandatory", "operating", "cash", "enforcement"}
+
+# структурные маркеры контрагента (в нижнем регистре)
+GOV_MARKERS = (
+    "уфк", "фнс", "казначейств", "налогов", "фссп", "гуфссп",
+    "фсс", "сфр", "пфр", "росреестр", "таможн", "гибдд",
+)
+BANK_MARKERS = (
+    "банк", "сбер", "втб", "альфа", "т-банк", "тинькофф", "открытие",
+    "райффайзен", "росбанк", "газпромбанк", "псб", "совкомбанк",
+)
+# перевод между своими счетами: ищем признаки в имени контрагента
+SELF_ACCOUNT_MARKERS = (
+    "счёт в другом банке", "счет в другом банке", "свой счёт", "свой счет",
+    "собственный счёт", "собственный счет",
+)
+# организационные формы юрлиц: если их нет в имени, вероятно это физлицо
+LEGAL_FORMS = ("ооо", "оао", "зао", "пао", "ао ", "ип ",
+               "фгбу", "фгбоу", "фгуп", "мбу", "гуп")
+
+# маркеры назначения
+CASH_MARKERS = (
+    "снятие наличн", "выдача наличн", "под отчёт", "подотчёт",
+    "банкомат", "на хозяйственные нужды",
+)
+OWNER_MARKERS = (
+    "дивиденд", "распределение прибыли", "на личную карту",
+    "собственные средства ип", "выплата участнику", "выплата собственнику",
+    "доход участника",
+)
+SELF_TRANSFER_MARKERS = (
+    "собственных средств", "между своими", "между счетами",
+    "на свой счёт", "на счёт в другом", "своего счёта", "в другой банк",
+)
+LOAN_MARKERS = ("займ", "заём", "финансовая помощь")
+ENFORCE_MARKERS = ("инкассов", "исполнительн", "взыскан", "арест")
+SALARY_MARKERS = (
+    "заработн", "оплата труда", "выплата зп", "аванс по заработ",
+    "зп за", "перечисление зп",
+)
+TAX_MARKERS = (
+    "налог", "енп", "енс ", "енс,", "ндфл", "усн",
+    "взнос", "страховые", "единый налоговый",
+)
+CREDIT_MARKERS = (
+    "погашение кредита", "платёж по кредиту", "платеж по кредиту",
+    "проценты по кредиту", "кредитн", "кредит №",
+)
+
+
+# помощники 
+def _has_any(text, keys):
+    """Есть ли в тексте хотя бы одна из подстрок keys."""
+    return any(k in text for k in keys)
+
+
+def _is_government(cp):
+    """Контрагент - госорган (ФНС, УФК, ФССП, СФР). Ловим налоги и инкассо
+    по контрагенту, а не по формулировке в назначении"""
+    return _has_any(cp, GOV_MARKERS)
+
+
+def _is_bank(cp):
+    """Контрагент - банк. Обычно комиссии и тарифы, реже выручка"""
+    return _has_any(cp, BANK_MARKERS)
+
+
+def _is_individual(cp):
+    """Контрагент - физлицо: в имени нет организационной формы.
+    Нужно, чтобы не принять обычную коммерческую операцию с юрлицом за заём"""
+    return not any(f in cp for f in LEGAL_FORMS)
+
+
+# классификация одной строки
+def classify(amount, counterparty, purpose, client_inn=None, cp_inn=None):
+    """Метка одной операции.
+
+    Порядок проверок:
+    1. Инкассо, приставы — enforcement.
+    2. Совпадение ИНН клиента и контрагента — transfer.
+    3. Структурный признак перевода между своими счетами — transfer.
+    4. Наличные — cash.
+    5. Вывод собственнику — owner.
+    6. Займы — financing.
+    7. Обязательные по контрагенту (госорган, зарплатный реестр).
+    8. Обязательные по назначению (зарплата, налоги, аренда, лизинг, кредит).
+    9. По знаку суммы: плюс — inflow, минус — operating.
+
+    Возвращает одну из меток: enforcement, transfer, cash, owner, financing,
+    mandatory, inflow, operating.
+    """
+    p = (purpose or "").lower()
+    cp = (counterparty or "").lower()
+
+    # 1. инкассо, приставы
+    if _has_any(p, ENFORCE_MARKERS) or "фссп" in cp or "гуфссп" in cp:
+        return "enforcement"
+
+    # 2. совпадение ИНН клиента и контрагента — перевод самому себе
+    if client_inn and cp_inn and str(client_inn).strip() == str(cp_inn).strip():
+        return "transfer"
+
+    # 3. структурный признак перевода: имя контрагента содержит «счёт в другом банке»
+    if _has_any(cp, SELF_ACCOUNT_MARKERS) or _has_any(p, SELF_TRANSFER_MARKERS):
+        return "transfer"
+
+    # 4. наличные
+    if _has_any(p, CASH_MARKERS):
+        return "cash"
+
+    # 5. вывод собственнику
+    if _has_any(p, OWNER_MARKERS):
+        return "owner"
+
+    # 6. займы (в обе стороны)
+    if _has_any(p, LOAN_MARKERS):
+        return "financing"
+
+    # 7. Если сумма положительная и это не одно из исключений выше — выручка.
+    # Обязательные платежи и операционка бывают только списаниями.
+    if amount > 0:
+        return "inflow"
+
+    # 8. Обязательные по контрагенту (только для списаний)
+    if _is_government(cp):
+        return "mandatory"
+    if "зарплатн" in cp:
+        return "mandatory"
+
+    # 9. Обязательные по назначению (только для списаний)
+    if _has_any(p, SALARY_MARKERS):
+        return "mandatory"
+    if _has_any(p, TAX_MARKERS):
+        return "mandatory"
+    if "аренд" in p:
+        return "mandatory"
+    if "лизинг" in p:
+        return "mandatory"
+    if _has_any(p, CREDIT_MARKERS):
+        return "mandatory"
+
+    # 10. Всё остальное — операционные расходы
+    return "operating"
+
+
+# чтение CSV
+def read_csv(path):
+    """Читает выписку. Обязательные колонки: date, amount, counterparty,
+    purpose. Необязательные: inn (ИНН контрагента), inn_client (ИНН клиента).
+    Колонка label, если есть, игнорируется"""
+    rows = []
+    with open(path, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            rows.append({
+                "date": r["date"],
+                "amount": float(r["amount"]),
+                "counterparty": r.get("counterparty", ""),
+                "purpose": r.get("purpose", ""),
+                "inn": (r.get("inn") or r.get("counterparty_inn") or "").strip() or None,
+                "inn_client": (r.get("inn_client") or "").strip() or None,
+            })
+    return rows
+
+
+# пары "пришло - вернулось"
+def resolve_financing_pairs(rows, params=None):
+    """Ищет пары входящей и исходящей операций от одного контрагента
+    с близкими суммами в пределах окна и помечает обе как financing.
+
+    Ловит займы и возвраты, даже если слова «займ» нет в назначении:
+    один контрагент + близкие суммы + короткое окно = классическая пара.
+    Работает только для физлиц (12-значный ИНН или имя без ООО/ИП/АО):
+    у юрлиц похожие пары часто означают обычную коммерческую операцию.
+    """
+    p = params or PARAMS
+    tol = p["pair_amount_tol"]
+    days = p["pair_days"]
+
+    by_cp = defaultdict(list)
+    for r in rows:
+        if r["label"] in ("inflow", "operating"):
+            by_cp[r["counterparty"]].append(r)
+
+    for cp, ops in by_cp.items():
+        cp_low = cp.lower()
+        first_inn = str(ops[0].get("inn") or "")
+        is_individual = len(first_inn) == 12 or _is_individual(cp_low)
+        if not is_individual:
+            continue
+
+        ins = [o for o in ops if o["amount"] > 0]
+        outs = [o for o in ops if o["amount"] < 0]
+        used = set()
+        for i in ins:
+            d_i = datetime.fromisoformat(i["date"])
+            for j in outs:
+                if id(j) in used:
+                    continue
+                d_j = datetime.fromisoformat(j["date"])
+                if abs((d_j - d_i).days) > days:
+                    continue
+                big = max(abs(i["amount"]), abs(j["amount"]))
+                if big == 0:
+                    continue
+                if abs(abs(i["amount"]) - abs(j["amount"])) / big <= tol:
+                    i["label"] = "financing"
+                    j["label"] = "financing"
+                    used.add(id(j))
+                    break
+
+
+# ── аннуитет ─────────────────────────────────────────────────────────────────
+def annuity_factor(rate, term):
+    """Множитель аннуитета: платёж × factor = сумма кредита.
+    При нулевой ставке возвращает просто срок, чтобы не делить на ноль"""
+    i = rate / 12
+    if i == 0:
+        return term
+    return (1 - (1 + i) ** -term) / i
+
+
+# главная функция
+def score(statement_csv, need, questionnaire, params=None):
+    """Ядро ступеньки 1
+
+    Вход: путь к CSV без label, словарь нужды, словарь анкеты
+          (в анкете может быть ИНН клиента под ключом «inn»)
+    Выход: dict по контракту check_golden.py:
+          status, instrument, stops_fired, reasons, missing,
+          flow_month_rub, limit_now_rub, limit_after_rub
+    """
+    p = params or PARAMS
+
+    # читаем + размечаем операции
+    rows = read_csv(statement_csv)
+    client_inn = questionnaire.get("inn") or None
+    for r in rows:
+        r["label"] = classify(
+            r["amount"], r["counterparty"], r["purpose"],
+            client_inn=client_inn,
+            cp_inn=r.get("inn"),
+        )
+    # помечаем пары «пришло — вернулось» как займы
+    resolve_financing_pairs(rows, params=p)
+
+    # агрегаты по месяцам
+    by_month = defaultdict(lambda: defaultdict(float))
+    for r in rows:
+        by_month[r["date"][:7]][r["label"]] += r["amount"]
+    months = sorted(by_month)
+    n = len(months) if months else 0
+
+    def avg(lab):
+        """Среднее по месяцам для одной метки; ноль, если месяцев нет."""
+        if n == 0:
+            return 0.0
+        return sum(by_month[m].get(lab, 0.0) for m in months) / n
+
+    # свободный поток за месяц; суммы в CSV уже со знаком
+    flow_labels = IN_LABELS | OUT_LABELS
+    m_flow = {m: sum(v for k, v in by_month[m].items() if k in flow_labels)
+              for m in months}
+    flow = sum(m_flow.values()) / n if n else 0.0
+
+    # стопы в порядке stop-rules.md; первый сработавший решает статус
+    stops = []
+    if questionnaire.get("form") not in ("ИП", "ООО"):
+        stops.append("NOT_BUSINESS")
+    if questionnaire.get("years") == "меньше года" or n < p["min_months"]:
+        stops.append("TOO_YOUNG")
+    if n < p["full_months"] or len(rows) < p["min_ops"]:
+        stops.append("SHORT_STATEMENT")
+    if flow <= 0:
+        stops.append("NO_FREE_CASHFLOW")
+    if any(r["label"] == "enforcement" for r in rows):
+        stops.append("ENFORCEMENT")
+
+    inflow_total = sum(r["amount"] for r in rows if r["label"] == "inflow")
+    cash_total = -sum(r["amount"] for r in rows if r["label"] == "cash")
+    if inflow_total > 0 and cash_total / inflow_total > p["cash_share"]:
+        stops.append("CASH_OUT")
+
+    # коды причин и missing (статус не меняют)
+    reasons, missing = [], []
+
+    # концентрация на одном заказчике; эквайринг не считаем заказчиком
+    payers = defaultdict(float)
+    for r in rows:
+        if r["label"] == "inflow" and "эквайринг" not in r["counterparty"].lower():
+            payers[r["counterparty"]] += r["amount"]
+    top_share = (max(payers.values()) / inflow_total
+                 if payers and inflow_total > 0 else 0.0)
+    if top_share > p["concentration"]:
+        reasons.append("CONCENTRATION_ONE_CUSTOMER")
+        missing += ["contract_main_customer", "reconciliation_act"]
+
+    # стресс: выручка −30%, переменные −30%, остальное как есть
+    stress_flow = (avg("inflow") * (1 - p["stress"])
+                   + avg("mandatory")
+                   + avg("operating") * (1 - p["stress"])
+                   + avg("cash")
+                   + avg("enforcement"))
+    if stress_flow < 0 and flow > 0:
+        reasons.append("STRESS_NEGATIVE_FLOW")
+
+    # кассовый разрыв (средний поток плюс, но есть месяцы с минусом)
+    if flow > 0 and any(v < 0 for v in m_flow.values()):
+        reasons.append("CASH_GAP")
+
+    if "SHORT_STATEMENT" in stops:
+        missing.insert(0, "statement_12m")
+
+    # лимиты
+    a = annuity_factor(p["rate"], need["term_months"])
+    limit_now = max(flow, 0.0) / p["dscr_min"] * a
+
+    # лимит после шага: договор с главным заказчиком добавляет поток,
+    # из которого половина уходит на материалы
+    flow_after = flow
+    contract = need.get("contract_with_main_customer")
+    if contract and "contract_main_customer" in missing:
+        flow_after += contract["sum_rub"] / contract["months"] * (1 - p["variable_share"])
+    limit_after = max(flow_after, 0.0) / p["dscr_min"] * a
+
+    # инструмент и статус
+    instrument = INSTRUMENT.get(need["purpose"], "кредит")
+
+    if stops:
+        status = "можно после шага" if stops[0] == "SHORT_STATEMENT" else "нужен менеджер"
+    elif need.get("asked_for", "кредит") == "кредит" and instrument in ("лизинг", "гарантия"):
+        status = "лучше другой инструмент"
+    elif need["amount_rub"] <= limit_now:
+        status = "можно подавать"
+    elif need["amount_rub"] <= limit_after:
+        status = "можно после шага"
+    else:
+        status = "нужен менеджер"
+
+    return {
+        "status": status,
+        "instrument": instrument,
+        "stops_fired": stops,
+        "reasons": reasons,
+        "missing": missing,
+        "flow_month_rub": round(flow),
+        "limit_now_rub": round(limit_now),
+        "limit_after_rub": round(limit_after),
+        "evidence": {
+            "months": n,
+            "operations": len(rows),
+            "flow_by_month": {m: round(v) for m, v in m_flow.items()},
+        },
+    }
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+    out = score(
+        statement_csv=sys.argv[1] if len(sys.argv) > 1 else "data/synthetic/cash_gap.csv",
+        need={
+            "purpose": "кассовый разрыв", "amount_rub": 1_500_000, "term_months": 12,
+            "repay_from": "оплата по договору", "asked_for": "кредит",
+            "contract_with_main_customer": {"sum_rub": 1_440_000, "months": 12},
+        },
+        questionnaire={
+            "form": "ООО", "need": "кассовый разрыв", "sector": "стройка",
+            "years": "больше 3", "trend": "в плюс",
+        },
+    )
+    print(json.dumps(out, ensure_ascii=False, indent=2))
