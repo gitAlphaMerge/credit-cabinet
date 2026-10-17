@@ -253,11 +253,11 @@ def read_csv(path):
 
     rows = []
     for r in reader:
-        # Ищем колонки по подстроке в имени
-        date_key = next((k for k in r if k and "дата" in k.lower()), None)
-        cp_key = next((k for k in r if k and "контрагент" in k.lower()), None)
-        purpose_key = next((k for k in r if k and "назначен" in k.lower()), None)
-        amount_key = next((k for k in r if k and "сумм" in k.lower()), None)
+        # Ищем колонки по подстроке в имени; английские имена — чистый формат 1 (data/synthetic, golden)
+        date_key = next((k for k in r if k and ("дата" in k.lower() or k.lower() == "date")), None)
+        cp_key = next((k for k in r if k and ("контрагент" in k.lower() or k.lower() == "counterparty")), None)
+        purpose_key = next((k for k in r if k and ("назначен" in k.lower() or k.lower() == "purpose")), None)
+        amount_key = next((k for k in r if k and ("сумм" in k.lower() or k.lower() == "amount")), None)
         debit_key = next((k for k in r if k and "дебет" in k.lower()), None)
         credit_key = next((k for k in r if k and "кредит" in k.lower()), None)
         prihod_key = next((k for k in r if k and "приход" in k.lower()), None)
