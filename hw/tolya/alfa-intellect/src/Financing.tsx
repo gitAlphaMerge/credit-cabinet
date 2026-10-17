@@ -22,6 +22,8 @@ import { Button, Badge, Field, CalculationView, Modal, LineChart } from "./ui";
 import { money, date } from "./api";
 import type { Selection } from "../shared/types";
 import type { FinancingForm } from "./financing-draft";
+import { RangeField } from "./RangeField";
+import { SelectionResult } from "./SelectionResult";
 const purposes = [
   [
     "Оборотные средства",
@@ -65,6 +67,12 @@ export function Financing() {
   useEffect(() => {
     w.cacheFinancingDraft({ tab, step, selected, parentId, form });
   }, [tab, step, selected, parentId, form]);
+  useEffect(() => {
+    if (w.state.financials.freeFlow !== undefined)
+      setForm((f) =>
+        f.flow === "" ? { ...f, flow: w.state.financials.freeFlow } : f,
+      );
+  }, [w.state.financials.freeFlow]);
   const item = w.state.selections.find((s) => s.id === selected),
     parent = w.state.selections.find((s) => s.id === item?.parentId);
   function reset() {
@@ -200,82 +208,16 @@ export function Financing() {
               Версия {item.version} · {date(item.createdAt)}
             </Badge>
           </div>
-          <section className="panel result-panel">
-            <div className="result-head">
-              <div>
-                <Badge tone="red">
-                  Предварительный результат · демоусловия
-                </Badge>
-                <h2>{item.product}</h2>
-                <p>
-                  {item.purpose} · источник возврата: {item.repayFrom}
-                </p>
-              </div>
-              <span className="result-symbol">
-                <ShieldCheck size={40} />
-              </span>
-            </div>
-            <CalculationView c={item.calculation} />
-            <div className="result-analysis">
-              <div>
-                <small>По модели можно обсуждать</small>
-                <strong>{money(item.calculation.maxAmount)}</strong>
-                <p>
-                  При DSCR 1,25 и указанных денежных показателях. Это расчётная
-                  граница, не лимит банка.
-                </p>
-              </div>
-              <div>
-                <Badge
-                  tone={
-                    item.calculation.dscr !== null &&
-                    item.calculation.dscr >= 1.25
-                      ? "green"
-                      : "red"
-                  }
-                >
-                  {item.status}
-                </Badge>
-                <p>
-                  Тип инструмента выбран по цели, стадии, возрасту и параметрам
-                  бизнеса. Ставка из синтетического каталога demo-1, не
-                  предложение Альфа-Банка.
-                </p>
-              </div>
-            </div>
-            {item.risks.length > 0 && (
-              <div className="result-risks">
-                <h3>
-                  <AlertTriangle size={18} /> Что важно учесть
-                </h3>
-                {item.risks.map((t) => (
-                  <p key={t}>• {t}</p>
-                ))}
-              </div>
-            )}
-            <div className="alternatives">
-              <h3>Альтернативный шаг</h3>
-              {item.alternatives.map((t) => (
-                <p key={t}>{t}</p>
-              ))}
-            </div>
-            <div className="result-actions">
-              <Button secondary onClick={() => revise(item)}>
-                <SlidersHorizontal size={17} /> Изменить параметры
-              </Button>
-              <Button secondary onClick={() => void discuss(item)}>
-                <MessageSquare size={17} /> Обсудить с агентом
-              </Button>
-              <Button
-                onClick={() => {
-                  setConfirmed(false);
-                  setDossier(true);
-                }}
-              >
-                Перейти к оформлению <ArrowRight size={17} />
-              </Button>
-            </div>
-          </section>
+          <SelectionResult
+            item={item}
+            onRevise={() => revise(item)}
+            onDiscuss={() => void discuss(item)}
+            onApply={() => {
+              setConfirmed(false);
+              setDossier(true);
+            }}
+            onDocuments={() => w.go("/profile")}
+          />
           {parent && (
             <section className="panel version-comparison">
               <h2>Что изменилось относительно версии {parent.version}</h2>
@@ -455,36 +397,29 @@ export function Financing() {
               </>
             ) : step === 1 ? (
               <>
-                <h2>Какие параметры подходят вашему плану?</h2>
+                <h2>Выберите параметры кредита или займа</h2>
                 <p className="muted">
-                  Пока ориентировочные — результат можно будет пересчитать.
+                  Сумму и срок можно изменить после расчёта. Границы ниже
+                  технические, не банковские лимиты.
                 </p>
                 <div className="form-grid">
-                  <Field label="Запрашиваемая сумма, ₽">
-                    <input
-                      type="number"
-                      min="10000"
-                      max="100000000"
-                      step="10000"
-                      required
-                      value={form.amount}
-                      onChange={(e) =>
-                        setForm({ ...form, amount: Number(e.target.value) })
-                      }
-                    />
-                  </Field>
-                  <Field label="Срок, месяцев">
-                    <input
-                      type="number"
-                      min="1"
-                      max="120"
-                      required
-                      value={form.term}
-                      onChange={(e) =>
-                        setForm({ ...form, term: Number(e.target.value) })
-                      }
-                    />
-                  </Field>
+                  <RangeField
+                    label="Запрашиваемая сумма"
+                    suffix="₽"
+                    value={form.amount}
+                    min={10000}
+                    max={100000000}
+                    step={10000}
+                    onChange={(amount) => setForm({ ...form, amount })}
+                  />
+                  <RangeField
+                    label="Срок кредита"
+                    suffix="мес."
+                    value={form.term}
+                    min={1}
+                    max={120}
+                    onChange={(term) => setForm({ ...form, term })}
+                  />
                   <Field label="Из чего будете возвращать">
                     <select
                       value={form.repayFrom}

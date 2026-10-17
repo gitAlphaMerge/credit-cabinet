@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -6,10 +6,13 @@ import {
   Rocket,
   Check,
   ShieldCheck,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Brand, Button, Badge, Field } from "./ui";
 import { api } from "./api";
 import type { Profile } from "../shared/types";
+import { PhoneInput, normalizePhone } from "./phone";
 export const sectors = [
   "Оптовая торговля",
   "Розничная торговля и маркетплейсы",
@@ -44,12 +47,10 @@ export function Onboarding({
   go,
   onAuth,
   login = false,
-  demo,
 }: {
   go: (p: string) => void;
   onAuth: () => Promise<void>;
   login?: boolean;
-  demo: (k: string) => void;
 }) {
   const [p, setP] = useState<Profile>(() => {
     try {
@@ -66,7 +67,10 @@ export function Onboarding({
     [phone, setPhone] = useState(""),
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [showPassword, setShowPassword] = useState(false),
+    [touched, setTouched] = useState({ phone: false, password: false });
+  const branches = useRef<Record<string, Partial<Profile>>>({ [p.stage]: p });
   const options = (a: string[]) => a.map((v) => ({ value: v, label: v }));
   const questions: Question[] = [
     {
@@ -198,17 +202,60 @@ export function Onboarding({
       ),
     },
   ];
-  const q = questions[step];
+  const groups = [
+    ["stage"],
+    p.stage === "planning"
+      ? ["registered", "form", "sector", "preparation"]
+      : ["form", "sector", "ageBand"],
+    p.stage === "planning"
+      ? ["ageBand", "intent"]
+      : ["result", "debt", "intent"],
+  ];
+  const currentQuestions = questions.filter((q) =>
+    groups[step].includes(q.key),
+  );
+  const valid = currentQuestions.every(
+    (q) => p[q.key] !== undefined && p[q.key] !== "",
+  );
+  const titles =
+    step === 0
+      ? [
+          "На каком этапе ваш бизнес?",
+          "Зададим только вопросы, которые подходят вашей ситуации.",
+        ]
+      : step === 1
+        ? [
+            p.stage === "planning"
+              ? "Подготовка к запуску"
+              : "Расскажите о бизнесе",
+            "Основные сведения сохранятся в профиле.",
+          ]
+        : [
+            p.stage === "planning"
+              ? "С чего начнём?"
+              : "Финансовая ситуация и задача",
+            "Это предварительные ответы с ваших слов. Документы можно добавить позже.",
+          ];
+  const phoneError =
+    touched.phone && !normalizePhone(phone)
+      ? "Введите номер полностью: +7 и 10 цифр."
+      : "";
+  const passwordError =
+    touched.password && password.length < (login ? 1 : 8)
+      ? login
+        ? "Введите пароль."
+        : "Пароль должен содержать не менее 8 символов."
+      : "";
   const update = (key: keyof Profile, value: unknown) => {
-    const next = { ...p, [key]: value };
+    let next = { ...p, [key]: value };
     if (key === "stage") {
-      next.registered = true;
-      next.intent = "";
-      next.ageBand = "";
-    }
-    if (key === "registered" && value === false) {
-      next.form = "Не зарегистрирован";
-      next.ageBand = "";
+      branches.current[p.stage] = p;
+      next = {
+        ...base,
+        ...branches.current[String(value)],
+        stage: String(value),
+      };
+      if (value === "operating") next.registered = true;
     }
     if (
       key === "registered" &&
@@ -217,15 +264,19 @@ export function Onboarding({
     )
       next.form = "ООО";
     setP(next);
-    localStorage.setItem("alfa-onboarding", JSON.stringify(next));
+    try {
+      localStorage.setItem("alfa-onboarding", JSON.stringify(next));
+    } catch {}
   };
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setTouched({ phone: true, password: true });
+    if (!normalizePhone(phone) || password.length < (login ? 1 : 8)) return;
     setBusy(true);
     setError("");
     try {
       await api("/auth/" + (login ? "login" : "register"), {
-        phone,
+        phone: normalizePhone(phone),
         password,
         ...(!login
           ? {
@@ -234,11 +285,20 @@ export function Onboarding({
                 name:
                   p.form === "Не зарегистрирован" ? "Мой проект" : "Мой бизнес",
                 registered: p.stage === "operating" || p.registered,
+                ...(!p.registered && p.stage === "planning"
+                  ? {
+                      form: "Не зарегистрирован",
+                      ageBand: "",
+                      name: "Мой проект",
+                    }
+                  : {}),
               },
             }
           : {}),
       });
-      localStorage.removeItem("alfa-onboarding");
+      try {
+        localStorage.removeItem("alfa-onboarding");
+      } catch {}
       await onAuth();
     } catch (e) {
       setError((e as Error).message);
@@ -275,60 +335,88 @@ export function Onboarding({
               </button>
               <div className="onboard-progress">
                 <span>
-                  Шаг {step + 1} из {questions.length}
+                  Экран {step + 1} из {groups.length}
                 </span>
-                <b>{Math.round(((step + 1) / questions.length) * 100)}%</b>
+                <b>{Math.round(((step + 1) / groups.length) * 100)}%</b>
                 <div>
                   <i
                     style={{
-                      width: `${((step + 1) / questions.length) * 100}%`,
+                      width: `${((step + 1) / groups.length) * 100}%`,
                     }}
                   />
                 </div>
               </div>
-              <h1>{q.title}</h1>
-              <p className="lead">{q.hint}</p>
-              <div
-                className={
-                  "answer-grid " + (q.options.length > 6 ? "compact" : "")
-                }
-              >
-                {q.options.map((o, i) => (
-                  <button
-                    key={String(o.value)}
-                    className={
-                      "answer " + (p[q.key] === o.value ? "selected" : "")
-                    }
-                    onClick={() => update(q.key, o.value)}
+              <h1>{titles[0]}</h1>
+              <p className="lead">{titles[1]}</p>
+              <div className="onboarding-fields">
+                {currentQuestions.map((q) => (
+                  <fieldset
+                    key={q.key}
+                    className={"question-group question-" + q.key}
                   >
-                    <span className="answer-icon">
-                      {q.key === "stage" ? (
-                        i === 0 ? (
-                          <Building2 />
-                        ) : (
-                          <Rocket />
-                        )
-                      ) : (
-                        <span>{String(i + 1).padStart(2, "0")}</span>
-                      )}
-                    </span>
-                    <span>
-                      <b>{o.label}</b>
-                      {o.sub && <small>{o.sub}</small>}
-                    </span>
-                    <span className="radio">
-                      {p[q.key] === o.value && <Check size={12} />}
-                    </span>
-                  </button>
+                    <legend>
+                      {q.key === "stage" ? "Выберите вашу ситуацию" : q.title}
+                    </legend>
+                    {q.key === "sector" ? (
+                      <select
+                        aria-label={q.title}
+                        value={p.sector}
+                        onChange={(e) => update(q.key, e.target.value)}
+                      >
+                        <option value="" disabled>
+                          Выберите сферу
+                        </option>
+                        {q.options.map((o) => (
+                          <option key={String(o.value)} value={String(o.value)}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div
+                        className="answer-grid"
+                        role="radiogroup"
+                        aria-label={q.title}
+                      >
+                        {q.options.map((o, i) => (
+                          <label
+                            className={
+                              "answer " +
+                              (p[q.key] === o.value ? "selected" : "")
+                            }
+                            key={String(o.value)}
+                          >
+                            <input
+                              className="visually-hidden"
+                              type="radio"
+                              name={q.key}
+                              checked={p[q.key] === o.value}
+                              onChange={() => update(q.key, o.value)}
+                            />
+                            {q.key === "stage" && (
+                              <span className="stage-symbol">
+                                {i === 0 ? <Building2 /> : <Rocket />}
+                              </span>
+                            )}
+                            <span>
+                              <b>{o.label}</b>
+                              {o.sub && <small>{o.sub}</small>}
+                            </span>
+                            <span className="radio">
+                              {p[q.key] === o.value && <Check size={12} />}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </fieldset>
                 ))}
               </div>
               <Button
                 className="continue"
-                disabled={p[q.key] === undefined || p[q.key] === ""}
+                disabled={!valid}
                 onClick={() =>
-                  step < questions.length - 1
-                    ? setStep(step + 1)
-                    : setAuth(true)
+                  step < groups.length - 1 ? setStep(step + 1) : setAuth(true)
                 }
               >
                 Продолжить <ArrowRight size={18} />
@@ -339,50 +427,73 @@ export function Onboarding({
               <Badge tone="red">
                 {login ? "Личный кабинет" : "Последний шаг"}
               </Badge>
-              <h1>
-                {login
-                  ? "Рады видеть вас снова"
-                  : "Сохраните свой финансовый контекст"}
-              </h1>
+              <h1>{login ? "Вход в Альфа-Интеллект" : "Создайте аккаунт"}</h1>
               <p className="lead">
                 {login
                   ? "Войдите, чтобы продолжить работу с вашим бизнесом."
                   : "Анкета уже заполнена. Создайте аккаунт, чтобы ответы, документы и расчёты оставались с вами."}
               </p>
-              <form onSubmit={submit} className="auth-form">
-                <Field label="Номер телефона" hint="Формат: +7 999 123-45-67">
-                  <input
-                    autoComplete="tel"
-                    type="tel"
-                    required
+              <form noValidate onSubmit={submit} className="auth-form">
+                <label className="field">
+                  <span>Номер телефона</span>
+                  <PhoneInput
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+7 999 123-45-67"
+                    onChange={setPhone}
+                    onBlur={() => setTouched({ ...touched, phone: true })}
+                    invalid={!!phoneError}
+                    errorId={phoneError ? "phone-error" : undefined}
                   />
-                </Field>
-                <Field
-                  label="Пароль"
-                  hint={login ? undefined : "Минимум 10 символов"}
-                >
-                  <input
-                    type="password"
-                    required
-                    minLength={login ? 1 : 10}
-                    maxLength={128}
-                    autoComplete={login ? "current-password" : "new-password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </Field>
+                </label>
+                {phoneError && (
+                  <small id="phone-error" className="field-error" role="alert">
+                    {phoneError}
+                  </small>
+                )}
+                <div className="field">
+                  <label htmlFor="auth-password">Пароль</label>
+                  <div className="password-input">
+                    <input
+                      id="auth-password"
+                      type={showPassword ? "text" : "password"}
+                      maxLength={128}
+                      autoComplete={login ? "current-password" : "new-password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onBlur={() => setTouched({ ...touched, password: true })}
+                      aria-invalid={!!passwordError}
+                      aria-describedby={
+                        passwordError ? "password-error" : undefined
+                      }
+                    />
+                    <button
+                      type="button"
+                      aria-label={
+                        showPassword ? "Скрыть пароль" : "Показать пароль"
+                      }
+                      aria-pressed={showPassword}
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+                {passwordError && (
+                  <small
+                    id="password-error"
+                    className="field-error"
+                    role="alert"
+                  >
+                    {passwordError}
+                  </small>
+                )}
                 {error && (
                   <div className="alert error" role="alert">
                     {error}
                   </div>
                 )}
                 <p className="fine-print">
-                  Упрощённая регистрация MVP без SMS. Телефон не подтверждён.
-                  Это не банковская идентификация. Используйте синтетические
-                  данные.
+                  Телефон пока не подтверждается по SMS. Аккаунт не является
+                  банковской идентификацией.
                 </p>
                 <Button disabled={busy}>
                   {busy ? "Сохраняем…" : login ? "Войти" : "Создать аккаунт"}{" "}
@@ -401,45 +512,6 @@ export function Onboarding({
             </>
           )}
         </section>
-        <aside className="onboard-aside">
-          <div className="aside-mark">
-            <SparkleMark />
-          </div>
-          <Badge tone="green">
-            <ShieldCheck size={13} /> Всё начинается с понимания
-          </Badge>
-          <h2>
-            Не просто сумма.
-            <br />
-            Решение для
-            <br />
-            <span>вашего бизнеса.</span>
-          </h2>
-          <div className="aside-points">
-            {[
-              "Вопросы по вашей стадии бизнеса",
-              "Ответы сохранятся в профиле",
-              "Документы можно добавить позже",
-            ].map((t) => (
-              <p key={t}>
-                <Check size={17} />
-                {t}
-              </p>
-            ))}
-          </div>
-          <div className="demo-switch">
-            <small>Хотите сначала осмотреться?</small>
-            <button onClick={() => demo("ooo")}>
-              Демо ООО <ArrowUpRightMini />
-            </button>
-            <button onClick={() => demo("ip")}>
-              Демо ИП <ArrowUpRightMini />
-            </button>
-            <button onClick={() => demo("idea")}>
-              Демо проекта <ArrowUpRightMini />
-            </button>
-          </div>
-        </aside>
       </main>
     </div>
   );

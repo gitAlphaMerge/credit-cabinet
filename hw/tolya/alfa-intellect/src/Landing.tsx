@@ -15,15 +15,31 @@ import {
   Clock3,
 } from "lucide-react";
 import { Brand, Button, Badge, LineChart, SectionTitle } from "./ui";
-export function Landing({
-  go,
-  demo,
-}: {
-  go: (s: string) => void;
-  demo: (kind: string) => void;
-}) {
+import { useEffect, useRef, useState } from "react";
+export function Landing({ go }: { go: (s: string) => void }) {
+  const root = useRef<HTMLDivElement>(null),
+    [scenario, setScenario] = useState(0);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+            observer.unobserve(entry.target);
+          }
+        }),
+      { threshold: 0.12 },
+    );
+    root.current
+      ?.querySelectorAll(".section,.benefit-strip,.feature-card")
+      .forEach((node) => {
+        node.classList.add("reveal-section");
+        observer.observe(node);
+      });
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div className="landing">
+    <div className="landing" ref={root}>
       <header className="public-header">
         <a href="/" aria-label="Альфа-Интеллект">
           <Brand />
@@ -32,6 +48,9 @@ export function Landing({
           <a href="#opportunities">Возможности</a>
           <a href="#how">Как это работает</a>
           <a href="#questions">Вопросы</a>
+          <button className="text-button" onClick={() => go("/demo")}>
+            Демо
+          </button>
         </nav>
         <Button secondary onClick={() => go("/login")}>
           Войти <ArrowUpRight size={16} />
@@ -56,7 +75,7 @@ export function Landing({
               <Button onClick={() => go("/onboarding")}>
                 Подобрать финансирование <ArrowRight size={19} />
               </Button>
-              <button className="text-button" onClick={() => demo("ooo")}>
+              <button className="text-button" onClick={() => go("/demo")}>
                 Посмотреть демо <ArrowUpRight size={17} />
               </button>
             </div>
@@ -92,7 +111,7 @@ export function Landing({
                 <div>
                   <small>Свободный поток после платежа</small>
                   <strong>
-                    +217 500 <span>₽</span>
+                    {scenario === 0 ? "+217 500" : "+109 000"} <span>₽</span>
                   </strong>
                 </div>
                 <span className="chart-arrow">
@@ -101,14 +120,35 @@ export function Landing({
               </div>
               <LineChart
                 description="Иллюстративный пример свободного денежного потока"
-                values={[60, 78, 68, 96, 89, 130, 143, 135, 180, 197, 217]}
+                values={
+                  scenario === 0
+                    ? [60, 78, 68, 96, 89, 130, 143, 135, 180, 197, 217]
+                    : [60, 72, 65, 81, 70, 90, 82, 92, 98, 103, 109]
+                }
                 labels={["Сегодня", "Через 3 месяца", "Через 6 месяцев"]}
               />
               <div className="visual-card-bottom">
                 <div>
                   <span className="legend green-dot" /> Достаточно для планов
                 </div>
-                <span>На основе ваших данных</span>
+                <span>Синтетические данные</span>
+              </div>
+              <div
+                className="segmented hero-scenarios"
+                aria-label="Иллюстративный сценарий"
+              >
+                <button
+                  className={scenario === 0 ? "active" : ""}
+                  onClick={() => setScenario(0)}
+                >
+                  Базовый пример
+                </button>
+                <button
+                  className={scenario === 1 ? "active" : ""}
+                  onClick={() => setScenario(1)}
+                >
+                  Меньше поступлений
+                </button>
               </div>
             </div>
             <div className="visual-chip bottom">

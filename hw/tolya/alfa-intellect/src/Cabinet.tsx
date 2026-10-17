@@ -1,323 +1,354 @@
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
-  WalletCards,
   CalendarDays,
-  TrendingUp,
-  ShieldCheck,
-  FlaskConical,
-  Info,
-  MessageSquare,
-  ChevronDown,
   Activity,
+  MessageSquare,
+  Info,
+  ChevronDown,
+  Upload,
+  AlertTriangle,
 } from "lucide-react";
 import { useWorkspace } from "./context";
 import { Button, Badge, LineChart, CalculationView, Field } from "./ui";
 import { money, date, api } from "./api";
-export function Cabinet() {
+import type { AppState } from "../shared/types";
+export function Cabinet({
+  preview,
+  previewLabel = "Учебный пример",
+}: {
+  preview?: AppState;
+  previewLabel?: string;
+}) {
   const w = useWorkspace(),
-    c = w.state.credit,
-    [forecast, setForecast] = useState<any>(null),
+    s = preview || w.state,
+    c = s.credit;
+  const [prediction, setPrediction] = useState<any>(null),
+    [forecastError, setForecastError] = useState(""),
     [stress, setStress] = useState(false),
     [editing, setEditing] = useState(false),
-    [figures, setFigures] = useState({
-      balance: 850000,
-      incoming: 1200000,
-      expenses: 780000,
-    });
+    [figures, setFigures] = useState({ balance: 0, incoming: 0, expenses: 0 });
+  const next = c?.calculation.schedule[c.paid];
   useEffect(() => {
-    if (c)
-      api("/credit/forecast", { stress })
-        .then((result) => {
-          setForecast(result);
-          if (result.available && result.after < 0) void w.refresh();
-        })
-        .catch((e) => w.error(e.message));
+    if (!c || !next || preview) return;
+    let current = true;
+    setPrediction(null);
+    setForecastError("");
+    api("/credit/forecast", { stress })
+      .then((result) => {
+        if (!current) return;
+        setPrediction(result);
+        if (result.available && result.after < 0) void w.refresh();
+      })
+      .catch((e) => {
+        if (current) setForecastError(e.message);
+      });
+    return () => {
+      current = false;
+    };
   }, [
     c?.id,
+    next?.date,
     stress,
-    w.state.financials.balance,
-    w.state.financials.incoming,
-    w.state.financials.expenses,
+    preview,
+    s.financials.balance,
+    s.financials.incoming,
+    s.financials.expenses,
   ]);
-  async function discuss() {
-    w.setDraft(
-      c
-        ? "Объясни нагрузку по моему демонстрационному кредиту и прогноз к платежу."
-        : "Помоги понять, с чего начать подбор финансирования.",
-    );
-    w.go("/chat");
-  }
-  if (!c)
-    return (
-      <section className="credit-empty panel">
-        <div className="panel-title">
-          <h2>Кредитный кабинет</h2>
-          <Badge>Нет активных кредитов</Badge>
-        </div>
-        <div className="empty-illustration">
-          <span className="empty-orbit" />
-          <div className="empty-wallet">
-            <WalletCards size={43} />
-          </div>
-          <span className="empty-check">
-            <CheckMark />
-          </span>
-        </div>
-        <h2>
-          Место для ваших
-          <br />
-          следующих возможностей
-        </h2>
-        <p>
-          У вас пока нет действующих кредитов.
-          <br />
-          Подберите финансирование под задачу бизнеса —<br />с понятным платежом
-          и объяснением условий.
-        </p>
-        <Button onClick={() => w.go("/financing")}>
-          Подобрать финансирование <ArrowRight size={18} />
-        </Button>
-        <div className="empty-benefits">
-          <span>
-            <CalendarDays size={18} /> График платежей
-          </span>
-          <span>
-            <TrendingUp size={18} /> Прогноз к выплате
-          </span>
-          <span>
-            <ShieldCheck size={18} /> Объяснение нагрузки
-          </span>
-        </div>
-        <div className="demo-load">
-          <span className="icon-tile red">
-            <FlaskConical size={18} />
-          </span>
-          <div>
-            <b>Хотите увидеть кабинет в работе?</b>
-            <small>
-              Загрузите синтетический кредит. Он будет отмечен как демо.
-            </small>
-          </div>
-          <button
-            className="text-button"
-            onClick={() => void w.act("/credit/demo", {})}
-          >
-            Открыть демо <ArrowRight size={16} />
-          </button>
-        </div>
-      </section>
-    );
-  const calc = c.calculation,
-    next = calc.schedule[c.paid],
-    progress = (1 - c.balance / calc.amount) * 100;
+  const f =
+    preview && c && next
+      ? {
+          available: true,
+          after:
+            Number(s.financials.balance) +
+            Number(s.financials.incoming) * (stress ? 0.7 : 1) -
+            Number(s.financials.expenses) -
+            next.payment,
+          source: s.financials.forecastSource,
+          date: next.date,
+        }
+      : prediction;
+  const progress = c
+    ? Math.round((1 - c.balance / c.calculation.amount) * 100)
+    : 0;
   return (
-    <div className="credit-content">
-      <section className="panel my-credit">
+    <div className="credit-content credit-dashboard">
+      <section className="panel credit-summary" data-tour="summary">
         <div className="panel-title">
-          <h2>Мой кредит</h2>
-          <Badge tone="red">Демо · синтетический договор</Badge>
+          <h2>Кредиты бизнеса</h2>
+          {preview ? (
+            <Badge tone="red">{previewLabel} · временные данные</Badge>
+          ) : (
+            <Badge>{c ? "1 активный кредит" : "Активных кредитов нет"}</Badge>
+          )}
         </div>
-        <small className="muted">Кредит на развитие бизнеса · {c.source}</small>
-        <div className="credit-amount">
+        {c?.demo && !preview && (
+          <p className="fine-print">
+            Сохранённый синтетический договор · {c.source}
+          </p>
+        )}
+        <div className="credit-summary-grid">
+          <div>
+            <small>Общая сумма кредитов</small>
+            <strong>{money(c?.calculation.amount ?? 0)}</strong>
+          </div>
           <div>
             <small>Остаток основного долга</small>
-            <strong>{money(c.balance)}</strong>
+            <strong>{money(c?.balance ?? 0)}</strong>
           </div>
-          <span className="icon-tile red">
-            <WalletCards size={26} />
-          </span>
+          <div>
+            <small>Уже погашено</small>
+            <b>{money(c ? c.calculation.amount - c.balance : 0)}</b>
+          </div>
+          <div>
+            <small>Прогресс погашения</small>
+            <b>{progress}%</b>
+          </div>
         </div>
-        <div className="progress-label">
-          <span>Погашено {Math.round(progress)}%</span>
-          <b>
-            {c.paid} из {calc.term} платежей
-          </b>
-        </div>
-        <div className="progress-track">
+        <div
+          className="progress-track"
+          role="progressbar"
+          aria-label="Прогресс погашения"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+        >
           <i style={{ width: progress + "%" }} />
         </div>
-        <div className="credit-params">
-          <div>
-            <small>Первоначальная сумма</small>
-            <b>{money(calc.amount)}</b>
+        {!c ? (
+          <div className="no-credit-note">
+            <span>
+              Кредитов пока нет. Можно начать с оценки финансирования.
+            </span>
+            <button className="text-button" onClick={() => w.go("/financing")}>
+              Подобрать финансирование <ArrowRight size={16} />
+            </button>
           </div>
-          <div>
-            <small>Ставка по модели</small>
-            <b>{calc.rate}% годовых</b>
+        ) : (
+          <div className="credit-params">
+            <span>
+              Срок <b>{c.calculation.term} мес.</b>
+            </span>
+            <span>
+              Ставка по модели <b>{c.calculation.rate}%</b>
+            </span>
+            <span>
+              Платежей учтено{" "}
+              <b>
+                {c.paid} из {c.calculation.term}
+              </b>
+            </span>
           </div>
-          <div>
-            <small>Срок</small>
-            <b>{calc.term} месяцев</b>
-          </div>
-        </div>
-        <details className="credit-details">
-          <summary>
-            Подробнее о кредите <ChevronDown size={16} />
-          </summary>
-          <p className="fine-print">
-            Первые {c.paid} платежей учтены только в синтетическом сценарии. Это
-            не подтверждение реальных операций.
-          </p>
-          <CalculationView c={calc} />
-        </details>
+        )}
       </section>
-      <section className="panel next-payment">
+      <section className="panel next-payment" data-tour="payment">
         <div className="panel-title">
           <h2>Ближайший платёж</h2>
           <CalendarDays size={20} />
         </div>
         <div className="payment-value">
-          <strong>{money(next.payment)}</strong>
-          <Badge>{date(next.date)}</Badge>
+          <strong>{money(next?.payment ?? 0)}</strong>
+          <Badge>
+            {next ? date(next.date) : "Нет запланированных платежей"}
+          </Badge>
         </div>
-        <div className="payment-breakdown">
-          <span style={{ flex: next.principal, background: "#ef3124" }} />
-          <span style={{ flex: next.interest, background: "#f9c7c2" }} />
-        </div>
+        {next && (
+          <div className="payment-breakdown">
+            <span style={{ flex: next.principal, background: "#ef3124" }} />
+            <span style={{ flex: next.interest, background: "#f9c7c2" }} />
+          </div>
+        )}
         <div className="payment-legend">
           <span>
             <i className="red-dot" /> Основной долг{" "}
-            <b>{money(next.principal)}</b>
+            <b>{money(next?.principal ?? 0)}</b>
           </span>
           <span>
-            <i className="pink-dot" /> Проценты <b>{money(next.interest)}</b>
+            <i className="pink-dot" /> Проценты{" "}
+            <b>{money(next?.interest ?? 0)}</b>
           </span>
         </div>
       </section>
-      <section className="panel forecast-card">
+      <section className="panel payment-schedule">
         <div className="panel-title">
-          <h2>Хватит ли денег к платежу?</h2>
-          <Activity size={21} />
+          <h2>График платежей</h2>
+          <span className="muted">
+            {c ? c.calculation.term + " месяцев" : "—"}
+          </span>
         </div>
-        <div className="segmented">
-          <button
-            className={!stress ? "active" : ""}
-            onClick={() => setStress(false)}
-          >
-            Базовый прогноз
-          </button>
-          <button
-            className={stress ? "active" : ""}
-            onClick={() => setStress(true)}
-          >
-            Поступления −30%
-          </button>
+        {c ? (
+          <>
+            <LineChart
+              height={125}
+              values={[
+                c.calculation.amount,
+                ...c.calculation.schedule.map((p) => p.balance),
+              ]}
+              labels={["Начало срока", "Середина", "Погашение"]}
+            />
+            <details className="credit-details">
+              <summary>
+                Условия и полный график <ChevronDown size={16} />
+              </summary>
+              <CalculationView c={c.calculation} open />
+            </details>
+          </>
+        ) : (
+          <div className="schedule-empty">
+            <CalendarDays size={24} />
+            <p>График появится, когда будет добавлен кредит</p>
+            <small>Платежи и даты пока не определены</small>
+          </div>
+        )}
+      </section>
+      <section className="panel forecast-card" data-tour="forecast">
+        <div className="panel-title">
+          <h2>Денежный прогноз к платежу</h2>
+          <Activity size={20} />
         </div>
-        {forecast?.available ? (
+        {c && next && (
+          <div className="segmented">
+            <button
+              className={!stress ? "active" : ""}
+              onClick={() => setStress(false)}
+            >
+              Базовый прогноз
+            </button>
+            <button
+              className={stress ? "active" : ""}
+              onClick={() => setStress(true)}
+            >
+              Поступления −30%
+            </button>
+          </div>
+        )}
+        {forecastError ? (
+          <div className="alert error" role="alert">
+            {forecastError}
+          </div>
+        ) : c && next && !preview && !f ? (
+          <p role="status">Рассчитываем прогноз…</p>
+        ) : f?.available ? (
           <>
             <small className="muted">Прогнозный остаток после выплаты</small>
             <div
-              className={
-                "forecast-number " + (forecast.after < 0 ? "negative" : "")
-              }
+              className={"forecast-number " + (f.after < 0 ? "negative" : "")}
             >
-              {money(forecast.after)}
+              {money(f.after)}
             </div>
             <LineChart
-              color={forecast.after < 0 ? "#ef3124" : "#13976c"}
+              height={115}
+              description="Прогноз остатка по заданным предположениям"
               values={[
-                Number(w.state.financials.balance),
-                Number(w.state.financials.balance) +
-                  Number(w.state.financials.incoming) * (stress ? 0.7 : 1),
-                forecast.after,
+                Number(s.financials.balance),
+                Number(s.financials.balance) +
+                  Number(s.financials.incoming) * (stress ? 0.7 : 1),
+                f.after,
               ]}
               labels={["Исходный остаток", "Поступления", "После выплаты"]}
-              height={115}
+              color={f.after < 0 ? "#ef3124" : "#12865f"}
             />
             <p className="fine-print">
-              Источник: {forecast.source}. На {forecast.date}. Предполагаемые
-              расходы: {money(Number(w.state.financials.expenses))}. Это
-              сценарий, не гарантированный остаток счёта.
+              {f.source}. На {date(f.date)}. Прогноз по предположениям, не
+              остаток банковского счёта.
             </p>
           </>
         ) : (
-          <div className="alert">
-            <Info size={18} />
-            <span>
-              Недостаточно данных для прогноза. Добавьте выписку или подтвердите
-              ожидаемые поступления и расходы.
+          <div className="forecast-empty">
+            <span className="icon-tile">
+              <Info size={22} />
             </span>
+            <div>
+              <h3>Недостаточно данных для прогноза</h3>
+              <p>
+                {!c
+                  ? "Нужны график кредита и подтверждённые денежные показатели."
+                  : "Добавьте выписку или уточните ожидаемые поступления и расходы."}
+              </p>
+              <button className="text-button" onClick={() => w.go("/profile")}>
+                <Upload size={16} /> Добавить документы
+              </button>
+            </div>
           </div>
         )}
-        <button
-          className="text-button"
-          onClick={() => {
-            setFigures({
-              balance: Number(w.state.financials.balance || 0),
-              incoming: Number(w.state.financials.incoming || 0),
-              expenses: Number(w.state.financials.expenses || 0),
-            });
-            setEditing(!editing);
-          }}
-        >
-          Уточнить предположения <ArrowRight size={15} />
-        </button>
-        {editing && (
-          <form
-            className="forecast-form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              await w.act("/forecast-assumptions", figures);
-              setEditing(false);
-            }}
-          >
-            {Object.entries(figures).map(([k, v]) => (
-              <Field
-                key={k}
-                label={
-                  k === "balance"
-                    ? "Исходный остаток"
-                    : k === "incoming"
-                      ? "Будущие поступления"
-                      : "Обязательные расходы"
-                }
+        {c && !preview && (
+          <>
+            <button
+              className="text-button"
+              onClick={() => {
+                setFigures({
+                  balance: Number(s.financials.balance ?? 0),
+                  incoming: Number(s.financials.incoming ?? 0),
+                  expenses: Number(s.financials.expenses ?? 0),
+                });
+                setEditing(!editing);
+              }}
+            >
+              Уточнить предположения <ArrowRight size={15} />
+            </button>
+            {editing && (
+              <form
+                className="forecast-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  await w.act("/forecast-assumptions", figures);
+                  setEditing(false);
+                }}
               >
-                <input
-                  type="number"
-                  min="0"
-                  max="1000000000"
-                  required
-                  value={v}
-                  onChange={(e) =>
-                    setFigures({ ...figures, [k]: Number(e.target.value) })
-                  }
-                />
-              </Field>
-            ))}
-            <Button>Подтвердить предположения</Button>
-          </form>
+                {Object.entries(figures).map(([k, v]) => (
+                  <Field
+                    key={k}
+                    label={
+                      k === "balance"
+                        ? "Исходный остаток"
+                        : k === "incoming"
+                          ? "Будущие поступления"
+                          : "Обязательные расходы"
+                    }
+                  >
+                    <input
+                      type="number"
+                      min={0}
+                      max={1e9}
+                      required
+                      value={v}
+                      onChange={(e) =>
+                        setFigures({ ...figures, [k]: Number(e.target.value) })
+                      }
+                    />
+                  </Field>
+                ))}
+                <Button>Подтвердить предположения</Button>
+              </form>
+            )}
+          </>
+        )}
+        {f?.available && (
+          <div
+            className={"forecast-conclusion " + (f.after < 0 ? "warning" : "")}
+          >
+            <AlertTriangle size={18} />
+            <p>
+              {f.after < 0
+                ? "Возможен дефицит. Проверьте сроки поступлений и обязательные расходы."
+                : "Сравните базовый и стрессовый прогноз: предположения не меняют условия кредита."}
+            </p>
+            {!preview && (
+              <button
+                className="text-button"
+                onClick={() => {
+                  w.setDraft(
+                    "Объясни денежный прогноз по сохранённому кредиту и его ограничения.",
+                  );
+                  w.go("/chat");
+                }}
+              >
+                <MessageSquare size={16} /> Обсудить
+              </button>
+            )}
+          </div>
         )}
       </section>
-      <section className="panel agent-insight">
-        <span className="icon-tile green">
-          <ShieldCheck size={22} />
-        </span>
-        <div>
-          <h3>Оставьте бизнесу финансовый запас</h3>
-          <p>
-            {forecast?.after < 0
-              ? "По указанному сценарию возможен дефицит. Проверьте сроки поступлений и обязательные расходы."
-              : "Сравните базовый и стрессовый прогноз. Изменение поступлений влияет на остаток, но не меняет условия кредита."}
-          </p>
-          <button className="text-button" onClick={() => void discuss()}>
-            Обсудить с агентом <MessageSquare size={16} />
-          </button>
-        </div>
-      </section>
     </div>
-  );
-}
-function CheckMark() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 20 20">
-      <path
-        d="m4 10 4 4 8-8"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

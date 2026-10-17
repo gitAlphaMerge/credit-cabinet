@@ -17,6 +17,7 @@ import {
 import { calculate, select, forecast, catalog } from "./finance";
 import { extract, fieldNames } from "./documents";
 import { DemoProvider, OpenAIProvider } from "./ai-provider";
+import { publicPreview } from "./preview";
 import type { Profile, AppState } from "../shared/types";
 export const app = express();
 app.disable("x-powered-by");
@@ -98,10 +99,43 @@ app.get("/api/config", (req, res) => {
 app.get("/api/health", (_req, res) =>
   res.json({ status: "ok", storage: "sqlite", schema: 1 }),
 );
+app.get("/api/public-demo", (req, res) => {
+  const kind = z.enum(["ooo", "ip", "idea"]).parse(req.query.kind ?? "ooo");
+  res.json(publicPreview(kind));
+});
+app.post("/api/public-demo/calculate", (req, res) => {
+  limit("public-preview:" + req.ip, 30);
+  const input = z
+    .object({
+      kind: z.enum(["ooo", "ip", "idea"]),
+      amount: z.number().min(10000).max(1e8),
+      term: z.number().int().min(1).max(120),
+    })
+    .strict()
+    .parse(req.body);
+  const state = publicPreview(input.kind);
+  res.json({
+    ...state.selections[0],
+    ...select(
+      {
+        purpose: "Оборудование",
+        amount: input.amount,
+        term: input.term,
+        flow: state.financials.freeFlow ?? null,
+        existing: 0,
+      },
+      state.profile,
+    ),
+  });
+});
 app.post("/api/auth/register", (req, res) => {
   limit("register:" + req.ip, 10);
   const phone = phoneSchema.parse(req.body.phone),
-    password = z.string().min(10).max(128).parse(req.body.password),
+    password = z
+      .string()
+      .min(8, "Пароль должен содержать не менее 8 символов")
+      .max(128, "Пароль не должен превышать 128 символов")
+      .parse(req.body.password),
     profile = profileSchema.parse(req.body.profile);
   if (db.prepare("SELECT id FROM users WHERE phone=?").get(phone)) {
     res

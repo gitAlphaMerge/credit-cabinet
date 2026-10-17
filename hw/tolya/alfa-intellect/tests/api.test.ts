@@ -40,6 +40,29 @@ test("Сквозной API: сессия, изоляция, документ, ч
     })
     .expect(200);
   assert.equal((await a.get("/api/state")).body.credit, null);
+  const countBefore = (
+    db.prepare("SELECT COUNT(*) AS n FROM users").get() as any
+  ).n;
+  for (const kind of ["ooo", "ip", "idea"]) {
+    const preview = await request(app)
+      .get("/api/public-demo?kind=" + kind)
+      .expect(200);
+    assert.equal(preview.headers["set-cookie"], undefined);
+    assert.equal(preview.body.profile.registered, kind !== "idea");
+  }
+  const publicCalculation = await request(app)
+    .post("/api/public-demo/calculate")
+    .send({ kind: "ip", amount: 2500000, term: 48 })
+    .expect(200);
+  assert.equal(publicCalculation.body.calculation.amount, 2500000);
+  assert.equal(
+    (db.prepare("SELECT COUNT(*) AS n FROM users").get() as any).n,
+    countBefore,
+  );
+  assert.equal((await a.get("/api/state")).body.credit, null);
+  await a.patch("/api/preferences").send({ tourDone: true }).expect(200);
+  assert.deepEqual((await a.get("/api/state")).body.financials, {});
+  assert.equal((await a.get("/api/state")).body.credit, null);
   const owner = (await a.get("/api/config")).body.workspaceId;
   assert.equal(typeof owner, "string");
   assert.notEqual(owner, (await b.get("/api/config")).body.workspaceId);

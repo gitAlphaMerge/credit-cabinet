@@ -259,30 +259,34 @@ export function LineChart({
 export function CalculationView({
   c,
   open = false,
+  showStats = true,
 }: {
   c: Calculation;
   open?: boolean;
+  showStats?: boolean;
 }) {
   return (
     <div className="calculation">
-      <div className="calc-stats">
-        <div>
-          <small>Сумма</small>
-          <strong>{money(c.amount)}</strong>
+      {showStats && (
+        <div className="calc-stats">
+          <div>
+            <small>Сумма</small>
+            <strong>{money(c.amount)}</strong>
+          </div>
+          <div>
+            <small>Срок</small>
+            <strong>{c.term} мес.</strong>
+          </div>
+          <div>
+            <small>Демо-ставка</small>
+            <strong>{c.rate}%</strong>
+          </div>
+          <div>
+            <small>Платёж в месяц</small>
+            <strong>{money(c.monthlyPayment)}</strong>
+          </div>
         </div>
-        <div>
-          <small>Срок</small>
-          <strong>{c.term} мес.</strong>
-        </div>
-        <div>
-          <small>Демо-ставка</small>
-          <strong>{c.rate}%</strong>
-        </div>
-        <div>
-          <small>Платёж в месяц</small>
-          <strong>{money(c.monthlyPayment)}</strong>
-        </div>
-      </div>
+      )}
       <details open={open || undefined}>
         <summary>
           Показать расчёт <ChevronDown size={16} />

@@ -20,6 +20,11 @@ export type Workspace = {
   financingDraft: FinancingDraft;
   financingDraftStored: boolean;
   cacheFinancingDraft: (draft: FinancingDraft) => void;
+  chatVisible: boolean;
+  setChatVisible: (v: boolean) => void;
+  setSplit: (v: number) => void;
+  sendMessage: (text?: string) => Promise<void>;
+  sending: { chatId: string; text: string } | null;
 };
 export const WorkspaceContext = createContext<Workspace | null>(null);
 export function useWorkspace() {

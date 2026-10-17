@@ -11,7 +11,7 @@
     "start": "tsx server/index.ts",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test tests/*.test.ts tests/*.test.tsx",
     "fixtures": "tsx scripts/fixtures.ts",
     "format": "prettier --write src server shared scripts tests vite.config.ts tsconfig.json package.json",
     "format:check": "prettier --check src server shared scripts tests vite.config.ts tsconfig.json package.json",

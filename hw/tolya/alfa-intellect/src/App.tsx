@@ -15,7 +15,9 @@ import { Brand, Button, IconButton, Modal, Badge } from "./ui";
 import { Landing } from "./Landing";
 import { Onboarding } from "./Onboarding";
 import { WorkspaceContext } from "./context";
-import { Cabinet } from "./Cabinet";
+import { WorkspaceView } from "./WorkspaceView";
+import { Tour } from "./Tour";
+import { DemoPage } from "./DemoPage";
 import { Chat } from "./Chat";
 import { ProfilePage } from "./Profile";
 import { Financing } from "./Financing";
@@ -34,7 +36,7 @@ export function App() {
     [toast, setToast] = useState(""),
     [activeChatId, setActiveChatId] = useState(""),
     [draft, setDraft] = useState(""),
-    [historyOpen, setHistoryOpen] = useState(false),
+    [historyOpen, setHistoryOpen] = useState(location.pathname === "/chat"),
     [pending, setPending] = useState<Doc | null>(null),
     [uploading, setUploading] = useState(false),
     [bell, setBell] = useState(false),
@@ -44,7 +46,14 @@ export function App() {
     [contactPhone, setContactPhone] = useState(""),
     [contactNote, setContactNote] = useState(""),
     [contactSent, setContactSent] = useState(false);
-  const splitRef = useRef<HTMLDivElement>(null);
+  const [chatVisible, setChatVisible] = useState(true);
+  const [sending, setSending] = useState<{
+    chatId: string;
+    text: string;
+  } | null>(null);
+  const sendingLock = useRef(false),
+    chatPageVisited = useRef(false);
+  const [tourPreview, setTourPreview] = useState<AppState>();
   const financingOwner = useRef<string | null>(null);
   const [financingDraft, setFinancingDraft] = useState<FinancingDraft>({});
   const [financingDraftStored, setFinancingDraftStored] = useState(false);
@@ -72,31 +81,30 @@ export function App() {
     }
     setFinancingDraftStored(saved);
   }
-  const [tourRect, setTourRect] = useState<DOMRect | null>(null);
   useEffect(() => {
-    if (tour < 0) return;
-    const selectors = [
-      "credit",
-      "chat-panel",
-      "financing",
-      "profile",
-      "history",
-    ];
-    const measure = () => {
-      const node = document.querySelector(`[data-tour="${selectors[tour]}"]`);
-      if (node) setTourRect(node.getBoundingClientRect());
-    };
-    const timer = setTimeout(measure, 100);
-    addEventListener("resize", measure);
+    if (tour < 0) {
+      setTourPreview(undefined);
+      return;
+    }
+    if (tourPreview) return;
+    let current = true;
+    api<AppState>("/public-demo?kind=ooo")
+      .then((s) => {
+        if (current) setTourPreview(s);
+      })
+      .catch(() => {});
     return () => {
-      clearTimeout(timer);
-      removeEventListener("resize", measure);
+      current = false;
     };
-  }, [tour, path, loading]);
+  }, [tour >= 0, tourPreview]);
   function go(p: string) {
     history.pushState({}, "", p);
     setPath(p);
     setMobileNav(false);
+    if (p === "/chat" && !chatPageVisited.current) {
+      setHistoryOpen(true);
+      chatPageVisited.current = true;
+    }
     window.scrollTo(0, 0);
   }
   async function refresh() {
@@ -122,15 +130,46 @@ export function App() {
     restoreFinancingDraft(c.workspaceId);
     setDraft("");
     setHistoryOpen(false);
+    setChatVisible(true);
     await refresh();
     go("/cabinet");
   }
-  async function demo(kind: string) {
+  async function signOut() {
     try {
-      await api("/auth/demo", { kind });
-      await onAuth();
+      await api("/auth/logout", {});
+      if (financingOwner.current) {
+        try {
+          clearFinancingDraft(sessionStorage, financingOwner.current);
+        } catch {}
+      }
+      restoreFinancingDraft(null);
+      setDraft("");
+      setActiveChatId("");
+      setHistoryOpen(false);
+      setTour(-1);
+      setTourPreview(undefined);
+      setState(null);
+      go("/");
     } catch (e) {
       setToast((e as Error).message);
+    }
+  }
+  async function sendMessage(provided?: string) {
+    const text = (provided ?? draft).trim(),
+      chatId = activeChatId || state?.chats[0]?.id;
+    if (!text || !chatId || sendingLock.current) return;
+    sendingLock.current = true;
+    setSending({ chatId, text });
+    setDraft("");
+    try {
+      await api("/chats/" + chatId + "/messages", { text });
+      await refresh();
+    } catch (e) {
+      setToast((e as Error).message);
+      await refresh().catch(() => {});
+    } finally {
+      sendingLock.current = false;
+      setSending(null);
     }
   }
   useEffect(() => {
@@ -183,44 +222,26 @@ export function App() {
       </div>
     );
   const publicPage =
-    path === "/" || path === "/login" || path === "/onboarding";
+    path === "/" ||
+    path === "/demo" ||
+    path === "/login" ||
+    path === "/onboarding";
   const page = path.split("/")[1] || "cabinet";
-  const tourData = [
-    [
-      "Ваш кредитный кабинет",
-      "Здесь будет информация о действующем кредите. Сейчас можно начать подбор или явно загрузить демосценарий.",
-    ],
-    [
-      "Чат с финансовым помощником",
-      "Обсуждайте задачу и прикрепляйте документы. При отсутствии ключа ИИ действует маркированный деморежим.",
-    ],
-    [
-      "Подбор финансирования",
-      "Короткая анкета, проверяемый расчёт, сравнение версий и история запросов.",
-    ],
-    [
-      "Профиль и документы",
-      "Нажмите название бизнеса в шапке. Данные из анкеты уже сохранены здесь.",
-    ],
-    [
-      "История диалогов",
-      "Кнопка истории работает независимо от разворачивания чата. Диалог не теряется при переходах.",
-    ],
-  ];
   const rendered = publicPage ? (
     path === "/" ? (
-      <Landing go={go} demo={demo} />
+      <Landing go={go} />
+    ) : path === "/demo" ? (
+      <DemoPage go={go} />
     ) : (
       <Onboarding
         key={path}
         go={go}
         login={path === "/login"}
         onAuth={onAuth}
-        demo={demo}
       />
     )
   ) : !state ? (
-    <Onboarding login go={go} onAuth={onAuth} demo={demo} />
+    <Onboarding login go={go} onAuth={onAuth} />
   ) : (
     <WorkspaceContext.Provider
       value={{
@@ -242,9 +263,17 @@ export function App() {
         financingDraft,
         financingDraftStored,
         cacheFinancingDraft,
+        chatVisible,
+        setChatVisible,
+        setSplit: (split) =>
+          setState((s) =>
+            s ? { ...s, preferences: { ...s.preferences, split } } : s,
+          ),
+        sendMessage,
+        sending,
       }}
     >
-      <div className="workspace">
+      <div className={"workspace app-shell page-" + page}>
         <header className="app-header">
           <button onClick={() => go("/cabinet")} className="unstyled">
             <Brand />
@@ -264,6 +293,12 @@ export function App() {
                 {label}
               </button>
             ))}
+            <button
+              className="mobile-nav-action"
+              onClick={() => void signOut()}
+            >
+              Выйти из аккаунта
+            </button>
           </nav>
           <div className="header-tools">
             <button
@@ -340,24 +375,7 @@ export function App() {
             >
               <HelpCircle size={20} />
             </IconButton>
-            <IconButton
-              label="Выйти"
-              onClick={async () => {
-                await api("/auth/logout", {});
-                try {
-                  if (financingOwner.current)
-                    clearFinancingDraft(sessionStorage, financingOwner.current);
-                } catch {
-                  // Logout still succeeds if browser storage is unavailable.
-                }
-                restoreFinancingDraft(null);
-                setDraft("");
-                setActiveChatId("");
-                setHistoryOpen(false);
-                setState(null);
-                go("/");
-              }}
-            >
+            <IconButton label="Выйти" onClick={() => void signOut()}>
               <LogOut size={19} />
             </IconButton>
             <IconButton
@@ -369,10 +387,6 @@ export function App() {
             </IconButton>
           </div>
         </header>
-        <div className="demo-ribbon">
-          <span className="tiny-red" /> Хакатон · демонстрационный MVP{" "}
-          <span>Синтетические условия. Решение о выдаче принимает банк.</span>
-        </div>
         {page === "profile" ? (
           <ProfilePage />
         ) : page === "financing" ? (
@@ -382,102 +396,13 @@ export function App() {
             <Chat full />
           </div>
         ) : (
-          <main className="cabinet-page">
-            <div className="page-intro">
-              <div>
-                <span className="eyebrow">ВАШ ФИНАНСОВЫЙ КОНТЕКСТ</span>
-                <h1>
-                  Бизнес движется вперёд.
-                  <br />
-                  <span>Финансы — под контролем.</span>
-                </h1>
-                <p>
-                  От первого расчёта до погашения — всё важное в одном месте.
-                </p>
-              </div>
-              <div className="intro-note">
-                <span className="icon-tile green">
-                  <Check size={19} />
-                </span>
-                <div>
-                  <b>{state.profile.name}</b>
-                  <small>
-                    {state.profile.sector} ·{" "}
-                    {state.profile.stage === "planning"
-                      ? "На стадии запуска"
-                      : "Действующий бизнес"}
-                  </small>
-                </div>
-              </div>
-            </div>
-            <div
-              ref={splitRef}
-              className="split-workspace"
-              style={{
-                gridTemplateColumns: `minmax(0,${state.preferences.split}fr) 16px minmax(0,${100 - state.preferences.split}fr)`,
-              }}
-            >
-              <div data-tour="credit">
-                <Cabinet />
-              </div>
-              <div
-                className="splitter"
-                role="separator"
-                aria-label="Изменить ширину кабинета и чата"
-                aria-orientation="vertical"
-                onPointerDown={(e) => {
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                }}
-                onPointerMove={(e) => {
-                  if (e.buttons !== 1 || !splitRef.current) return;
-                  const r = splitRef.current.getBoundingClientRect();
-                  const split = Math.max(
-                    40,
-                    Math.min(75, ((e.clientX - r.left) / r.width) * 100),
-                  );
-                  setState((s) =>
-                    s ? { ...s, preferences: { ...s.preferences, split } } : s,
-                  );
-                }}
-                onPointerUp={() =>
-                  void act(
-                    "/preferences",
-                    { split: state.preferences.split },
-                    "PATCH",
-                  )
-                }
-              >
-                <span />
-                <input
-                  aria-label="Доля кредитного кабинета"
-                  type="range"
-                  min="40"
-                  max="75"
-                  value={state.preferences.split}
-                  onChange={(e) => {
-                    const split = Number(e.target.value);
-                    setState({
-                      ...state,
-                      preferences: { ...state.preferences, split },
-                    });
-                  }}
-                  onBlur={() =>
-                    void act(
-                      "/preferences",
-                      { split: state.preferences.split },
-                      "PATCH",
-                    )
-                  }
-                />
-              </div>
-              <div data-tour="chat-panel">
-                <Chat />
-              </div>
-            </div>
-          </main>
+          <WorkspaceView
+            tour={tour}
+            preview={tour >= 0 ? tourPreview : undefined}
+          />
         )}
         <footer className="workspace-footer">
-          <span>Альфа-Интеллект · MVP</span>
+          <span>Альфа-Интеллект</span>
           <button
             className="text-button"
             onClick={() => {
@@ -487,9 +412,7 @@ export function App() {
           >
             Обратиться к сотруднику <ArrowRight size={12} />
           </button>
-          <span>
-            Данные остаются в локальной базе. Используйте тестовые документы.
-          </span>
+          <span>Решение о финансировании принимает банк</span>
         </footer>
       </div>
     </WorkspaceContext.Provider>
@@ -603,72 +526,16 @@ export function App() {
           </div>
         </Modal>
       )}
-      {tour >= 0 && state && (
-        <div className="tour-backdrop">
-          {tourRect && (
-            <div
-              className="tour-focus"
-              style={{
-                top: tourRect.top - 5,
-                left: tourRect.left - 5,
-                width: tourRect.width + 10,
-                height: Math.min(
-                  tourRect.height + 10,
-                  innerHeight - tourRect.top - 8,
-                ),
-              }}
-            />
-          )}
-          <div
-            className="tour-card"
-            role="dialog"
-            aria-label="Знакомство с продуктом"
-          >
-            <div className="tour-step">
-              <Badge tone="red">{tour + 1} / 5</Badge>
-              <button
-                className="text-button"
-                onClick={async () => {
-                  await act("/preferences", { tourDone: true }, "PATCH");
-                  setTour(-1);
-                }}
-              >
-                Пропустить
-              </button>
-            </div>
-            <div className="tour-icon">
-              {tour === 1 || tour === 4 ? (
-                <MessageSquare size={26} />
-              ) : (
-                <WalletCards size={26} />
-              )}
-            </div>
-            <h2>{tourData[tour][0]}</h2>
-            <p>{tourData[tour][1]}</p>
-            <div className="tour-dots">
-              {tourData.map((_, i) => (
-                <i key={i} className={i === tour ? "active" : ""} />
-              ))}
-            </div>
-            <div className="modal-actions">
-              {tour > 0 && (
-                <Button secondary onClick={() => setTour(tour - 1)}>
-                  Назад
-                </Button>
-              )}
-              <Button
-                onClick={async () => {
-                  if (tour === 4) {
-                    await act("/preferences", { tourDone: true }, "PATCH");
-                    setTour(-1);
-                  } else setTour(tour + 1);
-                }}
-              >
-                {tour === 4 ? "Готово" : "Далее"} <ArrowRight size={16} />
-              </Button>
-            </div>
-          </div>
-        </div>
+      {tour >= 0 && state && !publicPage && (
+        <Tour
+          step={tour}
+          setStep={setTour}
+          finish={async () => {
+            await act("/preferences", { tourDone: true }, "PATCH");
+            setTour(-1);
+            setTourPreview(undefined);
+          }}
+        />
       )}
     </>
   );
