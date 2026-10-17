@@ -52,6 +52,12 @@ export function Landing({ go }: { go: (s: string) => void }) {
             Демо
           </button>
         </nav>
+        <button
+          className="text-button public-mobile-demo"
+          onClick={() => go("/demo")}
+        >
+          Демо
+        </button>
         <Button secondary onClick={() => go("/login")}>
           Войти <ArrowUpRight size={16} />
         </Button>

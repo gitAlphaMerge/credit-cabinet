@@ -26,6 +26,15 @@ const profile = {
 };
 test("Сквозной API: сессия, изоляция, документ, чат, версии, досье, демокредит", async () => {
   await request(app).get("/api/state").expect(401);
+  const shortPassword = await request(app)
+    .post("/api/auth/register")
+    .send({ phone: "+79009993333", password: "1234567", profile })
+    .expect(422);
+  assert.match(shortPassword.body.error, /не менее 8 символов/);
+  await request(app)
+    .post("/api/auth/register")
+    .send({ phone: "+79009993333", password: "Eight888", profile })
+    .expect(200);
   assert.equal((await request(app).get("/api/config")).body.workspaceId, null);
   await a
     .post("/api/auth/register")

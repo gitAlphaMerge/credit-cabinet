@@ -36,7 +36,9 @@ export function App() {
     [toast, setToast] = useState(""),
     [activeChatId, setActiveChatId] = useState(""),
     [draft, setDraft] = useState(""),
-    [historyOpen, setHistoryOpen] = useState(location.pathname === "/chat"),
+    [historyOpen, setHistoryOpen] = useState(
+      location.pathname === "/chat" && innerWidth > 760,
+    ),
     [pending, setPending] = useState<Doc | null>(null),
     [uploading, setUploading] = useState(false),
     [bell, setBell] = useState(false),
@@ -102,7 +104,7 @@ export function App() {
     setPath(p);
     setMobileNav(false);
     if (p === "/chat" && !chatPageVisited.current) {
-      setHistoryOpen(true);
+      setHistoryOpen(innerWidth > 760);
       chatPageVisited.current = true;
     }
     window.scrollTo(0, 0);

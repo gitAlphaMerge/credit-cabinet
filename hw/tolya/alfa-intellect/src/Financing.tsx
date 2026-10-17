@@ -100,6 +100,8 @@ export function Financing() {
       });
       setSelected(s.id);
       setStep(-1);
+    } catch {
+      // Preserve entered values; act shows the server error and retry stays available.
     } finally {
       setBusy(false);
     }

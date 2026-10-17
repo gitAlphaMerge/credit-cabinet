@@ -61,7 +61,9 @@ export function contextOf(s: AppState, selectionId?: string) {
 export class DemoProvider implements AIProvider {
   async reply(s: AppState, history: Message[], selectionId?: string) {
     const text = history.at(-1)?.text || "";
-    const selection = s.selections.find((x) => x.id === selectionId);
+    const selection =
+      s.selections.find((x) => x.id === selectionId) ||
+      (/последн|расч[её]т|нагрузк/i.test(text) ? s.selections[0] : undefined);
     const update = text.match(
       /(?:поступления|расходы|поток)\s*(?:теперь|=|:)?\s*(\d[\d ]+)/i,
     );
@@ -78,34 +80,29 @@ export class DemoProvider implements AIProvider {
       };
     }
     if (/расч[её]т|плат[её]ж|посчитай|нагрузк/i.test(text) || selection) {
-      const c =
-        selection?.calculation ||
-        s.credit?.calculation ||
-        calculate({
-          amount: 1000000,
-          term: 24,
-          rate: 24,
-          flow:
-            typeof s.financials.freeFlow === "number"
-              ? s.financials.freeFlow
-              : null,
-        });
+      if (!selection && !s.credit)
+        return {
+          mode: "demo",
+          text: "Для оценки нужны сумма, срок и денежный поток. Начните подбор финансирования или загрузите документы в профиль. Я не буду подставлять случайные суммы: сохранённого расчёта или кредита пока нет. ИИ сейчас не подключён.",
+        };
+      const c = selection?.calculation || s.credit!.calculation;
       return {
         mode: "demo",
         text: selection
           ? "Расчёт выбранного подбора уже сохранён. Ниже — его программные результаты. Решение о выдаче принимает банк."
-          : "Ниже показан " +
-            (s.credit
-              ? "расчёт демонстрационного кредита."
-              : "пример расчёта: 1 млн ₽, 24 месяца, демонстрационная ставка 24%. Уточните свои параметры в подборе.") +
-            " Все цифры рассчитаны программно; это не банковское предложение.",
+          : "Ниже показан расчёт сохранённого кредита. Все цифры рассчитаны программно; это не банковское предложение.",
         calculation: c,
         warning: warningFor(c),
       };
     }
+    if (/документ|выписк/i.test(text))
+      return {
+        mode: "demo",
+        text: "## Документы для финансового контекста\n- Банковская выписка — операции и денежный поток.\n- Баланс и отчёт о финансовых результатах — финансовое положение и бухгалтерская прибыль.\n- Финансовая модель и бизнес-план — планы и предположения.\n- График кредитных платежей — обязательства.\n\nЗагрузите нужный документ через скрепку или в профиле, затем проверьте и подтвердите извлечённые показатели. Требования банка могут отличаться.",
+      };
     return {
       mode: "demo",
-      text: `Я вижу сохранённый контекст: ${s.profile.name}, ${s.profile.sector || "отрасль пока не указана"}. Подтверждено документов: ${s.documents.filter((d) => d.confirmed).length}. Настоящий ИИ сейчас не подключён. В деморежиме можно пройти подбор, загрузить документ и проверить расчёт. Для свободного финансового диалога потребуется серверный OPENAI_API_KEY.`,
+      text: `Сохранённый контекст: ${s.profile.name}, ${s.profile.sector || "отрасль пока не указана"}. Подтверждено документов: ${s.documents.filter((d) => d.confirmed).length}. ИИ сейчас не подключён. Можно пройти подбор, загрузить документы и проверить программный расчёт; свободный диалог станет доступен после подключения ИИ.`,
     };
   }
 }

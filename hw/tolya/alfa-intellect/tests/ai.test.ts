@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DemoProvider, OpenAIProvider, contextOf } from "../server/ai-provider";
 import type { AppState, Message } from "../shared/types";
+import { publicPreview } from "../server/preview";
+import { calculate } from "../server/finance";
 const state: AppState = {
   profile: {
     name: "Синтетический бизнес",
@@ -30,13 +32,32 @@ const message = (text: string): Message => ({
   text,
 });
 test("Демо явно маркируется, предупреждение основано на вычислении", async () => {
-  const answer = await new DemoProvider().reply(state, [
-    message("Показать расчёт"),
-  ]);
+  const selection = publicPreview("ip").selections[0];
+  selection.calculation = calculate({
+    amount: 1000000,
+    term: 24,
+    rate: 24,
+    flow: 10000,
+  });
+  const answer = await new DemoProvider().reply(
+    { ...state, selections: [selection] },
+    [message("Показать расчёт")],
+  );
   assert.equal(answer.mode, "demo");
   assert.ok(answer.calculation);
   assert.ok(answer.warning?.includes("DSCR"));
   assert.ok(answer.calculation.dscr! < 1.25);
+});
+test("Обычный аккаунт без своего расчёта не получает случайный пример денег", async () => {
+  const answer = await new DemoProvider().reply(state, [
+    message("Как оценить кредитную нагрузку?"),
+  ]);
+  assert.equal(answer.calculation, undefined);
+  assert.match(answer.text, /не буду подставлять/);
+  const docs = await new DemoProvider().reply(state, [
+    message("Какие документы нужны?"),
+  ]);
+  assert.match(docs.text, /Банковская выписка/);
 });
 test("Изменение из чата сначала предложение; исходное состояние не мутирует", async () => {
   const answer = await new DemoProvider().reply(state, [

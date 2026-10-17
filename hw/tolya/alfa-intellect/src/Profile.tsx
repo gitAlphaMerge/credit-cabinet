@@ -58,39 +58,6 @@ export function ProfilePage() {
       setLookupBusy(false);
     }
   }
-  async function fixture(c: string) {
-    try {
-      const r = await fetch(
-        "/fixtures/" +
-          c +
-          (c === "model"
-            ? ".xlsx"
-            : c === "plan"
-              ? ".docx"
-              : c === "pnl"
-                ? ".pdf"
-                : ".csv"),
-      );
-      if (!r.ok) throw new Error("Сначала выполните npm run fixtures");
-      const b = await r.blob();
-      await w.upload(
-        new File(
-          [b],
-          c +
-            (c === "model"
-              ? ".xlsx"
-              : c === "plan"
-                ? ".docx"
-                : c === "pnl"
-                  ? ".pdf"
-                  : ".csv"),
-        ),
-        c,
-      );
-    } catch (e) {
-      w.error((e as Error).message);
-    }
-  }
   return (
     <main className="profile-page page-wrap">
       <button className="text-button muted" onClick={() => w.go("/cabinet")}>
@@ -173,7 +140,7 @@ export function ProfilePage() {
                 <form className="inn-search" onSubmit={lookup}>
                   <Search size={20} />
                   <label>
-                    <small>ИНН · тестовые: 7712345678 / 770123456789</small>
+                    <small>ИНН компании или ИП</small>
                     <input
                       aria-label="ИНН"
                       value={inn}
@@ -357,12 +324,6 @@ export function ProfilePage() {
                     Проверить извлечённые данные
                   </button>
                 )}
-                <button
-                  className="fixture-link"
-                  onClick={() => void fixture(c)}
-                >
-                  <FlaskConical size={12} /> Загрузить синтетический пример
-                </button>
                 <a
                   className="template-link"
                   href={
@@ -378,7 +339,7 @@ export function ProfilePage() {
                   }
                   download
                 >
-                  Скачать шаблон
+                  Скачать шаблон с примером
                 </a>
               </article>
             );

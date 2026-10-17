@@ -32,8 +32,26 @@ export function Chat({
     [search, setSearch] = useState(""),
     [title, setTitle] = useState("");
   const input = useRef<HTMLInputElement>(null),
+    historyRef = useRef<HTMLElement>(null),
+    newChatLock = useRef(false),
     composerInput = useRef<HTMLTextAreaElement>(null),
     end = useRef<HTMLDivElement>(null);
+  const [mobile, setMobile] = useState(() => innerWidth <= 760);
+  useEffect(() => {
+    const query = matchMedia("(max-width:760px)");
+    const update = () => {
+      setMobile(query.matches);
+      if (query.matches) w.setHistoryOpen(false);
+    };
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (!mobile || !w.historyOpen) return;
+    const previous = document.activeElement as HTMLElement;
+    historyRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+    return () => previous?.focus();
+  }, [mobile, w.historyOpen]);
   const chat =
     w.state.chats.find((c) => c.id === w.activeChatId) || w.state.chats[0];
   const busy = !!w.sending,
@@ -53,8 +71,17 @@ export function Chat({
       });
   }, [chat?.messages.length, busy]);
   async function newChat() {
-    const c = await w.act("/chats", {});
-    w.setActiveChatId(c.id);
+    if (newChatLock.current || busy) return;
+    newChatLock.current = true;
+    try {
+      const c = await w.act("/chats", {});
+      w.setActiveChatId(c.id);
+      if (mobile) w.setHistoryOpen(false);
+    } catch {
+      // act already exposes a user-facing error; keep the current dialogue.
+    } finally {
+      newChatLock.current = false;
+    }
   }
   async function send(e?: React.FormEvent) {
     e?.preventDefault();
@@ -142,8 +169,49 @@ export function Chat({
         )}
       </header>
       <div className="chat-layout">
+        {mobile && w.historyOpen && (
+          <button
+            className="history-scrim"
+            aria-label="Закрыть панель истории"
+            onClick={() => w.setHistoryOpen(false)}
+          />
+        )}
         {w.historyOpen && (
-          <aside className="chat-history">
+          <aside
+            ref={historyRef}
+            className="chat-history"
+            role={mobile ? "dialog" : undefined}
+            aria-modal={mobile ? true : undefined}
+            aria-label="История диалогов"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") w.setHistoryOpen(false);
+              if (mobile && e.key === "Tab") {
+                const nodes = Array.from(
+                  historyRef.current?.querySelectorAll<HTMLElement>(
+                    "button:not(:disabled),input",
+                  ) || [],
+                );
+                const first = nodes[0],
+                  last = nodes.at(-1);
+                if (e.shiftKey && document.activeElement === first) {
+                  e.preventDefault();
+                  last?.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                  e.preventDefault();
+                  first?.focus();
+                }
+              }
+            }}
+          >
+            <div className="history-drawer-title">
+              <b>Диалоги</b>
+              <IconButton
+                label="Закрыть историю"
+                onClick={() => w.setHistoryOpen(false)}
+              >
+                <X size={18} />
+              </IconButton>
+            </div>
             <Button secondary disabled={busy} onClick={() => void newChat()}>
               <Plus size={16} /> Новый диалог
             </Button>
@@ -163,7 +231,10 @@ export function Chat({
                 <button
                   key={c.id}
                   className={c.id === chat?.id ? "active" : ""}
-                  onClick={() => w.setActiveChatId(c.id)}
+                  onClick={() => {
+                    w.setActiveChatId(c.id);
+                    if (mobile) w.setHistoryOpen(false);
+                  }}
                 >
                   <MessageSquare size={16} />
                   <span>
@@ -177,7 +248,10 @@ export function Chat({
               ))}
           </aside>
         )}
-        <div className="chat-main">
+        <div
+          className="chat-main"
+          inert={mobile && w.historyOpen ? true : undefined}
+        >
           <div className="messages">
             {!chat?.messages.length ? (
               <div className="chat-welcome">

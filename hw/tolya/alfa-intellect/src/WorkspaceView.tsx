@@ -5,6 +5,7 @@ import { Cabinet } from "./Cabinet";
 import { Chat } from "./Chat";
 import { Button } from "./ui";
 import type { AppState } from "../shared/types";
+import { panelSplit } from "./panel-layout";
 export function WorkspaceView({
   preview,
   tour = -1,
@@ -17,14 +18,26 @@ export function WorkspaceView({
     dragging = useRef(false),
     ratio = useRef(w.state.preferences.split);
   const [narrow, setNarrow] = useState(() => innerWidth < 1100),
-    [mobileTab, setMobileTab] = useState("credit");
-  const split = w.state.preferences.split,
+    [mobileTab, setMobileTab] = useState("credit"),
+    [availableWidth, setAvailableWidth] = useState(innerWidth - 40);
+  const split = panelSplit(availableWidth, w.state.preferences.split),
     visible = w.chatVisible;
+  useEffect(() => {
+    if (!root.current) return;
+    const observer = new ResizeObserver((entries) =>
+      setAvailableWidth(entries[0].contentRect.width),
+    );
+    observer.observe(root.current);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     const media = matchMedia("(max-width:1099px)");
     const update = () => setNarrow(media.matches);
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    return () => document.body.classList.remove("resizing-panels");
   }, []);
   useEffect(() => {
     if (tour >= 0) {
@@ -34,14 +47,14 @@ export function WorkspaceView({
   }, [tour]);
   function change(value: number) {
     const width = root.current?.clientWidth || innerWidth;
-    const min = Math.max(40, Math.ceil((420 / width) * 100)),
-      max = Math.min(75, Math.floor(((width - 370) / width) * 100));
-    const n = Math.max(min, Math.min(max, value));
+    const n = panelSplit(width, value);
     ratio.current = n;
     w.setSplit(n);
   }
   async function save() {
-    await w.act("/preferences", { split: ratio.current }, "PATCH");
+    try {
+      await w.act("/preferences", { split: ratio.current }, "PATCH");
+    } catch {}
   }
   return (
     <main className="cabinet-page work-page">

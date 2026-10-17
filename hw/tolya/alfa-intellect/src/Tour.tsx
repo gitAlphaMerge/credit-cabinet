@@ -46,15 +46,19 @@ export function Tour({
     setBusy(true);
     try {
       await finish();
+    } catch {
+      // The workspace reports the error; keep the tour open for retry.
     } finally {
       setBusy(false);
     }
   };
   useEffect(() => {
     const measure = () => {
-      const node = document.querySelector<HTMLElement>(
+      let node = document.querySelector<HTMLElement>(
         `[data-tour="${steps[step][0]}"]`,
       );
+      if (step === 4 && !node?.getBoundingClientRect().width)
+        node = document.querySelector<HTMLElement>('[data-tour="profile"]');
       if (!node) return;
       const r = node.getBoundingClientRect();
       setRect(r);

@@ -5,6 +5,16 @@ import { formatPhone, normalizePhone } from "../src/phone";
 import { MarkdownText } from "../src/MarkdownText";
 import { SelectionResult, selectionSummary } from "../src/SelectionResult";
 import { publicPreview } from "../server/preview";
+import { panelSplit } from "../src/panel-layout";
+test("Split сохраняет минимумы колонок после перетаскивания и уменьшения окна", () => {
+  for (const width of [1060, 1326, 1400, 1880])
+    for (const preferred of [40, 60, 75]) {
+      const split = panelSplit(width, preferred),
+        usable = width - 14;
+      assert.ok((usable * split) / 100 >= 420);
+      assert.ok((usable * (100 - split)) / 100 >= 370);
+    }
+});
 test("Российский телефон: вставка +7, 7, 8 и десяти цифр даёт одну маску", () => {
   for (const value of [
     "+7 (999) 123-45-67",
