@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Главная v2 · виджеты кабинета</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#f3f4f5}
+a{color:#0072ef}a:hover{color:#005bbf}
+@keyframes rise{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes txtIn{0%,38%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:none}}
+@keyframes turn{0%,40%{transform:rotate(0)}50%,90%{transform:rotate(90deg)}100%{transform:rotate(0)}}
+@keyframes pop{0%,45%{transform:scale(1)}55%,95%{transform:scale(.55)}100%{transform:scale(1)}}
+@keyframes draw{from{stroke-dashoffset:400}to{stroke-dashoffset:0}}
+@keyframes ring{from{stroke-dashoffset:176}}
+.rise{animation:rise .9s cubic-bezier(.16,1,.3,1) both}
+.wid > span, .wid > svg{animation:txtIn 1.3s cubic-bezier(.16,1,.3,1) both;animation-delay:inherit}
+.t1{animation:turn 6s ease-in-out infinite}.t2{animation:turn 6s 1.5s ease-in-out infinite}.t3{animation:turn 6s 3s ease-in-out infinite}
+.p1{animation:pop 5s ease-in-out infinite}.p2{animation:pop 5s 1.2s ease-in-out infinite}.p3{animation:pop 5s 2.4s ease-in-out infinite}
+.line{stroke-dasharray:400;animation:draw 1.6s .3s cubic-bezier(.4,0,.2,1) both}
+.ringv{animation:ring 1.4s .2s cubic-bezier(.2,.8,.2,1) both}
+@keyframes slideOrb{from{left:0%}}
+@keyframes hb{from{transform:scaleY(0)}}
+.orbpos{animation:slideOrb 1.2s .6s cubic-bezier(.2,.8,.2,1) both}
+.hb{transform-origin:bottom;animation:hb .7s .5s cubic-bezier(.2,.8,.2,1) both}
+.wid:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(0,0,0,.04),0 12px 28px rgba(0,0,0,.08)}
+.wid{transition:transform .2s ease,box-shadow .2s ease}
+.opt:hover{border-color:#ef3124}
+.ghost:hover{background:#f3f4f5}
+.cta:hover{background:#d92a1e}
+@media (prefers-reduced-motion: reduce){.wid > span,.wid > svg{animation:none}.rise,.t1,.t2,.t3,.p1,.p2,.p3,.line,.ringv,.orbpos,.hb{animation:none}.wid{transition:none}}
+.seg:not([aria-current]):hover{background:#e4e4e6!important}
+</style>
+<style>[v-cloak]{display:none}</style>
+</head>
+<body>
+<div id="app" v-cloak>
+<div style="font-family: 'Manrope', system-ui, sans-serif; color: #0b0b0c; background: #f3f4f5">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding: 12px 44px; background: #ffffff; border-bottom: 1px solid #dcdcdd">
+<div style="display: flex; align-items: center; gap: 10px">
+<img src="img/alfa.svg" alt="" style="width: 28px; height: 28px">
+<span style="font-weight: 800; font-size: 17px">Альфа-Бизнес</span>
+</div>
+<nav aria-label="Разделы" style="display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 999px; background: #f3f4f5; margin-left: auto"><a href="index.html" aria-current="page" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: #0b0b0c; color: #ffffff">Главная</a><a href="kabinet.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">Кредитный кабинет</a><a href="chat.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">ИИ-агент</a><a href="podbor.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">Подбор</a></nav>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<button type="button" aria-label="Уведомления, 3 новых" class="ghost" style="position: relative; width: 44px; height: 44px; border-radius: 999px; border: 1px solid #dcdcdd; background: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+<span style="position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 999px; background: #ef3124; border: 2px solid #ffffff"></span>
+</button>
+<button type="button" aria-label="Профиль" class="ghost" style="width: 44px; height: 44px; border-radius: 999px; border: 1px solid #dcdcdd; background: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>
+</button>
+</div>
+</header>
+
+<section style="max-width: 1192px; margin: 0 auto; padding: 48px 44px 40px; display: flex; flex-wrap: wrap; gap: 40px; align-items: center">
+<div class="rise" style="flex: 1 1 520px; display: flex; flex-direction: column; gap: 22px">
+<h1 style="margin: 0; font-size: 46px; line-height: 1.12; font-weight: 800; letter-spacing: -.02em">От подбора финансирования <span style="color: #ef3124">до полного погашения</span></h1>
+<p style="margin: 0; font-size: 19px; line-height: 1.4; color: #6b6b70; max-width: 480px">Агент посчитает по выписке, сколько вы потянете.</p>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<template v-for="(g, $index) in v.goals">
+<a href="chat.html" class="opt" style="min-height: 44px; border: 1.5px solid #dcdcdd; border-radius: 12px; background: #ffffff; padding: 8px 14px; display: flex; align-items: center; gap: 8px; color: #0b0b0c; text-decoration: none; font-size: 14px; font-weight: 700; box-sizing: border-box">
+<img :src="g.img" alt="" style="width: 22px; height: 22px">{{ g.label }}</a>
+</template>
+<button type="button" class="opt" @click="v.toggleMore" :aria-expanded="v.moreOpen" style="min-height: 44px; border: 1.5px dashed #dcdcdd; border-radius: 12px; background: transparent; padding: 8px 14px; color: #0b0b0c; font: 700 14px 'Manrope', sans-serif; cursor: pointer">{{ v.moreLabel }}</button>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px">
+<a href="chat.html" class="cta" style="height: 56px; padding: 0 26px; border-radius: 12px; background: #ef3124; display: flex; align-items: center; gap: 10px; color: #ffffff; text-decoration: none; font-size: 17px; font-weight: 700; box-sizing: border-box">Попробовать бесплатно</a>
+<a href="#cfa" class="ghost" style="height: 44px; padding: 0 14px 0 8px; border-radius: 999px; border: 1px solid #dcdcdd; display: flex; align-items: center; gap: 8px; color: #0b0b0c; text-decoration: none; font-size: 14px; font-weight: 700; box-sizing: border-box"><span style="font-size: 12px; font-weight: 800; letter-spacing: .06em; background: #0b0b0c; color: #ffffff; border-radius: 999px; padding: 4px 9px">ЦФА</span>Деньги от инвесторов, без кредита</a>
+</div>
+</div>
+
+<div class="rise" style="flex: 1 1 360px; max-width: 420px; aspect-ratio: 1 / 1; border-radius: 28px; overflow: hidden; background: #ffffff; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); animation-delay: .1s" aria-hidden="true">
+<span style="background: #ffffff; display: flex; align-items: flex-end"><span class="t1" style="width: 100%; height: 100%; background: #ef3124; border-radius: 100% 0 0 0"></span></span>
+<span style="background: #fbe8e7; display: flex; align-items: center; justify-content: center"><span class="p1" style="width: 56%; height: 56%; background: #ef3124"></span></span>
+<span style="background: #ffffff"></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p2" style="width: 54%; height: 54%; border-radius: 999px; background: #0b0b0c"></span></span>
+<span style="background: #fbe8e7"></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p3" style="width: 60%; height: 60%; border-radius: 999px; border: 7px solid #ef3124; box-sizing: border-box"></span></span>
+<span style="background: #fbe8e7"></span>
+<span style="background: #ffffff; display: flex"><span class="t2" style="width: 100%; height: 100%; background: #0b0b0c; border-radius: 0 100% 0 0"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span style="width: 64%; height: 18%; border-radius: 999px; background: #ef3124"></span></span>
+<span style="background: #ebebec"></span>
+<span style="background: #ffffff; display: flex"><span class="t3" style="width: 100%; height: 100%; background: #ef3124; clip-path: polygon(0 0, 100% 0, 0 100%)"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p1" style="width: 56%; height: 56%; border-radius: 999px; background: #ef3124"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p3" style="width: 54%; height: 54%; border-radius: 999px; border: 7px solid #0b0b0c; box-sizing: border-box"></span></span>
+<span style="background: #fbe8e7; display: flex"><span class="t1" style="width: 100%; height: 100%; background: #f6a59f; border-radius: 0 0 100% 0"></span></span>
+<span style="background: #ffffff"></span>
+<span style="background: #ffffff; display: flex"><span class="t2" style="width: 100%; height: 100%; background: #0b0b0c; border-radius: 100% 0 0 0"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span style="width: 64%; height: 18%; border-radius: 999px; background: #0b0b0c"></span></span>
+<span style="background: #fbe8e7; display: flex; align-items: center; justify-content: center"><span class="p2" style="width: 52%; height: 52%; background: #ef3124"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p2" style="width: 56%; height: 56%; border-radius: 999px; border: 7px solid #ef3124; box-sizing: border-box"></span></span>
+<span style="background: #ebebec"></span>
+<span style="background: #ffffff; display: flex"><span class="t3" style="width: 100%; height: 100%; background: #ef3124; border-radius: 0 100% 0 0"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p1" style="width: 54%; height: 54%; border-radius: 999px; background: #f6a59f"></span></span>
+<span style="background: #fbe8e7"></span>
+<span style="background: #ffffff; display: flex"><span class="t1" style="width: 100%; height: 100%; background: #0b0b0c; clip-path: polygon(100% 0, 100% 100%, 0 100%)"></span></span>
+<span style="background: #ffffff"></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p3" style="width: 56%; height: 56%; border-radius: 999px; background: #ef3124"></span></span>
+<span style="background: #fbe8e7; display: flex"><span class="t2" style="width: 100%; height: 100%; background: #ef3124; border-radius: 0 0 0 100%"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span style="width: 64%; height: 18%; border-radius: 999px; background: #ef3124"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p2" style="width: 54%; height: 54%; border-radius: 999px; border: 7px solid #0b0b0c; box-sizing: border-box"></span></span>
+<span style="background: #ebebec"></span>
+<span style="background: #ffffff; display: flex"><span class="t3" style="width: 100%; height: 100%; background: #0b0b0c; border-radius: 100% 0 0 0"></span></span>
+<span style="background: #fbe8e7; display: flex; align-items: center; justify-content: center"><span class="p1" style="width: 52%; height: 52%; background: #ef3124"></span></span>
+<span style="background: #ffffff"></span>
+<span style="background: #ffffff; display: flex"><span class="t1" style="width: 100%; height: 100%; background: #ef3124; clip-path: polygon(0 100%, 100% 0, 100% 100%)"></span></span>
+<span style="background: #ffffff; display: flex; align-items: center; justify-content: center"><span class="p3" style="width: 56%; height: 56%; border-radius: 999px; background: #f6a59f"></span></span>
+<span style="background: #fbe8e7"></span>
+</div>
+</section>
+
+<section style="max-width: 1192px; margin: 0 auto; padding: 8px 44px 56px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h2 style="margin: 0; font-size: 36px; line-height: 1.18; font-weight: 800; letter-spacing: -.015em">Кабинет на одном экране</h2>
+</div>
+<a href="kabinet.html" style="font-size: 15px; font-weight: 700; text-decoration: none">Открыть кредитный кабинет</a>
+</div>
+
+<template v-if="v.isGrid">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); grid-auto-rows: 170px; gap: 14px">
+
+<a href="kabinet.html" class="wid rise" style="grid-row: span 1; background: #ffffff; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; color: #0b0b0c; text-decoration: none; animation-delay: .05s">
+<span style="font-size: 13px; font-weight: 700; color: #6b6b70">Ближайший платёж</span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em">{{ v.nPay }} ₽</span><span style="font-size: 13px; color: #0b6b40; font-weight: 700">17 ноября · денег хватает</span></span>
+</a>
+
+<a href="kabinet.html" class="wid rise" style="grid-column: span 2; grid-row: span 2; background: #0b0b0c; color: #ffffff; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; text-decoration: none; animation-delay: .12s">
+<span style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 13px; font-weight: 700; color: #a1a1a6">Лента бизнеса</span><span style="font-size: 12px; color: #a1a1a6">3 новых</span></span>
+<template v-for="(f, $index) in v.feed">
+<span style="display: flex; gap: 12px; align-items: flex-start; border-top: 1px solid #2c2c2e; padding-top: 12px">
+<span :style="`width: 8px; height: 8px; flex: 0 0 8px; border-radius: 999px; background: ${f.dot}; margin-top: 7px`"></span>
+<span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 16px; font-weight: 700">{{ f.title }}</span><span style="font-size: 13px; color: #a1a1a6">{{ f.when }}</span></span>
+</span>
+</template>
+</a>
+
+<a href="kabinet.html" class="wid rise" style="background: #ffffff; border-radius: 16px; padding: 18px; display: flex; align-items: center; gap: 16px; color: #0b0b0c; text-decoration: none; animation-delay: .19s">
+<svg width="72" height="72" viewBox="0 0 72 72" aria-hidden="true" style="transform: rotate(-90deg); flex: 0 0 72px"><circle cx="36" cy="36" r="28" fill="none" stroke="#f3f4f5" stroke-width="10"></circle><circle class="ringv" cx="36" cy="36" r="28" fill="none" stroke="#13a463" stroke-width="10" stroke-linecap="round" stroke-dasharray="176" stroke-dashoffset="146"></circle></svg>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; font-weight: 700; color: #6b6b70">Погашено</span><span style="font-size: 28px; font-weight: 800">{{ v.nPct }}%</span><span style="font-size: 12px; color: #6b6b70">8 из 36 платежей</span></span>
+</a>
+
+<a href="kabinet.html" class="wid rise" style="grid-column: span 2; background: #ffffff; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 8px; color: #0b0b0c; text-decoration: none; animation-delay: .26s">
+<span style="display: flex; justify-content: space-between"><span style="font-size: 13px; font-weight: 700; color: #6b6b70">Остаток до платежа</span><span style="font-size: 13px; font-weight: 700; color: #0b6b40">1 155 429 ₽</span></span>
+<svg viewBox="0 0 400 90" width="100%" height="90" aria-hidden="true"><path class="line" d="M 6 74 C 90 60, 160 22, 210 18 S 330 36, 394 42" fill="none" stroke="#13a463" stroke-width="4" stroke-linecap="round"></path><circle cx="394" cy="42" r="6" fill="#13a463"></circle></svg>
+</a>
+
+<a href="chat.html" class="wid rise" style="background: #fbe8e7; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; color: #0b0b0c; text-decoration: none; animation-delay: .33s">
+<span style="font-size: 13px; font-weight: 700; color: #b3241a">Лимит после шага</span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em">+{{ v.nLimit }} ₽</span><span style="font-size: 13px; color: #6b4606">подтвердите договор</span></span>
+</a>
+
+<a href="kabinet.html" class="wid rise" style="background: #ffffff; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; color: #0b0b0c; text-decoration: none; animation-delay: .4s">
+<span style="font-size: 13px; font-weight: 700; color: #6b6b70">На счетах сегодня</span>
+<span style="display: flex; align-items: flex-end; justify-content: space-between; gap: 10px"><span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em">{{ v.nCash }} ₽</span>
+<span style="display: flex; align-items: flex-end; gap: 3px; height: 40px" aria-hidden="true"><span class="hb" style="width: 6px; height: 40%; background: #f6a59f; border-radius: 3px"></span><span class="hb" style="width: 6px; height: 65%; background: #f6a59f; border-radius: 3px"></span><span class="hb" style="width: 6px; height: 50%; background: #f6a59f; border-radius: 3px"></span><span class="hb" style="width: 6px; height: 85%; background: #ef3124; border-radius: 3px"></span><span class="hb" style="width: 6px; height: 100%; background: #ef3124; border-radius: 3px"></span></span></span>
+</a>
+
+<a href="chat.html" class="wid rise" style="background: #ffffff; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; color: #0b0b0c; text-decoration: none; animation-delay: .47s">
+<span style="display: flex; justify-content: space-between; align-items: center"><span style="font-size: 13px; font-weight: 700; color: #6b6b70">Налоги</span><img src="img/skill-nalogi.svg" alt="" style="width: 22px; height: 22px"></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em">до 28 окт</span><span style="font-size: 13px; color: #8a5a08; font-weight: 700">аванс УСН · [сумма]</span></span>
+</a>
+
+<a href="chat.html" class="wid rise" style="background: #ffffff; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; color: #0b0b0c; text-decoration: none; animation-delay: .54s">
+<span style="display: flex; justify-content: space-between; align-items: center"><span style="font-size: 13px; font-weight: 700; color: #6b6b70">Вам должны</span><img src="img/feed-postuplenie.svg" alt="" style="width: 22px; height: 22px"></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em">{{ v.nDebt }} ₽</span><span style="font-size: 13px; color: #6b6b70; font-weight: 700">2 заказчика · 1 просрочка</span></span>
+</a>
+
+<a href="kabinet.html" class="wid rise" style="grid-column: span 2; background: #ffffff; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; color: #0b0b0c; text-decoration: none; animation-delay: .61s">
+<span style="display: flex; justify-content: space-between"><span style="font-size: 13px; font-weight: 700; color: #6b6b70">Запас по платежам</span><span style="font-size: 22px; font-weight: 800">3,67×</span></span>
+<span style="position: relative; height: 10px; border-radius: 999px; background: linear-gradient(90deg, #d91d0b 0 25%, #cb830f 25% 42%, #13a463 42% 100%); margin: 8px 0" aria-hidden="true"><span class="orbpos" style="position: absolute; left: 82%; top: -8px; width: 26px; height: 26px; margin-left: -13px; border-radius: 999px; background: #ffffff; border: 4px solid #13a463; box-sizing: border-box; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.12)"></span></span>
+<span style="display: flex; justify-content: space-between; font-size: 12px; color: #6b6b70"><span>риск</span><span>порог банка 1,25</span><span>спокойно</span></span>
+</a>
+
+</div>
+</template>
+
+<template v-if="v.isList">
+<div class="rise" style="background: #ffffff; border-radius: 16px; padding: 8px; display: flex; flex-direction: column">
+<template v-for="(f, $index) in v.feedLong">
+<a href="kabinet.html" class="ghost" style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 12px; color: #0b0b0c; text-decoration: none">
+<span :style="`width: 10px; height: 10px; flex: 0 0 10px; border-radius: 999px; background: ${f.dot}`"></span>
+<span style="flex: 1 1 auto; font-size: 16px; font-weight: 700">{{ f.title }}</span>
+<span style="font-size: 13px; color: #6b6b70">{{ f.when }}</span>
+</a>
+</template>
+</div>
+</template>
+</section>
+</div>
+</div>
+<script src="petite-vue.iife.js"></script>
+<script src="dc-lite.js"></script>
+<script>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { p: 0, more: false }; }
+  componentDidMount() {
+    const t0 = performance.now() + 350, dur = 1500;
+    const tick = (now) => { const x = Math.min(1, Math.max(0, (now - t0) / dur)); this.setState({ p: 1 - Math.pow(1 - x, 4) }); if (x < 1) this.raf = requestAnimationFrame(tick); };
+    this.raf = requestAnimationFrame(tick);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  renderVals() {
+    const p = this.state.p, n = (v) => Math.round(v * p).toLocaleString('ru-RU');
+    const mode = this.props.widgets ?? 'сетка виджетов';
+    const feed = [
+      { dot: '#13a463', title: 'Платёж 17 ноября закрываете с запасом', when: 'через 31 день' },
+      { dot: '#cb830f', title: 'Заказчик заплатил на 22% меньше обычного', when: 'сегодня, 07:40' },
+      { dot: '#0072ef', title: 'Договор поднимет лимит на 508 000 ₽', when: 'вчера' }
+    ];
+    return {
+      isGrid: mode === 'сетка виджетов', isList: mode === 'лента',
+      nPay: n(114571), nCash: n(1870400), nDebt: n(640000), nLimit: n(508000), nPct: Math.round(17 * p),
+      feed,
+      feedLong: feed.concat([{ dot: '#6b6b70', title: '[новость по вашей отрасли]', when: '16 окт' }, { dot: '#13a463', title: 'Платёж 17 октября прошёл', when: '17 окт' }]),
+      toggleMore: () => this.setState(st => ({ more: !st.more })), moreOpen: this.state.more ? 'true' : 'false', moreLabel: this.state.more ? 'Свернуть' : 'Ещё 6',
+      goals: (this.state.more ? (x => x) : (x => x.slice(0, 5)))([
+        { label: 'Закупка и оборотка', img: 'img/goal-zakupka.svg', icon: 'M4 7h16l-1.5 11h-13zM9 7V5h6v2' },
+        { label: 'Оборудование', img: 'img/goal-oborudovanie.svg', icon: 'M4 17h16M6 17V9l6-4 6 4v8M10 17v-4h4v4' },
+        { label: 'Кассовый разрыв', img: 'img/goal-razryv.svg', icon: 'M4 12h6M14 12h6M10 8l4 8' },
+        { label: 'Госконтракт', img: 'img/goal-goskontrakt.svg', icon: 'M6 3h9l3 3v15H6zM9 12h6M9 16h6' },
+        { label: 'Просто посмотреть', img: 'img/goal-posmotret.svg', icon: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z' }
+      ].concat([{ label: 'Рефинансировать кредит', img: 'img/feed-limit.svg' },{ label: 'Лизинг техники', img: 'img/skill-lizing.svg' },{ label: 'Деньги под заказчика', img: 'img/feed-postuplenie.svg' },{ label: 'Гарантия для тендера', img: 'img/skill-garantiya.svg' },{ label: 'Проверить контрагента', img: 'img/skill-kontragent.svg' },{ label: 'Льготная программа', img: 'img/skill-lgoty.svg' }]))
+    };
+  }
+}
+mountDC(Component, {"widgets": "сетка виджетов"});
+</script>
+</body>
+</html>
