@@ -5,6 +5,7 @@
 
     python services/agent/eval/sim.py                         # все персоны, по 1 прогону
     python services/agent/eval/sim.py --runs 3 --only cash_gap_b
+    python services/agent/eval/sim.py --source redteam-deepseek    # провокаторы: потом глазами по полю attack
     python services/agent/eval/sim.py --client deepseek/deepseek-v4.1-flash   # самоигра, для сравнения
 """
 import argparse
@@ -96,6 +97,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--only", help="id персоны")
+    ap.add_argument("--source", help="набор персон по имени файла: deepseek, redteam-deepseek")
     ap.add_argument("--client", default=CLIENT_MODEL)
     ap.add_argument("--templates", action="store_true", help="агент без LLM")
     ap.add_argument("--workers", type=int, default=8)
@@ -105,7 +107,8 @@ def main() -> int:
         print("нет OPENROUTER_API_KEY в .env: клиент-LLM не на чем гонять")
         return 1
     scenarios = {s["id"]: s for s in json.loads((ROOT / "data" / "golden.json").read_text(encoding="utf-8"))["scenarios"]}
-    personas = [p for p in data_io.personas() if not args.only or p["id"] == args.only]
+    personas = [p for p in data_io.personas() if (not args.only or p["id"] == args.only)
+                and (not args.source or p["source"] == args.source)]
     jobs = [(p, scenarios[p["scenario"]]) for p in personas for _ in range(args.runs)]
     with ThreadPoolExecutor(args.workers) as pool:
         results = list(pool.map(lambda j: run(j[0], j[1], args.client, not args.templates), jobs))
