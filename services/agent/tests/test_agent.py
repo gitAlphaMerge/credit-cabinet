@@ -92,3 +92,8 @@ def test_router_asks_purpose_first_then_repay():
     state = dialog.new_state({"form": "ООО", "years": "больше 3"})
     assert dialog.turn(state, "") == dialog.QUESTIONS["purpose"]
     assert dialog.turn(state, "Нужно 1,5 млн, заказчик платит позже") == dialog.QUESTIONS["repay"]
+
+
+def test_guard_allows_negative_dscr_from_core():
+    view = dict(VIEW, numbers=dict(VIEW["numbers"], dscr=-0.38))
+    assert guard.check("Покрытие -0.38 при пороге 1,25. Позвать менеджера?", view, NEED) == []
