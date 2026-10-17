@@ -2,23 +2,22 @@ import {
   ArrowRight,
   ArrowUpRight,
   Check,
-  ShieldCheck,
   WalletCards,
   ChartNoAxesCombined,
   MessagesSquare,
   FileCheck2,
   ChevronDown,
   Sparkles,
-  TrendingUp,
   LockKeyhole,
   SlidersHorizontal,
   Clock3,
+  Building2,
 } from "lucide-react";
-import { Brand, Button, Badge, LineChart, SectionTitle } from "./ui";
-import { useEffect, useRef, useState } from "react";
+import { Brand, Button, Badge, SectionTitle } from "./ui";
+import { useEffect, useRef } from "react";
+import { HeroFinance } from "./HeroFinance";
 export function Landing({ go }: { go: (s: string) => void }) {
-  const root = useRef<HTMLDivElement>(null),
-    [scenario, setScenario] = useState(0);
+  const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) =>
@@ -31,7 +30,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
       { threshold: 0.12 },
     );
     root.current
-      ?.querySelectorAll(".section,.benefit-strip,.feature-card")
+      ?.querySelectorAll(".section,.benefit-strip,.feature-card,.journey-step")
       .forEach((node) => {
         node.classList.add("reveal-section");
         observer.observe(node);
@@ -94,83 +93,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
               </span>
             </div>
           </div>
-          <div className="hero-visual" aria-label="Пример финансового расчёта">
-            <div className="visual-orbit" />
-            <div className="visual-chip top">
-              <span className="icon-tile green">
-                <TrendingUp size={19} />
-              </span>
-              <div>
-                <small>Ваш следующий шаг</small>
-                <b>Расти с запасом прочности</b>
-              </div>
-              <span className="pulse-dot" />
-            </div>
-            <div className="hero-finance-card">
-              <div className="card-top">
-                <span>
-                  <span className="tiny-red" /> Финансовая перспектива
-                </span>
-                <Badge>Пример</Badge>
-              </div>
-              <div className="hero-chart-title">
-                <div>
-                  <small>Свободный поток после платежа</small>
-                  <strong>
-                    {scenario === 0 ? "+217 500" : "+109 000"} <span>₽</span>
-                  </strong>
-                </div>
-                <span className="chart-arrow">
-                  <ArrowUpRight />
-                </span>
-              </div>
-              <LineChart
-                description="Иллюстративный пример свободного денежного потока"
-                values={
-                  scenario === 0
-                    ? [60, 78, 68, 96, 89, 130, 143, 135, 180, 197, 217]
-                    : [60, 72, 65, 81, 70, 90, 82, 92, 98, 103, 109]
-                }
-                labels={["Сегодня", "Через 3 месяца", "Через 6 месяцев"]}
-              />
-              <div className="visual-card-bottom">
-                <div>
-                  <span className="legend green-dot" /> Достаточно для планов
-                </div>
-                <span>Синтетические данные</span>
-              </div>
-              <div
-                className="segmented hero-scenarios"
-                aria-label="Иллюстративный сценарий"
-              >
-                <button
-                  className={scenario === 0 ? "active" : ""}
-                  onClick={() => setScenario(0)}
-                >
-                  Базовый пример
-                </button>
-                <button
-                  className={scenario === 1 ? "active" : ""}
-                  onClick={() => setScenario(1)}
-                >
-                  Меньше поступлений
-                </button>
-              </div>
-            </div>
-            <div className="visual-chip bottom">
-              <span className="icon-tile red">
-                <ShieldCheck size={20} />
-              </span>
-              <div>
-                <b>Каждый вывод можно проверить</b>
-                <small>Данные → формула → понятное решение</small>
-              </div>
-              <Check size={16} />
-            </div>
-            <span className="visual-caption">
-              Иллюстративный пример, не прогноз для вашего бизнеса
-            </span>
-          </div>
+          <HeroFinance />
         </section>
         <section className="benefit-strip wrap">
           {[
@@ -325,8 +248,46 @@ export function Landing({ go }: { go: (s: string) => void }) {
                   "Сравните и решите",
                   "Изучите расчёт, обсудите альтернативы и подготовьте досье.",
                 ],
-              ].map(([n, t, d]) => (
-                <article key={n}>
+              ].map(([n, t, d], index) => (
+                <article
+                  className="journey-step"
+                  key={n}
+                  style={{ transitionDelay: `${index * 140}ms` }}
+                >
+                  <div
+                    className={"journey-illustration journey-" + n}
+                    aria-hidden="true"
+                  >
+                    {index === 0 ? (
+                      <>
+                        <Building2 size={32} />
+                        <span className="journey-mini-line" />
+                        <span className="journey-mini-line short" />
+                        <span className="journey-check">
+                          <Check size={15} />
+                        </span>
+                      </>
+                    ) : index === 1 ? (
+                      <>
+                        <FileCheck2 size={32} />
+                        <span className="journey-doc" />
+                        <span className="journey-doc second" />
+                        <span className="journey-check">
+                          <Check size={15} />
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <ChartNoAxesCombined size={32} />
+                        <span className="journey-bar" />
+                        <span className="journey-bar second" />
+                        <span className="journey-bar third" />
+                        <span className="journey-check">
+                          <ArrowUpRight size={15} />
+                        </span>
+                      </>
+                    )}
+                  </div>
                   <span className="step-number">{n}</span>
                   <h3>{t}</h3>
                   <p>{d}</p>

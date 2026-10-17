@@ -13,6 +13,8 @@ import { Brand, Button, Badge, Field } from "./ui";
 import { api } from "./api";
 import type { Profile } from "../shared/types";
 import { PhoneInput, normalizePhone } from "./phone";
+import { Preparation } from "./Preparation";
+import { PREPARATION_KEY, readPreparation } from "./preparation-state";
 export const sectors = [
   "Оптовая торговля",
   "Розничная торговля и маркетплейсы",
@@ -68,6 +70,13 @@ export function Onboarding({
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [preparing, setPreparing] = useState<number | null>(() => {
+      try {
+        return login ? null : readPreparation(sessionStorage);
+      } catch {
+        return null;
+      }
+    }),
     [showPassword, setShowPassword] = useState(false),
     [touched, setTouched] = useState({ phone: false, password: false });
   const branches = useRef<Record<string, Partial<Profile>>>({ [p.stage]: p });
@@ -270,6 +279,7 @@ export function Onboarding({
   };
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy || preparing) return;
     setTouched({ phone: true, password: true });
     if (!normalizePhone(phone) || password.length < (login ? 1 : 8)) return;
     setBusy(true);
@@ -299,13 +309,36 @@ export function Onboarding({
       try {
         localStorage.removeItem("alfa-onboarding");
       } catch {}
-      await onAuth();
+      if (login) {
+        try {
+          sessionStorage.removeItem(PREPARATION_KEY);
+        } catch {}
+        await onAuth();
+      } else {
+        const start = Date.now();
+        try {
+          sessionStorage.setItem(PREPARATION_KEY, String(start));
+        } catch {}
+        setPreparing(start);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
+  if (preparing)
+    return (
+      <Preparation
+        startedAt={preparing}
+        onComplete={async () => {
+          await onAuth();
+          try {
+            sessionStorage.removeItem(PREPARATION_KEY);
+          } catch {}
+        }}
+      />
+    );
   return (
     <div className="onboarding">
       <header className="public-header">

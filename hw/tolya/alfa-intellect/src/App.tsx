@@ -133,7 +133,7 @@ export function App() {
     restoreFinancingDraft(c.workspaceId);
     setDraft("");
     setHistoryOpen(false);
-    setChatVisible(true);
+    setChatVisible(false);
     await refresh();
     go("/cabinet");
   }
