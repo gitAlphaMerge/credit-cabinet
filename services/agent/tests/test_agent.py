@@ -97,3 +97,9 @@ def test_router_asks_purpose_first_then_repay():
 def test_guard_allows_negative_dscr_from_core():
     view = dict(VIEW, numbers=dict(VIEW["numbers"], dscr=-0.38))
     assert guard.check("Покрытие -0.38 при пороге 1,25. Позвать менеджера?", view, NEED) == []
+
+
+def test_llm_intake_keeps_capitalized_purpose(monkeypatch):
+    import llm
+    monkeypatch.setattr(llm, "chat", lambda *a, **k: '{"purpose": "Кассовый разрыв", "amount_rub": 0}')
+    assert llm.intake("нужен кредит на кассовый разрыв", "purpose") == {"purpose": "кассовый разрыв"}

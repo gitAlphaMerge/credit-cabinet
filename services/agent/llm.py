@@ -57,6 +57,8 @@ def intake(text: str, asking: str | None) -> dict:
     raw = json.loads(chat(INTAKE_SYSTEM.replace("{asking}", str(asking or "ничего, это первое сообщение")), text,
                           as_json=True))
     out = {k: v for k, v in raw.items() if k in _TYPES and isinstance(v, _TYPES[k]) and v not in ("", 0)}
+    if isinstance(out.get("purpose"), str):
+        out["purpose"] = out["purpose"].strip().lower()  # «Кассовый разрыв» с большой буквы терялся целиком
     if out.get("purpose") not in _PURPOSES:
         out.pop("purpose", None)
     deal = out.get("contract_with_main_customer")
