@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import "./styles.css";
 import "./redesign.css";
 import "./motion.css";
+import "./chat.css";
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>

@@ -50,6 +50,10 @@ export function App() {
     [contactNote, setContactNote] = useState(""),
     [contactSent, setContactSent] = useState(false);
   const [chatVisible, setChatVisible] = useState(false);
+  const [chatFiles, setChatFiles] = useState<
+      { chatId: string; docId: string }[]
+    >([]),
+    [uploadName, setUploadName] = useState("");
   const [sending, setSending] = useState<{
     chatId: string;
     text: string;
@@ -148,6 +152,8 @@ export function App() {
       restoreFinancingDraft(null);
       setDraft("");
       setActiveChatId("");
+      setChatFiles([]);
+      setUploadName("");
       setHistoryOpen(false);
       setTour(-1);
       setTourPreview(undefined);
@@ -202,18 +208,28 @@ export function App() {
     }
   }, [toast]);
   async function upload(file: File, category?: string) {
+    const chatId = !category ? activeChatId || state?.chats[0]?.id : undefined;
     setUploading(true);
+    if (chatId) setUploadName(file.name);
     try {
       const f = new FormData();
       f.append("file", file);
       if (category) f.append("category", category);
       const d = await api<Doc>("/documents", f);
+      if (chatId)
+        setChatFiles((files) => [
+          ...files.filter(
+            (item) => item.docId !== d.id || item.chatId !== chatId,
+          ),
+          { chatId, docId: d.id },
+        ]);
       setPending(d);
       await refresh();
     } catch (e) {
       setToast((e as Error).message);
     } finally {
       setUploading(false);
+      setUploadName("");
     }
   }
   if (loading)
@@ -262,6 +278,14 @@ export function App() {
         setHistoryOpen,
         upload,
         uploading,
+        uploadName,
+        chatFiles,
+        dismissChatFile: (docId, chatId) =>
+          setChatFiles((files) =>
+            files.filter(
+              (file) => file.docId !== docId || file.chatId !== chatId,
+            ),
+          ),
         reviewDocument: setPending,
         financingDraft,
         financingDraftStored,

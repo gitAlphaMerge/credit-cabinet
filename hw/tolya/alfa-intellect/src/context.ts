@@ -16,6 +16,9 @@ export type Workspace = {
   setHistoryOpen: (v: boolean) => void;
   upload: (file: File, category?: string) => Promise<void>;
   uploading: boolean;
+  uploadName?: string;
+  chatFiles?: { chatId: string; docId: string }[];
+  dismissChatFile?: (docId: string, chatId: string) => void;
   reviewDocument: (doc: Doc) => void;
   financingDraft: FinancingDraft;
   financingDraftStored: boolean;
