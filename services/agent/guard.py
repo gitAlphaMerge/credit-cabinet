@@ -7,6 +7,8 @@ import re
 from intake_rules import money
 
 FORBIDDEN = ("одобрен", "одобрим", "гарантир", "точно дадут", "вам дадут", "кредит ваш")
+JARGON = ("dscr", "ядр", "покрытия долга", "покрытие долга", "обслуживания долга")  # спека Саши, ситуация 6
+STOP_REASON = ("исполнительн", "арест", "пристав")  # ситуация 13: при «нужен менеджер» причину в лоб не называем
 _INN = re.compile(r"(?<!\d)(\d{10}|\d{12})(?!\d)")
 _BARE = re.compile(r"(?<![\d.,])(-?\d+(?:[.,]\d+)?)(?![\d])")  # минус: у ядра бывает DSCR −0.38
 TOLERANCE = 0.005  # «141 800» вместо 141 839: округление до сотен допустимо
@@ -32,6 +34,9 @@ def check(text: str, view: dict | None, need: dict, expect_question: bool = True
     """Список нарушений; пустой список = ответ можно показывать."""
     low = text.lower()
     bad = [f"запретное слово «{w}»" for w in FORBIDDEN if w in low]
+    bad += [f"жаргон «{w}»" for w in JARGON if w in low]
+    if view and view.get("status") == "need_manager":
+        bad += [f"причина стопа в лоб «{w}»" for w in STOP_REASON if w in low]
     if _INN.search(text.replace(" ", "")):
         bad.append("похоже на ИНН")
     allowed = allowed_numbers(view, need)

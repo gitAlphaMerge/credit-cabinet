@@ -8,6 +8,8 @@ import os
 import urllib.request
 from pathlib import Path
 
+import intake_rules
+
 ROOT = Path(__file__).resolve().parents[2]
 URL = os.getenv("AGENT_LLM_URL", "https://openrouter.ai/api/v1/chat/completions")
 MODEL = os.getenv("AGENT_LLM_MODEL", "deepseek/deepseek-v4.1-flash")
@@ -54,6 +56,14 @@ _PURPOSES = {"кассовый разрыв", "закупка под контр�
 
 
 def intake(text: str, asking: str | None) -> dict:
+    if not text.strip():
+        return {}
+    out = _intake_llm(text, asking)
+    # пустой ответ на непустую реплику: в sim OpenRouter изредка отдаёт «{}», тогда разбор правилами, а не повторный вопрос
+    return out or intake_rules.parse(text, asking)
+
+
+def _intake_llm(text: str, asking: str | None) -> dict:
     raw = json.loads(chat(INTAKE_SYSTEM.replace("{asking}", str(asking or "ничего, это первое сообщение")), text,
                           as_json=True))
     out = {k: v for k, v in raw.items() if k in _TYPES and isinstance(v, _TYPES[k]) and v not in ("", 0)}
@@ -68,9 +78,14 @@ def intake(text: str, asking: str | None) -> dict:
 
 
 EXPLAIN_SYSTEM = """Ты кредитный помощник для ИП и ООО. Объясни клиенту ответ расчётного ядра (JSON ниже).
-Правила: на «вы», 2–4 коротких предложения, как толковый клиентский менеджер; называй только числа из JSON,
-ничего не считай сам; никогда не говори «одобрено» и не обещай кредит, решение принимает банк; в конце ровно один
-вопрос — следующий шаг из next_steps, либо «позвать менеджера», если статус need_manager; без эмодзи."""
+Правила: на «вы», 2–3 коротких предложения, как толковый клиентский менеджер; называй только числа из JSON,
+ничего не считай сам; никогда не говори «одобрено» и не обещай кредит, решение принимает банк; без эмодзи.
+Простые слова: не пиши DSCR, «ядро», «система», «покрытие долга»; вместо этого «запас по платежам»; ставку в процентах.
+Не больше 3 чисел: сколько можно сейчас, платёж, и сумма после шага, если она есть.
+Статус need_manager: причину не называй, скажи, что случай лучше обсудить с менеджером, он подскажет документы.
+Статус other_instrument: объясни, чем этот инструмент удобнее клиенту, чем кредит.
+В конце ровно один вопрос по статусу: ready — «подать заявку?»; ready_after_step — загрузить документ из next_steps;
+other_instrument — рассказать, как работает инструмент; need_manager — позвать менеджера."""
 
 
 def explain(view: dict, need: dict) -> str:

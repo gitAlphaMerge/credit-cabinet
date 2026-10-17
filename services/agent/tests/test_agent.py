@@ -103,3 +103,35 @@ def test_llm_intake_keeps_capitalized_purpose(monkeypatch):
     import llm
     monkeypatch.setattr(llm, "chat", lambda *a, **k: '{"purpose": "Кассовый разрыв", "amount_rub": 0}')
     assert llm.intake("нужен кредит на кассовый разрыв", "purpose") == {"purpose": "кассовый разрыв"}
+
+
+def test_llm_intake_falls_back_to_rules_on_empty_answer(monkeypatch):
+    import llm
+    monkeypatch.setattr(llm, "chat", lambda *a, **k: "{}")  # в sim под 8 потоками OpenRouter изредка отдаёт пустой JSON
+    got = llm.intake("Я ИП, нужен 1 млн на 12 месяцев на рост", "purpose")
+    assert {k: got.get(k) for k in ("purpose", "amount_rub", "term_months")} == {
+        "purpose": "рост", "amount_rub": 1000000, "term_months": 12}
+
+
+# спецификация Саши (hw/sasha/agent-spec.md): 6 — без «ядра» и жаргона, 13 — причину стопа в лоб не называем
+@pytest.mark.parametrize("text,needle", [
+    ("Расчётное ядро показывает 1 015 000 ₽. Подаём?", "ядр"),
+    ("DSCR 0,85 при пороге 1,25. Подаём?", "dscr"),
+    ("Показатель покрытия долга 0,85. Подаём?", "покрытия долга"),
+])
+def test_guard_catches_jargon(text, needle):
+    assert any(needle in v for v in guard.check(text, VIEW, NEED))
+
+
+STOP_VIEW = dict(VIEW, status="need_manager", status_text="нужен менеджер",
+                 reasons=[{"code": "ENFORCEMENT", "text": "Есть списания по исполнительному листу"}], next_steps=[])
+
+
+def test_guard_hides_stop_reason():
+    assert any("причин" in v for v in guard.check(
+        "Здесь нужен менеджер: есть списания по исполнительному листу. Позвать менеджера?", STOP_VIEW, NEED))
+
+
+def test_need_manager_template_hides_reason():
+    text = explain(STOP_VIEW, NEED)
+    assert "исполнительн" not in text.lower() and guard.check(text, STOP_VIEW, NEED) == []
