@@ -2,6 +2,7 @@
 
     python services/agent/eval/intake_report.py              # приёмщик на правилах
     python services/agent/eval/intake_report.py --misses     # и каждый промах: фраза, что ждали, что вышло
+    python services/agent/eval/intake_report.py --intake llm # LLM-приёмщик на тех же фразах
 """
 import argparse
 import sys
@@ -12,9 +13,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import data_io  # noqa: E402
+import llm  # noqa: E402
 from intake_rules import parse  # noqa: E402
 
-INTAKES = {"rules": parse}  # LLM-приёмщик встанет сюда же и сравнится на тех же фразах
+INTAKES = {"rules": parse, "llm": llm.intake}  # llm = AGENT_LLM_MODEL через OpenRouter, нужен ключ в .env
 
 
 def main() -> int:
