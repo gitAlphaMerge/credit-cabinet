@@ -235,6 +235,139 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
+.credit-dashboard > .efficiency-panel {
+  grid-column: 1 / -1;
+}
+.app-header .brand-name {
+  display: block;
+  max-width: 205px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.12;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+}
+.brand-name {
+  font-weight: 650;
+  white-space: normal;
+  display: block;
+  max-width: 230px;
+  line-height: 1.15;
+}
+.efficiency-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 16px;
+}
+.efficiency-grid > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 9px;
+  border-left: 3px solid #e7eee9;
+  padding-left: 13px;
+}
+.efficiency-grid strong {
+  font-size: clamp(22px, 2vw, 30px);
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+  overflow-wrap: anywhere;
+}
+.efficiency-grid small,
+.efficiency-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.efficiency-grid span {
+  font-size: 11px;
+}
+.efficiency-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 14px;
+}
+.efficiency-bottom p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.efficiency-page > .panel,
+.efficiency-detail-grid {
+  margin-bottom: 18px;
+}
+.efficiency-page .page-heading {
+  margin-top: 18px;
+}
+.efficiency-page .panel {
+  padding: 24px;
+}
+.efficiency-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.efficiency-detail-grid .panel {
+  min-width: 0;
+}
+.efficiency-page h2 {
+  font-size: 19px;
+}
+.efficiency-explanation p,
+.efficiency-next p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.registry-help {
+  margin: -6px 0 20px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.registry-help a {
+  display: inline-block;
+  margin-top: 8px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.registry-error {
+  color: #b82d22;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+@container (min-width: 1000px) {
+  .efficiency-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) {
+  .credit-only > .cabinet-scroll > .credit-dashboard {
+    min-height: 100%;
+    align-content: stretch;
+    grid-template-rows: auto auto minmax(180px, 1fr) auto;
+  }
+  .efficiency-page .efficiency-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .app-header .brand-name {
+    max-width: 124px;
+    font-size: 13px;
+  }
+  .efficiency-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .efficiency-page .panel {
+    padding: 18px;
+  }
+}
 .credit-dashboard .panel {
   padding: 22px;
   border-radius: var(--radius);

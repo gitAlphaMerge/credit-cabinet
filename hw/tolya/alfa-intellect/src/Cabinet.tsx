@@ -13,13 +13,8 @@ import { useWorkspace } from "./context";
 import { Button, Badge, LineChart, CalculationView, Field } from "./ui";
 import { money, date, api } from "./api";
 import type { AppState } from "../shared/types";
-export function Cabinet({
-  preview,
-  previewLabel = "Учебный пример",
-}: {
-  preview?: AppState;
-  previewLabel?: string;
-}) {
+import { EfficiencyPanel } from "./Efficiency";
+export function Cabinet({ preview }: { preview?: AppState }) {
   const w = useWorkspace(),
     s = preview || w.state,
     c = s.credit;
@@ -76,9 +71,7 @@ export function Cabinet({
       <section className="panel credit-summary" data-tour="summary">
         <div className="panel-title">
           <h2>Кредиты бизнеса</h2>
-          {preview ? (
-            <Badge tone="red">{previewLabel} · временные данные</Badge>
-          ) : (
+          {!preview && (
             <Badge>{c ? "1 активный кредит" : "Активных кредитов нет"}</Badge>
           )}
         </div>
@@ -349,6 +342,10 @@ export function Cabinet({
           </div>
         )}
       </section>
+      <EfficiencyPanel
+        state={s}
+        onOpen={preview ? undefined : () => w.go("/efficiency")}
+      />
     </div>
   );
 }

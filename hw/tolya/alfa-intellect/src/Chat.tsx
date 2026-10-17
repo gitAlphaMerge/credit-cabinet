@@ -120,12 +120,6 @@ export function Chat({
               {chat?.title || "Финансовый помощник"} <Pencil size={11} />
             </b>
           </button>
-          <small>
-            <span
-              className={w.config.aiConnected ? "pulse-dot" : "offline-dot"}
-            />
-            {w.config.aiConnected ? "ИИ подключён" : "ИИ не подключён · Демо"}
-          </small>
         </div>
         <IconButton
           disabled={busy}
@@ -403,13 +397,9 @@ export function Chat({
                 <ArrowUp size={20} />
               </button>
             </div>
-            <small>
-              {w.uploading
-                ? "Извлекаем данные документа…"
-                : w.config.aiConnected
-                  ? "ИИ может ошибаться. Проверяйте источники и расчёты."
-                  : "ИИ не подключён. Доступны программные ответы с маркировкой «Демо»."}
-            </small>
+            {w.uploading && (
+              <small role="status">Извлекаем данные документа…</small>
+            )}
           </form>
         </div>
       </div>

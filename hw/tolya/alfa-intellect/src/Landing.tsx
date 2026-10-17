@@ -41,7 +41,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
   return (
     <div className="landing" ref={root}>
       <header className="public-header">
-        <a href="/" aria-label="Альфа-Интеллект">
+        <a href="/" aria-label="Умный кредитный кабинет — главная">
           <Brand />
         </a>
         <nav>

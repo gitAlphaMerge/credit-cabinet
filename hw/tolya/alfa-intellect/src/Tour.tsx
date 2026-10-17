@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import { Badge, Button } from "./ui";
-const steps = [
+export const tourSteps = [
   [
     "summary",
     "Кредитная сводка",
-    "Здесь собраны сумма, основной долг и прогресс погашения. Сейчас видны временные учебные цифры — они не сохраняются в вашем профиле.",
+    "Здесь собраны сумма кредита, остаток основного долга и прогресс погашения.",
   ],
   [
     "payment",
     "Ближайший платёж",
-    "Дата, основной долг и проценты — отдельно. Полный график находится ниже. Без кредита здесь останутся нулевые значения.",
+    "Дата и сумма ближайшего платежа. Основной долг и проценты показаны отдельно, а подробный график доступен рядом.",
   ],
   [
     "forecast",
     "Денежный прогноз",
-    "Сравнивайте базовый и стрессовый сценарии. Для вашего прогноза потребуются подтверждённые данные или явно указанные предположения.",
+    "Смотрите ожидаемый остаток после ближайшего платежа. Сравнивайте базовый сценарий со снижением поступлений на 30%.",
   ],
   [
     "chat-panel",
@@ -24,8 +24,13 @@ const steps = [
   ],
   [
     "financing",
-    "Подбор и профиль",
-    "В подборе сравнивайте запрос с денежным потоком. Через название компании в шапке открываются профиль и шесть категорий документов.",
+    "Подбор финансирования",
+    "Укажите цель, сумму и срок. Сравните варианты финансирования с денежным потоком бизнеса и сохраните подходящий расчёт.",
+  ],
+  [
+    "profile",
+    "Мой бизнес",
+    "Здесь открывается профиль компании: общие сведения, поиск по ИНН и документы. Эти данные помогают уточнять расчёты и ответы помощника.",
   ],
 ];
 export function Tour({
@@ -54,12 +59,13 @@ export function Tour({
   };
   useEffect(() => {
     const measure = () => {
-      let node = document.querySelector<HTMLElement>(
-        `[data-tour="${steps[step][0]}"]`,
+      const node = document.querySelector<HTMLElement>(
+        `[data-tour="${tourSteps[step][0]}"]`,
       );
-      if (step === 4 && !node?.getBoundingClientRect().width)
-        node = document.querySelector<HTMLElement>('[data-tour="profile"]');
-      if (!node) return;
+      if (!node || !node.getBoundingClientRect().width) {
+        setRect(null);
+        return;
+      }
       const r = node.getBoundingClientRect();
       setRect(r);
       const width = Math.min(344, innerWidth - 32),
@@ -81,7 +87,7 @@ export function Tour({
     };
     const timer = setTimeout(() => {
       document
-        .querySelector(`[data-tour="${steps[step][0]}"]`)
+        .querySelector(`[data-tour="${tourSteps[step][0]}"]`)
         ?.scrollIntoView({ block: "nearest", behavior: "instant" });
       measure();
       card.current?.querySelector<HTMLButtonElement>("[data-next]")?.focus();
@@ -124,12 +130,12 @@ export function Tour({
         <div
           className="guided-highlight"
           style={{
-            top: Math.max(70, rect.top - 4),
+            top: Math.max(4, rect.top - 4),
             left: rect.left - 4,
             width: rect.width + 8,
             height: Math.min(
               rect.height + 8,
-              innerHeight - Math.max(70, rect.top) - 8,
+              innerHeight - Math.max(4, rect.top) - 8,
             ),
           }}
         />
@@ -144,7 +150,7 @@ export function Tour({
       >
         <div className="panel-title">
           <Badge>
-            {step + 1} из {steps.length}
+            {step + 1} из {tourSteps.length}
           </Badge>
           <button
             disabled={busy}
@@ -154,8 +160,8 @@ export function Tour({
             Пропустить
           </button>
         </div>
-        <h2>{steps[step][1]}</h2>
-        <p>{steps[step][2]}</p>
+        <h2>{tourSteps[step][1]}</h2>
+        <p>{tourSteps[step][2]}</p>
         <div className="guided-actions">
           {step > 0 && (
             <button className="text-button" onClick={() => setStep(step - 1)}>
@@ -165,9 +171,13 @@ export function Tour({
           <Button
             disabled={busy}
             data-next
-            onClick={() => (step === 4 ? void complete() : setStep(step + 1))}
+            onClick={() =>
+              step === tourSteps.length - 1
+                ? void complete()
+                : setStep(step + 1)
+            }
           >
-            {step === 4 ? "Завершить" : "Далее"}
+            {step === tourSteps.length - 1 ? "Завершить" : "Далее"}
             <ArrowRight size={15} />
           </Button>
         </div>

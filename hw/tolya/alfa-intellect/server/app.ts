@@ -18,6 +18,7 @@ import { calculate, select, forecast, catalog } from "./finance";
 import { extract, fieldNames } from "./documents";
 import { DemoProvider, OpenAIProvider } from "./ai-provider";
 import { publicPreview } from "./preview";
+import { findCompany, RegistryError } from "./registry";
 import type { Profile, AppState } from "../shared/types";
 export const app = express();
 app.disable("x-powered-by");
@@ -243,106 +244,19 @@ function lookupResponse(res: express.Response, data: any) {
   });
   res.json(data);
 }
-function activityName(code: string, fallback: string) {
-  const labels: Record<string, string> = {
-    "62": "Разработка программного обеспечения и IT",
-    "28": "Производство машин и оборудования",
-    "46": "Оптовая торговля",
-    "47": "Розничная торговля",
-    "41": "Строительство зданий",
-    "49": "Логистика и перевозки",
-    "56": "Общественное питание",
-    "45": "Автобизнес",
-    "85": "Образование",
-  };
-  return (
-    labels[code.slice(0, 2)] || fallback || "Деятельность требует уточнения"
-  );
-}
 app.post("/api/lookup", async (req, res) => {
   limit("lookup:" + res.locals.userId, 10);
+  lookupCandidates.delete(res.locals.userId);
   const inn = z
     .string()
     .regex(/^(\d{10}|\d{12})$/, "ИНН: 10 или 12 цифр")
     .parse(req.body.inn);
-  if (process.env.DADATA_API_KEY) {
-    try {
-      const r = await fetch(
-        "https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Token " + process.env.DADATA_API_KEY,
-          },
-          body: JSON.stringify({ query: inn }),
-          signal: AbortSignal.timeout(8000),
-        },
-      );
-      if (!r.ok) throw new Error();
-      const data: any = await r.json();
-      const party = data.suggestions?.[0];
-      if (!party) {
-        res.status(404).json({ error: "Организация не найдена" });
-        return;
-      }
-      lookupResponse(res, {
-        name: party.value,
-        inn,
-        form:
-          party.data.type === "INDIVIDUAL"
-            ? "ИП"
-            : party.data.opf?.short || "ООО",
-        registeredAt: party.data.state.registration_date
-          ? new Date(party.data.state.registration_date)
-              .toISOString()
-              .slice(0, 10)
-          : undefined,
-        region: party.data.address?.data?.region_with_type,
-        activity: activityName(
-          party.data.okved || "",
-          stateOf(res.locals.userId).profile.sector,
-        ),
-        okved: party.data.okved,
-        status: party.data.state.status,
-        source: "DaData",
-        demo: false,
-      });
-      return;
-    } catch {
-      /* Explicit demo fallback below. */
-    }
+  try {
+    lookupResponse(res, await findCompany(inn));
+  } catch (e) {
+    if (!(e instanceof RegistryError)) throw e;
+    res.status(e.status).json({ error: e.message });
   }
-  const demo =
-    inn === "7712345678"
-      ? {
-          name: "ООО «ТехноПлюс»",
-          form: "ООО",
-          activity: "Производство оборудования",
-        }
-      : inn === "770123456789"
-        ? {
-            name: "ИП Алексей Демонстрационный",
-            form: "ИП",
-            activity: "Услуги для бизнеса",
-          }
-        : null;
-  if (!demo) {
-    res.status(404).json({
-      error:
-        "В тестовом справочнике нет этого ИНН. Примеры: 7712345678 / 770123456789. Доступно ручное заполнение.",
-    });
-    return;
-  }
-  lookupResponse(res, {
-    ...demo,
-    inn,
-    registeredAt: "2021-03-12",
-    region: "Москва",
-    status: "Действующий",
-    source: "Демонстрационный справочник",
-    demo: true,
-  });
 });
 app.post("/api/lookup/confirm", (req, res) => {
   const s = stateOf(res.locals.userId);

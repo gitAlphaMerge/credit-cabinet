@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PanelRightOpen } from "lucide-react";
+import { PanelRightOpen, ChartNoAxesCombined } from "lucide-react";
 import { useWorkspace } from "./context";
 import { Cabinet } from "./Cabinet";
 import { Chat } from "./Chat";
@@ -15,6 +15,7 @@ export function WorkspaceView({
 }) {
   const w = useWorkspace(),
     root = useRef<HTMLDivElement>(null),
+    beforeTour = useRef<boolean | null>(null),
     dragging = useRef(false),
     ratio = useRef(w.state.preferences.split);
   const [narrow, setNarrow] = useState(() => innerWidth < 1100),
@@ -41,8 +42,15 @@ export function WorkspaceView({
   }, []);
   useEffect(() => {
     if (tour >= 0) {
-      w.setChatVisible(true);
+      if (beforeTour.current === null) beforeTour.current = visible;
+      w.setChatVisible(tour === 3);
       setMobileTab(tour === 3 ? "chat" : "credit");
+    } else if (beforeTour.current !== null) {
+      w.setChatVisible(beforeTour.current);
+      beforeTour.current = null;
+      root.current
+        ?.querySelector(".cabinet-scroll")
+        ?.scrollTo({ top: 0, behavior: "instant" });
     }
   }, [tour]);
   function change(value: number) {
@@ -59,10 +67,12 @@ export function WorkspaceView({
   return (
     <main className="cabinet-page work-page">
       <div className="work-toolbar">
-        <div>
+        <div className="visually-hidden">
           <h1>Кредитный кабинет</h1>
-          <span>Сводка, платежи и денежный прогноз</span>
         </div>
+        <Button secondary onClick={() => w.go("/efficiency")}>
+          <ChartNoAxesCombined size={17} /> Эффективность
+        </Button>
         {narrow ? (
           <div className="segmented mobile-work-tabs">
             <button

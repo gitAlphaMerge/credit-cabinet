@@ -9,6 +9,8 @@ process.env.DATABASE_PATH = join(
   "test.sqlite",
 );
 delete process.env.OPENAI_API_KEY;
+delete process.env.DADATA_API_KEY;
+delete process.env.FNS_API_KEY;
 const { app } = await import("../server/app");
 const { db } = await import("../server/store");
 const a = request.agent(app),
@@ -90,9 +92,47 @@ test("Сквозной API: сессия, изоляция, документ, ч
   const lookup = await a
     .post("/api/lookup")
     .send({ inn: "7712345678" })
+    .expect(503);
+  assert.match(lookup.body.error, /ключ/);
+  await a.post("/api/lookup/confirm").send({ inn: "7712345678" }).expect(409);
+  const originalFetch = globalThis.fetch;
+  process.env.FNS_API_KEY = "test-key-not-real";
+  let found;
+  try {
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              ЮЛ: {
+                ИНН: "7712345678",
+                НаимСокрЮЛ: "ООО «Проверка API»",
+                Статус: "Действующее",
+              },
+            },
+          ],
+        }),
+      )) as typeof fetch;
+    found = (
+      await a.post("/api/lookup").send({ inn: "7712345678" }).expect(200)
+    ).body;
+    assert.equal(found.demo, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FNS_API_KEY;
+  }
+  assert.equal(
+    (await a.get("/api/state")).body.profile.name,
+    "Обновлённое ООО",
+  );
+  await a
+    .post("/api/lookup/confirm")
+    .send({ ...found, name: "Подмена браузером" })
     .expect(200);
-  assert.equal(lookup.body.demo, true);
-  await a.post("/api/lookup/confirm").send(lookup.body).expect(200);
+  assert.equal(
+    (await a.get("/api/state")).body.profile.name,
+    "ООО «Проверка API»",
+  );
   const document = await a
     .post("/api/documents")
     .field("category", "balance")

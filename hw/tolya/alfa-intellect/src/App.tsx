@@ -21,6 +21,7 @@ import { DemoPage } from "./DemoPage";
 import { Chat } from "./Chat";
 import { ProfilePage } from "./Profile";
 import { Financing } from "./Financing";
+import { EfficiencyPage } from "./Efficiency";
 import type { AppState, Doc } from "../shared/types";
 import {
   readFinancingDraft,
@@ -48,7 +49,7 @@ export function App() {
     [contactPhone, setContactPhone] = useState(""),
     [contactNote, setContactNote] = useState(""),
     [contactSent, setContactSent] = useState(false);
-  const [chatVisible, setChatVisible] = useState(true);
+  const [chatVisible, setChatVisible] = useState(false);
   const [sending, setSending] = useState<{
     chatId: string;
     text: string;
@@ -280,7 +281,7 @@ export function App() {
           <button onClick={() => go("/cabinet")} className="unstyled">
             <Brand />
           </button>
-          <nav className={mobileNav ? "open" : ""}>
+          <nav className={mobileNav || tour === 4 ? "open" : ""}>
             {[
               ["cabinet", "Кредитный кабинет"],
               ["chat", "Чат"],
@@ -289,7 +290,11 @@ export function App() {
               <button
                 data-tour={p}
                 key={p}
-                className={page === p ? "active" : ""}
+                className={
+                  page === p || (p === "cabinet" && page === "efficiency")
+                    ? "active"
+                    : ""
+                }
                 onClick={() => go("/" + p)}
               >
                 {label}
@@ -393,6 +398,8 @@ export function App() {
           <ProfilePage />
         ) : page === "financing" ? (
           <Financing />
+        ) : page === "efficiency" ? (
+          <EfficiencyPage />
         ) : page === "chat" ? (
           <div className="full-chat">
             <Chat full />
@@ -405,15 +412,17 @@ export function App() {
         )}
         <footer className="workspace-footer">
           <span>Альфа-Интеллект</span>
-          <button
-            className="text-button"
-            onClick={() => {
-              setContactSent(false);
-              setContactOpen(true);
-            }}
-          >
-            Обратиться к сотруднику <ArrowRight size={12} />
-          </button>
+          {page === "financing" && (
+            <button
+              className="text-button"
+              onClick={() => {
+                setContactSent(false);
+                setContactOpen(true);
+              }}
+            >
+              Обратиться к сотруднику <ArrowRight size={12} />
+            </button>
+          )}
           <span>Решение о финансировании принимает банк</span>
         </footer>
       </div>

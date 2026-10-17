@@ -141,7 +141,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
               <span>{state.profile.source}</span>
             </div>
             {tab === "cabinet" ? (
-              <Cabinet preview={state} previewLabel="Публичный пример" />
+              <Cabinet preview={state} />
             ) : tab === "selection" ? (
               <>
                 {editing && (

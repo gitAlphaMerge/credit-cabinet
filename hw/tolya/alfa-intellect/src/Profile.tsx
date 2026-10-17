@@ -31,6 +31,7 @@ export function ProfilePage() {
     [inn, setInn] = useState(p.inn || ""),
     [candidate, setCandidate] = useState<any>(null),
     [lookupBusy, setLookupBusy] = useState(false),
+    [lookupError, setLookupError] = useState(""),
     [category, setCategory] = useState("statement"),
     [viewDoc, setViewDoc] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -49,11 +50,19 @@ export function ProfilePage() {
   })();
   async function lookup(e: React.FormEvent) {
     e.preventDefault();
+    setLookupError("");
+    setCandidate(null);
+    if (!/^(\d{10}|\d{12})$/.test(inn)) {
+      setLookupError(
+        `Введите ИНН целиком: 10 цифр для организации или 12 для ИП. Сейчас введено ${inn.length}.`,
+      );
+      return;
+    }
     setLookupBusy(true);
     try {
       setCandidate(await api("/lookup", { inn }));
     } catch (e) {
-      w.error((e as Error).message);
+      setLookupError((e as Error).message);
     } finally {
       setLookupBusy(false);
     }
@@ -137,7 +146,7 @@ export function ProfilePage() {
                 {p.registered ? "Регистрационные данные" : "Сведения о проекте"}
               </h3>
               {p.registered && (
-                <form className="inn-search" onSubmit={lookup}>
+                <form className="inn-search" onSubmit={lookup} noValidate>
                   <Search size={20} />
                   <label>
                     <small>ИНН компании или ИП</small>
@@ -146,11 +155,13 @@ export function ProfilePage() {
                       value={inn}
                       maxLength={12}
                       inputMode="numeric"
-                      pattern="(\d{10}|\d{12})"
-                      required
-                      onChange={(e) =>
-                        setInn(e.target.value.replace(/\D/g, ""))
-                      }
+                      aria-invalid={!!lookupError}
+                      aria-describedby="inn-help inn-error"
+                      onChange={(e) => {
+                        setInn(e.target.value.replace(/\D/g, ""));
+                        setLookupError("");
+                        setCandidate(null);
+                      }}
                       placeholder="Введите ИНН"
                     />
                   </label>
@@ -158,6 +169,25 @@ export function ProfilePage() {
                     {lookupBusy ? "Ищем…" : "Найти по ИНН"}
                   </Button>
                 </form>
+              )}
+              {p.registered && (
+                <div className="registry-help">
+                  <small id="inn-help">
+                    10 цифр для организации · 12 цифр для ИП
+                  </small>
+                  {lookupError && (
+                    <p id="inn-error" role="alert" className="registry-error">
+                      {lookupError}
+                    </p>
+                  )}
+                  <a
+                    href="https://egrul.nalog.ru/index.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Открыть официальный поиск ФНС ↗
+                  </a>
+                </div>
               )}
               <dl className="profile-table">
                 <div>
@@ -184,6 +214,7 @@ export function ProfilePage() {
                               LIQUIDATED: "Прекратила деятельность",
                               LIQUIDATING: "В процессе ликвидации",
                               REORGANIZING: "Реорганизация",
+                              BANKRUPT: "Банкротство",
                             }[String(p.registryRecord.status)] ||
                             String(
                               p.registryRecord.status ||
@@ -205,7 +236,7 @@ export function ProfilePage() {
               </dl>
             </div>
             <div className="onboard-facts">
-              <h3>Сведения из онбординга</h3>
+              <h3>Общие сведения</h3>
               {[
                 [
                   Building2,
@@ -384,6 +415,7 @@ export function ProfilePage() {
                       region: "Регион",
                       activity: "Деятельность",
                       status: "Статус",
+                      okved: "ОКВЭД",
                     }[k] || k}
                   </dt>
                   <dd>{String(v)}</dd>

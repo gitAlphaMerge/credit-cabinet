@@ -18,7 +18,7 @@ export function Brand() {
         А<span />
       </span>
       <span>
-        Альфа<span className="brand-light">—Интеллект</span>
+        <span className="brand-name">Умный кредитный кабинет</span>
         <small>ДЛЯ БИЗНЕСА</small>
       </span>
     </span>
