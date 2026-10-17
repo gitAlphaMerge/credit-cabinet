@@ -26,6 +26,7 @@ const profile = {
 };
 test("Сквозной API: сессия, изоляция, документ, чат, версии, досье, демокредит", async () => {
   await request(app).get("/api/state").expect(401);
+  assert.equal((await request(app).get("/api/config")).body.workspaceId, null);
   await a
     .post("/api/auth/register")
     .send({ phone: "+7 900 111-22-33", password: "Test-password-123", profile })
@@ -39,6 +40,9 @@ test("Сквозной API: сессия, изоляция, документ, ч
     })
     .expect(200);
   assert.equal((await a.get("/api/state")).body.credit, null);
+  const owner = (await a.get("/api/config")).body.workspaceId;
+  assert.equal(typeof owner, "string");
+  assert.notEqual(owner, (await b.get("/api/config")).body.workspaceId);
   const row = db
     .prepare("SELECT password FROM users WHERE phone=?")
     .get("79001112233") as any;
@@ -178,6 +182,7 @@ test("Сквозной API: сессия, изоляция, документ, ч
   );
   await a.post("/api/auth/logout").send({}).expect(200);
   await a.get("/api/state").expect(401);
+  assert.equal((await a.get("/api/config")).body.workspaceId, null);
   await a
     .post("/api/auth/login")
     .send({ phone: "+7 900 111-22-33", password: "wrong" })
@@ -187,6 +192,7 @@ test("Сквозной API: сессия, изоляция, документ, ч
     .send({ phone: "+7 900 111-22-33", password: "Test-password-123" })
     .expect(200);
   assert.equal((await a.get("/api/state")).body.selections.length, 2);
+  assert.equal((await a.get("/api/config")).body.workspaceId, owner);
   await a
     .post("/api/preferences")
     .set("Origin", "https://evil.example")

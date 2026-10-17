@@ -20,6 +20,12 @@ import { Chat } from "./Chat";
 import { ProfilePage } from "./Profile";
 import { Financing } from "./Financing";
 import type { AppState, Doc } from "../shared/types";
+import {
+  readFinancingDraft,
+  writeFinancingDraft,
+  clearFinancingDraft,
+  type FinancingDraft,
+} from "./financing-draft";
 export function App() {
   const [path, setPath] = useState(location.pathname),
     [state, setState] = useState<AppState | null>(null),
@@ -39,9 +45,33 @@ export function App() {
     [contactNote, setContactNote] = useState(""),
     [contactSent, setContactSent] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
-  const [financingDraft, cacheFinancingDraft] = useState<Record<string, any>>(
-    {},
-  );
+  const financingOwner = useRef<string | null>(null);
+  const [financingDraft, setFinancingDraft] = useState<FinancingDraft>({});
+  const [financingDraftStored, setFinancingDraftStored] = useState(false);
+  function restoreFinancingDraft(owner: string | null) {
+    financingOwner.current = owner;
+    try {
+      setFinancingDraft(owner ? readFinancingDraft(sessionStorage, owner) : {});
+    } catch {
+      setFinancingDraft({});
+    }
+    setFinancingDraftStored(false);
+  }
+  function cacheFinancingDraft(value: FinancingDraft) {
+    setFinancingDraft(value);
+    let saved = false;
+    try {
+      if (financingOwner.current)
+        saved = writeFinancingDraft(
+          sessionStorage,
+          financingOwner.current,
+          value,
+        );
+    } catch {
+      // Accessing sessionStorage itself can throw in restricted browsers.
+    }
+    setFinancingDraftStored(saved);
+  }
   const [tourRect, setTourRect] = useState<DOMRect | null>(null);
   useEffect(() => {
     if (tour < 0) return;
@@ -87,7 +117,11 @@ export function App() {
     }
   }
   async function onAuth() {
-    cacheFinancingDraft({});
+    const c = await api("/config");
+    setConfig(c);
+    restoreFinancingDraft(c.workspaceId);
+    setDraft("");
+    setHistoryOpen(false);
     await refresh();
     go("/cabinet");
   }
@@ -107,6 +141,7 @@ export function App() {
         setConfig(c);
         if (c.authenticated) {
           const s = await api("/state");
+          restoreFinancingDraft(c.workspaceId);
           setState(s);
           setActiveChatId(s.chats[0]?.id || "");
         }
@@ -205,6 +240,7 @@ export function App() {
         uploading,
         reviewDocument: setPending,
         financingDraft,
+        financingDraftStored,
         cacheFinancingDraft,
       }}
     >
@@ -308,6 +344,16 @@ export function App() {
               label="Выйти"
               onClick={async () => {
                 await api("/auth/logout", {});
+                try {
+                  if (financingOwner.current)
+                    clearFinancingDraft(sessionStorage, financingOwner.current);
+                } catch {
+                  // Logout still succeeds if browser storage is unavailable.
+                }
+                restoreFinancingDraft(null);
+                setDraft("");
+                setActiveChatId("");
+                setHistoryOpen(false);
                 setState(null);
                 go("/");
               }}

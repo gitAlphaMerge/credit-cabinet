@@ -84,15 +84,17 @@ function cookie(res: express.Response, value: string, maxAge = 7 * 86400000) {
     path: "/",
   });
 }
-app.get("/api/config", (req, res) =>
+app.get("/api/config", (req, res) => {
+  const user = sessionUser(token(req));
   res.json({
-    authenticated: !!sessionUser(token(req)),
+    authenticated: !!user,
+    workspaceId: user?.user_id ?? null,
     aiConnected: !!process.env.OPENAI_API_KEY,
     model: process.env.AI_MODEL || "gpt-5.4-mini",
     fieldNames,
     catalog,
-  }),
-);
+  });
+});
 app.get("/api/health", (_req, res) =>
   res.json({ status: "ok", storage: "sqlite", schema: 1 }),
 );

@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { AppState, Doc } from "../shared/types";
+import type { FinancingDraft } from "./financing-draft";
 export type Workspace = {
   state: AppState;
   config: any;
@@ -16,8 +17,9 @@ export type Workspace = {
   upload: (file: File, category?: string) => Promise<void>;
   uploading: boolean;
   reviewDocument: (doc: Doc) => void;
-  financingDraft: Record<string, any>;
-  cacheFinancingDraft: (draft: Record<string, any>) => void;
+  financingDraft: FinancingDraft;
+  financingDraftStored: boolean;
+  cacheFinancingDraft: (draft: FinancingDraft) => void;
 };
 export const WorkspaceContext = createContext<Workspace | null>(null);
 export function useWorkspace() {

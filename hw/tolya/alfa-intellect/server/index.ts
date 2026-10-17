@@ -18,8 +18,18 @@ if (production) {
   app.use(vite.middlewares);
 }
 const port = Number(process.env.PORT || 4173);
-app.listen(port, process.env.HOST || "127.0.0.1", () =>
-  console.log(
-    `Альфа-Интеллект: http://localhost:${port} · ${production ? "production" : "development"}`,
-  ),
-);
+app
+  .listen(port, process.env.HOST || "127.0.0.1", (error?: Error) => {
+    if (!error)
+      console.log(
+        `Альфа-Интеллект: http://localhost:${port} · ${production ? "production" : "development"}`,
+      );
+  })
+  .on("error", (error: NodeJS.ErrnoException) => {
+    console.error(
+      error.code === "EADDRINUSE"
+        ? `Порт ${port} уже занят. Остановите прежний сервер или задайте другой PORT.`
+        : `Не удалось запустить сервер: ${error.message}`,
+    );
+    process.exitCode = 1;
+  });

@@ -21,6 +21,7 @@ import { useWorkspace } from "./context";
 import { Button, Badge, Field, CalculationView, Modal, LineChart } from "./ui";
 import { money, date } from "./api";
 import type { Selection } from "../shared/types";
+import type { FinancingForm } from "./financing-draft";
 const purposes = [
   [
     "Оборотные средства",
@@ -51,7 +52,7 @@ export function Financing() {
     [contact, setContact] = useState(""),
     [confirmed, setConfirmed] = useState(false),
     [busy, setBusy] = useState(false),
-    [form, setForm] = useState({
+    [form, setForm] = useState<FinancingForm>({
       purpose: "Оборудование",
       amount: 3000000,
       term: 36,
@@ -71,6 +72,15 @@ export function Financing() {
     setStep(-1);
     setParentId(undefined);
     setTab("new");
+    setForm({
+      purpose: "Оборудование",
+      amount: 3000000,
+      term: 36,
+      repayFrom: "Текущая деятельность",
+      ownFunds: 0,
+      flow: w.state.financials.freeFlow ?? "",
+      existing: w.state.financials.existing ?? 0,
+    });
   }
   async function calculate() {
     setBusy(true);
@@ -386,6 +396,16 @@ export function Financing() {
         </>
       ) : (
         <section className="panel selection-wizard">
+          <div className="draft-status" role="status">
+            <span>
+              {w.financingDraftStored
+                ? "Черновик сохранён в этой вкладке — обновление страницы его не удалит."
+                : "Черновик доступен до обновления страницы: хранилище вкладки недоступно."}
+            </span>
+            <button type="button" className="text-button" onClick={reset}>
+              Сбросить черновик
+            </button>
+          </div>
           <div className="wizard-progress">
             {["Задача бизнеса", "Параметры", "Денежный контекст"].map(
               (t, i) => (
