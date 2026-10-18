@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useWorkspace } from "./context";
 import { Button, Modal } from "./ui";
-import { date, money } from "./api";
+import { date, money, ApiError } from "./api";
 import {
   addDays,
   cabinetSnapshot,
@@ -25,6 +25,12 @@ import { AnchoredPanel, ContextHelp } from "./ContextHelp";
 import { FinancialIndicators } from "./FinancialIndicators";
 import { CalendarPicker, calendarCells } from "./CalendarPicker";
 import { NumericInput } from "./NumericInput";
+import {
+  facilityErrors,
+  facilityLimits,
+  latestPaymentDate,
+  type FieldErrors,
+} from "../shared/facility-validation";
 
 const value = (n: number | null | undefined) =>
   n === null || n === undefined ? "—" : money(n);
@@ -453,6 +459,9 @@ export function CabinetEditor({
     plan = w.state.cabinet?.plan,
     coverage = w.state.cabinet?.coverage;
   const [error, setError] = useState(""),
+    [submitted, setSubmitted] = useState(false),
+    [touched, setTouched] = useState<Record<string, boolean>>({}),
+    [serverFields, setServerFields] = useState<FieldErrors>({}),
     [busy, setBusy] = useState(false),
     [form, setForm] = useState<Record<string, string>>(
       kind === "facility"
@@ -510,6 +519,20 @@ export function CabinetEditor({
     methodology:
       "Методика CFADS: состав доходов, расходов, налогов и корректировок",
   };
+  const errors =
+    kind === "facility"
+      ? { ...facilityErrors(form, today), ...serverFields }
+      : {};
+  const fieldError = (key: string) =>
+    kind === "facility" && (submitted || touched[key] || !!form[key])
+      ? errors[key]
+      : undefined;
+  const update = (key: string, value: string) => {
+    setForm((previous) => ({ ...previous, [key]: value }));
+    setTouched((previous) => ({ ...previous, [key]: true }));
+    setServerFields({});
+    setError("");
+  };
   return (
     <Modal
       title={
@@ -524,9 +547,29 @@ export function CabinetEditor({
     >
       <form
         className="cv-editor"
+        noValidate={kind === "facility"}
+        onBlurCapture={(e) => {
+          const name = (e.target as HTMLElement).getAttribute("name");
+          if (name) setTouched((previous) => ({ ...previous, [name]: true }));
+        }}
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy) return;
+          const root = e.currentTarget;
+          if (kind === "facility") {
+            setSubmitted(true);
+            const fields = facilityErrors(form, today);
+            if (Object.keys(fields).length) {
+              requestAnimationFrame(() =>
+                root
+                  .querySelector<HTMLElement>(
+                    `[name="${Object.keys(fields)[0]}"]`,
+                  )
+                  ?.focus(),
+              );
+              return;
+            }
+          }
           setBusy(true);
           setError("");
           try {
@@ -553,7 +596,20 @@ export function CabinetEditor({
             );
             onClose();
           } catch (e) {
-            setError((e as Error).message);
+            if (kind === "facility" && e instanceof ApiError && e.fields) {
+              const fields = Object.fromEntries(
+                Object.entries(e.fields).filter(([key]) => key in form),
+              );
+              setServerFields(fields);
+              if (!Object.keys(fields).length)
+                setError("Проверьте данные формы и попробуйте ещё раз.");
+              setSubmitted(true);
+              requestAnimationFrame(() =>
+                root
+                  .querySelector<HTMLElement>('[aria-invalid="true"]')
+                  ?.focus(),
+              );
+            } else setError((e as Error).message);
           } finally {
             setBusy(false);
           }
@@ -570,7 +626,13 @@ export function CabinetEditor({
           {Object.entries(form)
             .filter(([k]) => k !== "documentId")
             .map(([k, v]) => (
-              <label key={k} className={k === "methodology" ? "span-all" : ""}>
+              <label
+                key={k}
+                className={
+                  (k === "methodology" ? "span-all " : "") +
+                  (fieldError(k) ? "cv-invalid-field" : "")
+                }
+              >
                 <span>{labels[k]}</span>
                 {k === "methodology" ? (
                   <textarea
@@ -588,10 +650,18 @@ export function CabinetEditor({
                     "contractTerm",
                   ].includes(k) ? (
                   <NumericInput
+                    name={k}
                     aria-label={labels[k]}
+                    aria-invalid={!!fieldError(k)}
+                    aria-describedby={
+                      fieldError(k) ? `facility-${k}-error` : undefined
+                    }
+                    aria-errormessage={
+                      fieldError(k) ? `facility-${k}-error` : undefined
+                    }
                     required={k !== "contractTerm"}
                     value={v}
-                    onValueChange={(value) => setForm({ ...form, [k]: value })}
+                    onValueChange={(value) => update(k, value)}
                     unit={
                       k === "rate"
                         ? "%"
@@ -612,10 +682,10 @@ export function CabinetEditor({
                     }
                     max={
                       k === "rate"
-                        ? 100
+                        ? facilityLimits.rate
                         : k === "term" || k === "contractTerm"
-                          ? 120
-                          : 1e12
+                          ? facilityLimits.months
+                          : facilityLimits.amount
                     }
                     placeholder={
                       k === "rate"
@@ -627,16 +697,49 @@ export function CabinetEditor({
                   />
                 ) : (
                   <input
+                    name={k}
                     required={k !== "issuedDate"}
                     aria-label={labels[k]}
-                    aria-describedby={
-                      k === "firstDate" ? "next-payment-hint" : undefined
+                    aria-invalid={!!fieldError(k)}
+                    aria-errormessage={
+                      fieldError(k) ? `facility-${k}-error` : undefined
                     }
-                    maxLength={180}
+                    aria-describedby={
+                      [
+                        k === "firstDate" ? "next-payment-hint" : "",
+                        fieldError(k) ? `facility-${k}-error` : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                    maxLength={k === "name" ? 100 : 180}
                     type={/Date|through|start|end/.test(k) ? "date" : "text"}
+                    min={
+                      k === "issuedDate"
+                        ? facilityLimits.earliestIssue
+                        : k === "firstDate"
+                          ? today
+                          : undefined
+                    }
+                    max={
+                      k === "issuedDate"
+                        ? today
+                        : k === "firstDate"
+                          ? latestPaymentDate(today)
+                          : undefined
+                    }
                     value={v}
-                    onChange={(e) => setForm({ ...form, [k]: e.target.value })}
+                    onChange={(e) => update(k, e.target.value)}
                   />
+                )}
+                {fieldError(k) && (
+                  <small
+                    className="cv-field-error"
+                    id={`facility-${k}-error`}
+                    role="alert"
+                  >
+                    {fieldError(k)}
+                  </small>
                 )}
                 {k === "firstDate" && (
                   <small id="next-payment-hint" className="cv-field-hint">
@@ -648,13 +751,25 @@ export function CabinetEditor({
             ))}
         </div>
         {kind === "facility" && (
-          <label>
+          <label className={fieldError("documentId") ? "cv-invalid-field" : ""}>
             <span>Откуда взять график платежей?</span>
             <select
+              name="documentId"
+              aria-invalid={!!fieldError("documentId")}
+              aria-errormessage={
+                fieldError("documentId")
+                  ? "facility-documentId-error"
+                  : undefined
+              }
               aria-label="Откуда взять график платежей?"
-              aria-describedby="schedule-source-hint"
+              aria-describedby={[
+                "schedule-source-hint",
+                fieldError("documentId") ? "facility-documentId-error" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               value={form.documentId}
-              onChange={(e) => setForm({ ...form, documentId: e.target.value })}
+              onChange={(e) => update("documentId", e.target.value)}
             >
               <option value="">Рассчитать по сумме, ставке и сроку</option>
               {w.state.documents
@@ -665,6 +780,15 @@ export function CabinetEditor({
                   </option>
                 ))}
             </select>
+            {fieldError("documentId") && (
+              <small
+                className="cv-field-error"
+                role="alert"
+                id="facility-documentId-error"
+              >
+                {fieldError("documentId")}
+              </small>
+            )}
             <small id="schedule-source-hint" className="cv-field-hint">
               Или выберите график банка, который вы уже загрузили в «Мой бизнес»
               → «Документы». Если файла нет, рассчитаем оставшиеся платежи по

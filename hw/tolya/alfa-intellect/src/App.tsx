@@ -130,7 +130,7 @@ export function App() {
       await refresh();
       return r;
     } catch (e) {
-      setToast((e as Error).message);
+      if (p !== "/cabinet/facility") setToast((e as Error).message);
       throw e;
     }
   }

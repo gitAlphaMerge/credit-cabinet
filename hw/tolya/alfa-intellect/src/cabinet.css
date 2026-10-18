@@ -1,4 +1,25 @@
 /* Shared cabinet controls, editors, notifications and responsive tour. */
+.cv-editor input[aria-invalid="true"],
+.cv-editor select[aria-invalid="true"],
+.cv-editor textarea[aria-invalid="true"] {
+  border-color: #e33c32;
+  background: #fff7f6;
+  box-shadow: 0 0 0 1px #e33c3212;
+}
+.cv-editor .cv-invalid-field > span {
+  color: #b72e25;
+}
+.cv-editor .cv-field-error {
+  display: block;
+  color: #bf3128;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cv-editor [aria-invalid="true"]:focus {
+  outline-color: #e33c32;
+  border-color: #e33c32;
+  box-shadow: 0 0 0 3px #e33c321a;
+}
 .numeric-input {
   position: relative;
   width: 100%;

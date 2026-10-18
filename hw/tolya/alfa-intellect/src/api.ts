@@ -1,3 +1,12 @@
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public fields?: Record<string, string>,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 export async function api<T = any>(
   path: string,
   body?: unknown,
@@ -14,10 +23,21 @@ export async function api<T = any>(
         : body instanceof FormData
           ? body
           : JSON.stringify(body),
+  }).catch(() => {
+    throw new ApiError(
+      "Не удалось связаться с сервером. Проверьте соединение и попробуйте ещё раз.",
+    );
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => {
+    throw new ApiError(
+      "Не удалось прочитать ответ сервера. Попробуйте ещё раз.",
+    );
+  });
   if (!response.ok)
-    throw new Error(data.error || "Не удалось выполнить запрос");
+    throw new ApiError(
+      data.error || "Не удалось выполнить запрос",
+      data.fields,
+    );
   return data;
 }
 export const money = (n: number | null | undefined, compact = false) =>

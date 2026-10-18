@@ -21,6 +21,7 @@ import { publicPreview } from "./preview";
 import { findCompany, RegistryError } from "./registry";
 import { cabinetRouter, syncCabinetNotices } from "./cabinet";
 import type { Profile, AppState } from "../shared/types";
+import { russianValidationErrors } from "../shared/facility-validation";
 export const app = express();
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
@@ -756,10 +757,10 @@ app.use(
     _next: express.NextFunction,
   ) => {
     if (error instanceof z.ZodError) {
+      const fields = russianValidationErrors(error.issues);
       res.status(422).json({
-        error: error.issues
-          .map((i) => i.path.join(".") + ": " + i.message)
-          .join("; "),
+        error: Object.values(fields).join(" "),
+        fields,
       });
       return;
     }
@@ -773,6 +774,7 @@ app.use(
     res.status(400).json({
       error:
         error instanceof Error &&
+        /[А-Яа-яЁё]/.test(error.message) &&
         !/SQLITE|constraint|parse|unexpected|zip|central directory/i.test(
           error.message,
         )

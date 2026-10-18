@@ -11,6 +11,7 @@ import {
 } from "../shared/cabinet";
 import type { AppState } from "../shared/types";
 import { stateOf, saveState } from "./store";
+import { facilityErrors } from "../shared/facility-validation";
 
 const date = z.string().refine(validDate, "Некорректная календарная дата"),
   money = z.number().finite().min(0).max(1e12);
@@ -203,15 +204,11 @@ cabinetRouter.post("/facility", (req, res) => {
     });
     return;
   }
-  if (
-    p.balance > p.amount ||
-    p.firstDate < day() ||
-    (p.issuedDate && p.issuedDate > day()) ||
-    (p.contractTerm && p.contractTerm < p.term)
-  ) {
+  const fields = facilityErrors(p);
+  if (Object.keys(fields).length) {
     res.status(422).json({
-      error:
-        "Остаток не может превышать первоначальную сумму; первая дата планового платежа должна быть не раньше сегодня.",
+      error: "Проверьте выделенные поля.",
+      fields,
     });
     return;
   }
@@ -222,9 +219,12 @@ cabinetRouter.post("/facility", (req, res) => {
       )
     : undefined;
   if (p.documentId && !doc) {
-    res
-      .status(422)
-      .json({ error: "Выберите подтверждённый документ графика из профиля." });
+    res.status(422).json({
+      error: "Выберите подтверждённый документ графика из профиля.",
+      fields: {
+        documentId: "Выберите подтверждённый график из документов бизнеса.",
+      },
+    });
     return;
   }
   let events = makeSchedule(p.balance, p.rate, p.term, p.firstDate);
