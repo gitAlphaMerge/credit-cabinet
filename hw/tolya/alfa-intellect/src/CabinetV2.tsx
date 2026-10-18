@@ -25,6 +25,7 @@ import { AnchoredPanel, ContextHelp } from "./ContextHelp";
 import { FinancialIndicators } from "./FinancialIndicators";
 import { CalendarPicker, calendarCells } from "./CalendarPicker";
 import { NumericInput } from "./NumericInput";
+import { DateInput } from "./DateInput";
 import {
   facilityErrors,
   facilityLimits,
@@ -474,7 +475,6 @@ export function CabinetEditor({
             contractTerm: "",
             issuedDate: "",
             firstDate: "",
-            documentId: "",
           }
         : kind === "plan"
           ? {
@@ -585,7 +585,6 @@ export function CabinetEditor({
               "contractTerm",
             ])
               if (k in body) body[k] = Number(body[k]);
-            if (kind === "facility" && !body.documentId) delete body.documentId;
             if (kind === "plan")
               body.items = items
                 .filter((i) => i.label || i.amount)
@@ -617,7 +616,7 @@ export function CabinetEditor({
       >
         <p className="cv-note">
           {kind === "facility"
-            ? "Это учёт вашего существующего договора, не выдача кредита. Параметры подтверждаете вы; новые заявки в банк не отправляются. Без документа будет построен расчётный аннуитетный график без комиссий."
+            ? "Укажите параметры действующего кредита — по ним рассчитаем оставшиеся платежи без учёта комиссий. Заявка в банк не отправляется."
             : kind === "plan"
               ? "Укажите остаток на начало указанного дня и все ожидаемые поступления и обязательные расходы до конца горизонта. Кредитные платежи из графика добавятся автоматически — не дублируйте их в плане."
               : "CFADS не равен чистому потоку выписки. Укажите обоснованную сумму, источник и методику за тот же период, что долговые обязательства."}
@@ -695,6 +694,31 @@ export function CabinetEditor({
                           : "1 000 000"
                     }
                   />
+                ) : kind === "facility" &&
+                  ["issuedDate", "firstDate"].includes(k) ? (
+                  <DateInput
+                    name={k}
+                    required={k === "firstDate"}
+                    aria-label={labels[k]}
+                    aria-invalid={!!fieldError(k)}
+                    aria-errormessage={
+                      fieldError(k) ? `facility-${k}-error` : undefined
+                    }
+                    aria-describedby={
+                      [
+                        k === "firstDate" ? "next-payment-hint" : "",
+                        fieldError(k) ? `facility-${k}-error` : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                    min={
+                      k === "issuedDate" ? facilityLimits.earliestIssue : today
+                    }
+                    max={k === "issuedDate" ? today : latestPaymentDate(today)}
+                    value={v}
+                    onValueChange={(value) => update(k, value)}
+                  />
                 ) : (
                   <input
                     name={k}
@@ -750,52 +774,6 @@ export function CabinetEditor({
               </label>
             ))}
         </div>
-        {kind === "facility" && (
-          <label className={fieldError("documentId") ? "cv-invalid-field" : ""}>
-            <span>Откуда взять график платежей?</span>
-            <select
-              name="documentId"
-              aria-invalid={!!fieldError("documentId")}
-              aria-errormessage={
-                fieldError("documentId")
-                  ? "facility-documentId-error"
-                  : undefined
-              }
-              aria-label="Откуда взять график платежей?"
-              aria-describedby={[
-                "schedule-source-hint",
-                fieldError("documentId") ? "facility-documentId-error" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              value={form.documentId}
-              onChange={(e) => update("documentId", e.target.value)}
-            >
-              <option value="">Рассчитать по сумме, ставке и сроку</option>
-              {w.state.documents
-                .filter((d) => d.confirmed && d.category === "schedule")
-                .map((d) => (
-                  <option value={d.id} key={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-            </select>
-            {fieldError("documentId") && (
-              <small
-                className="cv-field-error"
-                role="alert"
-                id="facility-documentId-error"
-              >
-                {fieldError("documentId")}
-              </small>
-            )}
-            <small id="schedule-source-hint" className="cv-field-hint">
-              Или выберите график банка, который вы уже загрузили в «Мой бизнес»
-              → «Документы». Если файла нет, рассчитаем оставшиеся платежи по
-              введённым данным.
-            </small>
-          </label>
-        )}
         {kind === "plan" && (
           <div className="cv-plan-items">
             <h3>Плановые операции</h3>
