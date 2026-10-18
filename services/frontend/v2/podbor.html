@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Подбор финансирования v2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#f3f4f5}
+a{color:#0072ef}a:hover{color:#005bbf}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes orbit{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@keyframes sp1{0%,12%{transform:translate(0,0) scale(1)}40%,62%{transform:translate(-19px,-19px) scale(.5)}90%,100%{transform:translate(0,0) scale(1)}}
+@keyframes sp2{0%,12%{transform:translate(0,0) scale(1)}40%,62%{transform:translate(19px,-19px) scale(.5)}90%,100%{transform:translate(0,0) scale(1)}}
+@keyframes sp3{0%,12%{transform:translate(0,0) scale(1)}40%,62%{transform:translate(-19px,19px) scale(.5)}90%,100%{transform:translate(0,0) scale(1)}}
+@keyframes sp4{0%,12%{transform:translate(0,0) scale(1)}40%,62%{transform:translate(19px,19px) scale(.5)}90%,100%{transform:translate(0,0) scale(1)}}
+.in{animation:msgIn .4s cubic-bezier(.2,.7,.2,1) both}
+.bar{transform-origin:left;animation:grow 1s cubic-bezier(.2,.8,.2,1) both}
+.idle{animation:orbit 9s linear infinite}
+.core{animation:breathe 2.4s ease-in-out infinite}
+.s1{animation:sp1 2.8s cubic-bezier(.65,0,.35,1) infinite}.s2{animation:sp2 2.8s cubic-bezier(.65,0,.35,1) infinite}.s3{animation:sp3 2.8s cubic-bezier(.65,0,.35,1) infinite}.s4{animation:sp4 2.8s cubic-bezier(.65,0,.35,1) infinite}
+.orb{transition:left .9s cubic-bezier(.16,1,.3,1),border-color .4s ease}
+.goal:hover{border-color:#b9b9bc}
+.ghost:hover{background:#f3f4f5}
+.cta:hover{background:#d92a1e}
+.dark:hover{background:#2c2c2e}
+.row:hover{background:#f3f4f5}
+.seg:not([aria-current]):hover{background:#e4e4e6!important}
+input[type=range]{accent-color:#ef3124}
+@media (prefers-reduced-motion: reduce){.in,.bar,.idle,.core,.s1,.s2,.s3,.s4{animation:none}.orb{transition:none}}
+</style>
+<style>[v-cloak]{display:none}</style>
+</head>
+<body>
+<div id="app" v-cloak>
+<div style="min-height: 1100px; display: flex; flex-direction: column; font-family: 'Manrope', system-ui, sans-serif; color: #0b0b0c; background: #f3f4f5">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding: 12px 44px; background: #ffffff; border-bottom: 1px solid #dcdcdd">
+<div style="display: flex; align-items: center; gap: 10px">
+<img src="img/alfa.svg" alt="" style="width: 28px; height: 28px">
+<span style="font-weight: 800; font-size: 17px">Альфа-Бизнес</span>
+</div>
+<nav aria-label="Разделы" style="display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 999px; background: #f3f4f5; margin-left: auto"><a href="index.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">Главная</a><a href="kabinet.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">Кредитный кабинет</a><a href="chat.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">ИИ-агент</a><a href="podbor.html" aria-current="page" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: #0b0b0c; color: #ffffff">Подбор</a></nav>
+<button type="button" aria-label="Уведомления, 3 новых" class="ghost" style="position: relative; width: 44px; height: 44px; border-radius: 999px; border: 1px solid #dcdcdd; background: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+<span style="position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 999px; background: #ef3124; border: 2px solid #ffffff"></span>
+</button>
+</header>
+
+<main style="flex: 1 1 auto; width: 100%; max-width: 1180px; margin: 0 auto; padding: 32px 44px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b6b70">Подбор финансирования · Кровельщик, ИП, 4 года</span>
+<h1 style="margin: 0; font-size: 36px; line-height: 1.18; font-weight: 800; letter-spacing: -.015em">{{ v.pageTitle }}</h1>
+</div>
+<ol aria-label="Шаги подбора" style="list-style: none; margin: 0; padding: 0; display: flex; gap: 6px">
+<template v-for="(c, $index) in v.crumbs">
+<li><button type="button" @click="c.go" :aria-current="c.current" :style="`min-height: 40px; display: flex; align-items: center; gap: 8px; border: 1px solid ${c.border}; border-radius: 999px; background: ${c.bg}; color: ${c.ink}; padding: 0 14px 0 6px; font: 700 13px 'Manrope', sans-serif; cursor: pointer`"><span :style="`width: 26px; height: 26px; border-radius: 999px; background: ${c.dotBg}; color: ${c.dotInk}; display: flex; align-items: center; justify-content: center; font-size: 12px`">{{ c.n }}</span>{{ c.label }}</button></li>
+</template>
+</ol>
+</div>
+
+<template v-if="v.isGoal">
+<div class="in" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+<div style="flex: 999 1 560px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px">
+<template v-for="(g, $index) in v.goals">
+<button type="button" class="goal in" @click="g.pick" :aria-pressed="g.pressed" :style="`min-height: 112px; text-align: left; border: 2px solid ${g.border}; border-radius: 16px; background: ${g.bg}; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; font-family: inherit; color: #0b0b0c; cursor: pointer; animation-delay: ${g.delay}`">
+<span style="width: 44px; height: 44px; border-radius: 12px; background: #fbe8e7; display: flex; align-items: center; justify-content: center"><img :src="g.img" alt="" style="width: 28px; height: 28px"></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 16px; font-weight: 700; line-height: 1.3">{{ g.label }}</span><span style="font-size: 13px; color: #6b6b70; line-height: 1.4">{{ g.hint }}</span></span>
+</button>
+</template>
+</div>
+<aside style="flex: 1 1 300px; max-width: 360px; background: #ffffff; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 10px">
+<svg width="36" height="36" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="35" fill="none" stroke="#fbe8e7" stroke-width="5"></circle><circle class="core" cx="50" cy="50" r="24" fill="#ef3124" style="transform-origin: 50px 50px"></circle><g class="idle" style="transform-origin: 50px 50px"><circle cx="85" cy="50" r="7" fill="#ef3124"></circle></g></svg>
+<span style="font-size: 16px; font-weight: 800">{{ v.agentName }}</span>
+</div>
+<span style="font-size: 15px; line-height: 1.5">Выписка уже у меня с 17 октября, заново грузить не нужно. Скажите задачу, а инструмент я подберу сам: кредит, лизинг, овердрафт или вообще без долга.</span>
+<button type="button" class="cta" @click="v.toAmount" style="height: 52px; border: 0; border-radius: 12px; background: #ef3124; color: #ffffff; font: 700 17px 'Manrope', sans-serif; cursor: pointer">Дальше: сумма и срок</button>
+</aside>
+</div>
+</template>
+
+<template v-if="v.isAmount">
+<div class="in" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+<section style="flex: 999 1 560px; min-width: 0; background: #ffffff; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<label for="amt" style="font-size: 13px; color: #6b6b70">Сколько нужно</label>
+<span style="font-size: 46px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums">{{ v.amountText }}</span>
+<input id="amt" type="range" min="300000" max="3000000" step="50000" :value="v.amount" @input="v.setAmount" style="width: 100%; height: 28px; margin: 0">
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #6b6b70"><span>300 000 ₽</span><span>3 000 000 ₽</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 13px; color: #6b6b70">На какой срок</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<template v-for="(t, $index) in v.terms">
+<button type="button" @click="t.pick" :aria-pressed="t.pressed" :style="`min-height: 44px; min-width: 76px; border: 1px solid ${t.border}; border-radius: 999px; background: ${t.bg}; color: ${t.ink}; padding: 0 16px; font: 700 14px 'Manrope', sans-serif; cursor: pointer`">{{ t.label }}</button>
+</template>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 13px; color: #6b6b70">Из чего вернёте</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<template v-for="(r, $index) in v.rets">
+<button type="button" @click="r.pick" :aria-pressed="r.pressed" :style="`min-height: 44px; border: 1px solid ${r.border}; border-radius: 999px; background: ${r.bg}; color: ${r.ink}; padding: 0 16px; font: 700 14px 'Manrope', sans-serif; cursor: pointer`">{{ r.label }}</button>
+</template>
+</div>
+</div>
+</section>
+<aside style="flex: 1 1 300px; max-width: 360px; background: #ffffff; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b6b70">Прикидка на лету</span>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #6b6b70">Платёж в месяц</span><span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums">≈ {{ v.payText }}</span></div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #6b6b70">Покрытие платежа, DSCR</span><b>{{ v.dscrText }}</b></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #6b6b70">Если поступления −30%</span><b :style="`color: ${v.stressInk}`">{{ v.stressText }}</b></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #6b6b70">Доля потока на платёж</span><b>{{ v.shareText }}</b></div>
+</div>
+<template v-if="v.stressWarn">
+<span class="in" style="font-size: 13px; line-height: 1.45; background: #f7ebd9; color: #6b4606; border-radius: 12px; padding: 10px 12px">При −30% поступлений платёж не покрывается с запасом 1,25. Возьмите срок длиннее.</span>
+</template>
+<span style="font-size: 12px; color: #6b6b70; line-height: 1.4">Ставка 22% из демо-каталога, не предложение банка.</span>
+<button type="button" class="cta" @click="v.runCalc" style="height: 52px; border: 0; border-radius: 12px; background: #ef3124; color: #ffffff; font: 700 17px 'Manrope', sans-serif; cursor: pointer">Подобрать</button>
+</aside>
+</div>
+</template>
+
+<template v-if="v.isCalc">
+<section class="in" style="background: #ffffff; border-radius: 16px; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 28px">
+<svg width="140" height="140" viewBox="0 0 100 100" aria-hidden="true" style="overflow: visible"><circle cx="50" cy="50" r="34" fill="none" stroke="#fbe8e7" stroke-width="4"></circle><circle class="s1" cx="50" cy="50" r="22" fill="#ef3124" style="transform-origin: 50px 50px"></circle><circle class="s2" cx="50" cy="50" r="22" fill="#f6a59f" style="transform-origin: 50px 50px"></circle><circle class="s3" cx="50" cy="50" r="22" fill="#0b0b0c" style="transform-origin: 50px 50px"></circle><circle class="s4" cx="50" cy="50" r="22" fill="#ef3124" style="transform-origin: 50px 50px"></circle></svg>
+<div style="width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px">
+<template v-for="(l, $index) in v.calcLines">
+<div :style="`display: flex; align-items: center; gap: 12px; font-size: 15px; color: ${l.ink}; transition: color .4s ease`"><span :style="`width: 22px; height: 22px; flex: 0 0 22px; border-radius: 999px; background: ${l.dot}; display: flex; align-items: center; justify-content: center; transition: background .4s ease`"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>{{ l.label }}</div>
+</template>
+</div>
+<span style="font-size: 13px; color: #6b6b70">Цифры считает ядро по правилам банка. Нейросеть только объясняет.</span>
+</section>
+</template>
+
+<template v-if="v.isResult">
+<div style="display: flex; flex-direction: column; gap: 16px">
+
+<div class="in" style="display: flex; align-items: center; gap: 14px; background: #ffffff; border-radius: 16px; padding: 14px 16px">
+<svg width="40" height="40" viewBox="0 0 100 100" aria-hidden="true" style="flex: 0 0 40px"><circle cx="50" cy="50" r="35" fill="none" stroke="#fbe8e7" stroke-width="5"></circle><circle class="core" cx="50" cy="50" r="24" fill="#ef3124" style="transform-origin: 50px 50px"></circle><g class="idle" style="transform-origin: 50px 50px"><circle cx="85" cy="50" r="7" fill="#ef3124"></circle></g></svg>
+<span style="flex: 1 1 auto; font-size: 15px; line-height: 1.45">{{ v.agentSays }}</span>
+<a href="chat.html" class="ghost" style="flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 1px solid #dcdcdd; border-radius: 12px; display: flex; align-items: center; color: #0b0b0c; text-decoration: none; font-size: 14px; font-weight: 700">Обсудить с агентом</a>
+</div>
+
+<section class="in" style="background: #ffffff; border-radius: 16px; padding: 24px; display: flex; flex-wrap: wrap; gap: 28px; animation-delay: 80ms">
+<div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b6b70">Рекомендуем под вашу задачу</span>
+<span style="font-size: 36px; font-weight: 800; letter-spacing: -.015em; line-height: 1.18">{{ v.recoTitle }}</span>
+<span style="font-size: 15px; color: #6b6b70; line-height: 1.45">{{ v.recoSub }}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="position: relative; height: 12px; border-radius: 999px; background: linear-gradient(90deg, #0b0b0c 0 25%, #0072ef 25% 50%, #cb830f 50% 75%, #13a463 75% 100%)">
+<span class="orb" :style="`position: absolute; left: ${v.orbLeft}; top: -8px; width: 28px; height: 28px; margin-left: -14px; border-radius: 999px; background: #ffffff; border: 4px solid ${v.statusColor}; box-sizing: border-box; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06)`"></span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); font-size: 12px">
+<template v-for="(s, $index) in v.statusLabels">
+<span :style="`color: ${s.ink}; font-weight: ${s.weight}; text-align: ${s.align}`">{{ s.label }}</span>
+</template>
+</div>
+</div>
+</div>
+<div style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px"><span style="font-size: 13px; color: #6b6b70">Вы просите</span><span style="font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums">{{ v.amountText }}</span></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: #f3f4f5; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 12px; font-weight: 500; color: #6b6b70">{{ v.nowLabel }}</span><span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums">{{ v.nowText }}</span></div>
+<div style="background: #0b0b0c; color: #ffffff; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 12px; font-weight: 500; color: #a1a1a6">{{ v.afterLabel }}</span><span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums">{{ v.afterText }}</span></div>
+</div>
+<div style="position: relative; height: 40px; margin-top: 6px" role="img" :aria-label="v.barAria">
+<span style="position: absolute; left: 0; right: 0; top: 14px; height: 12px; border-radius: 999px; background: #f3f4f5"></span>
+<span class="bar" :style="`position: absolute; left: 0; top: 14px; height: 12px; width: ${v.afterW}; border-radius: 999px; background: #bfe6d2; animation-delay: 200ms`"></span>
+<span class="bar" :style="`position: absolute; left: 0; top: 14px; height: 12px; width: ${v.nowW}; border-radius: 999px; background: #13a463`"></span>
+<span class="orb" :style="`position: absolute; left: ${v.askLeft}; top: 4px; width: 3px; height: 32px; margin-left: -1px; border-radius: 999px; background: #0b0b0c`"></span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: #6b6b70"><span><b style="color: #13a463">■</b> сейчас</span><span><b style="color: #bfe6d2">■</b> после шага</span><span><b style="color: #0b0b0c">|</b> ваш запрос</span></div>
+</div>
+</section>
+
+<template v-if="v.hasStep">
+<section class="in" style="background: #ffffff; border-radius: 16px; padding: 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: center; animation-delay: 160ms">
+<div style="flex: 1 1 360px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #8a5a08">Один шаг до суммы целиком</span>
+<span style="font-size: 22px; font-weight: 800; line-height: 1.3">{{ v.stepTitle }}</span>
+<span style="font-size: 15px; color: #6b6b70; line-height: 1.45">{{ v.stepWhy }}</span>
+</div>
+<ol style="flex: 1 1 320px; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+<template v-for="(l, $index) in v.ladder">
+<li :style="`display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: ${l.bg}; border: 2px solid ${l.border}`"><span :style="`width: 24px; height: 24px; flex: 0 0 24px; border-radius: 999px; background: ${l.dot}; border: 2px solid ${l.ring}; box-sizing: border-box; display: flex; align-items: center; justify-content: center`"><template v-if="l.done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></template></span><span :style="`font-size: 14px; font-weight: ${l.weight}; color: ${l.ink}`">{{ l.label }}</span></li>
+</template>
+</ol>
+<button type="button" class="cta" @click="v.doStep" style="flex: 0 0 auto; height: 52px; border: 0; border-radius: 12px; background: #ef3124; color: #ffffff; padding: 0 22px; font: 700 17px 'Manrope', sans-serif; cursor: pointer">Сделаю</button>
+</section>
+</template>
+
+<section class="in" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 1px; background: #dcdcdd; border-radius: 16px; overflow: hidden; animation-delay: 220ms">
+<template v-for="(m, $index) in v.metrics">
+<div style="background: #ffffff; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #6b6b70">{{ m.label }}</span><span :style="`font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: ${m.ink}; font-variant-numeric: tabular-nums`">{{ m.value }}</span><span style="font-size: 12px; color: #6b6b70">{{ m.note }}</span></div>
+</template>
+</section>
+
+<section class="in" style="background: #ffffff; border-radius: 16px; padding: 8px; display: flex; flex-direction: column; animation-delay: 280ms">
+<span style="padding: 14px 12px 6px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b6b70">Другие варианты и почему не они</span>
+<template v-for="(a, $index) in v.alts">
+<div style="display: flex; flex-direction: column">
+<button type="button" class="row" @click="a.toggle" :aria-expanded="a.expanded" style="border: 0; background: transparent; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 14px; text-align: left; font-family: inherit; color: #0b0b0c; cursor: pointer">
+<span style="width: 40px; height: 40px; flex: 0 0 40px; border-radius: 12px; background: #fbe8e7; display: flex; align-items: center; justify-content: center"><img :src="a.img" alt="" style="width: 24px; height: 24px"></span>
+<span style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 16px; font-weight: 700">{{ a.name }}</span><span style="font-size: 13px; color: #6b6b70; line-height: 1.4">{{ a.why }}</span></span>
+<span :style="`flex: 0 0 auto; font-size: 12px; font-weight: 700; color: ${a.chipInk}; background: ${a.chipBg}; border-radius: 999px; padding: 4px 10px`">{{ a.chip }}</span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" :style="`flex: 0 0 16px; transform: rotate(${a.rot}); transition: transform .2s ease`"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<template v-if="a.isOpen">
+<div class="in" style="margin: 0 12px 12px 66px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px"><span style="flex: 1 1 320px; font-size: 14px; color: #6b6b70; line-height: 1.5">{{ a.more }}</span><a href="chat.html" style="font-size: 14px; font-weight: 700; text-decoration: none">{{ a.action }}</a></div>
+</template>
+</div>
+</template>
+</section>
+
+<details class="in" style="background: #ffffff; border-radius: 16px; padding: 18px 20px; font-size: 14px; color: #6b6b70; animation-delay: 340ms">
+<summary style="cursor: pointer; font-weight: 700; color: #0b0b0c; min-height: 24px">Как посчитали</summary>
+<ul style="margin: 12px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; line-height: 1.5">
+<li>Поток: средний свободный поток по выписке 420 000 ₽ в месяц (демо-выписка кровельщика).</li>
+<li>Платёж: аннуитет {{ v.payText }} на {{ v.termText }} под 22% из демо-каталога.</li>
+<li>DSCR {{ v.dscrText }}: поток делим на платёж; порог банка 1,25. При −30% поступлений {{ v.stressText }}.</li>
+<li>Лимит сейчас ниже, потому что договор с заказчиком учтён со слов. Подписанный договор переводит его в подтверждённые данные: +508 000 ₽.</li>
+<li>Порядок: стоп-правила, затем DSCR, затем скоркарта, затем инструмент. Если слои спорят, побеждает строгий.</li>
+</ul>
+</details>
+
+<div class="in" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; animation-delay: 400ms">
+<span style="flex: 1 1 320px; font-size: 13px; color: #6b6b70; line-height: 1.45">Расчётный ориентир, не одобрение. Решение принимает банк. Комиссии и страховка не включены.</span>
+<button type="button" class="ghost" @click="v.toAmount" style="min-height: 52px; border: 1px solid #dcdcdd; border-radius: 12px; background: #ffffff; padding: 0 18px; font: 700 15px 'Manrope', sans-serif; color: #0b0b0c; cursor: pointer">Изменить параметры</button>
+<a href="chat.html" class="dark" style="min-height: 52px; border-radius: 12px; background: #0b0b0c; color: #ffffff; padding: 0 18px; display: flex; align-items: center; text-decoration: none; font-size: 15px; font-weight: 700">Обсудить с агентом</a>
+<template v-if="v.canApply">
+<a href="#" class="cta" style="min-height: 52px; border-radius: 12px; background: #ef3124; color: #ffffff; padding: 0 22px; display: flex; align-items: center; text-decoration: none; font-size: 17px; font-weight: 700">Перейти к оформлению</a>
+</template>
+</div>
+
+</div>
+</template>
+
+</main>
+</div>
+</div>
+<script src="petite-vue.iife.js"></script>
+<script src="dc-lite.js"></script>
+<script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const start = (props.start ?? 'результат') === 'задача' ? 'goal' : 'result';
+    this.state = { step: start, goal: 'oborot', amount: 1500000, term: 12, ret: 'contract', done: false, open: null, line: 0, k: start === 'result' ? 0 : 1 };
+  }
+  componentDidMount() { if (this.state.step === 'result') this.countUp(); }
+  componentWillUnmount() { clearTimeout(this.t1); clearInterval(this.t2); cancelAnimationFrame(this.raf); }
+  countUp() {
+    cancelAnimationFrame(this.raf);
+    const t0 = performance.now(), dur = 1200;
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      this.setState({ k: 1 - Math.pow(1 - p, 3) });
+      if (p < 1) this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+  runCalc() {
+    clearTimeout(this.t1); clearInterval(this.t2);
+    this.setState({ step: 'calc', line: 0, open: null });
+    this.t2 = setInterval(() => this.setState(s => ({ line: Math.min(4, s.line + 1) })), 600);
+    this.t1 = setTimeout(() => { clearInterval(this.t2); this.setState({ step: 'result', k: 0 }); this.countUp(); }, 2700);
+  }
+  renderVals() {
+    const s = this.state;
+    const rub = (n) => Math.round(n).toLocaleString('ru-RU') + ' ₽';
+    const x2 = (n) => n.toFixed(2).replace('.', ',') + '×';
+    const FLOW = 420000, NOW = 1015000, AFTER = 1523000;
+    const r = 0.22 / 12;
+    const pay = s.amount * r / (1 - Math.pow(1 + r, -s.term));
+    const dscr = FLOW / pay, stress = FLOW * 0.7 / pay;
+    const limitNow = s.done ? AFTER : NOW;
+    const recoMap = {
+      oborot: { title: 'Кредит под контракт', sub: 'Закупка материалов под объект. Вернёте из оплаты заказчика, деньги придут одним платежом.' },
+      equip: { title: 'Лизинг оборудования', sub: 'Техника сама служит залогом, платёж ниже, чем у кредита. Кредит на оборудование тоже возможен, но дороже.' },
+      gap: { title: 'Овердрафт к счёту', sub: 'Разрыв короткий: деньги нужны на недели, а не на год. Платите проценты только за дни, когда ушли в минус.' },
+      gov: { title: 'Гарантия и кредит под госконтракт', sub: 'Гарантия закрывает обеспечение заявки, кредит под контракт оплачивает исполнение.' },
+      look: { title: 'Кредит на текущий поток', sub: 'Цель не выбрана, поэтому считаем классический кредит на оборот по вашей выписке.' }
+    };
+    let idx, stepTitle = '', stepWhy = '', hasStep = false;
+    if (dscr < 1.25 || s.amount > AFTER) { idx = 0; }
+    else if (s.goal === 'equip') { idx = 1; }
+    else if (s.amount > limitNow) { idx = 2; hasStep = true; stepTitle = 'Загрузите договор с заказчиком'; stepWhy = 'Сейчас договор учтён со слов. Скан с подписями обеих сторон поднимает лимит на 508 000 ₽, и запрос проходит целиком.'; }
+    else if (stress < 1.25) { idx = 2; hasStep = true; stepTitle = 'Возьмите срок от 12 месяцев'; stepWhy = 'При −30% поступлений платёж не покрывается с запасом 1,25. Длиннее срок, ниже платёж.'; }
+    else { idx = 3; }
+    const colors = ['#0b0b0c', '#0072ef', '#cb830f', '#13a463'];
+    const names = ['Нужен менеджер', 'Другой инструмент', 'После шага', 'Можно подавать'];
+    const inks = ['#0b0b0c', '#0058b8', '#8a5a08', '#0b6b40'];
+    const says = [
+      'Сумма больше, чем видно по выписке. Здесь лучше живой менеджер: он посмотрит залог и другие счета.',
+      'Под оборудование выгоднее лизинг, чем кредит. Ниже показал, почему, и что выйдет по кредиту.',
+      s.done ? 'Отлично, ещё один шаг, и можно подавать.' : 'Почти. Не хватает одного документа, и сумма проходит целиком. Без него могу дать ' + rub(NOW) + '.',
+      s.done ? 'Пересчитал с договором: теперь сумма проходит целиком, можно подавать.' : 'Сумма проходит по выписке. Можно подавать, папку для банка соберу сам.'
+    ];
+    const k = s.k;
+    const max = Math.max(s.amount, AFTER) * 1.12;
+    const pct = (v) => (v / max * 100).toFixed(1) + '%';
+    const goalDefs = [
+      ['oborot', 'Закупка и оборотка', 'материалы, товар, зарплата до оплаты', 'img/goal-zakupka.svg'],
+      ['equip', 'Оборудование', 'техника, станки, транспорт', 'img/goal-oborudovanie.svg'],
+      ['gap', 'Кассовый разрыв', 'деньги нужны на несколько недель', 'img/goal-razryv.svg'],
+      ['gov', 'Госконтракт', 'обеспечение заявки и исполнение', 'img/goal-goskontrakt.svg'],
+      ['look', 'Просто посмотреть', 'сколько дадут по выписке', 'img/goal-posmotret.svg']
+    ];
+    const altDefs = [
+      { id: 'fast', name: 'Ускорить оплату от заказчика', why: 'Без долга и процентов, если заказчик просто тянет с оплатой', chip: 'попробовать первым', chipInk: '#0058b8', chipBg: '#d6e8fc', img: 'img/feed-postuplenie.svg', more: 'Крупнейший плательщик в октябре перевёл 410 000 ₽ вместо привычных 525 000 ₽. Подготовлю письмо и акт сверки, это бесплатно.', action: 'Набросать письмо заказчику' },
+      { id: 'oborot', name: 'Кредит под контракт', why: 'Деньги вернутся одним платежом от заказчика', chip: 'подходит', chipInk: '#0b6b40', chipBg: '#e7f6ef', img: 'img/goal-zakupka.svg', more: 'Лимит считает ядро по выписке и подтверждённым документам. Платёж и DSCR выше.', action: 'Обсудить кредит' },
+      { id: 'gap', name: 'Овердрафт', why: 'На разрыв до 30–60 дней, проценты только за дни в минусе', chip: 'частично', chipInk: '#6b4606', chipBg: '#f7ebd9', img: 'img/goal-razryv.svg', more: 'Подходит, если оплата задержится на несколько недель. Под объект на 2 месяца выйдет дороже кредита. Лимит овердрафта: [правило ядра].', action: 'Сравнить с кредитом' },
+      { id: 'gov', name: 'Банковская гарантия', why: 'Только если контракт по 44-ФЗ или 223-ФЗ', chip: 'уточнить', chipInk: '#6b4606', chipBg: '#f7ebd9', img: 'img/skill-garantiya.svg', more: 'Гарантия не даёт денег, она закрывает обеспечение. Если ваш заказчик государственный, это дешевле, чем замораживать свои деньги.', action: 'Проверить заказчика' },
+      { id: 'equip', name: 'Лизинг', why: 'Для техники и оборудования, не под закупку материалов', chip: 'не под задачу', chipInk: '#6b6b70', chipBg: '#f3f4f5', img: 'img/skill-lizing.svg', more: 'Если понадобится подъёмник или кровельный станок, лизинг будет выгоднее кредита: техника сама служит залогом.', action: 'Посчитать лизинг' },
+      { id: 'cfa', name: 'ЦФА на А-Токене', why: 'Деньги от инвесторов без кредита, для бизнеса с крупным оборотом', chip: 'пока рано', chipInk: '#6b6b70', chipBg: '#f3f4f5', img: 'img/skill-lgoty.svg', more: 'Выпуск цифровых финансовых активов на денежное требование по 259-ФЗ. Порог оборота и цену выпуска уточняем, ваш оборот пока ниже.', action: 'Узнать условия' }
+    ].filter(a => a.id !== s.goal);
+    const steps = ['goal', 'amount', 'result'];
+    const curI = s.step === 'calc' ? 2 : steps.indexOf(s.step);
+    const pickStep = (id) => () => (id === 'result' ? this.runCalc() : this.setState({ step: id }));
+    const calcDefs = ['Сверяем задачу с инструментами банка', 'Считаем платёж и DSCR', 'Стресс: поступления −30%', 'Ищем, что поднимет сумму'];
+    return {
+      agentName: this.props.agentName ?? 'Кредитный агент',
+      pageTitle: s.step === 'goal' ? 'На что нужны деньги?' : s.step === 'amount' ? 'Сколько и на какой срок' : s.step === 'calc' ? 'Подбираем инструмент' : 'Вот что подходит',
+      isGoal: s.step === 'goal', isAmount: s.step === 'amount', isCalc: s.step === 'calc', isResult: s.step === 'result',
+      crumbs: [['goal', 'Задача'], ['amount', 'Сумма и срок'], ['result', 'Результат']].map(([id, label], i) => {
+        const on = i === curI, past = i < curI;
+        return { n: i + 1, label, current: on ? 'step' : 'false', go: pickStep(id), bg: on ? '#0b0b0c' : '#ffffff', ink: on ? '#ffffff' : '#0b0b0c', border: on ? '#0b0b0c' : '#dcdcdd', dotBg: on ? '#ef3124' : past ? '#13a463' : '#f3f4f5', dotInk: on || past ? '#ffffff' : '#6b6b70' };
+      }),
+      goals: goalDefs.map(([id, label, hint, img], i) => { const on = s.goal === id; return { label, hint, img, pressed: on ? 'true' : 'false', border: on ? '#ef3124' : '#dcdcdd', bg: on ? '#fffafa' : '#ffffff', delay: (i * 60) + 'ms', pick: () => this.setState({ goal: id, done: false }) }; }),
+      toAmount: () => this.setState({ step: 'amount' }),
+      amount: s.amount, amountText: rub(s.amount),
+      setAmount: (e) => this.setState({ amount: Number(e.target.value), done: false }),
+      terms: [6, 12, 18, 24, 36].map(t => { const on = s.term === t; return { label: t + ' мес', pressed: on ? 'true' : 'false', bg: on ? '#0b0b0c' : '#ffffff', ink: on ? '#ffffff' : '#0b0b0c', border: on ? '#0b0b0c' : '#dcdcdd', pick: () => this.setState({ term: t }) }; }),
+      rets: [['contract', 'Оплата по договору'], ['revenue', 'Обычная выручка'], ['other', 'Другое']].map(([id, label]) => { const on = s.ret === id; return { label, pressed: on ? 'true' : 'false', bg: on ? '#0b0b0c' : '#ffffff', ink: on ? '#ffffff' : '#0b0b0c', border: on ? '#0b0b0c' : '#dcdcdd', pick: () => this.setState({ ret: id }) }; }),
+      payText: rub(pay), dscrText: x2(dscr), stressText: x2(stress), shareText: Math.round(pay / FLOW * 100) + '%',
+      stressInk: stress < 1.25 ? '#8a5a08' : '#0b6b40', stressWarn: stress < 1.25,
+      runCalc: () => this.runCalc(),
+      calcLines: calcDefs.map((label, i) => ({ label, ink: i < s.line ? '#0b0b0c' : '#8a8a8e', dot: i < s.line ? '#13a463' : '#dcdcdd' })),
+      agentSays: says[idx],
+      recoTitle: recoMap[s.goal].title, recoSub: recoMap[s.goal].sub,
+      orbLeft: ((idx + 0.5) * 25) + '%', statusColor: colors[idx],
+      statusLabels: names.map((label, i) => ({ label, ink: i === idx ? inks[i] : '#6b6b70', weight: i === idx ? '700' : '500', align: i === 3 ? 'right' : 'left' })),
+      nowLabel: s.done ? 'Было без договора' : 'Можно сейчас',
+      nowText: rub(Math.round(NOW * k / 1000) * 1000),
+      afterLabel: s.done ? 'Теперь, с договором' : 'После шага · +508 000 ₽',
+      afterText: rub(Math.round(AFTER * k / 1000) * 1000),
+      nowW: pct(limitNow === AFTER ? AFTER : NOW), afterW: pct(AFTER), askLeft: pct(s.amount),
+      barAria: 'Сейчас можно ' + rub(limitNow) + ', после шага ' + rub(AFTER) + ', запрос ' + rub(s.amount),
+      hasStep, stepTitle, stepWhy,
+      ladder: [
+        { label: 'Выписка загружена', done: true },
+        { label: stepTitle || 'Шаг не нужен', done: s.done, current: !s.done },
+        { label: 'Заявка менеджеру, папку соберёт агент', done: false }
+      ].map(l => ({ label: l.label, done: l.done, dot: l.done ? '#13a463' : '#ffffff', ring: l.done ? '#13a463' : l.current ? '#ef3124' : '#b8b8bc', bg: l.done ? '#e7f6ef' : l.current ? '#ffffff' : '#f3f4f5', border: l.current ? '#ef3124' : 'transparent', ink: l.done || l.current ? '#0b0b0c' : '#6b6b70', weight: l.current ? '700' : '500' })),
+      doStep: () => { if (stepTitle.indexOf('срок') > -1) { this.setState({ term: 12 }); } else { this.setState({ done: true }); } this.countUp(); },
+      canApply: idx === 3,
+      termText: s.term + ' мес',
+      metrics: [
+        { label: 'Срок', value: s.term + ' мес', note: 'можно поменять', ink: '#0b0b0c' },
+        { label: 'Платёж в месяц', value: rub(pay), note: 'ставка 22%, демо-каталог', ink: '#0b0b0c' },
+        { label: 'Покрытие, DSCR', value: x2(dscr), note: 'порог банка 1,25', ink: dscr < 1.25 ? '#b3241a' : '#0b6b40' },
+        { label: 'При −30% поступлений', value: x2(stress), note: 'стресс-сценарий', ink: stress < 1.25 ? '#8a5a08' : '#0b6b40' }
+      ],
+      alts: altDefs.map(a => { const open = s.open === a.id; return Object.assign({}, a, { isOpen: open, expanded: open ? 'true' : 'false', rot: open ? '180deg' : '0deg', toggle: () => this.setState({ open: open ? null : a.id }) }); })
+    };
+  }
+}
+mountDC(Component, {"start": "результат", "agentName": "Кредитный агент"});
+</script>
+</body>
+</html>

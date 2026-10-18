@@ -190,23 +190,200 @@ def classify(amount, counterparty, purpose, client_inn=None, cp_inn=None):
     return "operating"
 
 
+# def read_csv(path):
+#     """читает CSV-выписку. обяз колонки: date, amount, counterparty,
+#     purpose. необязательные: inn (ИНН контрагента), inn_client (ИНН клиента)
+#     кКолонка label, если есть, игнорируется"""
+#     rows = []
+#     with open(path, encoding="utf-8") as f:
+#         for r in csv.DictReader(f):
+#             rows.append({
+#                 "date": r["date"],
+#                 "amount": float(r["amount"]),
+#                 "counterparty": r.get("counterparty", ""),
+#                 "purpose": r.get("purpose", ""),
+#                 "inn": (r.get("inn") or r.get("counterparty_inn") or "").strip() or None,
+#                 "inn_client": (r.get("inn_client") or "").strip() or None,
+#             })
+#     return rows
+
 def read_csv(path):
-    """читает CSV-выписку. обяз колонки: date, amount, counterparty,
-    purpose. необязательные: inn (ИНН контрагента), inn_client (ИНН клиента)
-    кКолонка label, если есть, игнорируется"""
+    """Читает выписку. Поддерживает разные форматы банковских выгрузок:
+
+    1. Чистый (data/synthetic): UTF-8, запятая, колонки date, amount, counterparty, purpose.
+    2. CSV с одной колонкой «Сумма» (st_01, st_03, ...): CP1251, разделитель ;, сумма со знаком.
+    3. CSV с колонками «Дебет»/«Кредит» (st_02): CP1251, запятая, суммы в кавычках.
+    4. CSV с колонками «Приход»/«Расход» без контрагента (st_04): CP1251, разделитель ;
+       знак определяется по назначению: «зачисление / поступление» → плюс, иначе минус.
+    5. Формат 1С (st_05): CP1251, строки вида
+       «СекцияДокумент=...|Дата=...|Сумма=...|Контрагент=...|Назначение=...».
+    """
+    # 1. Кодировка
+    content = None
+    for enc in ("utf-8", "cp1251"):
+        try:
+            with open(path, encoding=enc) as f:
+                content = f.read()
+            break
+        except UnicodeDecodeError:
+            continue
+    if content is None:
+        raise ValueError(f"не смог прочитать {path}: ни UTF-8, ни CP1251")
+
+    lines = content.splitlines()
+    if not lines:
+        return []
+
+    # 2. 1С-формат
+    if lines[0].strip().startswith("1CClientBankExchange"):
+        return _read_1c(lines)
+
+    # 3. Ищем строку с заголовками: где есть «Дата» (или date) и упоминание суммы
+    header_idx = 0
+    for i, line in enumerate(lines[:20]):
+        low = line.lower()
+        if "дата" in low or "date" in low:
+            header_idx = i
+            break
+
+    # 4. Читаем как CSV
+    import io
+    delimiter = _detect_delimiter(lines[header_idx])
+    reader = csv.DictReader(io.StringIO("\n".join(lines[header_idx:])), delimiter=delimiter)
+
     rows = []
-    with open(path, encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            rows.append({
-                "date": r["date"],
-                "amount": float(r["amount"]),
-                "counterparty": r.get("counterparty", ""),
-                "purpose": r.get("purpose", ""),
-                "inn": (r.get("inn") or r.get("counterparty_inn") or "").strip() or None,
-                "inn_client": (r.get("inn_client") or "").strip() or None,
-            })
+    for r in reader:
+        # Ищем колонки по подстроке в имени; английские имена — чистый формат 1 (data/synthetic, golden)
+        date_key = next((k for k in r if k and ("дата" in k.lower() or k.lower() == "date")), None)
+        cp_key = next((k for k in r if k and ("контрагент" in k.lower() or k.lower() == "counterparty")), None)
+        purpose_key = next((k for k in r if k and ("назначен" in k.lower() or k.lower() == "purpose")), None)
+        amount_key = next((k for k in r if k and ("сумм" in k.lower() or k.lower() == "amount")), None)
+        debit_key = next((k for k in r if k and "дебет" in k.lower()), None)
+        credit_key = next((k for k in r if k and "кредит" in k.lower()), None)
+        prihod_key = next((k for k in r if k and "приход" in k.lower()), None)
+        rashod_key = next((k for k in r if k and "расход" in k.lower()), None)
+
+        if not (date_key and purpose_key):
+            continue
+
+        date_iso = _parse_date((r.get(date_key) or "").strip())
+        if date_iso is None:
+            continue
+
+        purpose = (r.get(purpose_key) or "").strip()
+        cp = (r.get(cp_key) or "").strip() if cp_key else ""
+
+        # Сумма: одна колонка / пара Дебет+Кредит / пара Приход+Расход
+        amt = None
+        if amount_key and r.get(amount_key):
+            amt = _parse_amount(r[amount_key])
+        elif debit_key or credit_key:
+            d = _parse_amount(r.get(debit_key) or "") if debit_key else None
+            c = _parse_amount(r.get(credit_key) or "") if credit_key else None
+            if d and abs(d) > 0:
+                amt = -abs(d)
+            elif c and abs(c) > 0:
+                amt = abs(c)
+        elif prihod_key or rashod_key:
+            pr = _parse_amount(r.get(prihod_key) or "") if prihod_key else None
+            ra = _parse_amount(r.get(rashod_key) or "") if rashod_key else None
+            raw = None
+            in_income_col = False
+            if ra and abs(ra) > 0:
+                raw = abs(ra)
+                in_income_col = False
+            elif pr and abs(pr) > 0:
+                raw = abs(pr)
+                in_income_col = True
+            if raw is not None:
+                lp = purpose.lower()
+                is_mandatory = any(w in lp for w in (
+                    "аренд", "налог", "енп", "енс ", "ндфл", "усн",
+                    "взнос", "страхов", "зарплат", "заработн",
+                    "оплата труда", "лизинг", "кредит", "пени", "штраф",
+                ))
+                if is_mandatory or not in_income_col:
+                    amt = -raw
+                else:
+                    amt = raw
+
+        if amt is None:
+            continue
+
+        rows.append({
+            "date": date_iso,
+            "amount": amt,
+            "counterparty": cp,
+            "purpose": purpose,
+            "inn": None,
+            "inn_client": None,
+        })
     return rows
 
+
+def _read_1c(lines):
+    """Парсер 1С-выгрузки: строки вида
+    «СекцияДокумент=Платёжное поручение|Номер=...|Дата=...|Сумма=...|Контрагент=...|Назначение=...»."""
+    rows = []
+    for line in lines:
+        line = line.strip()
+        if not line or "=" not in line:
+            continue
+        if line.startswith("1CClientBankExchange"):
+            continue
+        fields = {}
+        for part in line.split("|"):
+            if "=" in part:
+                k, v = part.split("=", 1)
+                fields[k.strip()] = v.strip()
+        if "Дата" not in fields or "Сумма" not in fields:
+            continue
+        date_iso = _parse_date(fields.get("Дата", ""))
+        amt = _parse_amount(fields.get("Сумма", ""))
+        if date_iso is None or amt is None:
+            continue
+        rows.append({
+            "date": date_iso,
+            "amount": amt,
+            "counterparty": fields.get("Контрагент", "").strip(),
+            "purpose": fields.get("Назначение", "").strip(),
+            "inn": None,
+            "inn_client": None,
+        })
+    return rows
+
+
+def _detect_delimiter(header):
+    """Определяет разделитель по строке-заголовку: побеждает тот,
+    которого в строке больше."""
+    counts = {";": header.count(";"), ",": header.count(","), "\t": header.count("\t")}
+    best = max(counts, key=counts.get)
+    return best if counts[best] > 0 else ","
+
+
+def _parse_date(s):
+    """01.10.2025 -> 2025-10-01. Понимает разные форматы."""
+    for fmt in ("%d.%m.%Y", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_amount(s):
+    """-2 072,77 -> -2072.77. Убирает кавычки, пробелы, меняет запятую на точку."""
+    if not s:
+        return None
+    s = str(s).strip().strip('"').replace("\u00a0", "").replace(" ", "").replace("\u2009", "")
+    s = s.replace(",", ".")
+    s = "".join(c for c in s if c.isdigit() or c in ".-")
+    if not s or s in (".", "-", "-."):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
 
 # разрешение пар операций
 def resolve_financing_pairs(rows, params=None):

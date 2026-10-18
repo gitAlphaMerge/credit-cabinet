@@ -31,3 +31,4 @@ Thumbs.db
 
 # ответы скрытого экзамена: Лизе не уходят
 data/hidden/
+services/agent/eval/traces/
