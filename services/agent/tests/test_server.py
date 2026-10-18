@@ -94,7 +94,7 @@ def test_turn_uses_llm_slots_when_available_and_logs_no_reply(monkeypatch, tmp_p
     try:
         result = post(httpd, {"session_id": "llm-session", "text": "Здравствуйте"})
         assert result["llm"] == server.llm.MODEL
-        assert "потратить" in result["text"].lower()
+        assert "на что нужны деньги" in result["text"].lower()
         events = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
         assert len(events) == 1
         assert events[0]["event"] == "agent_turn"

@@ -137,3 +137,35 @@ def test_guard_hides_stop_reason():
 def test_need_manager_template_hides_reason():
     text = explain(STOP_VIEW, NEED)
     assert "исполнительн" not in text.lower() and guard.check(text, STOP_VIEW, NEED) == []
+
+
+def test_system_prompts_start_with_agent_voice():
+    import llm
+    voice = (Path(__file__).resolve().parents[1] / "AGENT.md").read_text(encoding="utf-8")
+    assert llm.INTAKE_SYSTEM.startswith(voice)
+    assert llm.EXPLAIN_SYSTEM.startswith(voice)
+
+
+def test_questions_match_agent_voice_verbatim():
+    voice = (Path(__file__).resolve().parents[1] / "AGENT.md").read_text(encoding="utf-8")
+    section = voice.split("## Заготовки вопросов (dialog.py)", 1)[1]
+    for key, questions in dialog.QUESTIONS.items():
+        line = next(line for line in section.splitlines() if line.startswith(f"- {key}:"))
+        expected = line.split("«", 1)[1].rsplit("»", 1)[0]
+        assert questions == (expected,)
+
+
+@pytest.mark.parametrize("view", [
+    VIEW,
+    dict(VIEW, status="ready", next_steps=[]),
+    dict(VIEW, status="other_instrument", instrument="лизинг"),
+    STOP_VIEW,
+])
+def test_all_explanation_templates_pass_guard_and_are_short(view):
+    text = explain(view, NEED)
+    sentences = [part for part in text.split(".") if part.strip()]
+    assert len(sentences) <= 4
+    assert guard.check(text, view, NEED) == []
+    assert "Вы" not in text
+    assert "ты" not in text.lower()
+    assert "тебе" not in text.lower()

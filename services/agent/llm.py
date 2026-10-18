@@ -13,6 +13,7 @@ import intake_rules
 ROOT = Path(__file__).resolve().parents[2]
 URL = os.getenv("AGENT_LLM_URL", "https://openrouter.ai/api/v1/chat/completions")
 MODEL = os.getenv("AGENT_LLM_MODEL", "deepseek/deepseek-v4.1-flash")
+AGENT_VOICE = (Path(__file__).resolve().parent / "AGENT.md").read_text(encoding="utf-8")
 
 
 def _env(name: str) -> str | None:
@@ -48,7 +49,7 @@ def chat(system: str, user: str, model: str = MODEL, as_json: bool = False, temp
         return json.load(r)["choices"][0]["message"]["content"]
 
 
-INTAKE_SYSTEM = """Ты разбираешь реплику предпринимателя в чате кредитного помощника. Верни JSON только с теми полями,
+INTAKE_SYSTEM = AGENT_VOICE + "\n\n" + """Ты разбираешь реплику предпринимателя в чате кредитного помощника. Верни JSON только с теми полями,
 которые в реплике действительно есть. Не угадывай: нет суммы — нет amount_rub.
 Поля: purpose — одно из "кассовый разрыв", "закупка под контракт", "оборудование", "сезон", "рост";
 amount_rub — целое, рубли, сколько клиент ПРОСИТ (не сумма договора; при «не X, а Y» берётся Y);
@@ -84,7 +85,7 @@ def _intake_llm(text: str, asking: str | None) -> dict:
     return out
 
 
-EXPLAIN_SYSTEM = """Ты кредитный помощник для ИП и ООО. Объясни клиенту ответ расчётного ядра (JSON ниже).
+EXPLAIN_SYSTEM = AGENT_VOICE + "\n\n" + """Ты кредитный помощник для ИП и ООО. Объясни клиенту ответ расчётного ядра (JSON ниже).
 Правила: на «вы», 2–3 коротких предложения, как толковый клиентский менеджер; называй только числа из JSON,
 ничего не считай сам; никогда не говори «одобрено» и не обещай кредит, решение принимает банк; без эмодзи.
 Простые слова: не пиши DSCR, «ядро», «система», «покрытие долга»; вместо этого «запас по платежам»; ставку в процентах.
