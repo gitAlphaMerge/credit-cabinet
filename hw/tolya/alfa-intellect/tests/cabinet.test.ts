@@ -228,7 +228,7 @@ test("Учебные значения — чистое UI-преобразова
     trained = trainingCabinet(s);
   assert.equal(JSON.stringify(s), before);
   assert.ok(trained.cabinet?.facility);
-  assert.ok(cabinetSnapshot(trained, day()).forecast.available);
+  assert.ok(cabinetSnapshot(trained, day(), true).forecast.available);
   assert.equal(s.cabinet, undefined);
 });
 test("Подтверждённая оплата вычитается из начального остатка по дате факта, не по будущей дате графика", () => {

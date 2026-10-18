@@ -7,9 +7,7 @@ import {
   Plus,
   TrendingDown,
   MessageSquare,
-  FileText,
   Check,
-  Pencil,
 } from "lucide-react";
 import { useWorkspace } from "./context";
 import { Button, Modal } from "./ui";
@@ -25,6 +23,7 @@ import {
 import type { AppState } from "../shared/types";
 import { AnchoredPanel, ContextHelp } from "./ContextHelp";
 import { FinancialIndicators } from "./FinancialIndicators";
+import { CalendarPicker, calendarCells } from "./CalendarPicker";
 
 const value = (n: number | null | undefined) =>
   n === null || n === undefined ? "—" : money(n);
@@ -201,10 +200,12 @@ export function PaymentCalendar({
   facility,
   onClose,
   anchor = null,
+  onDiscuss,
 }: {
   facility: Facility;
   onClose: () => void;
   anchor?: HTMLElement | null;
+  onDiscuss?: (date: string) => void;
 }) {
   const w = useWorkspace(),
     [record, setRecord] = useState<PaymentEvent | null>(null),
@@ -217,10 +218,6 @@ export function PaymentCalendar({
   const [month, setMonth] = useState((next?.date || day()).slice(0, 7) + "-01"),
     [selected, setSelected] = useState(next?.date || day());
   const d = new Date(month + "T00:00:00Z"),
-    offset = (d.getUTCDay() + 6) % 7,
-    length = new Date(
-      Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0),
-    ).getUTCDate(),
     events = facility.events.filter((p) => p.date === selected);
   const chooseMonth = (year: number, index: number) => {
     const nextMonth = day(new Date(Date.UTC(year, index, 1)));
@@ -255,35 +252,33 @@ export function PaymentCalendar({
             <ChevronLeft size={18} />
           </button>
           <div className="cv-month-selectors">
-            <select
-              aria-label="Месяц календаря"
+            <CalendarPicker
+              label="Месяц календаря"
               value={d.getUTCMonth()}
-              onChange={(e) =>
-                chooseMonth(d.getUTCFullYear(), Number(e.target.value))
-              }
-            >
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i} value={i}>
-                  {new Date(Date.UTC(2026, i, 1)).toLocaleDateString("ru-RU", {
+              onChange={(value) => chooseMonth(d.getUTCFullYear(), value)}
+              options={Array.from({ length: 12 }, (_, i) => ({
+                value: i,
+                label: new Date(Date.UTC(2026, i, 1)).toLocaleDateString(
+                  "ru-RU",
+                  {
                     month: "long",
                     timeZone: "UTC",
-                  })}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Год календаря"
+                  },
+                ),
+              }))}
+            />
+            <CalendarPicker
+              label="Год календаря"
               value={d.getUTCFullYear()}
-              onChange={(e) =>
-                chooseMonth(Number(e.target.value), d.getUTCMonth())
-              }
-            >
-              {Array.from({ length: lastYear - firstYear + 1 }, (_, i) => (
-                <option key={i} value={firstYear + i}>
-                  {firstYear + i}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => chooseMonth(value, d.getUTCMonth())}
+              options={Array.from(
+                { length: lastYear - firstYear + 1 },
+                (_, i) => ({
+                  value: firstYear + i,
+                  label: String(firstYear + i),
+                }),
+              )}
+            />
           </div>
           <button
             aria-label="Следующий месяц"
@@ -297,12 +292,9 @@ export function PaymentCalendar({
           {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((w) => (
             <small key={w}>{w}</small>
           ))}
-          {Array.from({ length: offset }, (_, i) => (
-            <span key={"blank" + i} />
-          ))}
-          {Array.from({ length }, (_, i) => {
-            const dt = month.slice(0, 8) + String(i + 1).padStart(2, "0"),
-              ps = facility.events.filter((p) => p.date === dt);
+          {calendarCells(month).map((dt, i) => {
+            if (!dt) return <span key={"blank" + i} aria-hidden="true" />;
+            const ps = facility.events.filter((p) => p.date === dt);
             return (
               <button
                 key={dt}
@@ -323,7 +315,7 @@ export function PaymentCalendar({
                 }}
                 onFocus={() => setSelected(dt)}
               >
-                {i + 1}
+                {Number(dt.slice(-2))}
                 {!!ps.length && <i />}
               </button>
             );
@@ -335,9 +327,7 @@ export function PaymentCalendar({
             events.map((p) => (
               <div key={p.id}>
                 <h3>{money(total(p))}</h3>
-                <p>
-                  {facility.name} · {statusText(p, day())}
-                </p>
+                <p>{statusText(p, day())}</p>
                 <dl>
                   <div>
                     <dt>Основной долг</dt>
@@ -369,6 +359,19 @@ export function PaymentCalendar({
             ))
           ) : (
             <p>На эту дату обязательств в графике нет.</p>
+          )}
+          {!!events.length && onDiscuss && (
+            <button
+              className="calendar-discuss"
+              onClick={() => {
+                onClose();
+                onDiscuss(selected);
+              }}
+            >
+              <MessageSquare size={15} />
+              Обсудить с агентом
+              <ArrowRight size={14} />
+            </button>
           )}
         </div>
         {record && (
@@ -428,10 +431,6 @@ export function PaymentCalendar({
             <Button>Подтвердить оплату</Button>
           </form>
         )}
-        <p className="cv-note">
-          Отсутствие отметки об оплате не означает просрочку. Источник:{" "}
-          {facility.source}.
-        </p>
       </div>
     </AnchoredPanel>
   );
@@ -730,12 +729,12 @@ export function CabinetV2({
   training = false,
 }: {
   preview?: AppState;
-  onDiscuss: () => void;
+  onDiscuss: (paymentDate?: string) => void;
   training?: boolean;
 }) {
   const w = useWorkspace(),
     s = preview || w.state,
-    v = useMemo(() => cabinetSnapshot(s), [s]),
+    v = useMemo(() => cabinetSnapshot(s, undefined, !!preview), [s, preview]),
     c = v.facility,
     p = v.next;
   const calendarAnchor = useRef<HTMLButtonElement>(null);
@@ -751,16 +750,7 @@ export function CabinetV2({
       <div className="cv-overview">
         <section className="cv-card cv-facility" data-tour="summary">
           <div className="cv-card-head">
-            <h2>{c?.name || "Ваше финансирование"}</h2>
-            {c && (
-              <span className="cv-chip">
-                {c.quality === "synthetic"
-                  ? "Синтетический пример"
-                  : c.quality === "document"
-                    ? "График подтверждён"
-                    : "Внесено вручную"}
-              </span>
-            )}
+            <h2>{c ? "Кредит бизнеса" : "Ваше финансирование"}</h2>
           </div>
           <div className="cv-summary-grid">
             <div>
@@ -833,26 +823,23 @@ export function CabinetV2({
                 </div>
               )}
               <div className="cv-terms">
-                <span>{c.rate}% годовых</span>
-                <span>
-                  {c.contractTerm || c.term} мес.{" "}
-                  {c.contractTerm || c.quality === "synthetic"
-                    ? "общий срок"
-                    : "осталось"}
-                </span>
-                <span>До {date(c.events.at(-1)?.date || c.asOf)}</span>
+                <div>
+                  <span>Ставка</span>
+                  <strong>{c.rate}% годовых</strong>
+                </div>
+                <div>
+                  <span>
+                    {c.contractTerm || c.quality === "synthetic"
+                      ? "Срок кредита"
+                      : "Оставшийся срок"}
+                  </span>
+                  <strong>{c.contractTerm || c.term} месяцев</strong>
+                </div>
+                <div>
+                  <span>Дата погашения</span>
+                  <strong>{date(c.events.at(-1)?.date || c.asOf)}</strong>
+                </div>
               </div>
-              <details>
-                <summary>Подробнее о договоре</summary>
-                <p>
-                  {c.source}. Остаток на {date(c.asOf)}.{" "}
-                  {c.issuedAt ? `Выдан ${date(c.issuedAt)}. ` : ""}Осталось{" "}
-                  {c.events.filter((e) => e.status !== "paid").length} платежей.{" "}
-                  {c.quality === "manual"
-                    ? "Плановый график рассчитан по указанным параметрам; индивидуальные условия, комиссии и переносы дат не учтены."
-                    : "Исполнение отмечается только по подтверждённым данным."}
-                </p>
-              </details>
             </>
           ) : (
             <>
@@ -893,7 +880,19 @@ export function CabinetV2({
         <section className="cv-card cv-next" data-tour="payment">
           <div className="cv-card-head">
             <h2>Ближайший платёж</h2>
-            <CalendarDays size={19} />
+            <button
+              ref={calendarAnchor}
+              type="button"
+              className="cv-calendar-launch"
+              aria-label="Календарь платежей"
+              title="Календарь платежей"
+              aria-haspopup="dialog"
+              aria-expanded={calendar}
+              disabled={!c?.events.length}
+              onClick={() => setCalendar((open) => !open)}
+            >
+              <CalendarDays size={20} />
+            </button>
           </div>
           <small>{p ? date(p.date) : "График не определён"}</small>
           <div className="cv-payment-number">{value(p ? total(p) : null)}</div>
@@ -921,18 +920,6 @@ export function CabinetV2({
           ) : (
             <p>Даты и суммы появятся из подтверждённого графика.</p>
           )}
-          <button
-            ref={calendarAnchor}
-            className="cv-calendar-button"
-            aria-expanded={calendar}
-            aria-haspopup="dialog"
-            disabled={!c?.events.length}
-            onClick={() => setCalendar((open) => !open)}
-          >
-            <CalendarDays size={16} />
-            Календарь платежей
-            <ArrowRight size={14} />
-          </button>
           {v.unresolved.length > 0 && (
             <p className="cv-note">
               По {v.unresolved.length} прошедшим датам требуется уточнить
@@ -970,7 +957,6 @@ export function CabinetV2({
         <div className="cv-card-head">
           <div>
             <h2>Хватит ли денег на платёж?</h2>
-            <p>Деньги бизнеса и ожидаемый остаток после списания</p>
           </div>
           <ContextHelp label="Что означает прогноз денег после платежа">
             <p>
@@ -1005,40 +991,27 @@ export function CabinetV2({
               не прогноз. Прогноз опирается на ваши предположения и не
               гарантирует будущих поступлений.
             </p>
+            <p>
+              {date(v.cash.start)} — {date(v.cash.end)}
+              {v.cash.partial ? " · неполный период" : ""}. Поступления:{" "}
+              {value(v.cash.inflow)}. Списания: {value(v.cash.outflow)}.
+              Остаток: {value(v.cash.balance)}.
+            </p>
+            <p>{v.forecast.reason}</p>
+            {v.forecast.available && (
+              <p>
+                План до {date(v.forecast.through)}. Минимальный остаток:{" "}
+                {value(v.forecast.minimum)} на {date(v.forecast.minimumDate!)}.
+                Возможный дефицит: {value(v.forecast.deficit)}.
+              </p>
+            )}
           </ContextHelp>
         </div>
         <div className="cv-cash-forecast">
           <div className="cv-cash">
             <small>Чистый поток за 30 дней</small>
             <strong>{value(v.cash.net)}</strong>
-            <span>
-              {date(v.cash.start)} — {date(v.cash.end)}
-              {v.cash.partial ? " · неполный период" : ""}
-            </span>
-            <details>
-              <summary>Остаток, поступления и списания</summary>
-              <dl>
-                <div>
-                  <dt>
-                    Остаток на{" "}
-                    {v.cash.asOf ? date(v.cash.asOf) : "дату выписки"}
-                  </dt>
-                  <dd>{value(v.cash.balance)}</dd>
-                </div>
-                <div>
-                  <dt>Поступления</dt>
-                  <dd>{value(v.cash.inflow)}</dd>
-                </div>
-                <div>
-                  <dt>Списания</dt>
-                  <dd>{value(v.cash.outflow)}</dd>
-                </div>
-              </dl>
-              <p className="cv-note">
-                {v.cash.source}. Только подтверждённые строки выписки. Период
-                может быть неполным.
-              </p>
-            </details>
+            {v.cash.net === null && <span>Недостаточно данных</span>}
           </div>
           <div
             className={
@@ -1061,59 +1034,14 @@ export function CabinetV2({
                     ? "Есть риск нехватки средств"
                     : "Средств предварительно достаточно"}
             </span>
-            {!v.forecast.available && (
-              <p>
-                Нужны сведения о кредите и банковская выписка. Для прогноза
-                уточните остаток денег и план поступлений и расходов с датами.
-              </p>
-            )}
-            <details>
-              <summary>
-                {v.forecast.available
-                  ? "Основание прогноза"
-                  : "Каких данных не хватает"}
-              </summary>
-              <p>{v.forecast.reason}</p>
-            </details>
-            {v.forecast.available && (
-              <p className="cv-note">
-                План до {date(v.forecast.through)} · {v.forecast.source}.
-                Прогноз по подтверждённым пользователем предположениям.
-              </p>
-            )}
-            {v.forecast.available && (
-              <div className="cv-forecast-more">
-                <span>
-                  Минимум за 30 дней<b>{value(v.forecast.minimum)}</b>
-                </span>
-                <span>
-                  Возможный дефицит<b>{value(v.forecast.deficit)}</b>
-                </span>
-                <span>
-                  Дата минимума<b>{date(v.forecast.minimumDate!)}</b>
-                </span>
-              </div>
-            )}
           </div>
         </div>
         <div className="cv-finance-actions">
           <button
-            className="text-button"
-            disabled={!!preview}
-            onClick={() => setEditor("plan")}
-          >
-            <Pencil size={14} />
-            Уточнить план движения денег
-          </button>
-          <button className="text-button" onClick={() => w.go("/profile")}>
-            <FileText size={14} />
-            Документы бизнеса
-          </button>
-          <button
             className="cv-discuss"
             data-tour="discuss"
             disabled={!!preview}
-            onClick={onDiscuss}
+            onClick={() => onDiscuss()}
           >
             <MessageSquare size={16} />
             Обсудить с агентом
@@ -1121,19 +1049,10 @@ export function CabinetV2({
           </button>
         </div>
         <FinancialIndicators metrics={v.metrics} />
-        <button
-          className="text-button cv-coverage-link"
-          disabled={!!preview}
-          onClick={() => setEditor("coverage")}
-        >
-          Данные и методика CFADS
-          <ArrowRight size={13} />
-        </button>
       </section>
       <section className="cv-recommendations" data-tour="recommendations">
         <div className="cv-card-head">
           <h2>На что обратить внимание</h2>
-          <small>Проверено при открытии · {date(v.today)}</small>
         </div>
         {v.signals.length ? (
           v.signals.map((r) => (
@@ -1148,7 +1067,9 @@ export function CabinetV2({
                 className="text-button"
                 disabled={!!preview}
                 onClick={
-                  r.href === "profile" ? () => w.go("/profile") : onDiscuss
+                  r.href === "profile"
+                    ? () => w.go("/profile")
+                    : () => onDiscuss()
                 }
               >
                 {r.href === "profile" ? "Обновить данные" : "Обсудить"}
@@ -1170,6 +1091,7 @@ export function CabinetV2({
         <PaymentCalendar
           facility={c}
           anchor={calendarAnchor.current}
+          onDiscuss={preview ? undefined : onDiscuss}
           onClose={() => setCalendar(false)}
         />
       )}

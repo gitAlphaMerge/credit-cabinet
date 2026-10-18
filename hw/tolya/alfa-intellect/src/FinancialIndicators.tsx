@@ -38,7 +38,6 @@ export function FinancialIndicators({ metrics }: { metrics: Metric[] }) {
     >
       <div className="cv-card-head">
         <h2>Финансовые показатели</h2>
-        <small>Наведите на ⓘ — формула и объяснение</small>
       </div>
       <div className="cv-metrics">
         {metrics.map((m) => {
@@ -82,14 +81,12 @@ export function FinancialIndicators({ metrics }: { metrics: Metric[] }) {
                     <i style={{ left: scale.position + "%" }} />
                   )}
                 </div>
-                <div className="metric-scale-labels">
-                  <small>
-                    {scale.position === null ? "Нет оценки" : scale.left}
-                  </small>
-                  <small>
-                    {scale.position === null ? "Нужны данные" : scale.right}
-                  </small>
-                </div>
+                {scale.position !== null && (
+                  <div className="metric-scale-labels">
+                    <small>{scale.left}</small>
+                    <small>{scale.right}</small>
+                  </div>
+                )}
               </div>
             </div>
           );

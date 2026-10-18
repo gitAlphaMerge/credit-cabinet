@@ -9,7 +9,11 @@ import {
 import { createPortal } from "react-dom";
 import { Info, X } from "lucide-react";
 
-export function useAnchoredPosition(anchor: HTMLElement | null, open: boolean) {
+export function useAnchoredPosition(
+  anchor: HTMLElement | null,
+  open: boolean,
+  stable = false,
+) {
   const panel = useRef<HTMLDivElement>(null),
     [position, setPosition] = useState({ top: 80, left: 16 });
   useLayoutEffect(() => {
@@ -18,11 +22,12 @@ export function useAnchoredPosition(anchor: HTMLElement | null, open: boolean) {
       const a = anchor.getBoundingClientRect(),
         p = panel.current?.getBoundingClientRect(),
         width = p?.width || 360,
-        height = p?.height || 300;
+        height = stable ? Math.min(660, innerHeight - 24) : p?.height || 300;
       const below = innerHeight - a.bottom - 12,
         above = a.top - 12;
-      const top =
-        below >= height
+      const top = stable
+        ? Math.min(a.bottom + 8, innerHeight - height - 12)
+        : below >= height
           ? a.bottom + 8
           : above >= height
             ? a.top - height - 8
@@ -34,15 +39,18 @@ export function useAnchoredPosition(anchor: HTMLElement | null, open: boolean) {
     };
     measure();
     const observer = new ResizeObserver(measure);
-    if (panel.current) observer.observe(panel.current);
+    if (panel.current && !stable) observer.observe(panel.current);
     addEventListener("resize", measure);
-    addEventListener("scroll", measure, true);
+    const scroll = (e: Event) => {
+      if (!panel.current?.contains(e.target as Node)) measure();
+    };
+    addEventListener("scroll", scroll, true);
     return () => {
       observer.disconnect();
       removeEventListener("resize", measure);
-      removeEventListener("scroll", measure, true);
+      removeEventListener("scroll", scroll, true);
     };
-  }, [anchor, open]);
+  }, [anchor, open, stable]);
   return { panel, position };
 }
 
@@ -159,7 +167,7 @@ export function AnchoredPanel({
   children: ReactNode;
   onClose: () => void;
 }) {
-  const { panel, position } = useAnchoredPosition(anchor, true);
+  const { panel, position } = useAnchoredPosition(anchor, true, true);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     panel.current

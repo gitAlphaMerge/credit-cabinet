@@ -118,8 +118,12 @@ export function facilityOf(s: AppState): Facility | null {
     })),
   };
 }
-export function cabinetSnapshot(s: AppState, today = day()) {
-  const facility = facilityOf(s),
+export function cabinetSnapshot(s: AppState, today = day(), preview = false) {
+  // Keep old fixtures in storage, but never present them as a real obligation.
+  // Public demo and temporary training explicitly opt in to synthetic data.
+  const candidate = facilityOf(s),
+    facility =
+      candidate?.quality === "synthetic" && !preview ? null : candidate,
     events = facility?.events || [],
     end = addDays(today, 29),
     start = addDays(today, -29);

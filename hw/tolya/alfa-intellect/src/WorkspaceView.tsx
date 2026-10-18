@@ -65,7 +65,7 @@ export function WorkspaceView({
       await w.act("/preferences", { split: ratio.current }, "PATCH");
     } catch {}
   }
-  async function discuss() {
+  async function discuss(paymentDate?: string) {
     try {
       const result = await w.act("/cabinet/discuss", {
         chatId: w.activeChatId,
@@ -74,7 +74,12 @@ export function WorkspaceView({
       w.setChatVisible(true);
       w.setHistoryOpen(false);
       setMobileTab("chat");
-      if (!w.draft.trim())
+      if (paymentDate)
+        w.setDraft(
+          (w.draft.trim() ? w.draft + "\n\n" : "") +
+            `Обсудим платёж на ${paymentDate}: из чего складывается сумма, хватит ли средств и какие действия нужны?`,
+        );
+      else if (!w.draft.trim())
         w.setDraft(
           "Объясни прогноз кредитного кабинета, источники и возможные действия.",
         );
@@ -135,7 +140,7 @@ export function WorkspaceView({
             <CabinetV2
               training={!!preview}
               preview={preview ? trainingCabinet(preview) : undefined}
-              onDiscuss={() => void discuss()}
+              onDiscuss={(date) => void discuss(date)}
             />
           </div>
         )}
