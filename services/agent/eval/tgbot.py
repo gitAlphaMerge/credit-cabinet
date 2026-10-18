@@ -101,9 +101,11 @@ def _token() -> str:
 
 
 def main() -> int:
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-    from telegram.ext import (Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler,
-                              filters)
+    # aiogram, а не python-telegram-bot: ptb 20.7 на ноуте падает с httpx 0.28 (kwarg proxies)
+    from aiogram import Bot, Dispatcher, F
+    from aiogram.filters import CommandStart
+    from aiogram.types import (CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, Message,
+                               ReplyKeyboardMarkup, ReplyKeyboardRemove)
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--templates", action="store_true", help="без LLM, только шаблоны")
@@ -114,63 +116,63 @@ def main() -> int:
     pool, golden = personas(), scenarios()
     sessions: dict[int, Session] = {}
     played: dict[int, set] = {}
-    keys = ReplyKeyboardMarkup([[STATEMENT, CONTRACT], [STOP]], resize_keyboard=True)
-    marks = InlineKeyboardMarkup([[InlineKeyboardButton("👍 норм", callback_data="ok"),
-                                   InlineKeyboardButton("👎 плохо", callback_data="bad")]])
+    keys = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=STATEMENT), KeyboardButton(text=CONTRACT)],
+                                         [KeyboardButton(text=STOP)]], resize_keyboard=True)
+    marks = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="👍 норм", callback_data="ok"),
+                                                   InlineKeyboardButton(text="👎 плохо", callback_data="bad")]])
+    dp = Dispatcher()
 
-    async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-        uid, user = update.effective_user.id, update.effective_user
+    @dp.message(CommandStart())
+    async def start(m: Message) -> None:
+        uid = m.from_user.id
         seen = played.setdefault(uid, set())
         fresh = [p for p in pool if p["id"] not in seen] or pool
         p = random.choice(fresh)
         seen.add(p["id"])
-        who = (user.username or str(uid)).replace("/", "_")
+        who = (m.from_user.username or str(uid)).replace("/", "_")
         s = sessions[uid] = Session(p, golden[p["scenario"]], who, intake, explain)
-        await update.message.reply_text(
+        await m.answer(
             "Это тренажёр агента кредитного кабинета. Ты играешь клиента, после каждого ответа агента жмёшь "
             "👍 или 👎. На 👎 пишешь, что не так: «длинно», «непонятно», «не спросил про договор», «врёт». "
             "Эти оценки и делают агента умнее.\n\n" + s.card(), reply_markup=keys)
-        await update.message.reply_text("Пиши первую реплику клиента 👇")
+        await m.answer("Пиши первую реплику клиента 👇")
 
-    async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-        uid, text = update.effective_user.id, update.message.text.strip()
-        s = sessions.get(uid)
-        if s is None:
-            await update.message.reply_text("Жми /start, выдам карточку клиента")
-            return
-        if s.phase == "rate":
-            await update.message.reply_text("Сначала оцени ответ агента кнопкой 👍 / 👎 выше")
-            return
-        if s.phase == "comment":
-            s.comment(text)
-            await update.message.reply_text("Записал. Отвечай агенту дальше как клиент")
-            return
-        if text == STOP:
-            sessions.pop(uid)
-            await update.message.reply_text(f"Спасибо! Ходов: {s.turns}. Ещё клиента: /start",
-                                            reply_markup=ReplyKeyboardRemove())
-            return
-        await ctx.bot.send_chat_action(update.effective_chat.id, "typing")
-        reply = await asyncio.to_thread(s.say, text)  # LLM и ядро синхронные, бот не должен вставать
-        await update.message.reply_text(reply, reply_markup=marks)
-
-    async def on_mark(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-        q = update.callback_query
+    @dp.callback_query(F.data.in_({"ok", "bad"}))
+    async def on_mark(q: CallbackQuery) -> None:
         await q.answer()
         s = sessions.get(q.from_user.id)
         if s is None or s.phase != "rate":
             return
         ok = q.data == "ok"
         s.rate(ok)
-        await q.edit_message_reply_markup(None)
-        await q.message.reply_text("👍 Отвечай дальше как клиент" if ok else "👎 Что не так? Одной фразой")
+        await q.message.edit_reply_markup(reply_markup=None)
+        await q.message.answer("👍 Отвечай дальше как клиент" if ok else "👎 Что не так? Одной фразой")
 
-    app = Application.builder().token(_token()).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(on_mark))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
-    print(f"eval-бот: агент {'LLM ' + llm.MODEL if use_llm else 'шаблоны'}, персон {len(pool)}, трейсы в {TRACES}")
-    app.run_polling()
+    @dp.message(F.text)
+    async def on_text(m: Message, bot: Bot) -> None:
+        uid, text = m.from_user.id, m.text.strip()
+        s = sessions.get(uid)
+        if s is None:
+            await m.answer("Жми /start, выдам карточку клиента")
+            return
+        if s.phase == "rate":
+            await m.answer("Сначала оцени ответ агента кнопкой 👍 / 👎 выше")
+            return
+        if s.phase == "comment":
+            s.comment(text)
+            await m.answer("Записал. Отвечай агенту дальше как клиент")
+            return
+        if text == STOP:
+            sessions.pop(uid)
+            await m.answer(f"Спасибо! Ходов: {s.turns}. Ещё клиента: /start", reply_markup=ReplyKeyboardRemove())
+            return
+        await bot.send_chat_action(m.chat.id, "typing")
+        reply = await asyncio.to_thread(s.say, text)  # LLM и ядро синхронные, бот не должен вставать
+        await m.answer(reply, reply_markup=marks)
+
+    print(f"eval-бот: агент {'LLM ' + llm.MODEL if use_llm else 'шаблоны'}, персон {len(pool)}, трейсы в {TRACES}",
+          flush=True)
+    asyncio.run(dp.start_polling(Bot(_token())))
     return 0
 
 
