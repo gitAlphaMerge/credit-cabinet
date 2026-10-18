@@ -34,6 +34,34 @@ def personas() -> list[dict]:
     return [p for p in data_io.personas() if p["source"] == "deepseek"]  # ред-тим не для команды: там атаки
 
 
+TEAM = ("aanekhh", "fudjio1337", "lovuhoney", "bwrheal")  # ники телеги команды, без Саши
+
+
+def assign(pool: list[dict]) -> dict[str, list[str]]:
+    """Ветки: 16 персон на 4 человек по 4. У сценария две персоны (_a, _b), они уходят разным людям,
+    и у каждого 4 разных сценария: так один человек не красит половину меток своим вкусом."""
+    order = sorted({p["scenario"] for p in pool})
+    out = {who: [] for who in TEAM}
+    for p in sorted(pool, key=lambda p: p["id"]):
+        shift = 0 if p["id"].endswith("_a") else 1
+        out[TEAM[(order.index(p["scenario"]) + shift) % len(TEAM)]].append(p["id"])
+    return out
+
+
+def played(who: str, traces: Path = TRACES) -> set[str]:
+    """Кто что уже сыграл — по именам трейсов, чтобы рестарт бота не обнулял ветку."""
+    ids = {p["id"] for p in personas()}
+    names = [f.stem for f in traces.glob(f"tg-*-{who}-*.jsonl")]
+    return {pid for pid in ids for n in names if n.endswith(f"-{who}-{pid}")}
+
+
+def pick(who: str, pool: list[dict], branches: dict, traces: Path = TRACES) -> dict:
+    """Сначала своя ветка, потом любые несыгранные, потом всё подряд."""
+    seen = played(who, traces)
+    mine = [p for p in pool if p["id"] in branches.get(who, []) and p["id"] not in seen]
+    return random.choice(mine or [p for p in pool if p["id"] not in seen] or pool)
+
+
 def scenarios() -> dict:
     return {s["id"]: s for s in json.loads((ROOT / "data" / "golden.json").read_text(encoding="utf-8"))["scenarios"]}
 
@@ -115,7 +143,7 @@ def main() -> int:
     explain = llm.explain if use_llm else explain_templates.explain
     pool, golden = personas(), scenarios()
     sessions: dict[int, Session] = {}
-    played: dict[int, set] = {}
+    branches = assign(pool)
     keys = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=STATEMENT), KeyboardButton(text=CONTRACT)],
                                          [KeyboardButton(text=STOP)]], resize_keyboard=True)
     marks = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="👍 норм", callback_data="ok"),
@@ -125,11 +153,8 @@ def main() -> int:
     @dp.message(CommandStart())
     async def start(m: Message) -> None:
         uid = m.from_user.id
-        seen = played.setdefault(uid, set())
-        fresh = [p for p in pool if p["id"] not in seen] or pool
-        p = random.choice(fresh)
-        seen.add(p["id"])
-        who = (m.from_user.username or str(uid)).replace("/", "_")
+        who = (m.from_user.username or str(uid)).replace("/", "_").lower()
+        p = pick(who, pool, branches)
         s = sessions[uid] = Session(p, golden[p["scenario"]], who, intake, explain)
         await m.answer(
             "Это тренажёр агента кредитного кабинета. Ты играешь клиента, после каждого ответа агента жмёшь "

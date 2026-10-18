@@ -45,3 +45,24 @@ def test_statement_button_reaches_core(tmp_path):
         s.say(text)
         s.rate(True)
     assert s.state["view"] is not None and s.state["trace"][-1]["kind"] == "explain"
+
+
+def test_branches_split_evenly():
+    pool = tgbot.personas()
+    branches = tgbot.assign(pool)
+    ids = [pid for b in branches.values() for pid in b]
+    assert sorted(ids) == sorted(p["id"] for p in pool)  # каждая персона ровно у одного
+    scen = {p["id"]: p["scenario"] for p in pool}
+    for b in branches.values():
+        assert len(b) == 4 and len({scen[pid] for pid in b}) == 4  # 4 разных сценария на человека
+
+
+def test_pick_own_branch_then_rest(tmp_path):
+    pool = tgbot.personas()
+    branches = tgbot.assign(pool)
+    mine = branches["lovuhoney"]
+    for pid in mine[:3]:
+        (tmp_path / f"tg-20261018-000000-lovuhoney-{pid}.jsonl").write_text("", encoding="utf-8")
+    assert tgbot.pick("lovuhoney", pool, branches, tmp_path)["id"] == mine[3]
+    (tmp_path / f"tg-20261018-000000-lovuhoney-{mine[3]}.jsonl").write_text("", encoding="utf-8")
+    assert tgbot.pick("lovuhoney", pool, branches, tmp_path)["id"] not in mine  # ветка сыграна → чужие несыгранные
