@@ -231,3 +231,69 @@ test("Учебные значения — чистое UI-преобразова
   assert.ok(cabinetSnapshot(trained, day()).forecast.available);
   assert.equal(s.cabinet, undefined);
 });
+test("Подтверждённая оплата вычитается из начального остатка по дате факта, не по будущей дате графика", () => {
+  const s = filled(),
+    e = s.cabinet!.facility!.events[0];
+  s.cabinet!.plan!.items = [];
+  e.status = "paid";
+  e.settledAt = today;
+  const v = cabinetSnapshot(s, today);
+  assert.equal(v.forecast.minimumDate, today);
+  assert.ok(v.forecast.deficit! > 0);
+});
+test("Изменение DSCR сравнивается за один период, без искусственного цветового порога", () => {
+  const s = filled(),
+    e = s.cabinet!.facility!.events[0];
+  s.cabinet!.coverage = {
+    amount: (e.principal + e.interest) * 1.4,
+    start: today,
+    end: addDays(today, 29),
+    source: "CFADS",
+    methodology: "Операционный поток после налогов",
+    confirmedAt: today,
+    previousValue: 1.8,
+  };
+  assert.ok(
+    cabinetSnapshot(s, today).signals.some((n) =>
+      n.key.startsWith("coverage-change:"),
+    ),
+  );
+});
+test("Наследуемое уведомление документа объединяется с новым, не дублируется в центре", () => {
+  const s = state();
+  s.documents = [
+    {
+      id: "one",
+      category: "pnl",
+      name: "ОФР",
+      period: "2025",
+      createdAt: today,
+      fields: {},
+      confirmed: true,
+      currency: "RUB",
+      mime: "text/csv",
+    },
+  ];
+  s.notifications = [
+    {
+      id: "old",
+      key: "document:one",
+      title: "Документ обработан",
+      body: "ОФР · 2025",
+      href: "profile",
+      read: false,
+      createdAt: today,
+    },
+    {
+      id: "new",
+      key: "v2:doc:one",
+      title: "Документ требует проверки",
+      body: "ОФР · 2025",
+      href: "profile",
+      read: false,
+      createdAt: today,
+    },
+  ];
+  syncCabinetNotices(s, today);
+  assert.equal(s.notifications.filter((n) => n.active !== false).length, 1);
+});

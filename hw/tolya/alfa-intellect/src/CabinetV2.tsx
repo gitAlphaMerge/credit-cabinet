@@ -443,6 +443,8 @@ export function CabinetEditor({
             balance: "",
             rate: "",
             term: "",
+            contractTerm: "",
+            issuedDate: "",
             firstDate: addDays(today, 10),
             documentId: "",
           }
@@ -478,6 +480,8 @@ export function CabinetEditor({
         : "Остаток основного долга сегодня, ₽",
     rate: "Годовая ставка, %",
     term: "Оставшийся срок, месяцев",
+    contractTerm: "Общий срок договора, месяцев",
+    issuedDate: "Дата выдачи кредита",
     firstDate: "Ближайшая договорная дата",
     balanceDate: "Дата остатка",
     through: "План полностью покрывает период до",
@@ -508,7 +512,13 @@ export function CabinetEditor({
           setError("");
           try {
             const body: any = { ...form };
-            for (const k of ["amount", "balance", "rate", "term"])
+            for (const k of [
+              "amount",
+              "balance",
+              "rate",
+              "term",
+              "contractTerm",
+            ])
               if (k in body) body[k] = Number(body[k]);
             if (kind === "facility" && !body.documentId) delete body.documentId;
             if (kind === "plan")
@@ -531,7 +541,7 @@ export function CabinetEditor({
           {kind === "facility"
             ? "Это учёт вашего существующего договора, не выдача кредита. Параметры подтверждаете вы; новые заявки в банк не отправляются. Без документа будет построен расчётный аннуитетный график без комиссий."
             : kind === "plan"
-              ? "Укажите актуальный остаток и все ожидаемые поступления и обязательные расходы до конца горизонта. Кредитные платежи из графика добавятся автоматически — не дублируйте их в плане."
+              ? "Укажите остаток на начало указанного дня и все ожидаемые поступления и обязательные расходы до конца горизонта. Кредитные платежи из графика добавятся автоматически — не дублируйте их в плане."
               : "CFADS не равен чистому потоку выписки. Укажите обоснованную сумму, источник и методику за тот же период, что долговые обязательства."}
         </p>
         <div className="cv-form-grid">
@@ -555,7 +565,13 @@ export function CabinetEditor({
                     type={
                       /Date|through|start|end/.test(k)
                         ? "date"
-                        : ["amount", "balance", "rate", "term"].includes(k)
+                        : [
+                              "amount",
+                              "balance",
+                              "rate",
+                              "term",
+                              "contractTerm",
+                            ].includes(k)
                           ? "number"
                           : "text"
                     }
@@ -563,7 +579,13 @@ export function CabinetEditor({
                     min={
                       k === "amount" && kind === "coverage"
                         ? undefined
-                        : ["amount", "balance", "rate", "term"].includes(k)
+                        : [
+                              "amount",
+                              "balance",
+                              "rate",
+                              "term",
+                              "contractTerm",
+                            ].includes(k)
                           ? 0
                           : undefined
                     }
@@ -781,8 +803,10 @@ export function CabinetV2({
               <div className="cv-terms">
                 <span>{c.rate}% годовых</span>
                 <span>
-                  {c.term} мес.{" "}
-                  {c.quality === "synthetic" ? "общий срок" : "осталось"}
+                  {c.contractTerm || c.term} мес.{" "}
+                  {c.contractTerm || c.quality === "synthetic"
+                    ? "общий срок"
+                    : "осталось"}
                 </span>
                 <span>До {date(c.events.at(-1)?.date || c.asOf)}</span>
               </div>
@@ -790,6 +814,8 @@ export function CabinetV2({
                 <summary>Подробнее о договоре</summary>
                 <p>
                   {c.source}. Остаток на {date(c.asOf)}.{" "}
+                  {c.issuedAt ? `Выдан ${date(c.issuedAt)}. ` : ""}Осталось{" "}
+                  {c.events.filter((e) => e.status !== "paid").length} платежей.{" "}
                   {c.quality === "manual"
                     ? "Плановый график рассчитан по указанным параметрам; индивидуальные условия, комиссии и переносы дат не учтены."
                     : "Исполнение отмечается только по подтверждённым данным."}
@@ -969,9 +995,11 @@ export function CabinetV2({
             <span>
               {!v.forecast.available
                 ? "Недостаточно данных"
-                : v.forecast.deficit! > 0
-                  ? "Есть риск нехватки средств"
-                  : "Средств предварительно достаточно"}
+                : v.forecast.afterNext === null
+                  ? "Ближайший платёж вне горизонта 30 дней"
+                  : v.forecast.deficit! > 0
+                    ? "Есть риск нехватки средств"
+                    : "Средств предварительно достаточно"}
             </span>
             <p>{v.forecast.reason}</p>
             {v.forecast.available && (

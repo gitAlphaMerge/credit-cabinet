@@ -11,6 +11,8 @@ export type PaymentEvent = {
   status: "planned" | "paid" | "overdue";
 };
 export type Facility = {
+  contractTerm?: number;
+  issuedAt?: string;
   id: string;
   kind: "loan" | "line" | "overdraft";
   name: string;
@@ -34,6 +36,7 @@ export type CashPlan = {
   items: { id: string; date: string; amount: number; label: string }[];
 };
 export type Coverage = {
+  previousValue?: number;
   amount: number;
   start: string;
   end: string;
@@ -224,7 +227,10 @@ export function cabinetSnapshot(s: AppState, today = day()) {
           ? "Нужны датированный остаток и подтверждённый план поступлений и расходов."
           : !planReady
             ? "Обновите остаток (не старше 7 дней) и план на весь горизонт 30 дней."
-            : "Расходы и кредитные платежи учитываются до поступлений того же дня. Фактический порядок операций может отличаться.",
+            : "Расходы и кредитные платежи учитываются до поступлений того же дня. Фактический порядок операций может отличаться." +
+              (next && next.date > end
+                ? " Ближайший платёж вне 30-дневного горизонта и отдельно не оценён."
+                : ""),
     timeline,
   };
   const coverage = s.cabinet?.coverage;
@@ -428,6 +434,20 @@ export function cabinetSnapshot(s: AppState, today = day()) {
       title:
         dscr < 1 ? "Поток ниже долговых платежей" : "Небольшой запас покрытия",
       body: `DSCR ${dscr.toFixed(2)} за ${coverage!.start} — ${coverage!.end}. Ориентир MVP, не норматив банка.`,
+      type: "risk",
+      href: "cabinet-v2",
+      date: today,
+    });
+  if (
+    dscr !== null &&
+    dscr >= 1.3 &&
+    coverage?.previousValue !== undefined &&
+    dscr < coverage.previousValue - 1e-10
+  )
+    signals.push({
+      key: `coverage-change:${facility!.id}:${coverage.confirmedAt}`,
+      title: "Снизилось покрытие обязательств",
+      body: `DSCR изменился с ${coverage.previousValue.toFixed(2)} до ${dscr.toFixed(2)} за тот же период ${coverage.start} — ${coverage.end}. Это динамика расчёта, не банковский норматив.`,
       type: "risk",
       href: "cabinet-v2",
       date: today,

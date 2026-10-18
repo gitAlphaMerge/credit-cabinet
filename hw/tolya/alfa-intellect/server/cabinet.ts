@@ -189,6 +189,8 @@ cabinetRouter.post("/facility", (req, res) => {
       rate: z.number().finite().min(0).max(100),
       term: z.number().int().min(1).max(120),
       firstDate: date,
+      issuedDate: date.optional(),
+      contractTerm: z.number().int().min(1).max(120).optional(),
       documentId: z.string().optional(),
     })
     .strict()
@@ -201,7 +203,12 @@ cabinetRouter.post("/facility", (req, res) => {
     });
     return;
   }
-  if (p.balance > p.amount || p.firstDate < day()) {
+  if (
+    p.balance > p.amount ||
+    p.firstDate < day() ||
+    (p.issuedDate && p.issuedDate > day()) ||
+    (p.contractTerm && p.contractTerm < p.term)
+  ) {
     res.status(422).json({
       error:
         "Остаток не может превышать первоначальную сумму; первая дата планового платежа должна быть не раньше сегодня.",
@@ -265,6 +272,8 @@ cabinetRouter.post("/facility", (req, res) => {
       balance: p.balance,
       rate: p.rate,
       term: events.length,
+      contractTerm: p.contractTerm,
+      issuedAt: p.issuedDate,
       startDate: day(),
       asOf: day(),
       source: doc
@@ -346,7 +355,15 @@ cabinetRouter.post("/coverage", (req, res) => {
   const s = stateOf(res.locals.userId);
   s.cabinet = {
     ...s.cabinet,
-    coverage: { ...p, confirmedAt: new Date().toISOString() },
+    coverage: {
+      ...p,
+      previousValue:
+        s.cabinet?.coverage?.start === p.start &&
+        s.cabinet?.coverage?.end === p.end
+          ? (cabinetSnapshot(s).metrics[0].value ?? undefined)
+          : undefined,
+      confirmedAt: new Date().toISOString(),
+    },
   };
   syncCabinetNotices(s);
   saveState(res.locals.userId, s);
