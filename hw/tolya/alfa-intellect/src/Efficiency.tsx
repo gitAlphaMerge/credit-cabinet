@@ -72,7 +72,10 @@ export function EfficiencyPage() {
   const threshold = DSCR_TARGET.toLocaleString("ru-RU");
   return (
     <main className="page-wrap efficiency-page">
-      <button className="text-button muted" onClick={() => w.go("/cabinet")}>
+      <button
+        className="text-button muted"
+        onClick={() => w.go(w.cabinetPath || "/cabinet")}
+      >
         <ArrowLeft size={16} /> Кредитный кабинет
       </button>
       <div className="page-heading">

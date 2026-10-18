@@ -48,6 +48,7 @@ export function ChatComposer({ chatId }: { chatId: string }) {
   return (
     <form
       className="composer"
+      data-tour="composer"
       onSubmit={(e) => {
         e.preventDefault();
         if (!w.uploading) void w.sendMessage();

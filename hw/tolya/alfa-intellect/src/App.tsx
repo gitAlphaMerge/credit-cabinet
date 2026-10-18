@@ -17,6 +17,7 @@ import { Onboarding } from "./Onboarding";
 import { WorkspaceContext } from "./context";
 import { WorkspaceView } from "./WorkspaceView";
 import { Tour } from "./Tour";
+import { NotificationCenter } from "./NotificationCenter";
 import { DemoPage } from "./DemoPage";
 import { Chat } from "./Chat";
 import { ProfilePage } from "./Profile";
@@ -60,6 +61,9 @@ export function App() {
   } | null>(null);
   const sendingLock = useRef(false),
     chatPageVisited = useRef(false);
+  const cabinetPath = useRef(
+    location.pathname === "/cabinet" ? "/cabinet" : "/cabinet-v2",
+  );
   const [tourPreview, setTourPreview] = useState<AppState>();
   const financingOwner = useRef<string | null>(null);
   const [financingDraft, setFinancingDraft] = useState<FinancingDraft>({});
@@ -105,6 +109,7 @@ export function App() {
     };
   }, [tour >= 0, tourPreview]);
   function go(p: string) {
+    if (p === "/cabinet" || p === "/cabinet-v2") cabinetPath.current = p;
     history.pushState({}, "", p);
     setPath(p);
     setMobileNav(false);
@@ -139,7 +144,7 @@ export function App() {
     setHistoryOpen(false);
     setChatVisible(false);
     await refresh();
-    go("/cabinet");
+    go("/cabinet-v2");
   }
   async function signOut() {
     try {
@@ -199,7 +204,8 @@ export function App() {
     return () => removeEventListener("popstate", pop);
   }, []);
   useEffect(() => {
-    if (state && !state.preferences.tourDone && path === "/cabinet") setTour(0);
+    if (state && !state.preferences.tourDone && path === "/cabinet-v2")
+      setTour(0);
   }, [state?.preferences.tourDone, path]);
   useEffect(() => {
     if (toast) {
@@ -265,6 +271,7 @@ export function App() {
     <WorkspaceContext.Provider
       value={{
         state,
+        cabinetPath: cabinetPath.current,
         config,
         go,
         refresh,
@@ -302,12 +309,12 @@ export function App() {
     >
       <div className={"workspace app-shell page-" + page}>
         <header className="app-header">
-          <button onClick={() => go("/cabinet")} className="unstyled">
+          <button onClick={() => go("/cabinet-v2")} className="unstyled">
             <Brand />
           </button>
-          <nav className={mobileNav || tour === 4 ? "open" : ""}>
+          <nav className={mobileNav || tour === 5 ? "open" : ""}>
             {[
-              ["cabinet", "Кредитный кабинет"],
+              ["cabinet-v2", "Кредитный кабинет"],
               ["chat", "Чат"],
               ["financing", "Подбор финансирования"],
             ].map(([p, label]) => (
@@ -315,7 +322,9 @@ export function App() {
                 data-tour={p}
                 key={p}
                 className={
-                  page === p || (p === "cabinet" && page === "efficiency")
+                  page === p ||
+                  (p === "cabinet-v2" &&
+                    ["cabinet", "efficiency"].includes(page))
                     ? "active"
                     : ""
                 }
@@ -343,64 +352,11 @@ export function App() {
               <span>{state.profile.name}</span>
               <span>⌄</span>
             </button>
-            <div className="bell-wrap">
-              <IconButton label="Уведомления" onClick={() => setBell(!bell)}>
-                <Bell size={20} />
-                {state.notifications.some((n) => !n.read) && (
-                  <i className="notification-dot" />
-                )}
-              </IconButton>
-              {bell && (
-                <div className="notification-panel">
-                  <div className="panel-title">
-                    <b>Уведомления</b>
-                    <button
-                      className="text-button"
-                      onClick={() => void act("/notifications/read", {})}
-                    >
-                      Прочитать все
-                    </button>
-                  </div>
-                  {state.notifications.length ? (
-                    state.notifications.map((n) => (
-                      <button
-                        key={n.id}
-                        className={n.read ? "notice" : "notice unread"}
-                        onClick={() => {
-                          void act("/notifications/read", { id: n.id });
-                          go("/" + n.href);
-                          setBell(false);
-                        }}
-                      >
-                        <span className="icon-tile red">
-                          <Bell size={16} />
-                        </span>
-                        <span>
-                          <b>{n.title}</b>
-                          <small>{n.body}</small>
-                          <time>
-                            {new Date(n.createdAt).toLocaleDateString("ru-RU")}
-                          </time>
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="small-empty">
-                      <Bell size={24} />
-                      <p>Пока тихо</p>
-                      <small>
-                        Здесь появятся события по вашим документам и
-                        сохранённому графику.
-                      </small>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <NotificationCenter />
             <IconButton
               label="Обучение"
               onClick={() => {
-                go("/cabinet");
+                go("/cabinet-v2");
                 setTour(0);
               }}
             >
@@ -430,6 +386,7 @@ export function App() {
           </div>
         ) : (
           <WorkspaceView
+            modern={page !== "cabinet"}
             tour={tour}
             preview={tour >= 0 ? tourPreview : undefined}
           />

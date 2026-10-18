@@ -31,10 +31,11 @@ test("Нет данных не превращается в нулевой рей
   assert.equal(efficiencyMetrics(c).reserve, -10800);
   assert.match(efficiencyBasis(publicPreview("ip")).label, /не действующий/);
 });
-test("Обучение: ровно шесть разных целей, профиль и подбор разделены", () => {
+test("Обучение: ровно шесть целей новой спецификации, уведомления и агент разделены", () => {
   assert.equal(tourSteps.length, 6);
   assert.equal(new Set(tourSteps.map((s) => s[0])).size, 6);
-  assert.equal(tourSteps[4][0], "financing");
-  assert.equal(tourSteps[5][0], "profile");
+  assert.equal(tourSteps[3][0], "recommendations");
+  assert.equal(tourSteps[4][0], "chat-panel");
+  assert.equal(tourSteps[5][0], "financing");
   assert.ok(tourSteps.every((s) => !s[2].includes("Без кредита")));
 });

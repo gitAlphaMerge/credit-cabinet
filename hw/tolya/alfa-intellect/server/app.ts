@@ -19,6 +19,7 @@ import { extract, fieldNames } from "./documents";
 import { DemoProvider, OpenAIProvider } from "./ai-provider";
 import { publicPreview } from "./preview";
 import { findCompany, RegistryError } from "./registry";
+import { cabinetRouter, syncCabinetNotices } from "./cabinet";
 import type { Profile, AppState } from "../shared/types";
 export const app = express();
 app.disable("x-powered-by");
@@ -202,7 +203,13 @@ app.use("/api", (req, res, next) => {
   res.locals.userId = u.user_id;
   next();
 });
-app.get("/api/state", (_req, res) => res.json(stateOf(res.locals.userId)));
+app.get("/api/state", (_req, res) => {
+  const s = stateOf(res.locals.userId);
+  syncCabinetNotices(s);
+  saveState(res.locals.userId, s);
+  res.json(s);
+});
+app.use("/api/cabinet", cabinetRouter);
 app.patch("/api/profile", (req, res) => {
   const s = stateOf(res.locals.userId);
   const patch = z
@@ -357,8 +364,8 @@ app.post("/api/documents/:id/confirm", (req, res) => {
     });
   notify(
     s,
-    "document:" + doc.id,
-    "Документ обработан",
+    "v2:doc:" + doc.id,
+    "Документ подтверждён",
     doc.name + " · " + doc.period,
     "profile",
   );

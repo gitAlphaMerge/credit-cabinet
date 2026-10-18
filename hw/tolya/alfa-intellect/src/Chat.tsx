@@ -151,7 +151,7 @@ export function Chat({
                   if (full) {
                     w.setHistoryOpen(false);
                     w.setChatVisible(true);
-                    w.go("/cabinet");
+                    w.go(w.cabinetPath || "/cabinet");
                   } else w.go("/chat");
                 }}
               >

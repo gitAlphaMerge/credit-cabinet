@@ -69,7 +69,10 @@ export function ProfilePage() {
   }
   return (
     <main className="profile-page page-wrap">
-      <button className="text-button muted" onClick={() => w.go("/cabinet")}>
+      <button
+        className="text-button muted"
+        onClick={() => w.go(w.cabinetPath || "/cabinet")}
+      >
         <ArrowLeft size={15} /> Кредитный кабинет
       </button>
       <div className="page-heading">
@@ -372,6 +375,15 @@ export function ProfilePage() {
                 >
                   Скачать шаблон с примером
                 </a>
+                {c === "pnl" && (
+                  <a
+                    className="template-link"
+                    href="/fixtures/pnl-comparable.csv"
+                    download
+                  >
+                    Шаблон ОФР для сравнения периодов
+                  </a>
+                )}
               </article>
             );
           })}

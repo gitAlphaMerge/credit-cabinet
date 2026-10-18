@@ -4,33 +4,33 @@ import { Badge, Button } from "./ui";
 export const tourSteps = [
   [
     "summary",
-    "Кредитная сводка",
+    "Ваше финансирование",
     "Здесь собраны сумма кредита, остаток основного долга и прогресс погашения.",
   ],
   [
     "payment",
-    "Ближайший платёж",
-    "Дата и сумма ближайшего платежа. Основной долг и проценты показаны отдельно, а подробный график доступен рядом.",
+    "Платежи и график",
+    "Проверьте ближайшую дату и состав платежа, откройте календарь. Постоянный график показывает, как изменяется основной долг.",
   ],
   [
     "forecast",
-    "Денежный прогноз",
-    "Смотрите ожидаемый остаток после ближайшего платежа. Сравнивайте базовый сценарий со снижением поступлений на 30%.",
+    "Денежный поток и коэффициенты",
+    "Смотрите поток, прогноз готовности к платежу и четыре финансовых показателя. Формулы и источники раскрываются по значку информации.",
+  ],
+  [
+    "recommendations",
+    "Рекомендации и уведомления",
+    "Внизу собраны важные сигналы расчётов, а в колокольчике — события всего приложения. Они проверяются при входе и обновлении данных.",
   ],
   [
     "chat-panel",
-    "Финансовый помощник",
-    "Обсуждайте бизнес и прикрепляйте документы. Чат можно скрыть, открыть отдельной страницей или переключить историю независимо.",
+    "ИИ-агент",
+    "Обсудите расчёт с агентом и прикрепите документы в поле ввода. Панель можно скрыть, развернуть и изменить её ширину.",
   ],
   [
     "financing",
     "Подбор финансирования",
-    "Укажите цель, сумму и срок. Сравните варианты финансирования с денежным потоком бизнеса и сохраните подходящий расчёт.",
-  ],
-  [
-    "profile",
-    "Мой бизнес",
-    "Здесь открывается профиль компании: общие сведения, поиск по ИНН и документы. Эти данные помогают уточнять расчёты и ответы помощника.",
+    "Сформулируйте цель нового запроса, рассчитайте параметры и сравните варианты. Действующие обязательства остаются в кредитном кабинете.",
   ],
 ];
 export function Tour({
@@ -44,6 +44,7 @@ export function Tour({
 }) {
   const card = useRef<HTMLDivElement>(null),
     [rect, setRect] = useState<DOMRect | null>(null),
+    [extras, setExtras] = useState<DOMRect[]>([]),
     [position, setPosition] = useState({ top: 150, left: 24 }),
     [busy, setBusy] = useState(false);
   const complete = async () => {
@@ -58,6 +59,12 @@ export function Tour({
     }
   };
   useEffect(() => {
+    const extraKeys: Record<number, string[]> = {
+      1: ["schedule"],
+      2: ["metrics"],
+      3: ["notifications"],
+      4: ["composer", "discuss"],
+    };
     const measure = () => {
       const node = document.querySelector<HTMLElement>(
         `[data-tour="${tourSteps[step][0]}"]`,
@@ -68,6 +75,13 @@ export function Tour({
       }
       const r = node.getBoundingClientRect();
       setRect(r);
+      setExtras(
+        (extraKeys[step] || []).flatMap((key) => {
+          const el = document.querySelector(`[data-tour="${key}"]`),
+            b = el?.getBoundingClientRect();
+          return b && b.width && b.bottom > 0 && b.top < innerHeight ? [b] : [];
+        }),
+      );
       const width = Math.min(344, innerWidth - 32),
         height = card.current?.offsetHeight || 280;
       let left = r.right + 16,
@@ -82,13 +96,16 @@ export function Tour({
       }
       setPosition({
         left: Math.max(16, left),
-        top: Math.max(80, Math.min(top, innerHeight - height - 12)),
+        top:
+          innerWidth <= 1000
+            ? innerHeight - height - 16
+            : Math.max(80, Math.min(top, innerHeight - height - 12)),
       });
     };
     const timer = setTimeout(() => {
       document
         .querySelector(`[data-tour="${tourSteps[step][0]}"]`)
-        ?.scrollIntoView({ block: "nearest", behavior: "instant" });
+        ?.scrollIntoView({ block: "start", behavior: "instant" });
       measure();
       card.current?.querySelector<HTMLButtonElement>("[data-next]")?.focus();
     }, 100);
@@ -126,20 +143,65 @@ export function Tour({
         }
       }}
     >
-      {rect && (
-        <div
-          className="guided-highlight"
-          style={{
-            top: Math.max(4, rect.top - 4),
-            left: rect.left - 4,
-            width: rect.width + 8,
-            height: Math.min(
-              rect.height + 8,
-              innerHeight - Math.max(4, rect.top) - 8,
-            ),
-          }}
+      <svg
+        className="guided-shade"
+        width="100%"
+        height="100%"
+        aria-hidden="true"
+      >
+        <defs>
+          <mask id="tour-holes">
+            <rect width="100%" height="100%" fill="white" />
+            {[rect, ...extras]
+              .filter((r): r is DOMRect => !!r)
+              .map((r, i) => (
+                <rect
+                  key={i}
+                  x={Math.max(4, r.left - 4)}
+                  y={Math.max(r.top < 64 ? 4 : 65, r.top - 4)}
+                  width={r.width + 8}
+                  height={Math.max(
+                    0,
+                    Math.min(
+                      innerWidth <= 1000 ? position.top - 12 : innerHeight - 8,
+                      r.bottom + 4,
+                    ) - Math.max(r.top < 64 ? 4 : 65, r.top - 4),
+                  )}
+                  rx="14"
+                  fill="black"
+                />
+              ))}
+          </mask>
+        </defs>
+        <rect
+          width="100%"
+          height="100%"
+          fill="#17203446"
+          mask="url(#tour-holes)"
         />
-      )}
+      </svg>
+      {[rect, ...extras]
+        .filter((r): r is DOMRect => !!r)
+        .map((r, i) => {
+          const top = Math.max(r.top < 64 ? 4 : 65, r.top - 4),
+            bottom = Math.min(
+              innerHeight - 8,
+              innerWidth <= 1000 ? position.top - 12 : innerHeight - 8,
+              r.bottom + 4,
+            );
+          return bottom > top ? (
+            <div
+              key={i}
+              className={"guided-highlight " + (i ? "guided-extra" : "")}
+              style={{
+                top,
+                left: Math.max(4, r.left - 4),
+                width: Math.min(innerWidth - r.left, r.width + 8),
+                height: bottom - top,
+              }}
+            />
+          ) : null;
+        })}
       <div
         ref={card}
         className="guided-card"

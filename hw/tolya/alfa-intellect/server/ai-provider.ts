@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { calculate, financeInput } from "./finance";
 import type { AppState, Calculation, Message } from "../shared/types";
+import { cabinetSnapshot } from "../shared/cabinet";
 export interface AIProvider {
   reply(
     state: AppState,
@@ -17,6 +18,10 @@ export interface AIProvider {
 }
 export function contextOf(s: AppState, selectionId?: string) {
   return {
+    cabinet: cabinetSnapshot(s),
+    significantEvents: s.notifications
+      .filter((n) => n.active !== false)
+      .slice(0, 8),
     business: s.profile,
     financials: s.financials,
     documents: s.documents
@@ -61,6 +66,21 @@ export function contextOf(s: AppState, selectionId?: string) {
 export class DemoProvider implements AIProvider {
   async reply(s: AppState, history: Message[], selectionId?: string) {
     const text = history.at(-1)?.text || "";
+    const discussion = s.chats.find(
+      (c) => c.messages === history,
+    )?.cabinetContext;
+    if (discussion && /кабинет|прогноз|рекомендац|покрыти/i.test(text)) {
+      const v = discussion.snapshot,
+        f = v.forecast;
+      const amount = (n: number | null) =>
+        n === null
+          ? "недостаточно данных"
+          : n.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " ₽";
+      return {
+        mode: "demo",
+        text: `## Разбор кредитного кабинета\nЭто программное объяснение, не ответ подключённой модели. Контекст зафиксирован ${discussion.capturedAt}.\n\n- Финансирование: ${v.facility?.name || "не добавлено"}.\n- Остаток основного долга: ${amount(v.facility?.balance ?? null)}.\n- Чистый поток по выписке (${v.cash.start} — ${v.cash.end}): ${amount(v.cash.net)}. Это не CFADS и не чистая прибыль.\n- Прогноз после ближайшего платежа: ${amount(f.afterNext)}.\n- Минимальный остаток: ${amount(f.minimum)}; дефицит: ${amount(f.deficit)}.\n\n${f.reason}\n\n${f.available ? "Сверьте даты поступлений и расходов с планом. При дефиците обсудите перенос расходов или доступные источники ликвидности; изменение договора требует согласования с банком." : "Добавьте актуальный остаток, полный датированный план и график обязательств. Без них вывод о достаточности средств делать нельзя."}\n\nИсточник: ${f.source}. Решение по финансированию принимает банк.`,
+      };
+    }
     const selection =
       s.selections.find((x) => x.id === selectionId) ||
       (/последн|расч[её]т|нагрузк/i.test(text) ? s.selections[0] : undefined);
@@ -123,7 +143,11 @@ export class OpenAIProvider implements AIProvider {
       timeout: 45000,
       maxRetries: 0,
     });
-    const context = contextOf(s, selectionId);
+    const context = {
+      ...contextOf(s, selectionId),
+      cabinetDiscussion: s.chats.find((c) => c.messages === history)
+        ?.cabinetContext,
+    };
     const input: any[] = [
       {
         role: "user",

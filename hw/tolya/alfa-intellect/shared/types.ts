@@ -77,6 +77,10 @@ export type Message = {
   proposal?: { field: string; value: number };
 };
 export type Chat = {
+  cabinetContext?: {
+    capturedAt: string;
+    snapshot: import("./cabinet").CabinetSnapshot;
+  };
   id: string;
   title: string;
   selectionId?: string;
@@ -91,6 +95,8 @@ export type Credit = {
   source: string;
 };
 export type Notice = {
+  type?: "payment" | "risk" | "data" | "result";
+  active?: boolean;
   id: string;
   key: string;
   title: string;
@@ -100,6 +106,7 @@ export type Notice = {
   createdAt: string;
 };
 export type AppState = {
+  cabinet?: import("./cabinet").CabinetData;
   profile: Profile;
   documents: Doc[];
   chats: Chat[];

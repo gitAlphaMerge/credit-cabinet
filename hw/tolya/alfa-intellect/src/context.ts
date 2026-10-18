@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type { AppState, Doc } from "../shared/types";
 import type { FinancingDraft } from "./financing-draft";
 export type Workspace = {
+  cabinetPath?: string;
   state: AppState;
   config: any;
   go: (p: string) => void;

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { PanelRightOpen, ChartNoAxesCombined } from "lucide-react";
+import { PanelRightOpen, ArrowRight } from "lucide-react";
 import { useWorkspace } from "./context";
 import { Cabinet } from "./Cabinet";
+import { CabinetV2 } from "./CabinetV2";
+import { trainingCabinet } from "../shared/cabinet-training";
 import { Chat } from "./Chat";
 import { Button } from "./ui";
 import type { AppState } from "../shared/types";
@@ -9,9 +11,11 @@ import { panelSplit } from "./panel-layout";
 export function WorkspaceView({
   preview,
   tour = -1,
+  modern = false,
 }: {
   preview?: AppState;
   tour?: number;
+  modern?: boolean;
 }) {
   const w = useWorkspace(),
     root = useRef<HTMLDivElement>(null),
@@ -43,8 +47,8 @@ export function WorkspaceView({
   useEffect(() => {
     if (tour >= 0) {
       if (beforeTour.current === null) beforeTour.current = visible;
-      w.setChatVisible(tour === 3);
-      setMobileTab(tour === 3 ? "chat" : "credit");
+      w.setChatVisible(tour === 4);
+      setMobileTab(tour === 4 ? "chat" : "credit");
     } else if (beforeTour.current !== null) {
       w.setChatVisible(beforeTour.current);
       beforeTour.current = null;
@@ -64,15 +68,44 @@ export function WorkspaceView({
       await w.act("/preferences", { split: ratio.current }, "PATCH");
     } catch {}
   }
+  async function discuss() {
+    try {
+      const result = await w.act("/cabinet/discuss", {
+        chatId: w.activeChatId,
+      });
+      w.setActiveChatId(result.chatId);
+      w.setChatVisible(true);
+      w.setHistoryOpen(false);
+      setMobileTab("chat");
+      if (!w.draft.trim())
+        w.setDraft(
+          "Объясни прогноз кредитного кабинета, источники и возможные действия.",
+        );
+    } catch {}
+  }
   return (
-    <main className="cabinet-page work-page">
+    <main
+      className={
+        "cabinet-page work-page " +
+        (tour >= 0 ? "touring " + (tour === 4 ? "tour-chat" : "") : "")
+      }
+    >
       <div className="work-toolbar">
         <div className="visually-hidden">
           <h1>Кредитный кабинет</h1>
         </div>
-        <Button secondary onClick={() => w.go("/efficiency")}>
-          <ChartNoAxesCombined size={17} /> Эффективность
-        </Button>
+        {modern ? (
+          <button
+            className="text-button muted"
+            onClick={() => w.go("/cabinet")}
+          >
+            Предыдущий кабинет ↗
+          </button>
+        ) : (
+          <Button secondary onClick={() => w.go("/cabinet-v2")}>
+            Открыть новый кабинет <ArrowRight size={15} />
+          </Button>
+        )}
         {narrow ? (
           <div className="segmented mobile-work-tabs">
             <button
@@ -116,7 +149,14 @@ export function WorkspaceView({
       >
         {(!narrow || mobileTab === "credit" || !visible) && (
           <div className="cabinet-scroll">
-            <Cabinet preview={preview} />
+            {modern ? (
+              <CabinetV2
+                preview={preview ? trainingCabinet(preview) : undefined}
+                onDiscuss={() => void discuss()}
+              />
+            ) : (
+              <Cabinet preview={preview} />
+            )}
           </div>
         )}
         {!narrow && visible && (

@@ -131,8 +131,9 @@ export async function extract(
         purpose: row[headers.indexOf("purpose")] || "",
       };
       if (headers.includes("balance")) {
-        const b = Number(row[headers.indexOf("balance")]);
-        if (Number.isFinite(b)) record.balance = b;
+        const rawBalance = row[headers.indexOf("balance")]?.trim();
+        const b = Number(rawBalance);
+        if (rawBalance && Number.isFinite(b)) record.balance = b;
       }
       records.push(record);
     }
@@ -169,7 +170,13 @@ export async function extract(
         !Number.isFinite(Date.parse(row[0]))
       )
         throw new Error("График: нужна корректная дата YYYY-MM-DD.");
-      for (const key of ["payment", "principal", "interest", "balance"]) {
+      for (const key of [
+        "payment",
+        "principal",
+        "interest",
+        "balance",
+        ...(headers.includes("fees") ? ["fees"] : []),
+      ]) {
         const value = Number(row[headers.indexOf(key)]);
         if (!Number.isFinite(value) || value < 0)
           throw new Error("График: неверное число " + key);
@@ -179,7 +186,8 @@ export async function extract(
         Math.abs(
           Number(record.payment) -
             Number(record.principal) -
-            Number(record.interest),
+            Number(record.interest) -
+            Number(record.fees || 0),
         ) > 0.1
       )
         throw new Error(
@@ -234,6 +242,12 @@ export const fieldNames: Record<string, string> = {
   liabilities: "Обязательства",
   equity: "Капитал",
   revenue: "Бухгалтерская выручка",
+  previousRevenue: "Выручка предыдущего сопоставимого периода",
+  salesProfit: "Прибыль от продаж",
+  periodStart: "Начало отчётного периода",
+  periodEnd: "Конец отчётного периода",
+  previousStart: "Начало предыдущего периода",
+  previousEnd: "Конец предыдущего периода",
   expenses: "Расходы",
   profit: "Бухгалтерская прибыль",
   plannedIncome: "Плановые поступления",
@@ -245,5 +259,6 @@ export const fieldNames: Record<string, string> = {
   payment: "Платёж",
   principal: "Основной долг",
   interest: "Проценты",
+  fees: "Комиссии",
   balance: "Остаток долга",
 };

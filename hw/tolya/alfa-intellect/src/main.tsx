@@ -6,6 +6,7 @@ import "./styles.css";
 import "./redesign.css";
 import "./motion.css";
 import "./chat.css";
+import "./cabinet.css";
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>

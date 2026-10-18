@@ -1,0 +1,55 @@
+// Isolated end-to-end QA. Never run against the user's 4173 database.
+// prettier-ignore
+async page => {
+ const base="http://localhost:4174", check=(ok,m)=>{if(!ok)throw new Error(m);},errors=[];
+ if(!page.url().startsWith(base))throw new Error("Only use test server 4174");
+ page.on("pageerror",e=>errors.push(e.message));
+ const state=async()=>(await page.request.get(base+"/api/state")).json(),today=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Moscow"}).format(new Date()),add=n=>new Date(Date.parse(today)+n*86400000).toISOString().slice(0,10);
+ const snap=async name=>{await page.waitForTimeout(300);await page.screenshot({path:"output/playwright/cabinet-v2-"+name+".png"});};
+ const reg=await page.request.post(base+"/api/auth/register",{data:{phone:"+7"+String(Date.now()).slice(-10),password:"Cabinet-v2-test18",profile:{name:"ООО «Проверка кабинета»",form:"ООО",stage:"operating",sector:"Производство",registered:true,ageBand:"3–5 лет",result:"Прибыль",debt:"Нет",intent:"Подобрать финансирование"}}});check(reg.ok(),"Registration failed");
+ await page.setViewportSize({width:1440,height:1000});await page.goto(base+"/cabinet-v2");
+ const dialog=()=>page.getByRole("dialog",{name:"Знакомство с продуктом",exact:true});
+ const tours=[];
+ for(const width of [1440,390]){
+  if(width===390){await page.setViewportSize({width,height:844});await page.getByRole("button",{name:"Обучение",exact:true}).click();}
+  for(let i=0;i<6;i++){
+   await dialog().getByText(`${i+1} из 6`,{exact:true}).waitFor();await page.waitForTimeout(400);
+   check(await page.locator(".guided-highlight").count()>0,"Missing real tour anchor "+i+" / "+width);
+   const card=await dialog().boundingBox(),highlight=await page.locator(".guided-highlight").first().boundingBox();
+   check(card.x>=0&&card.x+card.width<=width&&card.y>=0&&card.y+card.height<=(width===390?844:1000),"Tour outside viewport "+i);
+   check(!(card.x<highlight.x+highlight.width&&card.x+card.width>highlight.x&&card.y<highlight.y+highlight.height&&card.y+card.height>highlight.y),"Tour obscures highlighted target "+i+" / "+width);
+   if([0,2,3,4,5].includes(i))await snap("tour-"+(i+1)+"-"+width);
+   const s=await state();check(!s.cabinet&&!s.credit&&Object.keys(s.financials).length===0,"Training saved synthetic data");
+   await dialog().getByRole("button",{name:i===5?"Завершить":"Далее",exact:true}).click();
+  }
+  await dialog().waitFor({state:"detached"});check(await page.locator(".cv-training-label").count()===0,"Training numbers remain");tours.push(width);
+ }
+ await page.setViewportSize({width:1440,height:1000});await page.locator(".cabinet-scroll").evaluate(el=>el.scrollTop=0);await snap("empty");
+ check(await page.locator(".cv-hero-number").innerText()==="—","Unknown debt became zero");
+ await page.getByRole("button",{name:"Нет действующих кредитов",exact:true}).click();await page.getByText("Вы подтвердили отсутствие действующего кредита.",{exact:true}).waitFor();check((await page.locator(".cv-hero-number").innerText()).includes("0"),"Confirmed absence not zero");
+ await page.getByRole("button",{name:"Добавить кредит",exact:true}).click();
+ const editor=page.getByRole("dialog",{name:"Добавить действующий кредит",exact:true});
+ for(const [name,v] of [["Название договора","Оборудование · договор №18"],["Первоначальная сумма, ₽","3000000"],["Остаток основного долга сегодня, ₽","2500000"],["Годовая ставка, %","18"],["Оставшийся срок, месяцев","30"],["Ближайшая договорная дата",add(3)]])await editor.getByLabel(name,{exact:true}).fill(v);
+ await editor.getByRole("checkbox").check();await editor.getByRole("button",{name:"Подтвердить и сохранить",exact:true}).click();await editor.waitFor({state:"detached"});
+ let s=await state();check(s.cabinet.facility.balance===2500000&&s.credit===null,"Facility not persisted independently");const events=s.cabinet.facility.events;
+ await page.locator(".cv-chart-plot").focus();await page.locator(".cv-chart-plot").press("ArrowRight");await page.locator(".cv-chart-tooltip").waitFor();check((await page.locator(".cv-chart-tooltip").innerText()).includes(events[0].date.slice(0,4)),"Chart date missing");await snap("filled");
+ await page.getByRole("button",{name:"Календарь платежей",exact:true}).click();const calendar=page.getByRole("dialog",{name:"Календарь платежей",exact:true});
+ check((await calendar.locator(".cv-calendar-detail").innerText()).includes(Math.round(events[0].principal+events[0].interest).toLocaleString("ru-RU")),"Calendar amount differs");await snap("calendar");await calendar.getByRole("button",{name:"Следующий месяц",exact:true}).click();await calendar.getByRole("button",{name:"Предыдущий месяц",exact:true}).click();await page.keyboard.press("Escape");
+ const csv=`date,amount,kind,counterparty,purpose,balance\n${add(-29)},900000,operating,Клиент,Оплата,900000\n${today},-1100000,operating,Поставщик,Расходы,100000\n`;
+ const form=new URLSearchParams();
+ await page.getByRole("button",{name:"Уточнить план движения денег",exact:true}).click();let plan=page.getByRole("dialog",{name:"План движения денег",exact:true});
+ await plan.getByLabel("Остаток денег на дату, ₽",{exact:true}).fill("100000");await plan.getByLabel("Источник данных",{exact:true}).fill("Подтверждённый план казначейства");await plan.getByRole("button",{name:"Убрать операцию 1",exact:true}).click();await plan.getByRole("checkbox").check();await plan.getByRole("button",{name:"Подтвердить и сохранить",exact:true}).click();await plan.waitFor({state:"detached"});
+ check((await (await page.request.get(base+"/api/cabinet")).json()).forecast.deficit>0,"No calculated deficit");
+ await page.getByRole("button",{name:"Данные и методика CFADS",exact:true}).click();const coverage=page.getByRole("dialog",{name:"Подтвердить CFADS",exact:true});
+ await coverage.getByLabel("CFADS за период, ₽",{exact:true}).fill("150000");await coverage.getByLabel("Источник данных",{exact:true}).fill("Управленческий расчёт CFADS");await coverage.getByLabel("Методика CFADS: состав доходов, расходов, налогов и корректировок",{exact:true}).fill("Операционный поток после налогов и обязательных корректировок за сопоставимый период");await coverage.getByRole("checkbox").check();await coverage.getByRole("button",{name:"Подтвердить и сохранить",exact:true}).click();await coverage.waitFor({state:"detached"});
+ await page.getByRole("button",{name:"Документы бизнеса",exact:true}).click();await page.locator(".profile-page input[type=file]").setInputFiles({name:"statement-v2.csv",mimeType:"text/csv",buffer:Buffer.from(csv)});const doc=page.getByRole("dialog",{name:"Проверьте извлечённые данные",exact:true});await doc.getByRole("button",{name:"Подтвердить и сохранить",exact:true}).click();await doc.waitFor({state:"detached"});if(await page.locator(".toast button").count())await page.locator(".toast button").click();
+ await page.getByRole("button",{name:"Кредитный кабинет",exact:true}).first().click();await page.locator(".cv-cash").scrollIntoViewIfNeeded();check((await page.locator(".cv-cash>strong").innerText()).includes("200"),"Statement not reflected");await snap("financials");
+ await page.getByRole("button",{name:"О показателе: Покрытие долга · DSCR",exact:true}).click();await page.getByRole("dialog",{name:"Покрытие долга · DSCR",exact:true}).waitFor();await snap("metric");await page.keyboard.press("Escape");
+ await page.getByRole("button",{name:"Уведомления",exact:true}).click();const center=page.getByRole("dialog",{name:"Центр уведомлений",exact:true});await center.getByText("Возможна нехватка средств",{exact:true}).waitFor();await snap("notifications");await center.getByRole("button",{name:"Прочитать все",exact:true}).click();await page.waitForTimeout(250);check((await state()).notifications.every(n=>n.read),"Read state failed");const count=(await state()).notifications.length;await page.getByRole("button",{name:"Закрыть уведомления",exact:true}).click();await page.reload();check((await state()).notifications.length===count,"Notifications duplicate on reload");check((await state()).notifications.every(n=>n.read),"Read status lost on reload");
+ const chatCount=(await state()).chats.length;await page.getByRole("button",{name:"Обсудить с агентом",exact:true}).click();await page.locator(".split-chat .chat-v3").waitFor();check((await state()).chats.length===chatCount,"Discussion duplicated chat");check((await state()).chats.some(c=>c.cabinetContext?.snapshot.forecast.deficit>0),"No structured context");await page.getByRole("textbox",{name:"Сообщение финансовому помощнику",exact:true}).press("Enter");await page.getByText(/Это программное объяснение/).waitFor();check((await page.locator(".message.assistant").innerText()).includes("программное объяснение"),"No explicit demo explanation");
+ await page.locator(".cabinet-scroll").evaluate(el=>el.scrollTop=0);await snap("split");await page.getByRole("separator").focus();await page.getByRole("separator").press("ArrowRight");await page.getByRole("button",{name:"Скрыть чат",exact:true}).click();await page.getByRole("button",{name:"Показать чат",exact:true}).click();await page.getByRole("button",{name:"Открыть чат отдельной страницей",exact:true}).click();await page.getByRole("button",{name:"Совмещённый режим",exact:true}).click();check(page.url().endsWith("cabinet-v2"),"Chat returned to old cabinet");await page.getByRole("button",{name:"Скрыть чат",exact:true}).click();
+ for(const [width,height] of [[1920,1080],[1440,1000],[1366,768],[1100,800],[768,1024],[390,844]]){await page.setViewportSize({width,height});await page.waitForTimeout(300);check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),"Horizontal overflow "+width);check(await page.locator(".cabinet-v2").evaluate(el=>el.scrollWidth<=el.clientWidth+1),"Cabinet internal overflow "+width);await page.locator(".cabinet-scroll").evaluate(el=>el.scrollTop=0);if([1366,390].includes(width))await snap("responsive-"+width);}
+ await page.getByRole("button",{name:"Уведомления",exact:true}).click();await snap("notifications-mobile");await page.keyboard.press("Escape");await page.locator(".mobile-work-tabs").getByRole("button",{name:"Чат",exact:true}).click();await snap("split-mobile");await page.getByRole("button",{name:"Открыть чат отдельной страницей",exact:true}).click();check(await page.locator(".message.assistant").count()===1,"Conversation lost");
+ await page.goto(base+"/cabinet");await page.locator(".credit-dashboard").waitFor();check(await page.locator(".cabinet-v2").count()===0,"Legacy cabinet replaced");
+ await page.goto(base+"/cabinet-v2");await page.emulateMedia({reducedMotion:"reduce"});check(await page.locator(".cv-chart-plan").evaluate(el=>getComputedStyle(el).animationName)==="none","Reduced motion ignored");check(errors.length===0,"Page errors: "+errors.join(";"));return {tours,widths:[1920,1440,1366,1100,768,390],checks:"PASS",errors};
+}
