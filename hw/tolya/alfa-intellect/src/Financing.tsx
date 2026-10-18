@@ -24,6 +24,7 @@ import type { Selection } from "../shared/types";
 import type { FinancingForm } from "./financing-draft";
 import { RangeField } from "./RangeField";
 import { SelectionResult } from "./SelectionResult";
+import { NumericInput } from "./NumericInput";
 const purposes = [
   [
     "Оборотные средства",
@@ -443,14 +444,14 @@ export function Financing() {
                     label="Собственные средства, ₽"
                     hint="Показываются в досье отдельно. Запрашиваемая сумма не уменьшается автоматически."
                   >
-                    <input
-                      type="number"
-                      min="0"
-                      max="1000000000"
+                    <NumericInput
+                      aria-label="Собственные средства, ₽"
+                      min={0}
+                      max={1000000000}
                       required
                       value={form.ownFunds}
-                      onChange={(e) =>
-                        setForm({ ...form, ownFunds: Number(e.target.value) })
+                      onValueChange={(value) =>
+                        setForm({ ...form, ownFunds: Number(value) })
                       }
                     />
                   </Field>
@@ -472,25 +473,26 @@ export function Financing() {
                         : "Если данных нет, оставьте пустым: точная посильная сумма не будет показана."
                     }
                   >
-                    <input
-                      type="number"
-                      min="-1000000000"
-                      max="1000000000"
+                    <NumericInput
+                      aria-label="Свободный денежный поток в месяц, ₽"
+                      signed
+                      min={-1000000000}
+                      max={1000000000}
                       value={String(form.flow)}
-                      onChange={(e) =>
-                        setForm({ ...form, flow: e.target.value })
+                      onValueChange={(value) =>
+                        setForm({ ...form, flow: value })
                       }
                     />
                   </Field>
                   <Field label="Действующие кредитные платежи в месяц, ₽">
-                    <input
-                      type="number"
-                      min="0"
-                      max="1000000000"
+                    <NumericInput
+                      aria-label="Действующие кредитные платежи в месяц, ₽"
+                      min={0}
+                      max={1000000000}
                       required
                       value={String(form.existing)}
-                      onChange={(e) =>
-                        setForm({ ...form, existing: e.target.value })
+                      onValueChange={(value) =>
+                        setForm({ ...form, existing: value })
                       }
                     />
                   </Field>

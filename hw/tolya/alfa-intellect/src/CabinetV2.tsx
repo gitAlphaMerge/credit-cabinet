@@ -24,6 +24,7 @@ import type { AppState } from "../shared/types";
 import { AnchoredPanel, ContextHelp } from "./ContextHelp";
 import { FinancialIndicators } from "./FinancialIndicators";
 import { CalendarPicker, calendarCells } from "./CalendarPicker";
+import { NumericInput } from "./NumericInput";
 
 const value = (n: number | null | undefined) =>
   n === null || n === undefined ? "—" : money(n);
@@ -463,7 +464,7 @@ export function CabinetEditor({
             term: "",
             contractTerm: "",
             issuedDate: "",
-            firstDate: addDays(today, 10),
+            firstDate: "",
             documentId: "",
           }
         : kind === "plan"
@@ -500,7 +501,7 @@ export function CabinetEditor({
     term: "Оставшийся срок, месяцев",
     contractTerm: "Общий срок договора, месяцев",
     issuedDate: "Дата выдачи кредита",
-    firstDate: "Ближайшая договорная дата",
+    firstDate: "Дата ближайшего платежа",
     balanceDate: "Дата остатка",
     through: "План полностью покрывает период до",
     source: "Источник данных",
@@ -530,6 +531,9 @@ export function CabinetEditor({
           setError("");
           try {
             const body: any = { ...form };
+            if (kind === "facility")
+              for (const key of ["issuedDate", "contractTerm"])
+                if (body[key] === "") delete body[key];
             for (const k of [
               "amount",
               "balance",
@@ -576,52 +580,83 @@ export function CabinetEditor({
                     value={v}
                     onChange={(e) => setForm({ ...form, [k]: e.target.value })}
                   />
+                ) : [
+                    "amount",
+                    "balance",
+                    "rate",
+                    "term",
+                    "contractTerm",
+                  ].includes(k) ? (
+                  <NumericInput
+                    aria-label={labels[k]}
+                    required={k !== "contractTerm"}
+                    value={v}
+                    onValueChange={(value) => setForm({ ...form, [k]: value })}
+                    unit={
+                      k === "rate"
+                        ? "%"
+                        : k === "term" || k === "contractTerm"
+                          ? "мес."
+                          : "₽"
+                    }
+                    decimals={k === "term" || k === "contractTerm" ? 0 : 2}
+                    signed={kind === "coverage" && k === "amount"}
+                    min={
+                      k === "term" || k === "contractTerm"
+                        ? 1
+                        : k === "amount" && kind === "coverage"
+                          ? undefined
+                          : k === "amount"
+                            ? 0.01
+                            : 0
+                    }
+                    max={
+                      k === "rate"
+                        ? 100
+                        : k === "term" || k === "contractTerm"
+                          ? 120
+                          : 1e12
+                    }
+                    placeholder={
+                      k === "rate"
+                        ? "18"
+                        : k === "term" || k === "contractTerm"
+                          ? "36"
+                          : "1 000 000"
+                    }
+                  />
                 ) : (
                   <input
-                    required
+                    required={k !== "issuedDate"}
+                    aria-label={labels[k]}
+                    aria-describedby={
+                      k === "firstDate" ? "next-payment-hint" : undefined
+                    }
                     maxLength={180}
-                    type={
-                      /Date|through|start|end/.test(k)
-                        ? "date"
-                        : [
-                              "amount",
-                              "balance",
-                              "rate",
-                              "term",
-                              "contractTerm",
-                            ].includes(k)
-                          ? "number"
-                          : "text"
-                    }
-                    step={k === "term" ? 1 : "any"}
-                    min={
-                      k === "amount" && kind === "coverage"
-                        ? undefined
-                        : [
-                              "amount",
-                              "balance",
-                              "rate",
-                              "term",
-                              "contractTerm",
-                            ].includes(k)
-                          ? 0
-                          : undefined
-                    }
+                    type={/Date|through|start|end/.test(k) ? "date" : "text"}
                     value={v}
                     onChange={(e) => setForm({ ...form, [k]: e.target.value })}
                   />
+                )}
+                {k === "firstDate" && (
+                  <small id="next-payment-hint" className="cv-field-hint">
+                    Когда по вашему графику нужно внести следующий платёж по
+                    кредиту.
+                  </small>
                 )}
               </label>
             ))}
         </div>
         {kind === "facility" && (
           <label>
-            <span>График из профиля (необязательно)</span>
+            <span>Откуда взять график платежей?</span>
             <select
+              aria-label="Откуда взять график платежей?"
+              aria-describedby="schedule-source-hint"
               value={form.documentId}
               onChange={(e) => setForm({ ...form, documentId: e.target.value })}
             >
-              <option value="">Рассчитать по договорным параметрам</option>
+              <option value="">Рассчитать по сумме, ставке и сроку</option>
               {w.state.documents
                 .filter((d) => d.confirmed && d.category === "schedule")
                 .map((d) => (
@@ -630,6 +665,11 @@ export function CabinetEditor({
                   </option>
                 ))}
             </select>
+            <small id="schedule-source-hint" className="cv-field-hint">
+              Или выберите график банка, который вы уже загрузили в «Мой бизнес»
+              → «Документы». Если файла нет, рассчитаем оставшиеся платежи по
+              введённым данным.
+            </small>
           </label>
         )}
         {kind === "plan" && (
@@ -666,17 +706,14 @@ export function CabinetEditor({
                     )
                   }
                 />
-                <input
+                <NumericInput
                   aria-label={"Сумма операции " + (n + 1)}
                   placeholder="Сумма со знаком"
-                  type="number"
-                  step="any"
+                  signed
                   value={i.amount}
-                  onChange={(e) =>
+                  onValueChange={(amount) =>
                     setItems(
-                      items.map((v, j) =>
-                        j === n ? { ...v, amount: e.target.value } : v,
-                      ),
+                      items.map((v, j) => (j === n ? { ...v, amount } : v)),
                     )
                   }
                 />
@@ -701,14 +738,16 @@ export function CabinetEditor({
             </button>
           </div>
         )}
-        <label className="cv-confirm">
-          <input type="checkbox" required />
-          <span>
-            {kind === "plan"
-              ? "Подтверждаю остаток и полноту плана за указанный период; кредитные платежи не продублированы."
-              : "Проверил сведения и подтверждаю их как пользовательские данные, не как банковскую проверку."}
-          </span>
-        </label>
+        {kind !== "facility" && (
+          <label className="cv-confirm">
+            <input type="checkbox" required />
+            <span>
+              {kind === "plan"
+                ? "Подтверждаю остаток и полноту плана за указанный период; кредитные платежи не продублированы."
+                : "Проверил сведения и подтверждаю их как пользовательские данные, не как банковскую проверку."}
+            </span>
+          </label>
+        )}
         {error && (
           <p className="cv-error" role="alert">
             {error}
@@ -719,7 +758,11 @@ export function CabinetEditor({
             Отмена
           </Button>
           <Button disabled={busy}>
-            {busy ? "Сохраняем…" : "Подтвердить и сохранить"}
+            {busy
+              ? "Сохраняем…"
+              : kind === "facility"
+                ? "Сохранить кредит"
+                : "Подтвердить и сохранить"}
             <Check size={15} />
           </Button>
         </div>

@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { NumericInput } from "./NumericInput";
 export function RangeField({
   label,
   value,
@@ -27,16 +28,14 @@ export function RangeField({
     <div className="range-field">
       <label htmlFor={id}>{label}</label>
       <div className="range-number">
-        <input
+        <NumericInput
+          unit=""
+          decimals={0}
           id={id}
           aria-describedby={id + "-hint"}
           aria-invalid={!!error}
-          type="text"
-          inputMode="numeric"
-          value={raw ?? format(value)}
-          onChange={(e) => {
-            const digits = e.target.value.replace(/\s/g, "");
-            if (!/^\d*$/.test(digits)) return;
+          value={raw ?? value}
+          onValueChange={(digits) => {
             setRaw(digits);
             const n = Number(digits);
             if (digits && n >= min && n <= max) {
