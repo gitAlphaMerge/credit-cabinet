@@ -1,3 +1,9 @@
+import {
+  fundingPurposes,
+  fundingDetailKeys,
+  type FundingRequest,
+  type FinancialKey,
+} from "../shared/financing";
 export type FinancingForm = {
   purpose: string;
   amount: number;
@@ -13,6 +19,7 @@ export type FinancingDraft = {
   selected?: string | null;
   parentId?: string;
   form?: FinancingForm;
+  request?: FundingRequest;
 };
 type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const prefix = "alfa:financing-draft:v1:";
@@ -54,6 +61,69 @@ function validate(value: unknown): FinancingDraft {
   if (d.selected !== undefined)
     result.selected = d.selected === null ? null : text(d.selected, 128);
   if (d.parentId !== undefined) result.parentId = text(d.parentId, 128);
+  if (d.request !== undefined) {
+    const r = d.request as FundingRequest;
+    if (
+      !r ||
+      typeof r !== "object" ||
+      !fundingPurposes.includes(r.purpose) ||
+      !["urgent", "month", "later", "date"].includes(r.needed) ||
+      !["once", "parts", "regular"].includes(r.usage) ||
+      !Number.isFinite(r.amount) ||
+      r.amount < 0 ||
+      r.amount > 1e12 ||
+      (r.term !== null &&
+        (!Number.isInteger(r.term) || r.term < 1 || r.term > 120)) ||
+      !Number.isInteger(r.cycleDays) ||
+      r.cycleDays < 1 ||
+      r.cycleDays > 90
+    )
+      throw new Error("Invalid request");
+    const details: FundingRequest["details"] = {},
+      financials: FundingRequest["financials"] = {};
+    for (const [k, v] of Object.entries(r.details || {}))
+      if (
+        fundingDetailKeys.includes(k as (typeof fundingDetailKeys)[number]) &&
+        (v === null ||
+          typeof v === "boolean" ||
+          (typeof v === "number" &&
+            Number.isFinite(v) &&
+            Math.abs(v) <= 1e12) ||
+          (typeof v === "string" && v.length <= 400))
+      )
+        details[k] = v;
+    for (const k of [
+      "incoming",
+      "expenses",
+      "flow",
+      "existing",
+      "available",
+      "changes",
+    ] as FinancialKey[])
+      if (Object.hasOwn(r.financials || {}, k)) {
+        const v = r.financials[k];
+        if (
+          v !== null &&
+          (typeof v !== "number" || !Number.isFinite(v) || Math.abs(v) > 1e12)
+        )
+          throw new Error("Invalid financials");
+        financials[k] = v;
+      }
+    result.request = {
+      purpose: r.purpose,
+      amount: r.amount,
+      term: r.term,
+      needed: r.needed,
+      neededDate: r.neededDate ? text(r.neededDate, 10) : undefined,
+      usage: r.usage,
+      description: text(r.description, 1000),
+      repayFrom: text(r.repayFrom, 300),
+      productId: r.productId ? text(r.productId, 80) : undefined,
+      cycleDays: r.cycleDays,
+      details,
+      financials,
+    };
+  }
   if (d.form !== undefined) {
     if (!d.form || typeof d.form !== "object" || Array.isArray(d.form))
       throw new Error("Invalid form");

@@ -44,6 +44,25 @@
   grid-template-rows: 58px minmax(0, 1fr) auto;
   container-type: inline-size;
 }
+.chat-shell.chat-v3 .chat-main:has(.chat-funding-context) {
+  grid-template-rows: 58px auto minmax(0, 1fr) auto;
+}
+.chat-funding-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 22px;
+  background: #fafbfd;
+  border-bottom: 1px solid #edf0f5;
+  color: #8a97a9;
+  font-size: 11px;
+}
+.chat-funding-context .text-button {
+  font-size: 11px;
+  color: #617590;
+}
 .chat-shell.chat-v3 .chat-header {
   display: flex;
   align-items: center;

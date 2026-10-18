@@ -9,6 +9,8 @@ export function RangeField({
   step = 1,
   suffix = "",
   hint,
+  inputMax = max,
+  clampInput = true,
 }: {
   label: string;
   value: number;
@@ -18,6 +20,8 @@ export function RangeField({
   step?: number;
   suffix?: string;
   hint?: string;
+  inputMax?: number;
+  clampInput?: boolean;
 }) {
   const id = useId(),
     [raw, setRaw] = useState<string | null>(null),
@@ -38,15 +42,22 @@ export function RangeField({
           onValueChange={(digits) => {
             setRaw(digits);
             const n = Number(digits);
-            if (digits && n >= min && n <= max) {
+            if (digits && n >= min && n <= inputMax) {
               onChange(n);
               setError("");
             } else
-              setError(`Введите число от ${format(min)} до ${format(max)}.`);
+              setError(
+                `Введите число от ${format(min)} до ${format(inputMax)}.`,
+              );
           }}
           onBlur={() => {
             if (raw !== null) {
-              onChange(clamp(Number(raw)));
+              if (
+                !clampInput &&
+                (!raw || Number(raw) < min || Number(raw) > inputMax)
+              )
+                return;
+              onChange(Math.max(min, Math.min(inputMax, Number(raw))));
               setRaw(null);
               setError("");
             }
@@ -54,6 +65,7 @@ export function RangeField({
           onKeyDown={(e) => {
             if (e.key === "Enter" && error) {
               e.preventDefault();
+              if (!clampInput) return;
               onChange(clamp(Number(raw)));
               setRaw(null);
               setError("");
@@ -68,7 +80,7 @@ export function RangeField({
         min={min}
         max={max}
         step="any"
-        value={value}
+        value={clamp(value)}
         aria-valuetext={format(value) + " " + suffix}
         onKeyDown={(e) => {
           if (
@@ -96,7 +108,8 @@ export function RangeField({
         }}
         style={
           {
-            "--range-progress": ((value - min) / (max - min)) * 100 + "%",
+            "--range-progress":
+              ((clamp(value) - min) / (max - min)) * 100 + "%",
           } as React.CSSProperties
         }
       />

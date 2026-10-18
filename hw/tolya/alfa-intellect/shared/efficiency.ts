@@ -2,7 +2,7 @@ import type { AppState, Calculation } from "./types";
 export const DSCR_TARGET = 1.25;
 /** Same inputs and 30% flow stress as the financing engine; not ROI or bank scoring. */
 export function efficiencyMetrics(c?: Calculation | null) {
-  const debt = c ? c.monthlyPayment + c.existing : null;
+  const debt = c && c.existing !== null ? c.monthlyPayment + c.existing : null;
   const known =
     !!c &&
     typeof c.flow === "number" &&

@@ -318,8 +318,11 @@ export function PaymentCalendar({
                   (dt === selected ? "selected" : "")
                 }
                 onClick={() => setSelected(dt)}
-                onPointerEnter={(e) => {
-                  if (e.pointerType === "mouse") setSelected(dt);
+                onPointerMove={(e) => {
+                  // Opening the popover beneath a stationary pointer must not
+                  // replace the initial payment selection with an arbitrary day.
+                  if (e.pointerType === "mouse" && (e.movementX || e.movementY))
+                    setSelected(dt);
                 }}
                 onFocus={() => setSelected(dt)}
               >

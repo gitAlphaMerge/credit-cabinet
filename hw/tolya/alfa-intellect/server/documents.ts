@@ -3,6 +3,22 @@ import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 import { Readable } from "node:stream";
 import type { Fields } from "../shared/types";
+/** Multipart filenames may arrive as UTF-8 bytes decoded as Latin-1 by Multer.
+ * Repair only a lossless UTF-8 round trip; preserve already-correct Unicode. */
+export function readableFileName(name: string) {
+  if ([...name].every((c) => c.charCodeAt(0) <= 255)) {
+    const repaired = Buffer.from(name, "latin1").toString("utf8");
+    if (
+      !repaired.includes("\uFFFD") &&
+      Buffer.from(repaired, "utf8").toString("latin1") === name
+    )
+      name = repaired;
+  }
+  return name
+    .replace(/[\p{Cc}]/gu, " ")
+    .trim()
+    .slice(0, 180);
+}
 const required: Record<string, string[]> = {
   statement: ["inflow", "outflow", "freeFlow"],
   balance: ["assets", "liabilities", "equity"],

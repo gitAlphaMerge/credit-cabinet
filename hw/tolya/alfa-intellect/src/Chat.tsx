@@ -30,6 +30,7 @@ export function Chat({
   const [renameId, setRenameId] = useState<string | null>(null),
     [title, setTitle] = useState("");
   const [mobile, setMobile] = useState(() => innerWidth <= 760);
+  const [confirmingFunding, setConfirmingFunding] = useState(false);
   const root = useRef<HTMLElement>(null),
     messages = useRef<HTMLDivElement>(null),
     newChatLock = useRef(false),
@@ -164,6 +165,30 @@ export function Chat({
               )}
             </div>
           </header>
+          {chat?.selectionId && (
+            <div className="chat-funding-context">
+              <span>
+                Подбор финансирования · версия{" "}
+                {
+                  w.state.selections.find((s) => s.id === chat.selectionId)
+                    ?.version
+                }
+              </span>
+              <button
+                className="text-button"
+                onClick={() => {
+                  w.cacheFinancingDraft({
+                    ...w.financingDraft,
+                    tab: "new",
+                    selected: chat.selectionId,
+                  });
+                  w.go("/financing");
+                }}
+              >
+                Открыть подбор →
+              </button>
+            </div>
+          )}
           <div
             className={
               "messages " + (!chat?.messages.length && !busy ? "is-empty" : "")
@@ -238,6 +263,49 @@ export function Chat({
                             }}
                           >
                             Подтвердить изменение <Check size={15} />
+                          </Button>
+                        </div>
+                      )}
+                      {m.fundingProposal && (
+                        <div className="proposal">
+                          <p>
+                            Пересчитать и сохранить новую версию этого подбора?
+                          </p>
+                          <Button
+                            secondary
+                            disabled={
+                              confirmingFunding ||
+                              w.state.selections.find(
+                                (s) => s.id === m.fundingProposal!.selectionId,
+                              )?.version !== m.fundingProposal.expectedVersion
+                            }
+                            onClick={async () => {
+                              const p = m.fundingProposal!,
+                                selection = w.state.selections.find(
+                                  (s) => s.id === p.selectionId,
+                                );
+                              if (!selection?.input) return;
+                              setConfirmingFunding(true);
+                              try {
+                                const {
+                                  selectionId,
+                                  expectedVersion,
+                                  ...changes
+                                } = p;
+                                await w.act("/selections", {
+                                  engine: "mvp-2",
+                                  parentId: selectionId,
+                                  expectedVersion,
+                                  input: { ...selection.input, ...changes },
+                                });
+                                w.error("Новая версия подбора сохранена");
+                              } catch {
+                              } finally {
+                                setConfirmingFunding(false);
+                              }
+                            }}
+                          >
+                            Подтвердить пересчёт <Check size={15} />
                           </Button>
                         </div>
                       )}

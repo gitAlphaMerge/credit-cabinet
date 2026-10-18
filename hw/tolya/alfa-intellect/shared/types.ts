@@ -1,4 +1,5 @@
 export type Profile = {
+  onboardedAt?: string;
   name: string;
   form: string;
   stage: string;
@@ -37,7 +38,7 @@ export type Calculation = {
   interest: number;
   total: number;
   flow: number | null;
-  existing: number;
+  existing: number | null;
   maxAmount: number | null;
   dscr: number | null;
   stressDscr: number | null;
@@ -53,6 +54,10 @@ export type Calculation = {
   formula: string;
 };
 export type Selection = {
+  input?: import("./financing").FundingRequest;
+  assessment?: import("./financing").FundingAssessment;
+  versions?: import("./financing").FundingVersion[];
+  updatedAt?: string;
   id: string;
   version: number;
   parentId?: string;
@@ -67,6 +72,13 @@ export type Selection = {
   status: string;
 };
 export type Message = {
+  fundingProposal?: {
+    selectionId: string;
+    expectedVersion: number;
+    amount?: number;
+    term?: number;
+    productId?: string;
+  };
   id: string;
   role: "user" | "assistant";
   text: string;
@@ -114,6 +126,9 @@ export type AppState = {
   credit: Credit | null;
   notifications: Notice[];
   leads: {
+    version?: number;
+    status?: "Демо-заявка создана";
+    application?: Record<string, unknown>;
     note?: string;
     id: string;
     selectionId: string;

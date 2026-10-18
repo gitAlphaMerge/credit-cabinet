@@ -6,6 +6,7 @@ import {
   clearFinancingDraft,
   type FinancingDraft,
 } from "../src/financing-draft";
+import { blankFundingRequest } from "../shared/financing";
 function memoryStorage() {
   const items = new Map<string, string>();
   return {
@@ -92,4 +93,23 @@ test("Недоступное хранилище не ломает анкету, 
     }),
     false,
   );
+});
+test("Dynamic funding request restores branch details without unknown-zero coercion or secrets", () => {
+  const s = memoryStorage(),
+    request = {
+      ...blankFundingRequest(),
+      purpose: "Кассовый разрыв" as const,
+      details: {
+        expenseDate: "2026-10-20",
+        confidence: "confirmed",
+        password: "never-store",
+      },
+      financials: { existing: null, incoming: 1200000.5 },
+    };
+  assert.equal(writeFinancingDraft(s, "u", { step: 1, request }), true);
+  const restored = readFinancingDraft(s, "u").request!;
+  assert.equal(restored.details.expenseDate, "2026-10-20");
+  assert.equal(restored.financials.existing, null);
+  assert.equal(restored.financials.incoming, 1200000.5);
+  assert.ok(!("password" in restored.details));
 });

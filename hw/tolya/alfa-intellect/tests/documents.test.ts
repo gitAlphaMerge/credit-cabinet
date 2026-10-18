@@ -4,8 +4,17 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createFixtures } from "../scripts/fixtures";
-import { extract } from "../server/documents";
+import { extract, readableFileName } from "../server/documents";
 const dir = await mkdtemp(join(tmpdir(), "alfa-docs-"));
+test("Russian uploaded filenames are losslessly decoded, not double-decoded", () => {
+  const original = "Выписка за октябрь.csv",
+    wire = Buffer.from(original, "utf8").toString("latin1");
+  assert.equal(readableFileName(wire), original);
+  assert.equal(readableFileName(original), original);
+  assert.equal(readableFileName("statement.csv"), "statement.csv");
+  assert.equal(readableFileName("Café.csv"), "Café.csv");
+  assert.equal(readableFileName("Смета\u0000.csv"), "Смета .csv");
+});
 await createFixtures(dir);
 for (const [category, file, field, expected] of [
   ["statement", "statement.csv", "freeFlow", 420000],

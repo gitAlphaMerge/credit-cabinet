@@ -15,13 +15,14 @@ import {
   type User,
 } from "./store";
 import { calculate, select, forecast, catalog } from "./finance";
-import { extract, fieldNames } from "./documents";
+import { extract, fieldNames, readableFileName } from "./documents";
 import { DemoProvider, OpenAIProvider } from "./ai-provider";
 import { publicPreview } from "./preview";
 import { findCompany, RegistryError } from "./registry";
 import { cabinetRouter, syncCabinetNotices } from "./cabinet";
 import type { Profile, AppState } from "../shared/types";
 import { russianValidationErrors } from "../shared/facility-validation";
+import { fundingRouter } from "./funding-routes";
 export const app = express();
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
@@ -326,7 +327,7 @@ app.post("/api/documents", upload.single("file"), async (req, res) => {
     doc = {
       id,
       ...data,
-      name: req.file.originalname.slice(0, 180),
+      name: readableFileName(req.file.originalname),
       mime: req.file.mimetype,
       confirmed: false,
       createdAt: new Date().toISOString(),
@@ -389,6 +390,7 @@ app.get("/api/documents/:id/download", (req, res) => {
     )
     .send(Buffer.from(f.data));
 });
+app.use("/api", fundingRouter);
 app.post("/api/chats", (req, res) => {
   const s = stateOf(res.locals.userId);
   const selectionId = req.body.selectionId

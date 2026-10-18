@@ -27,7 +27,7 @@ export function verifyPassword(p: string, hash: string) {
 }
 export function initialState(profile: Profile): AppState {
   return {
-    profile,
+    profile: { ...profile, onboardedAt: new Date().toISOString() },
     documents: [],
     chats: [{ id: randomUUID(), title: "Знакомство с бизнесом", messages: [] }],
     selections: [],

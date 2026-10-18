@@ -84,6 +84,14 @@ export function NumericInput({
         inputMode={decimals ? "decimal" : "numeric"}
         autoComplete="off"
         value={display}
+        aria-invalid={
+          props["aria-invalid"] ||
+          (!!raw &&
+            (!Number.isFinite(Number(raw)) ||
+              (min !== undefined && Number(raw) < min) ||
+              (max !== undefined && Number(raw) > max))) ||
+          false
+        }
         onFocus={(e) => {
           setDraft(String(value));
           setFocused(true);

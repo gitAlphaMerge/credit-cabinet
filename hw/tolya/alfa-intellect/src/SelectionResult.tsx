@@ -5,10 +5,17 @@ import {
   AlertTriangle,
   CheckCircle2,
   Info,
+  Sparkles,
+  Check,
 } from "lucide-react";
-import { Badge, Button, CalculationView } from "./ui";
-import { money } from "./api";
+import { Badge, Button } from "./ui";
+import { money, date } from "./api";
 import type { Selection } from "../shared/types";
+import {
+  financialLabels,
+  fundingCatalog,
+  requirementText,
+} from "../shared/financing";
 export function selectionSummary(s: Selection) {
   const c = s.calculation,
     known = c.maxAmount !== null,
@@ -24,8 +31,12 @@ export function selectionSummary(s: Selection) {
         ? "По текущему потоку сумма выглядит посильной"
         : "Запрос превышает предварительно посильную сумму",
     burden:
-      c.flow !== null && c.flow > 0
-        ? Math.round(((c.monthlyPayment + c.existing) / c.flow) * 100)
+      c.flow !== null && c.flow > 0 && c.existing !== null
+        ? Math.round(
+            (((s.assessment?.peakPayment ?? c.monthlyPayment) + c.existing) /
+              c.flow) *
+              100,
+          )
         : null,
   };
 }
@@ -43,29 +54,50 @@ export function SelectionResult({
   onDocuments: () => void;
 }) {
   const c = item.calculation,
+    a = item.assessment,
     result = selectionSummary(item),
     tone = !result.known
       ? "unknown"
       : result.comfortable
         ? "positive"
-        : "caution";
-  const Icon = !result.known
-    ? Info
-    : result.comfortable
-      ? CheckCircle2
-      : AlertTriangle;
+        : "caution",
+    Icon = !result.known
+      ? Info
+      : result.comfortable
+        ? CheckCircle2
+        : AlertTriangle,
+    selected = fundingCatalog.find((p) => p.id === a?.selectedId),
+    recommended = fundingCatalog.find((p) => p.id === a?.recommendedId),
+    reasons = a?.reasons || [
+      "Инструмент выбран для задачи бизнеса.",
+      "Расчёт сохранён в предыдущей версии прототипа; источники можно уточнить при новом расчёте.",
+    ],
+    title = a?.title || result.title;
   return (
-    <section className={"panel result-panel result-v2 " + tone}>
-      <div className="recommendation-heading">
-        <span className="eyebrow">Рекомендованный инструмент</span>
-        <Badge>Расчётный ориентир · не одобрение</Badge>
+    <section
+      className={
+        "funding-surface result-panel result-v2 " + tone + " funding-result"
+      }
+    >
+      <div className="funding-result-head">
+        <span className="eyebrow">
+          <Sparkles size={15} />{" "}
+          {a && a.selectedId !== a.recommendedId
+            ? "Выбранный вами инструмент"
+            : "Рекомендуемый инструмент"}
+        </span>
+        <Badge>{a?.level || "Ориентировочная"}</Badge>
       </div>
       <h2>{item.product}</h2>
-      <p className="recommendation-why">
-        Для задачи «{item.purpose.toLowerCase()}» с возвратом из источника «
-        {item.repayFrom.toLowerCase()}». Соответствие условиям ещё требуется
-        проверить.
+      <p className="funding-result-purpose">
+        {item.purpose} · {item.repayFrom}
       </p>
+      {recommended && a?.selectedId !== a?.recommendedId && (
+        <p className="funding-source">
+          Исходная рекомендация: {recommended.name}. Выбор изменён
+          пользователем.
+        </p>
+      )}
       <div className="capacity-comparison">
         <div>
           <small>Вы запрашиваете</small>
@@ -76,109 +108,245 @@ export function SelectionResult({
         </div>
         <div>
           <small>Предварительно посильная сумма</small>
-          <strong>{result.known ? money(c.maxAmount) : "Нет данных"}</strong>
+          <strong>
+            {result.known ? money(c.maxAmount) : "Недостаточно данных"}
+          </strong>
           {result.known ? (
             <div className="capacity-track capacity-model">
               <i style={{ width: (c.maxAmount! / result.scale) * 100 + "%" }} />
             </div>
           ) : (
-            <p>Укажите свободный денежный поток.</p>
+            <span className="funding-capacity-unknown">
+              Нужны актуальный поток и обязательства
+            </span>
           )}
         </div>
       </div>
-      {result.known && (
-        <p className="comparison-caption">
-          Масштаб полос: 100% = {money(result.scale)} — большая из двух сумм.
-          Оценка {result.coverage! < 100 ? "покрывает" : "составляет"}{" "}
-          {result.coverage}% запроса (посильная сумма ÷ запрос × 100). Это
-          отношение сумм, не вероятность выдачи.
-        </p>
-      )}
-      <div className="result-key-metrics">
+      <p className="funding-scale-hint">
+        Индикатор сравнивает суммы, не вероятность выдачи. Это расчётный
+        ориентир, не лимит банка.
+      </p>
+      <div className="funding-result-metrics">
         <div>
-          <small>Срок</small>
+          <small>
+            {selected?.kind === "overdraft" ? "Срок лимита" : "Срок"}
+          </small>
           <b>{c.term} мес.</b>
         </div>
         <div>
-          <small>Ставка из демокаталога</small>
+          <small>Сценарная ставка</small>
           <b>{c.rate}% годовых</b>
         </div>
         <div>
-          <small>Платёж в месяц</small>
+          <small>{a?.paymentLabel || "Платёж в месяц"}</small>
           <b>{money(c.monthlyPayment)}</b>
         </div>
         <div>
-          <small>Доля потока на все кредиты</small>
-          <b>{result.burden === null ? "Нет данных" : result.burden + "%"}</b>
+          <small>
+            {a?.finalPayment !== undefined && selected?.kind !== "loan"
+              ? "Возврат в конце цикла"
+              : "Доля потока на все кредиты"}
+          </small>
+          <b>
+            {a?.finalPayment !== undefined && selected?.kind !== "loan"
+              ? money(a.finalPayment)
+              : result.burden === null
+                ? "Нет данных"
+                : result.burden + "%"}
+          </b>
         </div>
       </div>
-      <div className="result-verdict">
-        <Icon size={23} />
+      <div className="funding-verdict">
+        <Icon size={22} />
         <div>
-          <h3>{result.title}</h3>
+          <h3>{title}</h3>
           <p>
-            {item.status}. Модель DSCR ≥ 1,25; посильная сумма не является
-            лимитом банка и не гарантирует кредит.
+            {a?.decision === "unnecessary"
+              ? "Вы указали достаточно свободных денег после обязательных расходов. Сравните вариант без нового долга."
+              : a?.decision === "rethink"
+                ? "Указанный эффект покупки не положительный. Обсудите экономику проекта до привлечения долга."
+                : a?.missing.length
+                  ? a.missing.join(" · ")
+                  : "Посильность, соответствие продукта и полнота данных проверяются отдельно. Решение по выдаче принимает банк."}
           </p>
         </div>
       </div>
-      <div className="result-explanation">
-        <div>
-          <h3>На чём основан вывод</h3>
-          <ul>
-            <li>
-              Свободный поток по параметрам сценария: {money(c.flow)} в месяц.
+      <div className="funding-why">
+        <h3>Почему выбран этот вариант?</h3>
+        <ul>
+          {reasons.slice(0, 4).map((reason) => (
+            <li key={reason}>
+              <Check size={15} />
+              <span>{reason}</span>
             </li>
-            <li>
-              Действующие платежи: {money(c.existing)}. DSCR:{" "}
-              {c.dscr ?? "не определён"}.
-            </li>
-            <li>
-              Поток −30%: DSCR {c.stressDscr ?? "не определён"}. Собственные
-              средства {money(item.ownFunds)} учитываются отдельно.
-            </li>
-          </ul>
-          {item.risks.length > 0 && (
-            <details>
-              <summary>
-                Ограничения данных и условий ({item.risks.length})
-              </summary>
-              <ul>
-                {item.risks.map((t) => (
-                  <li key={t}>{t}</li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </div>
-        <div>
-          <h3>Следующие шаги</h3>
-          <ol>
-            <li>
-              {!result.known
-                ? "Добавьте выписку или укажите денежный поток."
-                : result.comfortable
-                  ? "Проверьте документы и будущие обязательные расходы."
-                  : "Сравните меньшую сумму или более длинный срок."}
-            </li>
-            <li>
-              {item.alternatives[0] ||
-                "Уточните условия инструмента с менеджером."}
-            </li>
-            <li>Подготовьте досье и обсудите ограничения с менеджером.</li>
-          </ol>
-          <button className="text-button" onClick={onDocuments}>
-            Открыть документы <ArrowRight size={15} />
-          </button>
-        </div>
+          ))}
+        </ul>
       </div>
-      <CalculationView c={c} showStats={false} />
-      <p className="fine-print">
-        Демонстрационные условия каталога demo-1, не предложение Альфа-Банка.
-        Комиссии и страхование не включены. Источник денежных показателей —
-        параметры этого сценария; достоверность документов требует проверки.
+      <details className="funding-assessment">
+        <summary>Подробнее об оценке</summary>
+        <h3>Соответствие сценарию каталога</h3>
+        {a ? (
+          <div className="funding-checks">
+            {a.checks.map((check) => (
+              <div key={check.label}>
+                <span>{check.label}</span>
+                <Badge
+                  tone={
+                    check.state === "unmet"
+                      ? "red"
+                      : check.state === "met"
+                        ? "green"
+                        : "neutral"
+                  }
+                >
+                  {requirementText(check.state)}
+                </Badge>
+                <small>{check.detail}</small>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>
+            Для старого расчёта подробные проверки не сохранены. Пересчитайте
+            условия.
+          </p>
+        )}
+        <h3>Исходные данные и источники</h3>
+        {a && (
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Показатель</th>
+                  <th>Значение</th>
+                  <th>Источник и период</th>
+                </tr>
+              </thead>
+              <tbody>
+                {a.data.map((d) => (
+                  <tr key={d.key}>
+                    <td>{financialLabels[d.key]}</td>
+                    <td>{d.value === null ? "Нет данных" : money(d.value)}</td>
+                    <td>
+                      {d.source}
+                      <small>
+                        {d.period} · {d.currency} ·{" "}
+                        {d.kind === "fact"
+                          ? "Исторические данные"
+                          : d.kind === "forecast"
+                            ? "Прогноз"
+                            : "Ввод пользователя"}{" "}
+                        · {d.asOf}
+                        {d.stale ? " · Устарело" : ""}
+                        {d.conflict ? " · Конфликт" : ""}
+                      </small>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <button className="text-button" onClick={onDocuments}>
+          Уточнить документы бизнеса <ArrowRight size={15} />
+        </button>
+        <h3>Математика расчёта</h3>
+        <div className="funding-formulas">
+          {(a?.formula || [c.formula]).map((f) => (
+            <p key={f}>{f}</p>
+          ))}
+        </div>
+        <dl className="funding-detail-values">
+          {[
+            ["Поток для оценки", money(a?.flow ?? c.flow)],
+            [
+              "Действующие платежи после изменений",
+              money(a ? a.existingAfter : c.existing),
+            ],
+            ["Пиковый платёж", money(a?.peakPayment ?? c.monthlyPayment)],
+            ["DSCR, модель", String(c.dscr ?? "Недостаточно данных")],
+            [
+              "Стресс: поток −30%",
+              String(c.stressDscr ?? "Недостаточно данных"),
+            ],
+            ["Проценты за весь сценарий", money(c.interest)],
+            ["Выплаты за весь сценарий", money(c.total)],
+          ].map(([k, v]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {a?.paybackMonths !== null && a?.paybackMonths !== undefined && (
+          <p>
+            Простая окупаемость по указанному эффекту: {a.paybackMonths} мес. =
+            стоимость покупки ÷ эффект в месяц. Это не инвестиционная оценка с
+            налогами и дисконтированием.
+          </p>
+        )}
+        <h3>Допущения и ограничения</h3>
+        <ul>
+          {(a?.assumptions || [c.source]).map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+          {item.risks.map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+        <details className="funding-schedule">
+          <summary>Расчётный график · {c.schedule.length} платежей</summary>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Платёж</th>
+                  <th>Основной долг</th>
+                  <th>Проценты</th>
+                  <th>Остаток</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.schedule.map((r) => (
+                  <tr key={r.date}>
+                    <td>{date(r.date)}</td>
+                    <td>{money(r.payment)}</td>
+                    <td>{money(r.principal)}</td>
+                    <td>{money(r.interest)}</td>
+                    <td>{money(r.balance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </details>
+      {!!a?.alternatives.length && (
+        <div className="funding-alternatives">
+          <h3>Что ещё сравнить</h3>
+          {a.alternatives.map((p) => (
+            <div key={p.id}>
+              <b>{p.name}</b>
+              <span>{p.reason}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {a?.checks.some((c) => c.state === "unmet") && (
+        <p className="funding-catalog-warning">
+          <AlertTriangle size={16} /> Есть несоответствия условиям сценарного
+          каталога. Подробности — в оценке; это не банковский отказ.
+        </p>
+      )}
+      <p className="funding-source">
+        Каталог {a?.catalogVersion || "demo-1"} · ставки и ограничения
+        синтетические, не предложение Альфа-Банка.{" "}
+        {a?.level === "Ориентировочная"
+          ? "Добавление пригодных данных позволит оценить посильность."
+          : "Для расширенной оценки нужны актуальная история потоков, сопоставимые обязательства и сценарии."}
       </p>
-      <div className="result-actions">
+      <div className="funding-result-actions">
         <Button secondary onClick={onRevise}>
           <SlidersHorizontal size={17} /> Изменить параметры
         </Button>

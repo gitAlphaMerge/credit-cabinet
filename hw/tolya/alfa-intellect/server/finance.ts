@@ -1,5 +1,7 @@
 import { z } from "zod";
 import type { Calculation, Selection, Profile } from "../shared/types";
+import { fundingCatalog, blankFundingRequest } from "../shared/financing";
+import { fundingInput, transparentFundingEngine } from "./funding-engine";
 export const financeInput = z.object({
   amount: z.coerce.number().finite().min(10000).max(100_000_000),
   term: z.coerce.number().int().min(1).max(120),
@@ -54,133 +56,47 @@ export function calculate(raw: unknown, today = new Date()): Calculation {
   };
 }
 const round = (n: number) => Math.round(n * 100) / 100;
-export const catalog = [
-  {
-    name: "Оборотный кредит",
-    purposes: ["Оборотные средства", "Развитие"],
-    rate: 24,
-    max: 15000000,
-    term: 36,
-    minAge: 12,
-  },
-  {
-    name: "Инвестиционный кредит",
-    purposes: ["Оборудование", "Развитие"],
-    rate: 22,
-    max: 50000000,
-    term: 84,
-    minAge: 12,
-  },
-  {
-    name: "Кредитная линия под контракт",
-    purposes: ["Исполнение контракта"],
-    rate: 23,
-    max: 20000000,
-    term: 36,
-    minAge: 12,
-  },
-  {
-    name: "Овердрафт",
-    purposes: ["Оборотные средства"],
-    rate: 26,
-    max: 3000000,
-    term: 12,
-    minAge: 12,
-  },
-  {
-    name: "Рефинансирование",
-    purposes: ["Рефинансирование"],
-    rate: 23,
-    max: 10000000,
-    term: 60,
-    minAge: 12,
-  },
-].map((p) => ({
-  ...p,
-  version: "demo-1",
-  source: "Синтетический каталог команды, не предложение банка",
-  verifiedAt: "2026-10-16",
-}));
+export const catalog = fundingCatalog;
 export function select(
   raw: Record<string, unknown>,
   profile: Profile,
 ): Omit<Selection, "id" | "version" | "createdAt"> {
-  const purpose = z
-    .enum([
-      "Оборотные средства",
-      "Оборудование",
-      "Развитие",
-      "Исполнение контракта",
-      "Рефинансирование",
-      "Запуск",
-    ])
-    .parse(raw.purpose);
-  const product = catalog.find((p) => p.purposes.includes(purpose));
-  const c = calculate({ ...raw, rate: product?.rate ?? 24 });
-  const risks = [];
-  if (!profile.registered)
-    risks.push(
-      "Бизнес ещё не зарегистрирован. Кредитные продукты могут быть недоступны; требуется консультация.",
-    );
-  if (profile.ageBand.includes("Менее") || profile.stage === "planning")
-    risks.push(
-      "Возраст или стадия бизнеса не соответствует базовым требованиям демонстрационного каталога.",
-    );
-  if (c.flow === null)
-    risks.push(
-      "Не указан свободный денежный поток. Посильная сумма не определена.",
-    );
-  else if (c.dscr! < 1.25)
-    risks.push(
-      "Платёж превышает предварительно посильную нагрузку по модели DSCR 1,25.",
-    );
-  if (c.stressDscr !== null && c.stressDscr < 1)
-    risks.push(
-      "При снижении свободного потока на 30% денег может не хватить на платежи.",
-    );
-  if (product && (c.amount > product.max || c.term > product.term))
-    risks.push(
-      "Сумма или срок выходит за ограничения выбранного типа продукта.",
-    );
-  if (purpose === "Исполнение контракта" && !String(raw.repayFrom || "").trim())
-    risks.push("Нужно уточнить контракт и срок поступления оплаты.");
-  const eligible =
-    !!product &&
-    ["ИП", "ООО", "АО"].includes(profile.form) &&
-    profile.registered &&
-    profile.stage === "operating" &&
-    !profile.ageBand.includes("Менее") &&
-    c.amount <= product.max &&
-    c.term <= product.term;
-  if (!["ИП", "ООО", "АО"].includes(profile.form))
-    risks.push(
-      "Для этой формы бизнеса нужна индивидуальная консультация: демонстрационный каталог рассчитан на ИП, ООО и АО.",
-    );
-  return {
-    purpose,
+  // Compatibility adapter for saved demos and the original API contract.
+  // Recommendation rules live in one engine, not in a second legacy selector.
+  const input = fundingInput.parse({
+    ...blankFundingRequest(),
+    purpose: raw.purpose,
+    amount: Number(raw.amount),
+    term: raw.term === undefined ? null : Number(raw.term),
     repayFrom: String(raw.repayFrom || "Требует уточнения").slice(0, 300),
-    ownFunds: z.coerce
-      .number()
-      .min(0)
-      .max(1e9)
-      .parse(raw.ownFunds ?? 0),
-    product: product?.name ?? "Консультация по финансированию запуска",
-    calculation: c,
-    risks,
-    alternatives:
-      purpose === "Оборудование"
-        ? ["Рассмотреть лизинг оборудования; нужны его отдельные условия."]
-        : [
-            "Сравнить меньшую сумму или более длинный срок; общая стоимость может вырасти.",
-          ],
-    status: !eligible
-      ? "Нужна дополнительная проверка"
-      : c.flow === null
-        ? "Предварительный подбор"
-        : c.dscr! >= 1.25
-          ? "Можно обсуждать с менеджером"
-          : "Сначала скорректируйте нагрузку",
-  };
+    details: {
+      ownFunds: z.coerce
+        .number()
+        .min(0)
+        .max(1e9)
+        .parse(raw.ownFunds ?? 0),
+    },
+    financials: {
+      flow:
+        raw.flow === undefined || raw.flow === null || raw.flow === ""
+          ? null
+          : Number(raw.flow),
+      ...(raw.existing === undefined ? {} : { existing: Number(raw.existing) }),
+    },
+  });
+  const result = transparentFundingEngine.evaluate(input, {
+    profile,
+    documents: [],
+    chats: [],
+    selections: [],
+    credit: null,
+    notifications: [],
+    leads: [],
+    preferences: { split: 60, tourDone: true },
+    financials: {},
+  });
+  if (!profile.registered) result.status = "Нужна дополнительная проверка";
+  return result;
 }
 export function forecast(
   balance: number,

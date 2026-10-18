@@ -60,7 +60,7 @@ test("Результат: процент относится к суммам, о�
     />,
   );
   assert.match(html, /result-v2 caution/);
-  assert.match(html, /Запрос превышает/);
+  assert.match(html, /Сначала уменьшите кредитную нагрузку|Запрос превышает/);
   assert.match(html, /не вероятность выдачи/);
   assert.ok(!html.includes("shield-check"));
 });
