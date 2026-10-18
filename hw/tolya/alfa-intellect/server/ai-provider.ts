@@ -73,6 +73,60 @@ export function contextOf(s: AppState, selectionId?: string) {
     })(),
   };
 }
+
+/** Sends only the cabinet facts the agent needs; never forward contextOf wholesale. */
+export function agentCard(s: AppState, selectionId?: string) {
+  const context = contextOf(s, selectionId), selection = context.selection;
+  return {
+    ...(selection ? {
+      purpose: selection.purpose,
+      amount_rub: selection.calculation.amount,
+      term_months: selection.calculation.term,
+      instrument: selection.product,
+    } : {}),
+    documents: context.documents.map(({ category, period }) => ({ category, period })),
+    obligations: typeof s.financials.existing === "number"
+      ? [{ type: "existing_payments", amount_rub: s.financials.existing }]
+      : [],
+  };
+}
+
+export class TeamAgentProvider implements AIProvider {
+  constructor(private baseUrl: string) {}
+
+  async reply(s: AppState, history: Message[], selectionId?: string) {
+    const chat = s.chats.find((c) => c.messages === history);
+    try {
+      const endpoint = new URL("/turn", this.baseUrl);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: chat?.id || "",
+          text: history.at(-1)?.text || "",
+          card: agentCard(s, selectionId),
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!response.ok) throw new Error("agent request failed");
+      const data = await response.json() as { text?: unknown; status?: unknown; view?: unknown };
+      if (typeof data.text !== "string") throw new Error("invalid agent response");
+      return { text: data.text, mode: "team-agent", status: data.status, view: data.view };
+    } catch {
+      return { text: "Ассистент сейчас недоступен, попробуйте через минуту", mode: "agent-offline" };
+    }
+  }
+}
+
+export function createAIProvider(
+  env: NodeJS.ProcessEnv = process.env,
+  beforeCall: () => void = () => {},
+): AIProvider {
+  if (env.TEAM_AGENT_URL) return new TeamAgentProvider(env.TEAM_AGENT_URL);
+  if (env.OPENAI_API_KEY) return new OpenAIProvider(beforeCall);
+  return new DemoProvider();
+}
+
 export class DemoProvider implements AIProvider {
   async reply(
     s: AppState,
