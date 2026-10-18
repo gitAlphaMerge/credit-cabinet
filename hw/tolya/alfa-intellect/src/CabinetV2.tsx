@@ -202,7 +202,7 @@ export function PaymentCalendar({
   anchor = null,
   onDiscuss,
 }: {
-  facility: Facility;
+  facility: Facility | null;
   onClose: () => void;
   anchor?: HTMLElement | null;
   onDiscuss?: (date: string) => void;
@@ -212,33 +212,33 @@ export function PaymentCalendar({
     [recordDate, setRecordDate] = useState(day()),
     [recordSource, setRecordSource] = useState(""),
     [recordError, setRecordError] = useState("");
+  const payments = facility?.events || [];
   const next =
-    facility.events.find((p) => p.status !== "paid" && p.date >= day()) ||
-    facility.events[0];
+    payments.find((p) => p.status !== "paid" && p.date >= day()) || payments[0];
   const [month, setMonth] = useState((next?.date || day()).slice(0, 7) + "-01"),
     [selected, setSelected] = useState(next?.date || day());
   const d = new Date(month + "T00:00:00Z"),
-    events = facility.events.filter((p) => p.date === selected);
+    events = payments.filter((p) => p.date === selected);
   const chooseMonth = (year: number, index: number) => {
     const nextMonth = day(new Date(Date.UTC(year, index, 1)));
     const nextYear = Number(nextMonth.slice(0, 4));
     if (nextYear < firstYear || nextYear > lastYear) return;
     setMonth(nextMonth);
     setSelected(
-      facility.events.find((p) => p.date.startsWith(nextMonth.slice(0, 7)))
-        ?.date || nextMonth,
+      payments.find((p) => p.date.startsWith(nextMonth.slice(0, 7)))?.date ||
+        nextMonth,
     );
   };
   const shift = (n: number) =>
     chooseMonth(d.getUTCFullYear(), d.getUTCMonth() + n);
   const firstYear = Math.min(
     Number(day().slice(0, 4)),
-    Number(facility.startDate.slice(0, 4)),
+    Number((facility?.startDate || day()).slice(0, 4)),
   );
   const lastYear = Math.max(
     firstYear + 3,
     Number(day().slice(0, 4)) + 3,
-    ...facility.events.map((p) => Number(p.date.slice(0, 4))),
+    ...payments.map((p) => Number(p.date.slice(0, 4))),
   );
   return (
     <AnchoredPanel anchor={anchor} title="Календарь платежей" onClose={onClose}>
@@ -294,7 +294,7 @@ export function PaymentCalendar({
           ))}
           {calendarCells(month).map((dt, i) => {
             if (!dt) return <span key={"blank" + i} aria-hidden="true" />;
-            const ps = facility.events.filter((p) => p.date === dt);
+            const ps = payments.filter((p) => p.date === dt);
             return (
               <button
                 key={dt}
@@ -358,7 +358,11 @@ export function PaymentCalendar({
               </div>
             ))
           ) : (
-            <p>На эту дату обязательств в графике нет.</p>
+            <p>
+              {payments.length
+                ? "На эту дату обязательств в графике нет."
+                : "Платежи появятся после добавления графика кредита."}
+            </p>
           )}
           {!!events.length && onDiscuss && (
             <button
@@ -857,15 +861,6 @@ export function CabinetV2({
                   <Plus size={15} />
                   Добавить кредит
                 </Button>
-                {!s.cabinet?.noCreditConfirmedAt && (
-                  <button
-                    className="text-button"
-                    disabled={!!preview}
-                    onClick={() => void w.act("/cabinet/no-credit", {})}
-                  >
-                    Нет действующих кредитов
-                  </button>
-                )}
                 <button
                   className="text-button"
                   onClick={() => w.go("/financing")}
@@ -888,7 +883,6 @@ export function CabinetV2({
               title="Календарь платежей"
               aria-haspopup="dialog"
               aria-expanded={calendar}
-              disabled={!c?.events.length}
               onClick={() => setCalendar((open) => !open)}
             >
               <CalendarDays size={20} />
@@ -1087,7 +1081,7 @@ export function CabinetV2({
           </div>
         )}
       </section>
-      {calendar && c && (
+      {calendar && (
         <PaymentCalendar
           facility={c}
           anchor={calendarAnchor.current}
