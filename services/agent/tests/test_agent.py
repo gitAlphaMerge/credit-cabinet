@@ -90,8 +90,10 @@ def test_bad_llm_text_replaced_by_template():
 
 def test_router_asks_purpose_first_then_repay():
     state = dialog.new_state({"form": "ООО", "years": "больше 3"})
-    assert dialog.turn(state, "") == dialog.QUESTIONS["purpose"]
-    assert dialog.turn(state, "Нужно 1,5 млн, заказчик платит позже") == dialog.QUESTIONS["repay"]
+    assert dialog.turn(state, "") in dialog.QUESTIONS["purpose"]
+    reply = dialog.turn(state, "Нужно 1,5 млн, заказчик платит позже")
+    assert reply.startswith("Цель понял. Сумму записал.")
+    assert any(reply.endswith(question) for question in dialog.QUESTIONS["repay"])
 
 
 def test_guard_allows_negative_dscr_from_core():

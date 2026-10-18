@@ -102,6 +102,10 @@ class Session:
         self.phase, self.turns = "rate", self.turns + 1
         return reply
 
+    def opening(self) -> str:
+        """Агент начинает разговор: приветствие и первый вопрос одним сообщением."""
+        return f"Здравствуйте! Помогу разобраться с финансированием бизнеса. {self.say('')}"
+
     def rate(self, ok: bool) -> None:
         self.ok = ok
         if ok:
@@ -160,7 +164,7 @@ def main() -> int:
             "Это тренажёр агента кредитного кабинета. Ты играешь клиента, после каждого ответа агента жмёшь "
             "👍 или 👎. На 👎 пишешь, что не так: «длинно», «непонятно», «не спросил про договор», «врёт». "
             "Эти оценки и делают агента умнее.\n\n" + s.card(), reply_markup=keys)
-        await m.answer("Пиши первую реплику клиента 👇")
+        await m.answer(s.opening(), reply_markup=marks)
 
     @dp.callback_query(F.data.in_({"ok", "bad"}))
     async def on_mark(q: CallbackQuery) -> None:

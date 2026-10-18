@@ -29,6 +29,15 @@ def test_rate_ok_writes_row(tmp_path):
     assert s.phase == "client" and len(rows) == 1 and rows[0]["ok"] and rows[0]["who"] == "tester"
 
 
+def test_agent_opens_with_greeting_and_first_question(tmp_path):
+    s = _session(tmp_path)
+    reply = s.opening()
+    assert reply.startswith("Здравствуйте!")
+    assert "?" in reply
+    assert s.phase == "rate" and s.turns == 1
+    assert s.state["trace"][0]["slot"] == "purpose"
+
+
 def test_bad_waits_for_comment(tmp_path):
     s = _session(tmp_path)
     s.say("кассовый разрыв")
