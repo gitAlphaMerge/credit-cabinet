@@ -16,7 +16,7 @@ import {
 } from "./store";
 import { calculate, select, forecast, catalog } from "./finance";
 import { extract, fieldNames, readableFileName } from "./documents";
-import { DemoProvider, OpenAIProvider } from "./ai-provider";
+import { createAIProvider } from "./ai-provider";
 import { publicPreview } from "./preview";
 import { findCompany, RegistryError } from "./registry";
 import { cabinetRouter, syncCabinetNotices } from "./cabinet";
@@ -451,8 +451,7 @@ app.post("/api/chats/:id/messages", async (req, res) => {
   saveState(uid, s);
   busy.add(uid);
   try {
-    const provider = process.env.OPENAI_API_KEY
-      ? new OpenAIProvider(() => {
+    const provider = createAIProvider(process.env, () => {
           const day = new Date().toISOString().slice(0, 10);
           const n = db
             .prepare("SELECT calls FROM usage WHERE user_id=? AND day=?")
@@ -462,8 +461,7 @@ app.post("/api/chats/:id/messages", async (req, res) => {
           db.prepare(
             "INSERT INTO usage VALUES(?,?,1) ON CONFLICT(user_id,day) DO UPDATE SET calls=calls+1",
           ).run(uid, day);
-        })
-      : new DemoProvider();
+        });
     const answer = await provider.reply(s, chat.messages, chat.selectionId);
     const current = stateOf(uid),
       currentChat = current.chats.find((c) => c.id === chat.id)!;

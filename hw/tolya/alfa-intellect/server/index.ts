@@ -3,6 +3,8 @@ import { app } from "./app";
 import express from "express";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { startTeamAgentProcess } from "./team-agent-process";
+void startTeamAgentProcess();
 const production =
   process.env.NODE_ENV !== "development" && existsSync("dist/index.html");
 app.use("/fixtures", express.static(resolve("fixtures")));
