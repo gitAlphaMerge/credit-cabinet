@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, FileText } from "lucide-react";
 import { WorkspaceContext, type Workspace } from "./context";
 import { Brand, Button, Badge, Modal } from "./ui";
-import { Cabinet } from "./Cabinet";
+import { CabinetV2 } from "./CabinetV2";
 import { SelectionResult } from "./SelectionResult";
 import { RangeField } from "./RangeField";
 import { MarkdownText } from "./MarkdownText";
@@ -141,7 +141,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
               <span>{state.profile.source}</span>
             </div>
             {tab === "cabinet" ? (
-              <Cabinet preview={state} />
+              <CabinetV2 preview={state} onDiscuss={() => setTab("chat")} />
             ) : tab === "selection" ? (
               <>
                 {editing && (

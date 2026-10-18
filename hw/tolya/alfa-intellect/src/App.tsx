@@ -22,7 +22,7 @@ import { DemoPage } from "./DemoPage";
 import { Chat } from "./Chat";
 import { ProfilePage } from "./Profile";
 import { Financing } from "./Financing";
-import { EfficiencyPage } from "./Efficiency";
+import { cabinetRoute } from "./metric-scale";
 import type { AppState, Doc } from "../shared/types";
 import {
   readFinancingDraft,
@@ -31,7 +31,7 @@ import {
   type FinancingDraft,
 } from "./financing-draft";
 export function App() {
-  const [path, setPath] = useState(location.pathname),
+  const [path, setPath] = useState(() => cabinetRoute(location.pathname)),
     [state, setState] = useState<AppState | null>(null),
     [config, setConfig] = useState<any>({}),
     [loading, setLoading] = useState(true),
@@ -61,9 +61,7 @@ export function App() {
   } | null>(null);
   const sendingLock = useRef(false),
     chatPageVisited = useRef(false);
-  const cabinetPath = useRef(
-    location.pathname === "/cabinet" ? "/cabinet" : "/cabinet-v2",
-  );
+  const cabinetPath = useRef("/cabinet");
   const [tourPreview, setTourPreview] = useState<AppState>();
   const financingOwner = useRef<string | null>(null);
   const [financingDraft, setFinancingDraft] = useState<FinancingDraft>({});
@@ -109,7 +107,7 @@ export function App() {
     };
   }, [tour >= 0, tourPreview]);
   function go(p: string) {
-    if (p === "/cabinet" || p === "/cabinet-v2") cabinetPath.current = p;
+    p = cabinetRoute(p);
     history.pushState({}, "", p);
     setPath(p);
     setMobileNav(false);
@@ -144,7 +142,7 @@ export function App() {
     setHistoryOpen(false);
     setChatVisible(false);
     await refresh();
-    go("/cabinet-v2");
+    go("/cabinet");
   }
   async function signOut() {
     try {
@@ -187,7 +185,12 @@ export function App() {
     }
   }
   useEffect(() => {
-    const pop = () => setPath(location.pathname);
+    const pop = () => {
+      const p = cabinetRoute(location.pathname);
+      if (p !== location.pathname) history.replaceState({}, "", p);
+      setPath(p);
+    };
+    pop();
     addEventListener("popstate", pop);
     api("/config")
       .then(async (c) => {
@@ -204,8 +207,7 @@ export function App() {
     return () => removeEventListener("popstate", pop);
   }, []);
   useEffect(() => {
-    if (state && !state.preferences.tourDone && path === "/cabinet-v2")
-      setTour(0);
+    if (state && !state.preferences.tourDone && path === "/cabinet") setTour(0);
   }, [state?.preferences.tourDone, path]);
   useEffect(() => {
     if (toast) {
@@ -309,25 +311,19 @@ export function App() {
     >
       <div className={"workspace app-shell page-" + page}>
         <header className="app-header">
-          <button onClick={() => go("/cabinet-v2")} className="unstyled">
+          <button onClick={() => go("/cabinet")} className="unstyled">
             <Brand />
           </button>
           <nav className={mobileNav || tour === 5 ? "open" : ""}>
             {[
-              ["cabinet-v2", "Кредитный кабинет"],
+              ["cabinet", "Кредитный кабинет"],
               ["chat", "Чат"],
               ["financing", "Подбор финансирования"],
             ].map(([p, label]) => (
               <button
                 data-tour={p}
                 key={p}
-                className={
-                  page === p ||
-                  (p === "cabinet-v2" &&
-                    ["cabinet", "efficiency"].includes(page))
-                    ? "active"
-                    : ""
-                }
+                className={page === p ? "active" : ""}
                 onClick={() => go("/" + p)}
               >
                 {label}
@@ -356,7 +352,7 @@ export function App() {
             <IconButton
               label="Обучение"
               onClick={() => {
-                go("/cabinet-v2");
+                go("/cabinet");
                 setTour(0);
               }}
             >
@@ -378,15 +374,12 @@ export function App() {
           <ProfilePage />
         ) : page === "financing" ? (
           <Financing />
-        ) : page === "efficiency" ? (
-          <EfficiencyPage />
         ) : page === "chat" ? (
           <div className="full-chat">
             <Chat full />
           </div>
         ) : (
           <WorkspaceView
-            modern={page !== "cabinet"}
             tour={tour}
             preview={tour >= 0 ? tourPreview : undefined}
           />
@@ -404,7 +397,6 @@ export function App() {
               Обратиться к сотруднику <ArrowRight size={12} />
             </button>
           )}
-          <span>Решение о финансировании принимает банк</span>
         </footer>
       </div>
     </WorkspaceContext.Provider>

@@ -1,4 +1,4 @@
-/* Cabinet v2: calm, content-first workspace. Legacy cabinet remains untouched. */
+/* Shared cabinet controls, editors, notifications and responsive tour. */
 .guided-shade {
   position: fixed;
   inset: 0;
@@ -1081,7 +1081,527 @@
     opacity: 1;
   }
 }
+/* Unified cabinet: the original two-column card layout with verified new data. */
+.unified-cabinet {
+  --cv-line: #e0e5ee;
+  --cv-muted: #6d7b91;
+  --cv-radius: 14px;
+  --cv-accent: #f03529;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+  color: #20242e;
+  padding: 0 0 24px;
+}
+.unified-cabinet .cv-overview {
+  display: contents;
+}
+.unified-cabinet .cv-card {
+  margin: 0;
+  padding: 24px 26px;
+}
+.unified-cabinet .cv-facility,
+.unified-cabinet .cv-financial,
+.unified-cabinet .cv-recommendations,
+.unified-cabinet .cv-training-label {
+  grid-column: 1 / -1;
+}
+.unified-cabinet .cv-next {
+  grid-column: 1;
+}
+.unified-cabinet .cv-debt-chart {
+  grid-column: 2;
+}
+.unified-cabinet h2 {
+  color: #20242e;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.unified-cabinet .cv-card-head {
+  margin-bottom: 22px;
+}
+.unified-cabinet .cv-card-head p,
+.unified-cabinet .cv-card small {
+  font-size: 12px;
+  color: #6d7b91;
+}
+.cv-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+.cv-summary-grid strong {
+  display: block;
+  margin: 8px 0 0;
+  font-size: 26px;
+  font-weight: 750;
+  color: #20242e;
+  line-height: 1.35;
+  letter-spacing: -0.7px;
+  overflow-wrap: anywhere;
+}
+.unified-cabinet .cv-summary-grid .cv-hero-number {
+  font-size: 26px;
+  margin: 8px 0 0;
+}
+.unified-cabinet .cv-progress {
+  margin: 20px 0 18px;
+}
+.unified-cabinet .cv-progress i {
+  background: #f03529;
+}
+.unified-cabinet .cv-terms {
+  font-size: 12px;
+  color: #68758a;
+}
+.unified-cabinet .cv-payment-number {
+  font-size: 32px;
+  color: #20242e;
+  font-weight: 750;
+}
+.unified-cabinet .cv-payment-parts span {
+  font-size: 12px;
+  color: #6d7b91;
+}
+.unified-cabinet .cv-payment-parts b {
+  color: #37445a;
+  font-size: 13px;
+}
+.unified-cabinet .cv-calendar-button {
+  font-size: 12px;
+  color: #56657e;
+}
+.unified-cabinet .text-button {
+  font-size: 12px;
+  color: #53617a;
+}
+.unified-cabinet .button {
+  font-size: 12px;
+}
+.unified-cabinet details p,
+.unified-cabinet .cv-forecast > p,
+.unified-cabinet .cv-card > p {
+  color: #6d7b91;
+  font-size: 12px;
+}
+.unified-cabinet summary {
+  font-size: 12px;
+  color: #63718a;
+}
+.unified-cabinet .cv-chart-plot {
+  height: 155px;
+}
+.unified-cabinet .cv-chart-plan {
+  stroke: #98a6b9;
+  stroke-width: 3;
+}
+.unified-cabinet .cv-chart-key i:not(.fact) {
+  background: #98a6b9;
+}
+.unified-cabinet .cv-axis-top,
+.unified-cabinet .cv-axis-zero {
+  color: #718098;
+  font-size: 9px;
+}
+.unified-cabinet .cv-chart-empty {
+  min-height: 185px;
+  border-radius: 10px;
+}
+.unified-cabinet .cv-chart-empty h3 {
+  color: #63718a;
+}
+.unified-cabinet .cv-chart-empty p {
+  color: #738096;
+}
+.unified-cabinet .cv-chart-key {
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #68758a;
+}
+.unified-cabinet .cv-xlabels {
+  color: #778399;
+  font-size: 10px;
+}
+.unified-cabinet .cv-cash-forecast {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 30px;
+}
+.unified-cabinet .cv-cash > strong,
+.unified-cabinet .cv-forecast > strong {
+  color: #20242e;
+  font-weight: 700;
+}
+.unified-cabinet .cv-cash > span,
+.unified-cabinet .cv-forecast > span {
+  font-size: 12px;
+  color: #68758a;
+}
+.unified-cabinet .cv-forecast.risk > span {
+  color: #ba4d3c;
+}
+.unified-cabinet .cv-forecast.enough > span {
+  color: #23815b;
+}
+.unified-cabinet .cv-discuss {
+  font-size: 12px;
+  color: #43516b;
+}
+.unified-indicators {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #e6eaf0;
+}
+.unified-indicators .cv-card-head {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.unified-indicators .cv-card-head small {
+  font-size: 11px;
+}
+.unified-indicators .cv-metrics {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  gap: 14px;
+}
+.unified-indicators .cv-metric {
+  border: 1px solid #e6eaf1;
+  border-radius: 11px;
+  padding: 16px;
+  background: #fff;
+}
+.unified-indicators .cv-metric > div:first-child {
+  align-items: center;
+  min-height: 35px;
+}
+.unified-indicators .cv-metric > b {
+  color: #20242e;
+  font-size: 25px;
+  font-weight: 700;
+  margin: 8px 0;
+}
+.unified-indicators .cv-metric > span {
+  font-size: 11px;
+  color: #69768c;
+  min-height: 34px;
+}
+.unified-indicators .cv-metric > .metric-scale {
+  display: block;
+  margin-top: 16px;
+}
+.metric-scale-track {
+  position: relative;
+  height: 7px;
+  margin: 0 3px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e8685d 0%, #eab867 48%, #7ab893 100%);
+}
+.metric-scale.coverage .metric-scale-track {
+  background: linear-gradient(
+    90deg,
+    #e8685d 0%,
+    #e8685d 49%,
+    #eab867 50%,
+    #eab867 64%,
+    #7ab893 65%,
+    #7ab893 100%
+  );
+}
+.metric-scale-track i {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 13px;
+  border-radius: 5px;
+  transform: translate(-50%, -50%);
+  background: #26364d;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px #24304740;
+}
+.metric-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+  margin-top: 8px;
+}
+.unified-cabinet .metric-scale-labels small {
+  font-size: 10px;
+}
+.metric-scale.no-data .metric-scale-track {
+  background: #e9edf2;
+}
+.unified-cabinet .cv-recommendations {
+  padding: 22px 26px;
+  border: 1px solid var(--cv-line);
+  border-radius: 14px;
+  background: #fff;
+}
+.unified-cabinet .cv-recommendations article p,
+.unified-cabinet .cv-no-signals p {
+  color: #6d7b91;
+  font-size: 12px;
+}
+.context-help {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.context-help-trigger,
+.cv-metric .context-help-trigger {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: #78869c;
+  cursor: help;
+}
+.context-help-trigger:hover,
+.context-help-trigger[aria-expanded="true"] {
+  background: #f0f3f8;
+  color: #e6342a;
+}
+.context-help-trigger:focus-visible,
+.anchored-calendar button:focus-visible,
+.anchored-calendar select:focus-visible {
+  outline: 2px solid #e9584e;
+  outline-offset: 3px;
+}
+.context-help-panel,
+.anchored-calendar {
+  position: fixed;
+  z-index: 150;
+  box-sizing: border-box;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #e1e6ef;
+  border-radius: 16px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: 0 12px 50px #25365022;
+  color: #243047;
+  text-align: left;
+  animation: context-in 0.15s ease both;
+}
+.context-help-panel h3 {
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+.context-help-panel p,
+.context-help-panel dl {
+  font-size: 12px;
+  line-height: 1.75;
+  margin: 10px 0;
+}
+.context-help-panel dt {
+  color: #78859a;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 12px;
+}
+.context-help-panel dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+.context-help-hint {
+  display: block;
+  color: #78859a;
+  font-size: 10px;
+  margin-top: 16px;
+  border-top: 1px solid #e8ecf2;
+  padding-top: 12px;
+}
+.scale-explanation {
+  background: #f5f7fa;
+  padding: 10px;
+  border-radius: 8px;
+}
+.anchored-calendar {
+  width: 360px;
+  padding: 18px;
+}
+.anchored-calendar > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 12px;
+}
+.anchored-calendar h2 {
+  font-size: 16px;
+  margin: 0;
+}
+.anchored-calendar > header button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: #f3f5f8;
+  color: #63718a;
+}
+.cv-month-selectors {
+  display: flex;
+  gap: 4px;
+}
+.cv-month-selectors select {
+  border: 0;
+  background: #f5f7fa;
+  border-radius: 7px;
+  padding: 7px 4px;
+  color: #37445a;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+.anchored-calendar .cv-calendar-head {
+  margin-bottom: 12px;
+}
+.anchored-calendar .cv-calendar-grid button {
+  height: 34px;
+}
+.anchored-calendar .cv-calendar-detail {
+  padding: 12px;
+  margin-top: 14px;
+}
+.anchored-calendar .cv-calendar-detail h3 {
+  margin: 6px 0;
+  font-size: 20px;
+}
+.anchored-calendar .cv-calendar-detail p {
+  margin: 7px 0;
+  font-size: 11px;
+}
+.anchored-calendar .cv-note {
+  font-size: 10px;
+  line-height: 1.7;
+  color: #778399;
+}
+@container (max-width: 800px) {
+  .unified-cabinet .cv-card,
+  .unified-cabinet .cv-recommendations {
+    padding: 20px;
+  }
+  .unified-cabinet .cv-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .unified-cabinet .cv-summary-grid strong {
+    font-size: 24px;
+  }
+  .unified-cabinet .cv-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (max-width: 650px) {
+  .unified-cabinet .cv-next,
+  .unified-cabinet .cv-debt-chart {
+    grid-column: 1 / -1;
+  }
+  .unified-cabinet .cv-cash-forecast {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .unified-cabinet .cv-forecast {
+    border-left: 0;
+    padding: 20px 0 0;
+    border-top: 1px solid #edf0f4;
+    margin-top: 20px;
+  }
+  .unified-cabinet .cv-metric {
+    padding: 12px;
+  }
+  .unified-cabinet h2 {
+    font-size: 17px;
+  }
+}
+@keyframes context-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 1000px) {
+  /* Keep all four indicators visible above the mobile tour card. */
+  .touring .unified-cabinet .cv-financial {
+    padding: 14px;
+  }
+  .touring .cv-financial .cv-card-head {
+    margin-bottom: 10px;
+  }
+  .touring .cv-financial .cv-card-head h2 {
+    font-size: 14px;
+  }
+  .touring .cv-financial > .cv-card-head p,
+  .touring .cv-financial .cv-cash > span,
+  .touring .cv-financial .cv-forecast details,
+  .touring .cv-financial .unified-indicators .cv-card-head > small,
+  .touring .cv-financial .cv-metric > span {
+    display: none;
+  }
+  .touring .cv-financial .cv-cash > strong,
+  .touring .cv-financial .cv-forecast > strong {
+    font-size: 19px;
+    margin: 5px 0;
+  }
+  .touring .cv-financial .cv-forecast > span,
+  .touring .cv-financial .cv-cash > small,
+  .touring .cv-financial .cv-forecast > small {
+    font-size: 10px;
+  }
+  .touring .cv-financial .unified-indicators {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .touring .cv-financial .cv-metrics {
+    padding: 0;
+    margin: 0;
+    gap: 8px;
+  }
+  .touring .cv-financial .cv-metric {
+    padding: 6px 8px;
+  }
+  .touring .cv-financial .cv-metric > div:first-child {
+    min-height: 26px;
+  }
+  .touring .cv-financial .cv-metric small {
+    font-size: 9px;
+  }
+  .touring .cv-financial .cv-metric > b {
+    font-size: 18px;
+    margin: 3px 0;
+  }
+  .touring .cv-financial .cv-metric > .metric-scale {
+    margin-top: 8px;
+  }
+  .touring .cv-financial .metric-scale-labels {
+    margin-top: 5px;
+  }
+  .touring .cv-financial .metric-scale-labels small {
+    font-size: 8px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
+  .context-help-panel,
+  .anchored-calendar {
+    animation: none;
+  }
   .cabinet-v2 * {
     animation: none !important;
     transition: none !important;

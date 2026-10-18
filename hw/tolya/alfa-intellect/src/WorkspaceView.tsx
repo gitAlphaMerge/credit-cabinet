@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { PanelRightOpen, ArrowRight } from "lucide-react";
+import { PanelRightOpen } from "lucide-react";
 import { useWorkspace } from "./context";
-import { Cabinet } from "./Cabinet";
 import { CabinetV2 } from "./CabinetV2";
 import { trainingCabinet } from "../shared/cabinet-training";
 import { Chat } from "./Chat";
@@ -11,11 +10,9 @@ import { panelSplit } from "./panel-layout";
 export function WorkspaceView({
   preview,
   tour = -1,
-  modern = false,
 }: {
   preview?: AppState;
   tour?: number;
-  modern?: boolean;
 }) {
   const w = useWorkspace(),
     root = useRef<HTMLDivElement>(null),
@@ -91,21 +88,7 @@ export function WorkspaceView({
       }
     >
       <div className="work-toolbar">
-        <div className="visually-hidden">
-          <h1>Кредитный кабинет</h1>
-        </div>
-        {modern ? (
-          <button
-            className="text-button muted"
-            onClick={() => w.go("/cabinet")}
-          >
-            Предыдущий кабинет ↗
-          </button>
-        ) : (
-          <Button secondary onClick={() => w.go("/cabinet-v2")}>
-            Открыть новый кабинет <ArrowRight size={15} />
-          </Button>
-        )}
+        <h1>Кредитный кабинет</h1>
         {narrow ? (
           <div className="segmented mobile-work-tabs">
             <button
@@ -149,14 +132,11 @@ export function WorkspaceView({
       >
         {(!narrow || mobileTab === "credit" || !visible) && (
           <div className="cabinet-scroll">
-            {modern ? (
-              <CabinetV2
-                preview={preview ? trainingCabinet(preview) : undefined}
-                onDiscuss={() => void discuss()}
-              />
-            ) : (
-              <Cabinet preview={preview} />
-            )}
+            <CabinetV2
+              training={!!preview}
+              preview={preview ? trainingCabinet(preview) : undefined}
+              onDiscuss={() => void discuss()}
+            />
           </div>
         )}
         {!narrow && visible && (
