@@ -26,11 +26,16 @@ def post(httpd, payload):
         return json.load(response)
 
 
-def test_health_and_turn_uses_known_card_fields(monkeypatch):
+def test_health_and_turn_uses_known_card_fields(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "AGENT_LOG", tmp_path / "team-agent.log")
+    monkeypatch.setattr(server.llm, "available", lambda: False)
     httpd = run_server()
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{httpd.server_port}/health") as r:
-            assert json.load(r) == {"ok": True}
+            health = json.load(r)
+            assert health["ok"] is True
+            assert health["llm"] == "templates"
+            assert "started_at" in health and "turns" in health
         result = post(httpd, {
             "session_id": "known-card",
             "text": "Здравствуйте",
@@ -45,7 +50,8 @@ def test_health_and_turn_uses_known_card_fields(monkeypatch):
         httpd.shutdown()
 
 
-def test_sessions_are_isolated(monkeypatch):
+def test_sessions_are_isolated(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "AGENT_LOG", tmp_path / "team-agent.log")
     server.SESSIONS.clear()
     httpd = run_server()
     try:
@@ -58,7 +64,8 @@ def test_sessions_are_isolated(monkeypatch):
         httpd.shutdown()
 
 
-def test_card_allowlist_drops_personal_data(monkeypatch):
+def test_card_allowlist_drops_personal_data(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "AGENT_LOG", tmp_path / "team-agent.log")
     httpd = run_server()
     try:
         post(httpd, {"session_id": "private", "text": "привет", "card": {
@@ -72,3 +79,58 @@ def test_card_allowlist_drops_personal_data(monkeypatch):
             assert secret not in serialized
     finally:
         httpd.shutdown()
+
+
+def test_turn_uses_llm_slots_when_available_and_logs_no_reply(monkeypatch, tmp_path):
+    server.SESSIONS.clear()
+    server.TURNS = 0
+    log_path = tmp_path / "team-agent.log"
+    monkeypatch.setattr(server, "AGENT_LOG", log_path)
+    monkeypatch.setattr(server.llm, "available", lambda: True)
+    monkeypatch.setattr(server.llm, "intake", lambda text, asking: {})
+    monkeypatch.setattr(server.llm, "explain", lambda view, need: "LLM reply with private text")
+    monkeypatch.setattr(server.guard, "check", lambda *_args: [])
+    httpd = run_server()
+    try:
+        result = post(httpd, {"session_id": "llm-session", "text": "Здравствуйте"})
+        assert result["llm"] == server.llm.MODEL
+        assert "потратить" in result["text"].lower()
+        events = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+        assert len(events) == 1
+        assert events[0]["event"] == "agent_turn"
+        assert events[0]["session_id"] == "llm-session"
+        assert "reply" not in events[0] and "text" not in events[0]
+        with urllib.request.urlopen(f"http://127.0.0.1:{httpd.server_port}/health") as response:
+            health = json.load(response)
+        assert health["llm"] == server.llm.MODEL
+        assert health["turns"] == 1
+        assert health["started_at"]
+    finally:
+        httpd.shutdown()
+
+
+def test_llm_slots_fall_back_to_templates_on_llm_error(monkeypatch, tmp_path):
+    server.SESSIONS.clear()
+    monkeypatch.setattr(server, "AGENT_LOG", tmp_path / "team-agent.log")
+    monkeypatch.setattr(server.llm, "available", lambda: True)
+    monkeypatch.setattr(server.llm, "intake", lambda *_args: (_ for _ in ()).throw(RuntimeError("offline")))
+    httpd = run_server()
+    try:
+        result = post(httpd, {"session_id": "fallback-session", "text": "Здравствуйте"})
+        assert result["text"]
+        event = json.loads((tmp_path / "team-agent.log").read_text(encoding="utf-8"))
+        assert event["fallback"] is True
+        assert result["llm"] == server.llm.MODEL
+    finally:
+        httpd.shutdown()
+
+
+def test_key_uses_direct_key_only_for_custom_llm_url(monkeypatch):
+    monkeypatch.setenv("AGENT_LLM_URL", "https://api.deepseek.com/chat/completions")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "direct-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "router-key")
+    assert server.llm._key() == "direct-key"
+    monkeypatch.delenv("DEEPSEEK_API_KEY")
+    assert server.llm._key() is None
+    monkeypatch.delenv("AGENT_LLM_URL")
+    assert server.llm._key() == "router-key"

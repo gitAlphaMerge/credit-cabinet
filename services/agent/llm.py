@@ -15,15 +15,22 @@ URL = os.getenv("AGENT_LLM_URL", "https://openrouter.ai/api/v1/chat/completions"
 MODEL = os.getenv("AGENT_LLM_MODEL", "deepseek/deepseek-v4.1-flash")
 
 
-def _key() -> str | None:
-    if os.getenv("OPENROUTER_API_KEY"):
-        return os.environ["OPENROUTER_API_KEY"]
+def _env(name: str) -> str | None:
+    if os.getenv(name):
+        return os.environ[name]
     env = ROOT / ".env"
     if env.exists():
         for line in env.read_text(encoding="utf-8-sig").splitlines():
-            if line.startswith("OPENROUTER_API_KEY="):
-                return line.split("=", 1)[1].strip()
+            if line.startswith(name + "="):
+                return line.split("=", 1)[1].strip() or None
     return None
+
+
+def _key() -> str | None:
+    # прямой DeepSeek API на сервере YC (OpenRouter оттуда 403) — свой ключ; sim и eval-бот на ноуте берут ключ из .env корня
+    if os.getenv("AGENT_LLM_URL"):
+        return _env("DEEPSEEK_API_KEY")
+    return _env("OPENROUTER_API_KEY")
 
 
 def available() -> bool:

@@ -1,13 +1,40 @@
 """Small stdlib HTTP adapter for the deterministic/template agent."""
 import json
 import os
+import threading
+import time
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import dialog
+import explain_templates
 import intake_rules
+import llm
+import guard
 
 SESSIONS: dict[str, dict] = {}
 MAX_BODY = 1_000_000
+ROOT = Path(__file__).resolve().parents[2]
+AGENT_LOG = Path(os.getenv("AGENT_LOG", str(ROOT / "var" / "log" / "team-agent.log")))
+STARTED_AT = datetime.now(timezone.utc).isoformat()
+TURNS = 0
+_LOG_LOCK = threading.Lock()
+_TURN_LOCK = threading.Lock()
+
+
+def _log(event):
+    try:
+        AGENT_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with _LOG_LOCK, AGENT_LOG.open("a", encoding="utf-8") as output:
+            output.write(json.dumps(event, ensure_ascii=False) + "\n")
+    except OSError:
+        # Logging must never prevent the chat adapter from serving a request.
+        pass
+
+
+def _llm_name():
+    return llm.MODEL if llm.available() else "templates"
 
 
 def _number(value, low=0, high=10**12):
@@ -61,7 +88,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            self._json(200, {"ok": True})
+            self._json(200, {"ok": True, "llm": _llm_name(), "started_at": STARTED_AT, "turns": TURNS})
         else:
             self._json(404, {"error": "not found"})
 
@@ -87,11 +114,51 @@ class Handler(BaseHTTPRequestHandler):
         card = _card(payload.get("card"))
         state = SESSIONS.setdefault(session_id, _new_state(card))
         try:
-            reply = dialog.turn(state, text, intake=intake_rules.parse)
+            use_llm = llm.available()
+            fallback = False
+
+            def intake_slot(value, asking):
+                nonlocal fallback
+                if not use_llm:
+                    return intake_rules.parse(value, asking)
+                try:
+                    return llm.intake(value, asking)
+                except Exception:
+                    fallback = True
+                    return intake_rules.parse(value, asking)
+
+            def explain_slot(view, need):
+                nonlocal fallback
+                if not use_llm:
+                    return explain_templates.explain(view, need)
+                try:
+                    answer = llm.explain(view, need)
+                    violations = guard.check(answer, view, need)
+                    if violations:
+                        fallback = True
+                        return explain_templates.explain(view, need)
+                    return answer
+                except Exception:
+                    fallback = True
+                    return explain_templates.explain(view, need)
+
+            started = time.monotonic()
+            reply = dialog.turn(state, text, intake=intake_slot, explain=explain_slot)
+            elapsed_ms = round((time.monotonic() - started) * 1000)
             view = state.get("view")
+            llm_name = _llm_name()
+            if state.get("trace"):
+                fallback = fallback or bool(state["trace"][-1].get("violations"))
+            with _TURN_LOCK:
+                global TURNS
+                TURNS += 1
+            status = view.get("status") if view else ("collecting" if state.get("asking") else "ready")
+            _log({"event": "agent_turn", "ts": datetime.now(timezone.utc).isoformat(),
+                  "session_id": session_id, "status": status, "llm": llm_name,
+                  "ms": elapsed_ms, **({"fallback": True} if fallback else {})})
             self._json(200, {
                 "text": reply, "mode": "team-agent",
-                "status": view.get("status") if view else ("collecting" if state.get("asking") else "ready"),
+                "status": status, "llm": llm_name,
                 "view": view,
             })
         except Exception:
