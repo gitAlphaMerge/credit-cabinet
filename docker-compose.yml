@@ -53,5 +53,30 @@ services:
       - "${FRONTEND_PORT:-80}:80"
     mem_limit: 64m
 
+  alfa-intellect:   # сайт Толи: аккаунты, кабинет, подбор; расчёт через api -> ядро Лизы
+    build: ./hw/tolya/alfa-intellect
+    restart: unless-stopped
+    ports:
+      - "${ALFA_PORT:-4173}:4173"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4173
+      DATABASE_PATH: /app/var/alfa.sqlite
+      TEAM_API_URL: http://api:8080
+      EGR_PROVIDER: mock   # ЕГРЮЛ/ЕГРИП без платных ключей: синтетические компании с пометкой «мок»
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/health', {signal: AbortSignal.timeout(4000)}).then(async r => {if (!r.ok || (await r.json()).db !== 'ok') process.exit(1)}).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    volumes:
+      - alfa_data:/app/var
+    mem_limit: 256m
+
 volumes:
   journal:
+  alfa_data:
