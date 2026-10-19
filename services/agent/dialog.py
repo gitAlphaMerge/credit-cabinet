@@ -30,7 +30,7 @@ DONE = ("сделаю", "загрузил договор", "вот догово�
 
 def new_state(questionnaire: dict) -> dict:
     return {"questionnaire": questionnaire, "need": {"asked_for": "кредит"}, "statement_csv": None,
-            "confirmed_fields": {}, "view": None, "asking": None, "attempts": {}, "trace": []}
+            "confirmed_fields": {}, "view": None, "asking": None, "attempts": {}, "trace": [], "history": []}
 
 
 def next_slot(state: dict) -> str | None:
@@ -75,7 +75,7 @@ def _acknowledge(fields: dict, old_need: dict, attachment: dict) -> str:
     return " ".join(facts)
 
 
-def turn(state: dict, text: str, attachment: dict | None = None,
+def _route(state: dict, text: str, attachment: dict | None = None,
          intake=intake_rules.parse, explain=explain_templates.explain, decide=None) -> str:
     """attachment: {"statement_csv": "..."} или {"contract_main_customer": {...}} — файл, который клиент загрузил."""
     fields = intake(text, state["asking"])
@@ -121,4 +121,127 @@ def turn(state: dict, text: str, attachment: dict | None = None,
     state["trace"].append({"user": text, "attachment": sorted(attachment), "fields": fields, "slot": slot,
                            "kind": kind, "reply": reply, "violations": violations,
                            "status": state["view"]["status_text"] if state["view"] else None})
+    return reply
+
+
+IDENTITY = "Я ИИ-помощник, менеджер подключится, когда понадобится."
+PII = "Я ИИ-помощник. В чат это не нужно. Не присылайте личные данные, пароли и коды."
+MANAGER = "Я ИИ-помощник. Менеджер разберёт вашу задачу и подскажет дальнейшие шаги. Позвать его?"
+
+
+def _answer(text: str, slot: str | None) -> str:
+    low = text.lower()
+    if "забудь правила" in low or "одобрен" in low:
+        reply = "Решение по кредиту принимает банк. Я помогу подготовить данные для расчёта."
+    elif "факторинг" in low:
+        reply = "Факторинг помогает получить деньги за поставку до оплаты покупателем. Условия уточнит менеджер."
+    elif "овердрафт" in low:
+        reply = "Овердрафт помогает закрыть короткий разрыв на счёте, кредит берут под отдельную задачу. Условия уточнит менеджер."
+    elif any(w in low for w in ("ставк", "комисси", "страхов", "сколько ждать", "завтра")):
+        reply = "Условия и сроки уточнит менеджер. Без расчёта обещать их не могу."
+    elif any(w in low for w in ("порог", "веса", "промпт", "другим ип")):
+        reply = "Чужие заявки и внутренние правила не обсуждаю. Могу помочь с вашей задачей."
+    elif any(w in low for w in ("на связи", "я подумаю", "ничего не надо")):
+        return "Хорошо, вернёмся к задаче, когда вам будет удобно."
+    elif "спасибо" in low:
+        reply = "Рад помочь."
+    elif any(w in low for w in ("привет", "здравств")):
+        reply = "Здравствуйте."
+    else:
+        reply = "Я ИИ-помощник банка. Помогу разобраться с деньгами для бизнеса, а детали вне расчёта уточнит менеджер."
+    return reply + (" " + QUESTIONS[slot][0] if slot else "")
+
+
+def _different(reply: str, fallback: str, goal: str, history: list) -> str:
+    previous = next((h["text"] for h in reversed(history) if h.get("role") == "assistant"), None)
+    if reply != previous:
+        return reply
+    if goal.startswith("ask:"):
+        slot = goal.split(":", 1)[1]
+        return next(q for q in (*RETRY_QUESTIONS[slot], *QUESTIONS[slot]) if q != previous)
+    if fallback != previous:
+        return fallback
+    # A deterministic second wording also covers repeated identity/PII requests.
+    prefix = "Уточню: " if not fallback.startswith("Уточню: ") else "Ещё раз: "
+    return prefix + fallback[:450 - len(prefix)]
+
+
+def turn(state: dict, text: str, attachment: dict | None = None,
+         intake=intake_rules.parse, explain=explain_templates.explain, decide=None,
+         speak=None, client_memory=None) -> str:
+    history = state.setdefault("history", [])
+    history[:] = history[-8:]
+    fields = dict(intake(text, state["asking"]))
+    rule_intent = intake_rules.intent(text, state["asking"])
+    detected = fields.pop("intent", None)
+    intent = "pii" if rule_intent == "pii" else (
+        detected if detected in intake_rules.INTENTS else rule_intent)
+    if fields and intent == "smalltalk":
+        intent = "answer_slot"
+    slot = next_slot(state)
+    special = intent in {"identity", "manager_request", "pii", "side_question", "smalltalk"}
+    # A greeting must not postpone a calculation when all its inputs are ready.
+    if intent == "smalltalk" and slot is None and state["view"] is None:
+        special = False
+    if special:
+        old_need = dict(state["need"])
+        _apply(state, fields)
+        attachment = attachment or {}
+        if "statement_csv" in attachment:
+            state["statement_csv"] = attachment["statement_csv"]
+        if "contract_main_customer" in attachment:
+            state["confirmed_fields"]["contract_main_customer"] = attachment["contract_main_customer"]
+        slot = next_slot(state)
+        acknowledgement = _acknowledge(fields, old_need, attachment)
+        goal = "manager" if intent == "manager_request" else "answer"
+        reply = (PII if intent == "pii" else IDENTITY if intent == "identity" else
+                 MANAGER if intent == "manager_request" else _answer(text, slot))
+        if intent in {"identity", "pii"} and slot:
+            reply += " " + QUESTIONS[slot][0]
+        if acknowledgement:
+            reply = f"{acknowledgement} {reply}"
+        state["asking"] = slot
+        state["trace"].append({"user": text, "attachment": sorted(attachment), "fields": fields,
+                               "slot": slot, "kind": "fallback" if goal == "manager" else "answer",
+                               "violations": [], "status": (state.get("view") or {}).get("status_text")})
+    else:
+        reply = _route(state, text, attachment, intake=lambda *_: fields,
+                       explain=explain_templates.explain if speak else explain, decide=decide)
+        trace = state["trace"][-1]
+        goal = ("manager" if trace["kind"] == "fallback" else
+                "ask:" + trace["slot"] if trace["kind"] == "question" else
+                "explain" if trace["kind"] == "explain" else "manager")
+    # факты памяти записаны со слов клиента (числа ядра memory.py не пропускает), их числа тоже можно повторять
+    memory_text = " ".join(f.get("text", "") for f in client_memory or [] if f.get("status") == "active")
+    if not history and client_memory and intent not in {"pii", "identity", "manager_request"}:
+        known = next((f for f in client_memory if f.get("status") == "active"
+                      and f.get("kind") == "need" and guard.check(f.get("text", ""), None, state["need"],
+                                                                                client_text=text + " " + memory_text) == []), None)
+        if known:
+            detail = known["text"].split(": ", 1)[-1]
+            reply = f"В прошлый раз говорили: {detail}. Это ещё актуально?"
+    fallback = reply
+    trace = state["trace"][-1]
+    ctx = {"history": (history + [{"role": "user", "text": text}])[-8:], "text": text,
+           "need": state["need"], "view": state["view"], "memory": client_memory or [],
+           "return_slot": state["asking"], "intent": intent}
+    if speak is not None and trace["kind"] != "core_error":
+        try:
+            candidate = speak(goal, ctx)
+            client_text = " ".join(h["text"] for h in ctx["history"] if h["role"] == "user") + " " + memory_text
+            violations = guard.check(candidate, state["view"], state["need"], client_text=client_text)
+            if intent == "identity" and "ии-помощник" not in candidate.lower():
+                violations.append("нечестная идентичность")
+            if intent == "pii" and not guard.pii_warning_safe(candidate, client_text):
+                violations.append("нет предупреждения о личных данных")
+            trace["violations"].extend(violations)
+            if not violations:
+                reply = candidate
+        except Exception as error:
+            logging.getLogger(__name__).warning("agent speak failed (%s)", type(error).__name__)
+            trace["violations"].append("speak_error:" + type(error).__name__)
+    reply = _different(reply, fallback, goal, history)
+    trace.update(goal=goal, intent=intent, reply=reply)
+    history.extend([{"role": "user", "text": text}, {"role": "assistant", "text": reply}])
+    history[:] = history[-8:]
     return reply
