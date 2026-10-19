@@ -79,6 +79,15 @@ services:
       api:
         condition: service_started
 
+  egress:   # выход агента к LLM через VPN: OpenRouter режет российский IP сервера; включается, только если есть секрет профиля
+    image: metacubex/mihomo:v1.19.32
+    profiles: ["egress"]
+    restart: unless-stopped
+    # портов наружу нет; в сети compose вход по паролю, который знает только agent (.env, chmod 600)
+    volumes:
+      - ./secrets/mihomo:/root/.config/mihomo
+    mem_limit: 48m
+
   alfa-intellect:   # сайт Толи: аккаунты, кабинет, подбор; расчёт через api -> ядро Лизы
     build: ./hw/tolya/alfa-intellect
     restart: unless-stopped
