@@ -5,6 +5,7 @@
 """
 import importlib.util
 import os
+import logging
 import tempfile
 from pathlib import Path
 
@@ -33,6 +34,10 @@ if _liza.exists():
     REGISTRY["liza"] = (_from_path(_mod.score), getattr(_mod, "MODEL_VERSION", "liza-0.1"))
 
 DEFAULT = os.getenv("CORE_ID", "stub")
+if DEFAULT not in REGISTRY:
+    fallback = "liza" if "liza" in REGISTRY else "stub"
+    logging.getLogger(__name__).warning("Unknown CORE_ID=%r; using %s", DEFAULT, fallback)
+    DEFAULT = fallback
 
 
 def route(questionnaire: dict) -> str:
