@@ -1,0 +1,2657 @@
+openapi: 3.1.0
+info:
+  title: 'Умный кредитный кабинет: фактический HTTP API'
+  version: '2026-10-19'
+  description: 'Источники: services/api/main.go, services/ml-model/{app,security,translate}.py, services/agent/server.py,
+    hw/tolya/alfa-intellect/server/{app,funding-routes,funding-engine,finance}.ts. Внутренние серверы отмечены x-internal.
+    Общие /health и /score различаются servers, искусственных путей нет. /api/* кабинета живут на порту 4173; /api/score
+    frontend nginx ведёт в Go. Кабинет: JSON до 100 kb, cookie-сессия, запрет изменяющих запросов с чужим Origin.
+    Кабинетные /api/cabinet/* не входят в этот основной набор, они реализованы в отдельном cabinet.ts. Успешные
+    HTTP-ответы не означают одобрения кредита.'
+servers:
+- &id001
+  url: http://localhost:4173
+  description: alfa-intellect (ALFA_PORT)
+tags:
+- name: health
+- name: score
+- name: agent
+- name: alfa-intellect
+paths:
+  /health:
+    get:
+      summary: Здоровье сервисов
+      tags:
+      - health
+      description: 'Один путь у четырёх серверов. Go: только status. ml-model: core_id/model_version. agent: ok/llm/started_at/turns.
+        Кабинет: db/team_api/storage/schema; degraded всё ещё HTTP 200.'
+      servers:
+      - &id002
+        url: http://localhost:8080
+        description: Go API, прямые /health и /score
+      - &id003
+        url: http://127.0.0.1:5000
+        description: 'ml-model: loopback хоста или http://ml-model:5000 внутри Compose'
+        x-internal: true
+      - &id004
+        url: http://agent:8090
+        description: Только внутренняя сеть Compose
+        x-internal: true
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/GoHealth'
+                - $ref: '#/components/schemas/ModelHealth'
+                - $ref: '#/components/schemas/AgentHealth'
+                - $ref: '#/components/schemas/CabinetHealth'
+      x-service-responses:
+        api: '#/components/schemas/GoHealth'
+        ml-model: '#/components/schemas/ModelHealth'
+        agent: '#/components/schemas/AgentHealth'
+        alfa-intellect: '#/components/schemas/CabinetHealth'
+  /score:
+    post:
+      summary: Расчёт командного ядра
+      tags:
+      - score
+      description: Go проксирует без изменения тела; лимит Go 6 MiB, ml-model 5 MiB; таймаут Go 30 с. Нужны JSON
+        и Content-Length. ml-model внутри помечен x-internal на server.
+      servers:
+      - *id002
+      - url: http://localhost/api
+        description: frontend nginx, срезает префикс /api
+      - *id003
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '411':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Превышен размер
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Upstream недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoreRequest'
+  /turn:
+    post:
+      summary: Один ход агента
+      tags:
+      - agent
+      description: 'Состояние по session_id. Только text/card; файлы не принимаются. Ошибки LLM дают fallback, ошибки
+        HTTP адаптера: 500.'
+      servers:
+      - *id004
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TurnResponse'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TurnRequest'
+      x-internal: true
+  /api/health:
+    get:
+      summary: Здоровье кабинета
+      tags:
+      - health
+      description: Здоровье кабинета
+      servers:
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CabinetHealth'
+  /api/config:
+    get:
+      summary: Конфигурация интерфейса
+      tags:
+      - alfa-intellect
+      description: aiConnected отражает только OPENAI_API_KEY, а не доступность TEAM_AGENT_URL.
+      servers:
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated: &id005
+                    type: boolean
+                  workspaceId:
+                    anyOf:
+                    - type: string
+                    - type: 'null'
+                  aiConnected: *id005
+                  model:
+                    type: string
+                  fieldNames:
+                    type: object
+                    properties: {}
+                  catalog:
+                    type: array
+                    items:
+                      type: object
+                      properties: {}
+  /api/public-demo:
+    get:
+      summary: Публичное демо без сессии
+      tags:
+      - alfa-intellect
+      description: Публичное демо без сессии
+      servers:
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          type: string
+          enum:
+          - ooo
+          - ip
+          - idea
+        description: По умолчанию ooo
+  /api/public-demo/calculate:
+    post:
+      summary: Пересчёт публичного примера
+      tags:
+      - alfa-intellect
+      description: Пересчёт публичного примера
+      servers:
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Selection'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                  - ooo
+                  - ip
+                  - idea
+                amount:
+                  type: number
+                  minimum: 10000
+                  maximum: 100000000.0
+                term:
+                  type: integer
+                  minimum: 1
+                  maximum: 120
+              required:
+              - kind
+              - amount
+              - term
+              additionalProperties: false
+  /api/auth/register:
+    post:
+      summary: Создать синтетическую учётку
+      tags:
+      - alfa-intellect
+      description: Создать синтетическую учётку
+      servers:
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ok'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: alfa_session, HttpOnly, SameSite=Strict, Path=/, срок 7 дней; Secure по COOKIE_SECURE
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Конфликт версии или состояния
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+  /api/auth/login:
+    post:
+      summary: Вход
+      tags:
+      - alfa-intellect
+      description: Вход
+      servers:
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ok'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: alfa_session, HttpOnly, SameSite=Strict, Path=/, срок 7 дней; Secure по COOKIE_SECURE
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+  /api/auth/demo:
+    post:
+      summary: Создать отдельное демо-пространство
+      tags:
+      - alfa-intellect
+      description: Создать отдельное демо-пространство
+      servers:
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ok'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: alfa_session, HttpOnly, SameSite=Strict, Path=/, срок 7 дней; Secure по COOKIE_SECURE
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                  - ooo
+                  - ip
+                  - idea
+              description: kind по умолчанию ooo
+  /api/auth/logout:
+    post:
+      summary: Завершить сессию
+      tags:
+      - alfa-intellect
+      description: Завершить сессию
+      servers:
+      - *id001
+      security: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ok'
+  /api/state:
+    get:
+      summary: Полное состояние кабинета
+      tags:
+      - alfa-intellect
+      description: Синхронизирует уведомления и сохраняет JSON AppState.
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/profile:
+    patch:
+      summary: Обновить профиль
+      tags:
+      - alfa-intellect
+      description: Обновить профиль
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 160
+                  minLength: 1
+                sector:
+                  type: string
+                  maxLength: 160
+                activity:
+                  type: string
+                  maxLength: 160
+                region:
+                  type: string
+                  maxLength: 100
+                ageBand:
+                  type: string
+                  maxLength: 80
+                result:
+                  type: string
+                  maxLength: 100
+                debt:
+                  type: string
+                  maxLength: 80
+                intent:
+                  type: string
+                  maxLength: 160
+              additionalProperties: false
+  /api/preferences:
+    patch:
+      summary: Настройки интерфейса
+      tags:
+      - alfa-intellect
+      description: Настройки интерфейса
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                split:
+                  type: number
+                  minimum: 40
+                  maximum: 75
+                tourDone: *id005
+  /api/lookup:
+    post:
+      summary: Поиск компании по ИНН
+      tags:
+      - alfa-intellect
+      description: 'В Compose локальный мок. ИНН: 9900000001, 9900000002, 990000000001, 990000000002. Кандидат сохраняется
+        в памяти на 10 минут.'
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistryRecord'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Upstream недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: &id006
+              type: object
+              properties:
+                inn:
+                  type: string
+                  pattern: ^(\d{10}|\d{12})$
+              required:
+              - inn
+  /api/lookup/confirm:
+    post:
+      summary: Подтвердить найденную компанию
+      tags:
+      - alfa-intellect
+      description: В теле нужен совпадающий inn; поля профиля берутся из свежего серверного кандидата, не из тела.
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Конфликт версии или состояния
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *id006
+  /api/documents:
+    post:
+      summary: Загрузить и извлечь документ
+      tags:
+      - alfa-intellect
+      description: Один file, до 8 MiB, memoryStorage. Извлечение CSV/XLSX/PDF/DOCX; неподдержанные или неполные
+        поля дают 400. Повтор того же файла возвращает прежний документ.
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Превышен размер
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                category:
+                  type: string
+                  description: 'Подсказка: statement, balance, pnl, model, plan, schedule'
+              required:
+              - file
+  /api/documents/{id}/confirm:
+    post:
+      summary: Подтвердить извлечённые данные
+      tags:
+      - alfa-intellect
+      description: Подтвердить извлечённые данные
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/documents/{id}/download:
+    get:
+      summary: Скачать собственный исходный файл
+      tags:
+      - alfa-intellect
+      description: Скачать собственный исходный файл
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Файл с Content-Disposition
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/financing/context:
+    get:
+      summary: Данные и каталог для подбора
+      tags:
+      - alfa-intellect
+      description: Данные и каталог для подбора
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties: {}
+                  catalog:
+                    type: array
+                    items:
+                      type: object
+                      properties: {}
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/selections:
+    post:
+      summary: Создать или обновить подбор
+      tags:
+      - alfa-intellect
+      description: 'engine=mvp-2: строгий fundingInput, parentId обновляет тот же id; expectedVersion обязателен
+        для обновления, максимум 500 версий. Legacy: отдельный новый id с parentId; оба пути используют transparentFundingEngine,
+        не командное ядро.'
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Selection'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Конфликт версии или состояния
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/FundingSelectionRequest'
+              - $ref: '#/components/schemas/LegacySelectionRequest'
+  /api/selections/{id}/application-preview:
+    get:
+      summary: Предварительный вид демо-заявки
+      tags:
+      - alfa-intellect
+      description: Предварительный вид демо-заявки
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  application:
+                    type: object
+                    properties: {}
+                  needsAcknowledgement: *id005
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/selections/{id}/application:
+    post:
+      summary: Сохранить демо-заявку
+      tags:
+      - alfa-intellect
+      description: Локальная транзакция SQLite. Повтор для той же версии возвращает прежний lead. В банк ничего
+        не отправляется.
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Конфликт версии или состояния
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expectedVersion:
+                  type: integer
+                  minimum: 1
+                acknowledgeRisks:
+                  type: boolean
+                  default: false
+              required:
+              - expectedVersion
+              additionalProperties: false
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/chats:
+    post:
+      summary: Создать чат или вернуть чат подбора
+      tags:
+      - alfa-intellect
+      description: Создать чат или вернуть чат подбора
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                selectionId:
+                  type: string
+  /api/chats/{id}:
+    patch:
+      summary: Переименовать чат
+      tags:
+      - alfa-intellect
+      description: Переименовать чат
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+              required:
+              - title
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/chats/{id}/messages:
+    post:
+      summary: Отправить сообщение агенту
+      tags:
+      - alfa-intellect
+      description: text проходит trim. Один выполняющийся запрос на пользователя, 12 сообщений/мин. Сообщение сохраняется
+        до вызова провайдера. При недоступном командном агенте TeamAgentProvider сохраняет текст об ошибке с mode=agent-offline
+        и возвращает 200.
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Конфликт версии или состояния
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Upstream недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+              required:
+              - text
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/team-score:
+    post:
+      summary: Прокси к командному ядру
+      tags:
+      - alfa-intellect
+      description: TEAM_API_URL /score, 30 с. Upstream 5xx и сетевая ошибка превращаются в 502, прочие статусы и
+        JSON возвращаются как есть.
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '411':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Превышен размер
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Upstream недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamScoreRequest'
+  /api/financials:
+    post:
+      summary: Подтвердить финансовый показатель
+      tags:
+      - alfa-intellect
+      description: Подтвердить финансовый показатель
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                field:
+                  type: string
+                  enum:
+                  - incoming
+                  - expenses
+                  - freeFlow
+                  - existing
+                  - balance
+                value:
+                  type: number
+                  minimum: 0
+                  maximum: 1000000000.0
+              required:
+              - field
+              - value
+  /api/leads:
+    post:
+      summary: 'Legacy: сохранить демо-досье'
+      tags:
+      - alfa-intellect
+      description: 'Legacy: сохранить демо-досье'
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                selectionId:
+                  type: string
+                phone: &id007
+                  type: string
+                  description: Удаляются нецифровые символы, затем проверяется 7 и десять цифр
+              required:
+              - selectionId
+              - phone
+  /api/consultations:
+    post:
+      summary: Сохранить локальное обращение
+      tags:
+      - alfa-intellect
+      description: note проходит trim. Сотруднику банка ничего не отправляется.
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone: *id007
+                note:
+                  type: string
+                  minLength: 5
+                  maxLength: 1000
+              required:
+              - phone
+              - note
+  /api/dossier/{id}:
+    get:
+      summary: Скачать JSON-досье подбора
+      tags:
+      - alfa-intellect
+      description: Скачать JSON-досье подбора
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  demo:
+                    const: true
+                  createdAt:
+                    type: string
+                  profile:
+                    $ref: '#/components/schemas/Profile'
+                  selection:
+                    $ref: '#/components/schemas/Selection'
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  financials: &id017
+                    type: object
+                    properties: {}
+                    additionalProperties:
+                      type:
+                      - string
+                      - number
+                  limitations:
+                    type: string
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/credit/demo:
+    post:
+      summary: Создать синтетический кредит и график
+      tags:
+      - alfa-intellect
+      description: Создать синтетический кредит и график
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/forecast-assumptions:
+    post:
+      summary: Сохранить предположения прогноза
+      tags:
+      - alfa-intellect
+      description: Сохранить предположения прогноза
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '400':
+          description: Ошибка ввода/обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                balance:
+                  type: number
+                  minimum: 0
+                  maximum: 1000000000.0
+                incoming:
+                  type: number
+                  minimum: 0
+                  maximum: 1000000000.0
+                expenses:
+                  type: number
+                  minimum: 0
+                  maximum: 1000000000.0
+              required:
+              - balance
+              - incoming
+              - expenses
+              additionalProperties: false
+  /api/credit/forecast:
+    post:
+      summary: Рассчитать прогноз остатка
+      tags:
+      - alfa-intellect
+      description: Рассчитать прогноз остатка
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available: *id005
+                  after:
+                    type: number
+                  stress: *id005
+                  source:
+                    type: string
+                  date:
+                    type: string
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Ошибка Zod-валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stress: *id005
+              required:
+              - stress
+  /api/notifications/read:
+    post:
+      summary: Пометить уведомления прочитанными
+      tags:
+      - alfa-intellect
+      description: Пометить уведомления прочитанными
+      servers:
+      - *id001
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppState'
+        '401':
+          description: Нужен вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+              description: Без id помечает все. Код сравнивает id без Zod-валидации.
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: alfa_session
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        detail:
+          type: string
+        fields:
+          type: object
+          properties: {}
+          additionalProperties:
+            type: string
+      required:
+      - error
+    Ok:
+      type: object
+      properties:
+        ok: *id005
+      required:
+      - ok
+    Contract:
+      type: object
+      properties:
+        sum_rub:
+          type: number
+          exclusiveMinimum: 0
+          exclusiveMaximum: 100000000000.0
+        months:
+          type: integer
+          minimum: 1
+          maximum: 120
+      required:
+      - sum_rub
+      - months
+    Need:
+      type: object
+      properties:
+        purpose:
+          type: string
+          enum:
+          - кассовый разрыв
+          - закупка под контракт
+          - оборудование
+          - сезон
+          - рост
+        amount_rub:
+          type: number
+          exclusiveMinimum: 0
+        term_months:
+          type: number
+          minimum: 1
+          maximum: 120
+        repay_from:
+          type: string
+          maxLength: 500
+        asked_for:
+          type: string
+          maxLength: 500
+        contract_with_main_customer:
+          $ref: '#/components/schemas/Contract'
+      required:
+      - purpose
+      - amount_rub
+      - term_months
+    Questionnaire:
+      type: object
+      properties:
+        form: {}
+        years: {}
+        need:
+          type: string
+          maxLength: 500
+        sector:
+          type: string
+          maxLength: 500
+        trend:
+          type: string
+          maxLength: 500
+      required:
+      - form
+      - years
+      description: Код проверяет наличие form и years, но не их тип/enum. Строковые поля первого уровня до 500 символов.
+    ScoreRequest:
+      type: object
+      properties:
+        statement_csv:
+          type: string
+          minLength: 1
+          description: 'CSV: date, amount, counterparty, purpose. Непустые операции; даты ISO, сумма числом. До
+            50 000 строк с учётом проверки заголовка; тело ml-model до 5 MiB.'
+        need:
+          $ref: '#/components/schemas/Need'
+        questionnaire:
+          $ref: '#/components/schemas/Questionnaire'
+        confirmed_fields:
+          type: object
+          properties:
+            contract_main_customer:
+              $ref: '#/components/schemas/Contract'
+        history:
+          type: array
+          items: {}
+      required:
+      - statement_csv
+      - need
+      - questionnaire
+    TeamScoreRequest:
+      type: object
+      properties:
+        statement_csv:
+          type: string
+          maxLength: 500000
+        need:
+          type: object
+          properties: {}
+        questionnaire:
+          type: object
+          properties: {}
+        confirmed_fields:
+          type: object
+          properties: {}
+      required:
+      - statement_csv
+      - need
+      - questionnaire
+      description: Локальная Zod-валидация кабинета. Затем применяются проверки ScoreRequest в ml-model. Express
+        ограничивает JSON-тело 100 kb, раньше лимита CSV.
+    CoreResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - можно подавать
+          - можно после шага
+          - лучше другой инструмент
+          - нужен менеджер
+        instrument:
+          type: string
+        limit_now_rub:
+          type: number
+        limit_after_rub:
+          type: number
+        flow_month_rub:
+          type: number
+        stops_fired:
+          type: array
+          items:
+            type: string
+        reasons:
+          type: array
+          items:
+            type: string
+        missing:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: object
+          properties: {}
+        params:
+          type: object
+          properties: {}
+      required:
+      - status
+      - instrument
+      - limit_now_rub
+      - limit_after_rub
+    View:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ready
+          - ready_after_step
+          - other_instrument
+          - need_manager
+        status_text:
+          type: string
+        instrument:
+          type: string
+        numbers:
+          type: object
+          properties:
+            available_now:
+              type: number
+            available_after:
+              type: number
+            limit_delta:
+              type: number
+            monthly_payment:
+              type: number
+            dscr:
+              type: number
+            dscr_required:
+              type: number
+            rate_used:
+              type: number
+            term_months:
+              type: number
+        reasons:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              text:
+                type: string
+        next_steps:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              text:
+                type: string
+              confirms:
+                type: string
+        monthly_flow:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+              flow:
+                type: number
+        contract:
+          anyOf:
+          - type: object
+            properties: {}
+          - type: 'null'
+      required:
+      - status
+      - status_text
+      - instrument
+      - numbers
+      - reasons
+      - next_steps
+    Decision:
+      type: object
+      properties:
+        decision_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        core_id:
+          type: string
+        model_version:
+          type: string
+        core:
+          $ref: '#/components/schemas/CoreResult'
+        view:
+          $ref: '#/components/schemas/View'
+      required:
+      - decision_id
+      - created_at
+      - core_id
+      - model_version
+      - core
+      - view
+    GoHealth:
+      type: object
+      properties:
+        status:
+          const: ok
+      required:
+      - status
+    ModelHealth:
+      type: object
+      properties:
+        status:
+          const: ok
+        core_id:
+          type: string
+        model_version:
+          type: string
+      required:
+      - status
+      - core_id
+      - model_version
+    AgentHealth:
+      type: object
+      properties:
+        ok: *id005
+        llm:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        turns:
+          type: integer
+          minimum: 0
+      required:
+      - ok
+      - llm
+      - started_at
+      - turns
+    CabinetHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - degraded
+        db:
+          type: string
+          enum:
+          - ok
+          - fail
+        team_api:
+          type: string
+          enum:
+          - not_configured
+          - ok
+          - down
+        storage:
+          const: sqlite
+        schema:
+          const: 2
+      required:
+      - status
+      - db
+      - team_api
+      - storage
+      - schema
+    AgentCard:
+      type: object
+      properties:
+        purpose:
+          type: string
+          enum:
+          - кассовый разрыв
+          - закупка под контракт
+          - оборудование
+          - сезон
+          - рост
+        amount_rub:
+          type: number
+          minimum: 1
+          maximum: 1000000000000.0
+        term_months:
+          type: number
+          minimum: 1
+          maximum: 120
+        instrument:
+          type: string
+          maxLength: 100
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+                maxLength: 100
+              period:
+                type: string
+                maxLength: 100
+        obligations:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                maxLength: 80
+              amount_rub:
+                type: number
+                minimum: 0
+                maximum: 1000000000.0
+      description: Невалидные поля отбрасываются, массивы обрезаются до 20 элементов; не строгий Zod-объект.
+    TurnRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        text:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          pattern: \S
+        card:
+          $ref: '#/components/schemas/AgentCard'
+      required:
+      - session_id
+      - text
+      description: Тело 1..1 000 000 байт, нужен Content-Length. Вложение CSV по HTTP не принимается.
+    TurnResponse:
+      type: object
+      properties:
+        text:
+          type: string
+        mode:
+          const: team-agent
+        status:
+          type: string
+          enum:
+          - collecting
+          - ready
+          - ready_after_step
+          - other_instrument
+          - need_manager
+        llm:
+          type: string
+        view:
+          anyOf:
+          - $ref: '#/components/schemas/View'
+          - type: 'null'
+      required:
+      - text
+      - mode
+      - status
+      - llm
+      - view
+    ProfileInput:
+      type: object
+      properties:
+        name: &id008
+          type: string
+          maxLength: 160
+          default: Мой бизнес
+        form: &id009
+          type: string
+          enum:
+          - ИП
+          - ООО
+          - АО
+          - Другое
+          - Не зарегистрирован
+        stage: &id010
+          type: string
+          enum:
+          - operating
+          - planning
+        sector: &id011
+          type: string
+          minLength: 1
+          maxLength: 160
+        registered: *id005
+        ageBand: &id012
+          type: string
+          maxLength: 80
+        result: &id013
+          type: string
+          maxLength: 100
+        debt: &id014
+          type: string
+          maxLength: 80
+        intent: &id015
+          type: string
+          maxLength: 160
+        preparation: &id016
+          type: string
+          maxLength: 160
+      required:
+      - form
+      - stage
+      - sector
+      - registered
+      - ageBand
+      - result
+      - debt
+      - intent
+    Profile:
+      type: object
+      properties:
+        name: *id008
+        form: *id009
+        stage: *id010
+        sector: *id011
+        registered: *id005
+        ageBand: *id012
+        result: *id013
+        debt: *id014
+        intent: *id015
+        preparation: *id016
+        onboardedAt:
+          type: string
+        inn:
+          type: string
+        registeredAt:
+          type: string
+        region:
+          type: string
+        activity:
+          type: string
+        source:
+          type: string
+        registryRecord:
+          type: object
+          properties: {}
+    Register:
+      type: object
+      properties:
+        phone: *id007
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        profile:
+          $ref: '#/components/schemas/ProfileInput'
+      required:
+      - phone
+      - password
+      - profile
+    Login:
+      type: object
+      properties:
+        phone: *id007
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+      required:
+      - phone
+      - password
+    RegistryRecord:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 160
+        inn:
+          type: string
+          pattern: ^(\d{10}|\d{12})$
+        form:
+          type: string
+          maxLength: 40
+        activity:
+          type: string
+          maxLength: 160
+        region:
+          type: string
+          maxLength: 100
+        registeredAt:
+          type: string
+        source:
+          type: string
+          maxLength: 100
+        demo: *id005
+        status:
+          type: string
+        okved:
+          type: string
+      required:
+      - name
+      - inn
+      - form
+      - source
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+        name:
+          type: string
+        period:
+          type: string
+        fields: *id017
+        records:
+          type: array
+          items: *id017
+        confirmed: *id005
+        createdAt:
+          type: string
+        currency:
+          type: string
+        mime:
+          type: string
+      required:
+      - id
+      - category
+      - name
+      - period
+      - fields
+      - confirmed
+      - createdAt
+      - currency
+      - mime
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum:
+          - user
+          - assistant
+        text:
+          type: string
+        createdAt:
+          type: string
+        mode:
+          type: string
+        calculation:
+          type: object
+          properties: {}
+        warning:
+          type: string
+        proposal:
+          type: object
+          properties: {}
+        fundingProposal:
+          type: object
+          properties: {}
+    Chat:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        selectionId:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        cabinetContext:
+          type: object
+          properties: {}
+      required:
+      - id
+      - title
+      - messages
+    Calculation:
+      type: object
+      properties:
+        amount:
+          type: number
+        term:
+          type: number
+        rate:
+          type: number
+        monthlyPayment:
+          type: number
+        interest:
+          type: number
+        total:
+          type: number
+        flow:
+          anyOf:
+          - type: number
+          - type: 'null'
+        existing:
+          anyOf:
+          - type: number
+          - type: 'null'
+        maxAmount:
+          anyOf:
+          - type: number
+          - type: 'null'
+        dscr:
+          anyOf:
+          - type: number
+          - type: 'null'
+        stressDscr:
+          anyOf:
+          - type: number
+          - type: 'null'
+        schedule:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: integer
+              date:
+                type: string
+              payment:
+                type: number
+              principal:
+                type: number
+              interest:
+                type: number
+              balance:
+                type: number
+        source:
+          type: string
+        formula:
+          type: string
+    Selection:
+      type: object
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        parentId:
+          type: string
+        purpose:
+          type: string
+        repayFrom:
+          type: string
+        ownFunds:
+          type: number
+        product:
+          type: string
+        calculation:
+          $ref: '#/components/schemas/Calculation'
+        risks:
+          type: array
+          items:
+            type: string
+        alternatives:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        input:
+          $ref: '#/components/schemas/FundingInput'
+        assessment:
+          type: object
+          properties: {}
+          description: 'Оценка transparent-mvp-2: decision, checks, reasons, data, capacity и другие расчётные поля.'
+        versions:
+          type: array
+          items:
+            type: object
+            properties: {}
+    Lead:
+      type: object
+      properties:
+        id:
+          type: string
+        selectionId:
+          type: string
+        version:
+          type: integer
+        phone:
+          type: string
+        note:
+          type: string
+        createdAt:
+          type: string
+        status:
+          const: Демо-заявка создана
+        application:
+          type: object
+          properties: {}
+    AppState:
+      type: object
+      properties:
+        profile:
+          $ref: '#/components/schemas/Profile'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+        chats:
+          type: array
+          items:
+            $ref: '#/components/schemas/Chat'
+        selections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Selection'
+        credit:
+          anyOf:
+          - type: object
+            properties: {}
+          - type: 'null'
+        notifications:
+          type: array
+          items:
+            type: object
+            properties: {}
+        leads:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lead'
+        preferences:
+          type: object
+          properties:
+            split:
+              type: number
+            tourDone: *id005
+        financials: *id017
+        cabinet:
+          type: object
+          properties: {}
+      required:
+      - profile
+      - documents
+      - chats
+      - selections
+      - credit
+      - notifications
+      - leads
+      - preferences
+      - financials
+    FundingInput:
+      type: object
+      properties:
+        purpose:
+          type: string
+          enum:
+          - Оборотные средства
+          - Закупка товаров и материалов
+          - Оборудование
+          - Развитие
+          - Кассовый разрыв
+          - Исполнение контракта
+          - Рефинансирование
+          - Запуск
+          - Другая цель
+        amount:
+          type: number
+          minimum: 10000
+          maximum: 1000000000000.0
+        term:
+          anyOf:
+          - type: integer
+            minimum: 1
+            maximum: 120
+          - type: 'null'
+        needed:
+          type: string
+          enum:
+          - urgent
+          - month
+          - later
+          - date
+        neededDate:
+          type: string
+          description: 'При needed=date: существующая дата ISO от сегодня до 10 лет вперёд.'
+        usage:
+          type: string
+          enum:
+          - once
+          - parts
+          - regular
+        description:
+          type: string
+          maxLength: 1000
+        repayFrom:
+          type: string
+          minLength: 1
+          maxLength: 300
+        productId:
+          type: string
+          enum:
+          - working
+          - investment
+          - contract
+          - overdraft
+          - refinance
+        cycleDays:
+          type: integer
+          minimum: 1
+          maximum: 90
+        details:
+          type: object
+          properties: {}
+          additionalProperties:
+            anyOf:
+            - type: string
+              maxLength: 400
+            - type: number
+              minimum: -1000000000000.0
+              maximum: 1000000000000.0
+            - *id005
+            - type: 'null'
+        financials:
+          type: object
+          properties:
+            incoming:
+              anyOf:
+              - type: number
+                minimum: 0
+                maximum: 1000000000000.0
+              - type: 'null'
+            expenses:
+              anyOf:
+              - type: number
+                minimum: 0
+                maximum: 1000000000000.0
+              - type: 'null'
+            existing:
+              anyOf:
+              - type: number
+                minimum: 0
+                maximum: 1000000000000.0
+              - type: 'null'
+            available:
+              anyOf:
+              - type: number
+                minimum: 0
+                maximum: 1000000000000.0
+              - type: 'null'
+            flow:
+              anyOf:
+              - type: number
+                minimum: -1000000000000.0
+                maximum: 1000000000000.0
+              - type: 'null'
+            changes:
+              anyOf:
+              - type: number
+                minimum: -1000000000000.0
+                maximum: 1000000000000.0
+              - type: 'null'
+          additionalProperties: false
+      required:
+      - purpose
+      - amount
+      - term
+      - needed
+      - usage
+      - description
+      - repayFrom
+      - cycleDays
+      - details
+      - financials
+      additionalProperties: false
+      description: 'superRefine: details.*Date проверяются как даты от -365 до +3650 дней; числа кроме effect неотрицательны,
+        currentRate до 100, currentMonths целое 1..120. repayFrom обрезается trim.'
+    FundingSelectionRequest:
+      type: object
+      properties:
+        engine:
+          const: mvp-2
+        input:
+          $ref: '#/components/schemas/FundingInput'
+        parentId:
+          type: string
+          maxLength: 128
+        expectedVersion:
+          type: integer
+          minimum: 1
+      required:
+      - engine
+      - input
+      additionalProperties: false
+    LegacySelectionRequest:
+      type: object
+      properties:
+        purpose:
+          type: string
+          enum:
+          - Оборотные средства
+          - Закупка товаров и материалов
+          - Оборудование
+          - Развитие
+          - Кассовый разрыв
+          - Исполнение контракта
+          - Рефинансирование
+          - Запуск
+          - Другая цель
+        amount:
+          type:
+          - number
+          - string
+          description: Number(raw.amount), диапазон 10 000..1e12
+        term:
+          type:
+          - number
+          - string
+          description: Необязательно; Number(raw.term), целое 1..120
+        repayFrom: {}
+        ownFunds:
+          type:
+          - number
+          - string
+          description: Coerce number 0..1e9, по умолчанию 0
+        flow:
+          type:
+          - number
+          - string
+          - 'null'
+        existing:
+          type:
+          - number
+          - string
+        parentId: {}
+        engine:
+          not:
+            const: mvp-2
+      required:
+      - purpose
+      - amount
+      description: 'Совместимый адаптер finance.select: приводит числовые значения, затем fundingInput.parse; прочие
+        поля raw не используются.'
