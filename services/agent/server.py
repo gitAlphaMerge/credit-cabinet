@@ -15,6 +15,7 @@ import explain_templates
 import intake_rules
 import llm
 import guard
+import memory
 
 SESSIONS: dict[str, dict] = {}
 MAX_BODY = 1_000_000
@@ -53,6 +54,13 @@ def _load_session(session_id, card):
             raise ValueError("invalid view")
         if any(not isinstance(value, int) or value < 0 for value in state["attempts"].values()):
             raise ValueError("invalid attempts")
+        history = state.get("history", [])
+        if not isinstance(history, list) or any(
+            not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}
+            or not isinstance(item.get("text"), str) for item in history
+        ):
+            raise ValueError("invalid history")
+        state["history"] = history[-8:]
         # A hash cannot be used for recalculation. Ask for the statement again.
         state["statement_csv"] = None
         return state
@@ -66,6 +74,7 @@ def _load_session(session_id, card):
 def _save_session(session_id, state):
     path = _session_path(session_id)
     saved = dict(state)
+    saved.pop("client_memory", None)
     statement = saved.pop("statement_csv", None)
     saved["has_statement"] = bool(statement) or bool(state.get("has_statement"))
     if statement:
@@ -142,10 +151,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+        self.wfile.flush()
 
     def do_GET(self):
         if self.path == "/health":
-            self._json(200, {"ok": True, "llm": _llm_name(), "started_at": STARTED_AT, "turns": TURNS})
+            self._json(200, {"ok": True, "llm": _llm_name(), "memory": True, "started_at": STARTED_AT, "turns": TURNS})
         else:
             self._json(404, {"error": "not found"})
 
@@ -161,6 +171,9 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(payload, dict):
                 raise ValueError
             session_id, text = payload.get("session_id"), payload.get("text")
+            client_id = payload.get("client_id")
+            if client_id is not None and (not isinstance(client_id, str) or len(client_id) > 200):
+                raise ValueError
             if not isinstance(session_id, str) or not session_id or len(session_id) > 200:
                 raise ValueError
             if not isinstance(text, str) or not text.strip() or len(text) > 4000:
@@ -171,13 +184,20 @@ class Handler(BaseHTTPRequestHandler):
         with _TURN_LOCK:
             lock = _SESSION_LOCKS.setdefault(session_id, threading.Lock())
         with lock:
-            self._turn(session_id, text, _card(payload.get("card")))
+            if client_id:
+                with memory.client_lock(client_id):
+                    self._turn(session_id, text, _card(payload.get("card")), client_id)
+            else:
+                self._turn(session_id, text, _card(payload.get("card")))
 
-    def _turn(self, session_id, text, card):
+    def _turn(self, session_id, text, card, client_id=None):
         if session_id not in SESSIONS:
             SESSIONS[session_id] = _load_session(session_id, card)
         state = SESSIONS[session_id]
         try:
+            client_memory = memory.active(memory.load(client_id))
+            if memory.forget_requested(text):
+                client_memory = []
             use_llm = llm.available()
             fallback = False
 
@@ -191,24 +211,10 @@ class Handler(BaseHTTPRequestHandler):
                     fallback = True
                     return intake_rules.parse(value, asking)
 
-            def explain_slot(view, need):
-                nonlocal fallback
-                if not use_llm:
-                    return explain_templates.explain(view, need)
-                try:
-                    answer = llm.explain(view, need)
-                    violations = guard.check(answer, view, need)
-                    if violations:
-                        fallback = True
-                        return explain_templates.explain(view, need)
-                    return answer
-                except Exception:
-                    fallback = True
-                    return explain_templates.explain(view, need)
-
             started = time.monotonic()
             decide = core_http.decide if os.getenv("AGENT_CORE_URL") else None
-            reply = dialog.turn(state, text, intake=intake_slot, explain=explain_slot, decide=decide)
+            reply = dialog.turn(state, text, intake=intake_slot, decide=decide,
+                                speak=llm.speak if use_llm else None, client_memory=client_memory)
             _save_session(session_id, state)
             elapsed_ms = round((time.monotonic() - started) * 1000)
             view = state.get("view")
@@ -227,6 +233,10 @@ class Handler(BaseHTTPRequestHandler):
                 "status": status, "llm": llm_name,
                 "view": view,
             })
+            try:
+                memory.update(client_id, text, reply, state, use_llm=use_llm)
+            except Exception as error:
+                _log({"event": "memory_update_error", "error_type": type(error).__name__})
         except Exception as error:
             _log({"event": "agent_turn_error", "error_type": type(error).__name__})
             self._json(500, {"error": "agent unavailable"})
