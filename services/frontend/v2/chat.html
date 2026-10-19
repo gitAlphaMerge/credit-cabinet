@@ -56,6 +56,7 @@ a{color:#0072ef}a:hover{color:#005bbf}
 </head>
 <body>
 <div id="app" v-cloak>
+<input id="statement-file" type="file" accept=".csv" @change="v.selectFile" hidden>
 <div style="min-height: 900px; display: flex; flex-direction: column; font-family: 'Manrope', system-ui, sans-serif; color: #0b0b0c; background: #f3f4f5">
 
 <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding: 12px 44px; background: #ffffff; border-bottom: 1px solid #dcdcdd">
@@ -171,7 +172,7 @@ a{color:#0072ef}a:hover{color:#005bbf}
 <template v-if="m.file">
 <div class="msg" style="align-self: flex-end; display: flex; align-items: center; gap: 12px; border: 1px solid #dcdcdd; border-radius: 12px; padding: 10px 14px; background: #ffffff; margin-top: 8px">
 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#13a463" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v4h4"></path><path d="M9 14l2 2 4-4"></path></svg>
-<div style="display: flex; flex-direction: column"><span style="font-size: 14px; font-weight: 700">{{ m.text }}</span><span style="font-size: 12px; color: #6b6b70">1 248 операций · 12 месяцев · проверить поля</span></div>
+<div style="display: flex; flex-direction: column"><span style="font-size: 14px; font-weight: 700">{{ m.text }}</span><span style="font-size: 12px; color: #6b6b70">CSV для расчёта по выписке</span></div>
 </div>
 </template>
 </div></template>
@@ -186,21 +187,23 @@ a{color:#0072ef}a:hover{color:#005bbf}
 <template v-if="v.showUpload">
 <div class="msg" style="align-self: flex-start; width: 100%; max-width: 600px; margin: 8px 0 0 36px; border: 1px solid #dcdcdd; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box">
 <span style="font-size: 16px; font-weight: 700">Выписка по расчётному счёту за 12 месяцев</span>
-<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
-<button type="button" class="ghost" @click="v.upload" style="min-height: 64px; border: 1px solid #dcdcdd; border-radius: 12px; background: #ffffff; font: 600 14px 'Manrope', sans-serif; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><b>Из Альфа-Бизнеса</b><span style="font-size: 12px; color: #6b6b70; font-weight: 500">в один клик</span></button>
-<button type="button" class="ghost" @click="v.upload" style="min-height: 64px; border: 1px solid #dcdcdd; border-radius: 12px; background: #ffffff; font: 600 14px 'Manrope', sans-serif; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><b>Выгрузка 1С</b><span style="font-size: 12px; color: #6b6b70; font-weight: 500">файл .txt</span></button>
-<button type="button" class="ghost" @click="v.upload" style="min-height: 64px; border: 1px solid #dcdcdd; border-radius: 12px; background: #ffffff; font: 600 14px 'Manrope', sans-serif; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><b>Файл другого банка</b><span style="font-size: 12px; color: #6b6b70; font-weight: 500">CSV, XLSX, PDF</span></button>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button type="button" class="ghost" @click="v.upload" style="min-height: 64px; border: 1px solid #dcdcdd; border-radius: 12px; background: #ffffff; font: 600 14px Manrope, sans-serif; cursor: pointer">Выбрать CSV</button>
+<button type="button" class="ghost" @click="v.demoUpload" style="min-height: 64px; border: 1px solid #dcdcdd; border-radius: 12px; background: #ffffff; font: 600 14px Manrope, sans-serif; cursor: pointer">демо-выписка</button>
 </div>
 </div>
 </template>
 
+<template v-if="v.uploadError">
+<button type="button" class="chip" @click="v.retryUpload" style="min-height: 40px; border: 0; border-radius: 999px; background: #fbe8e7; color: #b3241a; padding: 6px 14px; cursor: pointer">попробовать ещё раз</button>
+</template>
 <template v-if="v.analyzing">
 <div class="msg" style="align-self: flex-start; width: 100%; max-width: 600px; margin: 8px 0 0 36px; border-radius: 16px; padding: 18px; background: #0b0b0c; color: #ffffff; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box">
 <div style="display: flex; align-items: center; gap: 14px">
 <svg class="spin" width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="none" stroke="#2c2c2e" stroke-width="4"></circle><path d="M20 5a15 15 0 0 1 15 15" fill="none" stroke="#ef3124" stroke-width="4" stroke-linecap="round"></path></svg>
 <div style="display: flex; flex-direction: column; gap: 2px">
-<span style="font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #a1a1a6">Шаг {{ v.stepNo }} из 5</span>
-<span style="font-size: 17px; font-weight: 700">{{ v.stepLabel }}</span>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #a1a1a6">Расчёт по выписке</span>
+<span style="font-size: 17px; font-weight: 700">Ждём ответ сервера</span>
 </div>
 </div>
 <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
@@ -382,7 +385,7 @@ class Component extends DCLogic {
     this.state = { stage: 'empty', thinking: false, step: 0, skill: null, voice: false, db: false, off: {}, call: false, callSec: 0, mute: false, messages: [] };
     this.timers = [];
   }
-  componentWillUnmount() { this.timers.forEach(clearTimeout); clearInterval(this.callTimer); }
+  componentWillUnmount() { if (this.requestController) this.requestController.abort(); this.timers.forEach(clearTimeout); clearInterval(this.callTimer); }
   startCall() { clearInterval(this.callTimer); this.setState({ call: true, callSec: 0, mute: false }); this.callTimer = setInterval(() => this.setState(s => ({ callSec: s.callSec + 1 })), 1000); }
   endCall() { clearInterval(this.callTimer); const sec = this.state.callSec; const t = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); this.setState({ call: false }); this.push({ agent: true, text: 'Итог звонка (' + t + '): обсудили платёж 17 ноября и задержку оплаты заказчика. Договорились: я готовлю черновик акта сверки, вы загружаете договор, лимит пересчитаю.' }); }
   later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
@@ -397,17 +400,75 @@ class Component extends DCLogic {
       this.setState({ thinking: false, stage: first ? 'upload' : 'answer' });
       this.push({ agent: true, text: first
         ? 'Понял задачу. Посчитаю честно по выписке за 12 месяцев: так я увижу реальный поток, а не цифры на словах.'
-        : 'Посмотрел. Если заказчик задержит оплату на месяц, платёж в ноябре вы закрываете, но запас падает до 38 000 ₽. Отложите оборотку заранее, напомню за 5 дней.' });
+        // уточнения после расчёта агент в демо пока не считает: без выдуманных цифр, только то, что дало ядро
+        : 'Этот вопрос в демо пока не разбираю. Цифры выше посчитало ядро по выписке; чтобы обсудить детали, позовите менеджера.' });
     }, 1300);
   }
   upload() {
-    if (this.state.stage !== 'upload') return;
-    this.push({ file: true, text: 'vypiska_12m.csv' });
-    this.setState({ stage: 'analyzing', step: 0 });
-    for (let i = 1; i < 5; i++) this.later(() => this.setState({ step: i }), i * 700);
-    this.later(() => { this.setState({ stage: 'answer' }); this.push({ agent: true, text: 'Готово. Вот что показала выписка.' }); }, 3600);
+    if (this.state.stage === 'analyzing') return;
+    document.getElementById('statement-file').click();
   }
-  reset() { this.timers.forEach(clearTimeout); this.timers = []; this.setState({ stage: 'empty', thinking: false, step: 0, skill: null, voice: false, messages: [] }); }
+  selectFile(event) {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (file) this.scoreStatement(file);
+  }
+  async scoreStatement(file = null) {
+    if (this.state.stage === 'analyzing') return;
+    this.lastFile = file;
+    const controller = new AbortController();
+    this.requestController = controller;
+    const timer = setTimeout(() => controller.abort(), 35000);
+    this.setState({ stage: 'analyzing', thinking: false, uploadError: false, step: 0 });
+    // полоса шагов идёт, пока ждём сервер: иначе застывшая 1/5 выглядит как зависание
+    for (let i = 1; i < 5; i++) this.later(() => { if (this.state.stage === 'analyzing') this.setState({ step: i }); }, i * 700);
+    try {
+      let csv;
+      if (file) {
+        if (!file.name.toLowerCase().endsWith('.csv')) throw new Error('Выберите файл CSV.');
+        if (file.size > 5 * 1024 * 1024) throw new Error('Файл слишком большой. Нужен CSV меньше 5 МБ.');
+        csv = await file.text();
+      } else {
+        const demo = await fetch('../demo/cash_gap.csv', { signal: controller.signal });
+        if (!demo.ok) throw new Error('Не удалось загрузить демо-выписку.');
+        csv = await demo.text();
+      }
+      if (controller.signal.aborted) throw new DOMException('Timeout', 'AbortError');
+      // Демонстрационные need и questionnaire; выписка передаётся из выбранного CSV.
+      const body = { statement_csv: csv,
+        need: { purpose: 'кассовый разрыв', amount_rub: 1500000, term_months: 12,
+          repay_from: 'оплата по договору', asked_for: 'кредит' },
+        questionnaire: { form: 'ООО', need: 'кассовый разрыв', sector: 'стройка', years: 'больше 3', trend: 'в плюс' },
+        confirmed_fields: {}, history: [] };
+      const response = await fetch('/api/score', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
+      const result = await response.json().catch(() => null);
+      // 5xx: шлюз и nginx отдают служебные коды (bad_gateway), клиенту только человеческий текст
+      if (!response.ok) throw new Error(response.status < 500 && result && typeof result.error === 'string' ? result.error : 'Сервис расчёта временно недоступен. Попробуйте через минуту.');
+      const view = result && result.view;
+      if (!view || !view.numbers || typeof view.status_text !== 'string' || !Array.isArray(view.reasons)) throw new Error('Сервис вернул неполный ответ.');
+      if (this.requestController !== controller) return;
+      const rub = n => Number(n).toLocaleString('ru-RU') + ' ₽';
+      const lines = [view.status_text, 'Инструмент: ' + view.instrument,
+        'Лимит сейчас: ' + rub(view.numbers.available_now),
+        'Лимит после шага: ' + rub(view.numbers.available_after),
+        'Причины: ' + (view.reasons.map(r => r.text).join('; ') || 'дополнительных причин нет')];
+      if (view.next_steps && view.next_steps.length) lines.push('Следующие шаги: ' + view.next_steps.map(s => s.text).join('; '));
+      this.push({ file: true, text: file ? file.name : 'cash_gap.csv (демо)' });
+      this.push({ agent: true, text: lines.join('\n') });
+      this.setState({ stage: 'answer' });
+    } catch (error) {
+      if (this.requestController !== controller) return;
+      this.push({ agent: true, text: error.name === 'AbortError'
+        ? 'Расчёт не ответил за 35 секунд. Попробуйте ещё раз.'
+        : (error instanceof TypeError ? 'Нет связи с сервером. Проверьте подключение и попробуйте ещё раз.' : error.message) });
+      this.setState({ stage: 'upload', uploadError: true });
+    } finally {
+      clearTimeout(timer);
+      if (this.requestController === controller) this.requestController = null;
+    }
+  }
+  reset() { if (this.requestController) this.requestController.abort(); this.requestController = null; this.lastFile = null; this.setState({ uploadError: false }); this.timers.forEach(clearTimeout); this.timers = []; this.setState({ stage: 'empty', thinking: false, step: 0, skill: null, voice: false, messages: [] }); }
   renderVals() {
     const st = this.state.stage;
     const skillDefs = [
@@ -448,7 +509,7 @@ class Component extends DCLogic {
       stepNo: this.state.step + 1,
       stepLabel: labels[this.state.step],
       steps: labels.map((l, i) => ({ c: i <= this.state.step ? '#ef3124' : '#2c2c2e' })),
-      showAnswer: st === 'answer' || (st === 'thinking' && this.state.messages.some(m => m.file)),
+      showAnswer: false, // Результат API показан в сообщениях, статическая карточка скрыта.
       showChips: st === 'empty' || st === 'answer',
       chips: (st === 'empty' ? startChips : nextChips).map(label => ({ label, pick: () => this.ask(label) })),
       flow: flowRaw.map((x, i) => ({ h: Math.max(Math.abs(x), 8) + 'px', c: x < 0 ? '#d91d0b' : '#13a463', delay: (i * 40) + 'ms' })),
@@ -470,6 +531,10 @@ class Component extends DCLogic {
       openDb: () => this.setState({ db: true }), closeDb: () => this.setState({ db: false }),
       toggleVoice: () => this.setState(s => ({ voice: !s.voice })),
       upload: () => this.upload(),
+      selectFile: event => this.selectFile(event),
+      demoUpload: () => this.scoreStatement(),
+      uploadError: !!this.state.uploadError,
+      retryUpload: () => this.scoreStatement(this.lastFile),
       reset: () => this.reset()
     };
   }
