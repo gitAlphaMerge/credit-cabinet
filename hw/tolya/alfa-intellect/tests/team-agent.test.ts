@@ -31,11 +31,29 @@ test("team response reaches chat and sends only an allowlisted card", async () =
     assert.equal(answer.mode, "team-agent");
     assert.equal(answer.text, "Уточните выписку?");
     assert.equal(sent.session_id, "chat-123");
+    assert.ok(!("client_id" in sent));
     assert.deepEqual({ purpose: sent.card.purpose, amount_rub: sent.card.amount_rub, term_months: sent.card.term_months, instrument: sent.card.instrument }, { purpose: "оборудование", amount_rub: 500000, term_months: 12, instrument: "Лизинг" });
     const privatePayload = JSON.stringify(sent.card);
     for (const value of ["1234567890", "Secret Company", "Ivan", "secret.csv", "PRIVATE RAW", "inn", "name"])
       assert.ok(!privatePayload.includes(value));
     assert.deepEqual(sent.card.documents, [{ category: "statement", period: "2026-01" }]);
+  } finally { globalThis.fetch = original; }
+});
+
+test("team agent uses the account ID for memory, never a phone or business name", async () => {
+  const original = globalThis.fetch;
+  let sent: any;
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    sent = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ text: "Здравствуйте" }));
+  }) as typeof fetch;
+  try {
+    const s = { ...state, userId: "account-uuid-123", phone: "+79001112233" };
+    await new TeamAgentProvider("http://agent").reply(s, history);
+    assert.equal(sent.client_id, s.userId);
+    assert.notEqual(sent.client_id, s.phone);
+    assert.notEqual(sent.client_id, s.profile.name);
+    assert.ok(!JSON.stringify(sent).includes(s.phone));
   } finally { globalThis.fetch = original; }
 });
 

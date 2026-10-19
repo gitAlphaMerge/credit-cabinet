@@ -6,6 +6,8 @@
 
 ### B01. В v2 чате нельзя отправить текст из поля
 
+Статус: исправлено в sasha/v2-fixes, проверка: `node --test tests/v2-chat.test.ts` из `hw/tolya/alfa-intellect` (2/2); `node --check tests/e2e/main_site.mjs` и `npx tsc --noEmit -p .` (TSC_EXIT=0). Живой HTTP-прогон nginx выполняет архитектор.
+
 - Файл: `services/frontend/v2/chat.html:285`, поле рядом на строках 270-284; также `services/frontend/v2/kabinet.html:204`.
 - Воспроизведение: открыть чат, набрать вопрос, нажать «Отправить»; повторить в мини-чате кабинета.
 - Ожидание: сообщение добавляется в историю и запускает ответ.
@@ -13,6 +15,8 @@
 - Серьёзность: блокер свободного текстового диалога на v2.
 
 ### B02. Оформление из v2 подбора не существует
+
+Статус: исправлено в sasha/v2-fixes, проверка: `node --test tests/v2-chat.test.ts` из `hw/tolya/alfa-intellect` (intent=apply); `npx tsc --noEmit -p .` (TSC_EXIT=0).
 
 - Файл: `services/frontend/v2/podbor.html:240`.
 - Воспроизведение: подобрать сумму, при которой отображается «Можно подавать», нажать «Перейти к оформлению».
@@ -71,6 +75,8 @@
 - Серьёзность: важно, скачиваемые условия расходятся с поданными. Сам снимок в SQLite сохранён, ошибка именно в доступном download.
 
 ### B12. Расчёт через ядро на сайте Толи падает на годовой выписке
+
+Статус: исправлено в sasha/v2-fixes, проверка: `npx tsc --noEmit -p .` из `hw/tolya/alfa-intellect` (TSC_EXIT=0); добавлен `tests/team-score-size.test.ts` (150 КБ до fetch, >2 МБ → 413). Запуск через tsx в песочнице падает до тестов: uv_os_get_passwd ENOMEM; HTTP-прогон выполняет архитектор.
 
 - Файл: `hw/tolya/alfa-intellect/server/app.ts:36`: `express.json({ limit: "100kb" })`, а zod в `/api/team-score` пускает до 500 000 символов.
 - Воспроизведение (живой стенд, 20.10): `node tests/e2e/tolya_site.mjs --base http://158.160.212.36:4173`, шаг «team core through site API» с `services/frontend/demo/cash_gap.csv` (139 КБ).
