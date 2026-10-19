@@ -53,5 +53,59 @@ services:
       - "${FRONTEND_PORT:-80}:80"
     mem_limit: 64m
 
+  agent:
+    build: ./services/agent
+    restart: unless-stopped
+    environment:
+      AGENT_PORT: 8090
+      AGENT_CORE_URL: http://api:8080
+      AGENT_STATE_DIR: /app/var
+      AGENT_LLM_URL: ${AGENT_LLM_URL:-https://api.deepseek.com/chat/completions}
+      AGENT_LLM_MODEL: ${AGENT_LLM_MODEL:-deepseek-chat}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - agent_state:/app/var
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=4).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: 96m
+    depends_on:
+      api:
+        condition: service_started
+
+  alfa-intellect:   # сайт Толи: аккаунты, кабинет, подбор; расчёт через api -> ядро Лизы
+    build: ./hw/tolya/alfa-intellect
+    restart: unless-stopped
+    ports:
+      - "${ALFA_PORT:-4173}:4173"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4173
+      DATABASE_PATH: /app/var/alfa.sqlite
+      TEAM_API_URL: http://api:8080
+      TEAM_AGENT_URL: http://agent:8090
+      EGR_PROVIDER: mock   # ЕГРЮЛ/ЕГРИП без платных ключей: синтетические компании с пометкой «мок»
+    depends_on:
+      api:
+        condition: service_started
+      agent:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/health', {signal: AbortSignal.timeout(4000)}).then(async r => {if (!r.ok || (await r.json()).db !== 'ok') process.exit(1)}).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    volumes:
+      - alfa_data:/app/var
+    mem_limit: 256m
+
 volumes:
   journal:
+  alfa_data:
+  agent_state:
