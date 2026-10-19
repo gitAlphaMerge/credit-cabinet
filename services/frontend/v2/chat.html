@@ -159,6 +159,7 @@ a{color:#0072ef}a:hover{color:#005bbf}
 <span style="width: 26px; height: 26px; flex: 0 0 26px; border-radius: 999px; border: 2px solid #ef3124; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin-top: 2px" aria-hidden="true"><span style="width: 8px; height: 8px; border-radius: 999px; background: #ef3124"></span></span>
 <div style="display: flex; flex-direction: column; gap: 4px">
 <div style="font-size: 15px; line-height: 1.5; white-space: pre-line">{{ m.text }}</div>
+<template v-if="m.retry"><button type="button" @click="v.retry(m)" :disabled="v.sending">попробовать ещё раз</button></template>
 <span style="font-size: 13px; color: #6b6b70">{{ m.time }}</span>
 </div>
 </div>
@@ -180,7 +181,7 @@ a{color:#0072ef}a:hover{color:#005bbf}
 <template v-if="v.thinking">
 <div class="msg" style="align-self: flex-start; display: flex; align-items: center; gap: 10px; margin-top: 8px; color: #6b6b70; font-size: 14px">
 <svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true" style="flex: 0 0 26px; overflow: visible"><circle cx="50" cy="50" r="34" fill="none" stroke="#fbe8e7" stroke-width="4"></circle><circle class="th-i1" cx="50" cy="50" r="6" fill="#ef3124" style="transform-origin: 50px 50px"></circle><circle class="th-i2" cx="50" cy="50" r="6" fill="#f6a59f" style="transform-origin: 50px 50px"></circle><circle class="th-i3" cx="50" cy="50" r="6" fill="#0b0b0c" style="transform-origin: 50px 50px"></circle><circle class="th-i4" cx="50" cy="50" r="6" fill="#ef3124" style="transform-origin: 50px 50px"></circle><circle class="th-i5" cx="50" cy="50" r="6" fill="#f6a59f" style="transform-origin: 50px 50px"></circle><circle class="th-puff" cx="50" cy="50" r="20" fill="#ef3124" style="transform-origin: 50px 50px"></circle></svg>
-Думаю: сверяю с анкетой
+{{ v.sending ? 'печатает' : 'Думаю: сверяю с анкетой' }}
 </div>
 </template>
 
@@ -274,7 +275,7 @@ a{color:#0072ef}a:hover{color:#005bbf}
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
 </button>
 <label for="msg2" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Сообщение агенту</label>
-<input id="msg2" type="text" placeholder="Спросите про деньги бизнеса" style="flex: 1 1 auto; border: 0; outline: none; font: 400 15px 'Manrope', sans-serif; background: transparent; min-width: 0; height: 44px">
+<input id="msg2" @keydown.enter="v.send($event)" type="text" placeholder="Спросите про деньги бизнеса" style="flex: 1 1 auto; border: 0; outline: none; font: 400 15px 'Manrope', sans-serif; background: transparent; min-width: 0; height: 44px">
 <button type="button" aria-label="Надиктовать" class="ghost mic" style="width: 44px; height: 44px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px">
 <span class="w1" style="width: 3px; height: 10px; border-radius: 999px; background: #ef3124"></span><span class="w2" style="width: 3px; height: 18px; border-radius: 999px; background: #ef3124"></span><span class="w3" style="width: 3px; height: 24px; border-radius: 999px; background: #0b0b0c"></span><span class="w4" style="width: 3px; height: 16px; border-radius: 999px; background: #ef3124"></span><span class="w5" style="width: 3px; height: 8px; border-radius: 999px; background: #ef3124"></span>
 </button>
@@ -282,7 +283,7 @@ a{color:#0072ef}a:hover{color:#005bbf}
 <span style="position: relative; width: 32px; height: 32px" aria-hidden="true"><span class="halo" style="position: absolute; left: 4px; top: 4px; width: 24px; height: 24px; border-radius: 999px; border: 2px solid #ef3124; box-sizing: border-box"></span><span class="core" style="position: absolute; left: 8px; top: 8px; width: 16px; height: 16px; border-radius: 999px; background: radial-gradient(circle at 35% 30%, #ff7a6f, #ef3124 60%, #a3160c)"></span></span>
 Голос
 </button>
-<button type="button" aria-label="Отправить" class="cta" style="width: 44px; height: 44px; border: 0; border-radius: 999px; background: #ef3124; cursor: pointer; display: flex; align-items: center; justify-content: center">
+<button type="button" aria-label="Отправить" @click="v.send" :disabled="v.sending" class="cta" style="width: 44px; height: 44px; border: 0; border-radius: 999px; background: #ef3124; cursor: pointer; display: flex; align-items: center; justify-content: center">
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg>
 </button>
 </div>
@@ -385,13 +386,62 @@ class Component extends DCLogic {
     this.state = { stage: 'empty', thinking: false, step: 0, skill: null, voice: false, db: false, off: {}, call: false, callSec: 0, mute: false, messages: [] };
     this.timers = [];
   }
-  componentWillUnmount() { if (this.requestController) this.requestController.abort(); this.timers.forEach(clearTimeout); clearInterval(this.callTimer); }
+  componentWillUnmount() { if (this.agentController) this.agentController.abort(); if (this.requestController) this.requestController.abort(); this.timers.forEach(clearTimeout); clearInterval(this.callTimer); }
   startCall() { clearInterval(this.callTimer); this.setState({ call: true, callSec: 0, mute: false }); this.callTimer = setInterval(() => this.setState(s => ({ callSec: s.callSec + 1 })), 1000); }
   endCall() { clearInterval(this.callTimer); const sec = this.state.callSec; const t = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); this.setState({ call: false }); this.push({ agent: true, text: 'Итог звонка (' + t + '): обсудили платёж 17 ноября и задержку оплаты заказчика. Договорились: я готовлю черновик акта сверки, вы загружаете договор, лимит пересчитаю.' }); }
   later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
   now() { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
   push(m) { this.setState(s => ({ messages: s.messages.concat([Object.assign({ id: s.messages.length + 1, time: this.now() }, m)]) })); }
+  agentSession() {
+    if (this.sessionId) return this.sessionId;
+    const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+    try {
+      this.sessionId = sessionStorage.getItem('v2-agent-session') || id;
+      sessionStorage.setItem('v2-agent-session', this.sessionId);
+    } catch (_) { this.sessionId = id; }
+    return this.sessionId;
+  }
+  send(event) {
+    if (event && event.isComposing) return;
+    if (event && event.preventDefault) event.preventDefault();
+    const input = document.getElementById('msg2');
+    const text = input.value.trim();
+    if (!text || this.state.sending || this.state.thinking || this.state.stage === 'analyzing') return;
+    input.value = '';
+    return this.sendTurn(text);
+  }
+  async sendTurn(text, retry = null) {
+    text = text.trim();
+    if (!text || this.state.sending || this.state.thinking || this.state.stage === 'analyzing') return;
+    if (retry) this.setState(s => ({ messages: s.messages.filter(m => m.id !== retry.id) }));
+    else this.push({ user: true, text });
+    const controller = new AbortController();
+    this.agentController = controller;
+    const timer = setTimeout(() => controller.abort(), 40000);
+    this.setState({ sending: true, stage: this.state.stage === 'empty' ? 'answer' : this.state.stage });
+    try {
+      const response = await fetch('/api/agent/turn', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: this.agentSession(), text, card: {} }), signal: controller.signal });
+      if (!response.ok) throw new Error('agent unavailable');
+      const result = await response.json();
+      if (!result || typeof result.text !== 'string' || !result.text.trim()) throw new Error('invalid agent response');
+      if (this.agentController !== controller) return;
+      this.push({ agent: true, text: result.text });
+    } catch (_) {
+      if (this.agentController !== controller) return;
+      this.push({ agent: true, text: 'Ассистент сейчас недоступен, попробуйте через минуту', retry: text });
+    } finally {
+      clearTimeout(timer);
+      if (this.agentController === controller) {
+        this.agentController = null;
+        this.setState({ sending: false });
+      }
+    }
+  }
+  componentDidMount() { if (new URLSearchParams(window.location.search).get('intent') === 'apply') this.sendTurn('Хочу оформить заявку'); }
   ask(label) {
+    if (this.state.sending) return;
     if (this.state.stage !== 'empty' && this.state.stage !== 'answer') return;
     const first = this.state.stage === 'empty';
     this.push({ user: true, text: label });
@@ -405,7 +455,7 @@ class Component extends DCLogic {
     }, 1300);
   }
   upload() {
-    if (this.state.stage === 'analyzing') return;
+    if (this.state.sending || this.state.stage === 'analyzing') return;
     document.getElementById('statement-file').click();
   }
   selectFile(event) {
@@ -414,7 +464,7 @@ class Component extends DCLogic {
     if (file) this.scoreStatement(file);
   }
   async scoreStatement(file = null) {
-    if (this.state.stage === 'analyzing') return;
+    if (this.state.sending || this.state.stage === 'analyzing') return;
     this.lastFile = file;
     const controller = new AbortController();
     this.requestController = controller;
@@ -468,7 +518,7 @@ class Component extends DCLogic {
       if (this.requestController === controller) this.requestController = null;
     }
   }
-  reset() { if (this.requestController) this.requestController.abort(); this.requestController = null; this.lastFile = null; this.setState({ uploadError: false }); this.timers.forEach(clearTimeout); this.timers = []; this.setState({ stage: 'empty', thinking: false, step: 0, skill: null, voice: false, messages: [] }); }
+  reset() { if (this.agentController) this.agentController.abort(); this.agentController = null; this.setState({ sending: false }); if (this.requestController) this.requestController.abort(); this.requestController = null; this.lastFile = null; this.setState({ uploadError: false }); this.timers.forEach(clearTimeout); this.timers = []; this.setState({ stage: 'empty', thinking: false, step: 0, skill: null, voice: false, messages: [] }); }
   renderVals() {
     const st = this.state.stage;
     const skillDefs = [
@@ -491,6 +541,9 @@ class Component extends DCLogic {
     const dbGroups = dbRaw.map(g => ({ name: g.name, items: g.items.map(it => { const on = !off[it.id]; return Object.assign({}, it, { on: on ? 'true' : 'false', track: on ? '#13a463' : '#dcdcdd', knob: on ? '23px' : '3px', toggle: () => this.setState(s => ({ off: Object.assign({}, s.off, { [it.id]: on }) })) }); }) }));
     const dbOn = dbRaw.reduce((n, g) => n + g.items.filter(it => !off[it.id]).length, 0);
     return {
+      sending: !!this.state.sending,
+      send: event => this.send(event),
+      retry: m => this.sendTurn(m.retry, m),
       skills,
       history: [
         { title: 'Кассовый разрыв, октябрь', when: '12:40', bg: 'transparent' },
@@ -503,7 +556,7 @@ class Component extends DCLogic {
       chatTitle: st === 'empty' ? (this.props.agentName ?? 'Кредитный агент') : (this.props.agentName ?? 'Кредитный агент') + ' · кассовый разрыв',
       statusLine: this.state.thinking || st === 'analyzing' ? 'думает' : 'на связи, видит вашу выписку и анкету',
       mascotClass: this.state.thinking || st === 'analyzing' ? 'spin' : 'idle',
-      thinking: this.state.thinking,
+      thinking: this.state.thinking || this.state.sending,
       showUpload: st === 'upload',
       analyzing: st === 'analyzing',
       stepNo: this.state.step + 1,

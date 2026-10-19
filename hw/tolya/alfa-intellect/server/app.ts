@@ -33,7 +33,7 @@ app.use((_req, res, next) => {
   });
   next();
 });
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({ limit: "2mb" }));
 app.use("/api", (req, res, next) => {
   res.set("Cache-Control", "no-store");
   if (
@@ -486,7 +486,8 @@ app.post("/api/chats/:id/messages", async (req, res) => {
             "INSERT INTO usage VALUES(?,?,1) ON CONFLICT(user_id,day) DO UPDATE SET calls=calls+1",
           ).run(uid, day);
         });
-    const answer = await provider.reply(s, chat.messages, chat.selectionId);
+    // ID из авторизованной сессии, а не из профиля или тела запроса.
+    const answer = await provider.reply({ ...s, userId: uid }, chat.messages, chat.selectionId);
     const current = stateOf(uid),
       currentChat = current.chats.find((c) => c.id === chat.id)!;
     currentChat.messages.push({
@@ -784,6 +785,10 @@ app.use(
     res: express.Response,
     _next: express.NextFunction,
   ) => {
+    if (error && typeof error === "object" && "type" in error && error.type === "entity.too.large") {
+      res.status(413).json({ error: "Файл слишком большой" });
+      return;
+    }
     if (error instanceof z.ZodError) {
       const fields = russianValidationErrors(error.issues);
       res.status(422).json({

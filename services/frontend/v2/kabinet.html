@@ -180,6 +180,7 @@ a{color:#0072ef}a:hover{color:#005bbf}
 <template v-if="m.agent">
 <div class="in" style="display: flex; flex-direction: column; gap: 4px; max-width: 320px">
 <div style="font-size: 14px; line-height: 1.5; white-space: pre-line">{{ m.text }}</div>
+<template v-if="m.retry"><button type="button" @click="v.retry(m)" :disabled="v.sending">попробовать ещё раз</button></template>
 <span style="font-size: 12px; color: #6b6b70">{{ m.time }}</span>
 </div>
 </template>
@@ -190,6 +191,7 @@ a{color:#0072ef}a:hover{color:#005bbf}
 </div>
 </template>
 </div></template>
+<template v-if="v.sending"><div role="status">печатает</div></template>
 <div style="display: flex; flex-wrap: wrap; gap: 6px">
 <template v-for="(c, $index) in v.agentChips">
 <button type="button" class="chip" @click="c.pick" style="min-height: 40px; border: 0; border-radius: 999px; background: #fbe8e7; color: #b3241a; padding: 6px 12px; font: 600 13px 'Manrope', sans-serif; cursor: pointer">{{ c.label }}</button>
@@ -199,9 +201,9 @@ a{color:#0072ef}a:hover{color:#005bbf}
 <div style="padding: 10px 12px 14px">
 <div style="border: 1px solid #dcdcdd; border-radius: 999px; padding: 6px; display: flex; align-items: center; gap: 4px">
 <label for="kmsg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Сообщение агенту</label>
-<input id="kmsg" type="text" placeholder="Спросите про платёж или ленту" style="flex: 1 1 auto; border: 0; outline: none; font: 400 14px 'Manrope', sans-serif; background: transparent; min-width: 0; height: 40px; padding-left: 10px">
+<input id="kmsg" @keydown.enter="v.send($event)" type="text" placeholder="Спросите про платёж или ленту" style="flex: 1 1 auto; border: 0; outline: none; font: 400 14px 'Manrope', sans-serif; background: transparent; min-width: 0; height: 40px; padding-left: 10px">
 <button type="button" aria-label="Надиктовать" class="ghost" style="width: 40px; height: 40px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></button>
-<button type="button" aria-label="Отправить" class="cta" style="width: 40px; height: 40px; border: 0; border-radius: 999px; background: #ef3124; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
+<button type="button" aria-label="Отправить" @click="v.send" :disabled="v.sending" class="cta" style="width: 40px; height: 40px; border: 0; border-radius: 999px; background: #ef3124; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
 </div>
 </div>
 </aside>
@@ -220,6 +222,55 @@ class Component extends DCLogic {
     ] };
   }
   t() { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  agentSession() {
+    if (this.sessionId) return this.sessionId;
+    const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+    try {
+      this.sessionId = sessionStorage.getItem('v2-agent-session') || id;
+      sessionStorage.setItem('v2-agent-session', this.sessionId);
+    } catch (_) { this.sessionId = id; }
+    return this.sessionId;
+  }
+  send(event) {
+    if (event && event.isComposing) return;
+    if (event && event.preventDefault) event.preventDefault();
+    const input = document.getElementById('kmsg');
+    const text = input.value.trim();
+    if (!text || this.state.sending) return;
+    input.value = '';
+    return this.sendTurn(text);
+  }
+  async sendTurn(text, retry = null) {
+    text = text.trim();
+    if (!text || this.state.sending) return;
+    if (retry) this.setState(s => ({ thread: s.thread.filter(m => m.id !== retry.id) }));
+    else this.pushTurn({ user: true, text });
+    const controller = new AbortController();
+    this.agentController = controller;
+    const timer = setTimeout(() => controller.abort(), 40000);
+    this.setState({ sending: true });
+    try {
+      const response = await fetch('/api/agent/turn', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: this.agentSession(), text, card: {} }), signal: controller.signal });
+      if (!response.ok) throw new Error('agent unavailable');
+      const result = await response.json();
+      if (!result || typeof result.text !== 'string' || !result.text.trim()) throw new Error('invalid agent response');
+      if (this.agentController !== controller) return;
+      this.pushTurn({ agent: true, text: result.text });
+    } catch (_) {
+      if (this.agentController !== controller) return;
+      this.pushTurn({ agent: true, text: 'Ассистент сейчас недоступен, попробуйте через минуту', retry: text });
+    } finally {
+      clearTimeout(timer);
+      if (this.agentController === controller) {
+        this.agentController = null;
+        this.setState({ sending: false });
+      }
+    }
+  }
+  pushTurn(m) { this.setState(s => ({ thread: s.thread.concat([Object.assign({ id: s.thread.length + 1, time: this.t() }, m)]) })); }
+  componentWillUnmount() { if (this.agentController) this.agentController.abort(); }
   discuss(name, reply) {
     const now = this.t();
     this.setState(s => ({ context: name, thread: s.thread.concat([
@@ -250,6 +301,9 @@ class Component extends DCLogic {
     const payments = payDefs.map(p => Object.assign({}, p, { open: () => this.setState({ tab: 'payment' }) }));
     const st = this.state.stress;
     return {
+      sending: !!this.state.sending,
+      send: event => this.send(event),
+      retry: m => this.sendTurn(m.retry, m),
       agentName: this.props.agentName ?? 'Кредитный агент',
       tabs, feed, payments,
       isFeed: tab === 'feed', isPayments: tab === 'payments', isPayment: tab === 'payment', isEff: tab === 'eff',

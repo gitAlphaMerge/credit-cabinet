@@ -7,7 +7,7 @@ import { fundingCatalog } from "../shared/financing";
 import { fundingInput, transparentFundingEngine } from "./funding-engine";
 export interface AIProvider {
   reply(
-    state: AppState,
+    state: AppState & { userId?: string },
     history: Message[],
     selectionId?: string,
   ): Promise<{
@@ -94,7 +94,7 @@ export function agentCard(s: AppState, selectionId?: string) {
 export class TeamAgentProvider implements AIProvider {
   constructor(private baseUrl: string) {}
 
-  async reply(s: AppState, history: Message[], selectionId?: string) {
+  async reply(s: AppState & { userId?: string }, history: Message[], selectionId?: string) {
     const chat = s.chats.find((c) => c.messages === history);
     try {
       const endpoint = new URL("/turn", this.baseUrl);
@@ -103,6 +103,7 @@ export class TeamAgentProvider implements AIProvider {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           session_id: chat?.id || "",
+          ...(s.userId ? { client_id: s.userId } : {}),
           text: history.at(-1)?.text || "",
           card: agentCard(s, selectionId),
         }),
