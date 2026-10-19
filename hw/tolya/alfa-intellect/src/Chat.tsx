@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Plus,
   Maximize2,
@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   X,
   PanelLeftOpen,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { useWorkspace } from "./context";
 import { Button, IconButton, Badge, CalculationView, Modal } from "./ui";
@@ -26,23 +28,28 @@ const FEEDBACK_REASONS = [
   ["M", "Переспросил то, что я уже говорил"], ["P", "Пообещал лишнее или нарушил правила"],
   ["V", "Звучит как робот"], ["F", "Непонятно, что делать дальше"], ["other", "Другое"],
 ];
-function MessageFeedback({ messageId, value, disabled, save }: {
+function MessageFeedback({ messageId, value, disabled, save, time }: {
   messageId: string; value?: FeedbackValue; disabled: boolean; save: (v: FeedbackValue) => Promise<void>;
+  time?: ReactNode;
 }) {
   const form = useRef<HTMLFormElement>(null);
   const current: FeedbackValue = value || {kind:"message",message_id:messageId,rating:null,reasons:[],text:""};
-  return <div style={{marginTop:8}} aria-label="Оценка ответа">
-    {(["up","down"] as const).map(rating => <button key={rating} type="button" className="text-button"
-      style={{minWidth:44,minHeight:44,borderRadius:8,background:current.rating === rating ? "var(--surface-hover, #eee)" : undefined}} disabled={disabled} aria-label={rating === "up" ? "Хороший ответ" : "Плохой ответ"}
-      aria-pressed={current.rating === rating} onClick={() => void save({...current,
-        rating: current.rating === rating ? null : rating, reasons:[],text:""})}>
-      {rating === "up" ? "👍" : "👎"}</button>)}
-    {current.rating && <form ref={form} className="proposal" onSubmit={e => {
+  return <div className="message-feedback" aria-label="Оценка ответа">
+    <div className="message-feedback-row">
+      {time}
+      {(["up","down"] as const).map(rating => <button key={rating} type="button" className="feedback-icon"
+        disabled={disabled} aria-label={rating === "up" ? "Хороший ответ" : "Плохой ответ"}
+        title={rating === "up" ? "Хороший ответ" : "Плохой ответ"}
+        aria-pressed={current.rating === rating} onClick={() => void save({...current,
+          rating: current.rating === rating ? null : rating, reasons:[],text:""})}>
+        {rating === "up" ? <ThumbsUp size={15} /> : <ThumbsDown size={15} />}</button>)}
+    </div>
+    {current.rating && <form ref={form} className="proposal feedback-panel" onSubmit={e => {
       e.preventDefault(); const data = new FormData(e.currentTarget);
       void save({...current,text:String(data.get("text") || "")});
     }}>
-      {current.rating === "down" && <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-        {FEEDBACK_REASONS.map(([code,label]) => <label key={code} style={{display:"flex",gap:6,alignItems:"center",minHeight:44}}>
+      {current.rating === "down" && <div className="feedback-reasons">
+        {FEEDBACK_REASONS.map(([code,label]) => <label key={code} className="feedback-reason">
           <input type="checkbox" name="reason" disabled={disabled} checked={current.reasons.includes(code)}
             onChange={() => void save({...current,reasons:current.reasons.includes(code)
               ? current.reasons.filter(c => c !== code) : [...current.reasons,code],
@@ -62,9 +69,9 @@ function ConversationFeedback({eligible,done,disabled,save}: {
 }) {
   const [finished,setFinished] = useState(false), [rating,setRating] = useState<number|null>(null);
   if (done) return null;
-  if (!eligible && !finished) return <button className="text-button" disabled={disabled}
-    onClick={() => setFinished(true)}>Завершить разговор</button>;
-  return <form className="proposal" aria-label="Итог разговора" onSubmit={e => {
+  if (!eligible && !finished) return <div className="conversation-finish"><button type="button" className="text-button" disabled={disabled}
+    onClick={() => setFinished(true)}>Завершить разговор и оценить</button></div>;
+  return <form className="proposal conversation-feedback" aria-label="Итог разговора" onSubmit={e => {
     e.preventDefault(); if (rating === null) return;
     void save({kind:"conversation",rating,reasons:[],text:String(new FormData(e.currentTarget).get("text") || "")});
   }}>
@@ -403,15 +410,16 @@ export function Chat({
                           </Button>
                         </div>
                       )}
-                      {m.role === "assistant" && <MessageFeedback messageId={m.id}
+                      {m.role === "assistant" ? <MessageFeedback messageId={m.id}
                         value={feedback.find(f => f.kind === "message" && f.message_id === m.id)}
-                        disabled={!feedbackLoaded || feedbackSaving} save={saveFeedback} />}
-                      <time>
+                        disabled={!feedbackLoaded || feedbackSaving} save={saveFeedback}
+                        time={<time>{new Date(m.createdAt).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"})}</time>} />
+                      : <time>
                         {new Date(m.createdAt).toLocaleTimeString("ru-RU", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                      </time>
+                      </time>}
                     </div>
                   </article>
                 ))
@@ -435,11 +443,6 @@ export function Chat({
                   </div>
                 </div>
               )}
-              {!!chat?.messages.length && !busy && feedbackLoaded && <ConversationFeedback key={chat.id}
-                eligible={chat.messages.some(m => m.role === "assistant" &&
-                  typeof (m as typeof m & {status?:string}).status === "string" &&
-                  (m as typeof m & {status?:string}).status !== "collecting")}
-                done={feedback.some(f => f.kind === "conversation")} disabled={feedbackSaving} save={saveFeedback} />}
               {!!chat?.messages.length &&
                 !busy &&
                 chat.messages.at(-1)?.role === "assistant" && (
@@ -454,6 +457,11 @@ export function Chat({
                     ))}
                   </div>
                 )}
+              {!!chat?.messages.length && !busy && feedbackLoaded && <ConversationFeedback key={chat.id}
+                eligible={chat.messages.some(m => m.role === "assistant" &&
+                  typeof (m as typeof m & {status?:string}).status === "string" &&
+                  (m as typeof m & {status?:string}).status !== "collecting")}
+                done={feedback.some(f => f.kind === "conversation")} disabled={feedbackSaving} save={saveFeedback} />}
             </div>
           </div>
           <ChatComposer chatId={chat?.id || ""} />
