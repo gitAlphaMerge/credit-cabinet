@@ -106,7 +106,7 @@ export class TeamAgentProvider implements AIProvider {
           text: history.at(-1)?.text || "",
           card: agentCard(s, selectionId),
         }),
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(35_000),
       });
       if (!response.ok) throw new Error("agent request failed");
       const data = await response.json() as { text?: unknown; status?: unknown; view?: unknown };

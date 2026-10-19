@@ -20,7 +20,11 @@
 ## Как устроено
 
 ```
-сайт ──POST /score──► services/ml-model/app.py (окошко)
+Толя -> api -> ядро Лизы (POST /score)
+Толя -> agent -> DeepSeek/шаблоны (POST /turn)
+        agent -> api -> ядро Лизы (POST /score)
+
+services/ml-model/app.py (окошко)
                         security.py   проверяет запрос
                         cores.py      выбирает ядро: сейчас временное, потом core.py Лизы
                         core_stub.py  временный расчёт на эталоне, только тестовые выписки
@@ -64,8 +68,18 @@ docker compose down
 | api (Go) | 8080 | 64m |
 | ml-model (Python) | 5000, только с этой машины | 384m |
 | frontend (nginx) | `${FRONTEND_PORT:-80}` | 64m |
+| agent (Python, stdlib) | 8090, только внутри Compose | 96m |
+| alfa-intellect (сайт Толи) | `${ALFA_PORT:-4173}` | 256m |
 
-В сумме до 600M. Контроль: `docker stats --no-stream`.
+стенд: потолки mem_limit 864M, правило 600M пересматривает Артём
+
+Контроль: `docker stats --no-stream`.
+Ключ `DEEPSEEK_API_KEY` хранится в `.env` сервера и передаётся агенту через `env_file`.
+Без ключа агент отвечает шаблонами. В контейнере `AGENT_CORE_URL=http://api:8080`;
+без этой переменной локальный запуск и eval используют `core_local`.
+Память агента хранится в volume `agent_state`: слоты, `need` и `view` переживают рестарт.
+CSV выписки на диск не пишется, сохраняются только SHA-256 и признак получения.
+Для нового расчёта после рестарта выписку нужно загрузить повторно.
 
 ## Как сдавать
 
