@@ -63,6 +63,8 @@ services:
       AGENT_LLM_URL: ${AGENT_LLM_URL:-https://openrouter.ai/api/v1/chat/completions}
       AGENT_LLM_MODEL: ${AGENT_LLM_MODEL:-deepseek/deepseek-v4.1-flash}
       AGENT_LLM_PROXY: ${AGENT_LLM_PROXY:-}   # выход наружу, если OpenRouter режет IP сервера (403)
+      AGENT_MEMORY: ${AGENT_MEMORY:-0}        # память клиента: +1 LLM-вызов на ход, пока выключена
+      AGENT_LLM_PROVIDER: ${AGENT_LLM_PROVIDER:-}  # закрепить провайдера OpenRouter, чтобы попадал кэш
     env_file:
       - path: .env
         required: false
