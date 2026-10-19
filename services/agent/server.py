@@ -18,7 +18,9 @@ import guard
 
 SESSIONS: dict[str, dict] = {}
 MAX_BODY = 1_000_000
-ROOT = Path(__file__).resolve().parents[2]
+# в репо это корень проекта, в контейнере файлы лежат в /app и глубже некуда
+_HERE = Path(__file__).resolve().parent
+ROOT = _HERE.parents[1] if len(_HERE.parents) > 1 else _HERE
 AGENT_LOG = Path(os.getenv("AGENT_LOG", str(ROOT / "var" / "log" / "team-agent.log")))
 STARTED_AT = datetime.now(timezone.utc).isoformat()
 TURNS = 0

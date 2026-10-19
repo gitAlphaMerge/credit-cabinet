@@ -10,7 +10,9 @@ from pathlib import Path
 
 import intake_rules
 
-ROOT = Path(__file__).resolve().parents[2]
+# в репо это корень проекта, в контейнере файлы лежат в /app и глубже некуда
+_HERE = Path(__file__).resolve().parent
+ROOT = _HERE.parents[1] if len(_HERE.parents) > 1 else _HERE
 URL = os.getenv("AGENT_LLM_URL", "https://openrouter.ai/api/v1/chat/completions")
 MODEL = os.getenv("AGENT_LLM_MODEL", "deepseek/deepseek-v4.1-flash")
 AGENT_VOICE = (Path(__file__).resolve().parent / "AGENT.md").read_text(encoding="utf-8")
