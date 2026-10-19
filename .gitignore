@@ -33,3 +33,4 @@ Thumbs.db
 data/hidden/
 services/agent/var/
 /var/
+/secrets/

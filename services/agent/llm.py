@@ -56,7 +56,8 @@ def chat(system: str, user: str, model: str = MODEL, as_json: bool = False, temp
         body["response_format"] = {"type": "json_object"}
     req = urllib.request.Request(URL, json.dumps(body).encode("utf-8"), {
         "Content-Type": "application/json", "Authorization": f"Bearer {_key()}"})
-    with _opener().open(req, timeout=60) as r:
+    # короткий таймаут: сайт Толи ждёт ответ 35 с, а за ход бывает два вызова; дохлый узел VPN не должен его съесть
+    with _opener().open(req, timeout=float(os.getenv("AGENT_LLM_TIMEOUT", "15"))) as r:
         return json.load(r)["choices"][0]["message"]["content"]
 
 

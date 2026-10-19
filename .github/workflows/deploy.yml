@@ -28,13 +28,23 @@ jobs:
         env:
           TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          VPN_CLASH_PROFILE: ${{ secrets.VPN_CLASH_PROFILE }}
         run: |
           git archive --format=tar.gz HEAD -o /tmp/app.tgz
+          # выход агента через VPN: из профиля берутся только узлы, пароль прокси новый на каждый деплой и нигде не печатается
+          EGRESS_PASS=""; EGRESS_CFG=""
+          if [ -n "$VPN_CLASH_PROFILE" ]; then
+            EGRESS_PASS=$(openssl rand -hex 24); echo "::add-mask::$EGRESS_PASS"
+            pip install -q pyyaml
+            EGRESS_CFG=$(printf '%s' "$VPN_CLASH_PROFILE" | base64 -d | python3 scripts/build_mihomo_config.py "$EGRESS_PASS" | base64 -w0)
+          fi
           scp -i ~/.ssh/deploy /tmp/app.tgz "$TARGET:/tmp/app.tgz"
           # новая папка с нуля, чтобы удалённые из репо файлы не оставались на сервере; .env сервера переносится
-          printf '%s\n' "$DEEPSEEK_API_KEY" | ssh -i ~/.ssh/deploy "$TARGET" '
+          printf '%s\n%s\n%s\n' "$DEEPSEEK_API_KEY" "$EGRESS_PASS" "$EGRESS_CFG" | ssh -i ~/.ssh/deploy "$TARGET" '
             set -e
             IFS= read -r DEEPSEEK_API_KEY
+            IFS= read -r EGRESS_PASS
+            IFS= read -r EGRESS_CFG
             rm -rf ~/credit-cabinet.new && mkdir ~/credit-cabinet.new
             tar xzf /tmp/app.tgz -C ~/credit-cabinet.new
             cp ~/credit-cabinet/.env ~/credit-cabinet.new/.env 2>/dev/null || true
@@ -45,9 +55,19 @@ jobs:
               printf "\nDEEPSEEK_API_KEY=%s\n" "$DEEPSEEK_API_KEY" >> ~/credit-cabinet.new/.env
               unset DEEPSEEK_API_KEY
             fi
+            touch ~/credit-cabinet.new/.env && chmod 600 ~/credit-cabinet.new/.env
+            sed -i "/^AGENT_LLM_PROXY=/d" ~/credit-cabinet.new/.env
+            PROFILES=""
+            if [ -n "$EGRESS_CFG" ]; then
+              (umask 077; mkdir -p ~/credit-cabinet.new/secrets/mihomo
+               printf "%s" "$EGRESS_CFG" | base64 -d > ~/credit-cabinet.new/secrets/mihomo/config.yaml)
+              printf "AGENT_LLM_PROXY=http://agent:%s@egress:7890\n" "$EGRESS_PASS" >> ~/credit-cabinet.new/.env
+              PROFILES="--profile egress"
+            fi
+            unset EGRESS_PASS EGRESS_CFG
             rm -rf ~/credit-cabinet.old && mv ~/credit-cabinet ~/credit-cabinet.old && mv ~/credit-cabinet.new ~/credit-cabinet
             cd ~/credit-cabinet
-            sudo docker compose up --build -d --remove-orphans
+            sudo docker compose $PROFILES up --build -d --remove-orphans
             sudo docker image prune -f > /dev/null
           '
 
