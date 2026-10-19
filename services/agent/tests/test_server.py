@@ -125,12 +125,22 @@ def test_llm_slots_fall_back_to_templates_on_llm_error(monkeypatch, tmp_path):
         httpd.shutdown()
 
 
-def test_key_uses_direct_key_only_for_custom_llm_url(monkeypatch):
+def test_key_uses_direct_key_only_for_deepseek_url(monkeypatch):
     monkeypatch.setenv("AGENT_LLM_URL", "https://api.deepseek.com/chat/completions")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "direct-key")
     monkeypatch.setenv("OPENROUTER_API_KEY", "router-key")
     assert server.llm._key() == "direct-key"
     monkeypatch.delenv("DEEPSEEK_API_KEY")
     assert server.llm._key() is None
-    monkeypatch.delenv("AGENT_LLM_URL")
+    monkeypatch.setenv("AGENT_LLM_URL", "https://openrouter.ai/api/v1/chat/completions")
     assert server.llm._key() == "router-key"
+    # на сервере ключ OpenRouter лежит в секрете DEEPSEEK_API_KEY
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "router-key-in-deepseek-secret")
+    assert server.llm._key() == "router-key-in-deepseek-secret"
+
+
+def test_llm_proxy_is_used_when_set(monkeypatch):
+    monkeypatch.setenv("AGENT_LLM_PROXY", "http://egress:7890")
+    handlers = [h for h in server.llm._opener().handlers if isinstance(h, server.llm.urllib.request.ProxyHandler)]
+    assert handlers and handlers[0].proxies["https"] == "http://egress:7890"
