@@ -535,4 +535,45 @@ tolya_site создаёт два e2e-пользователя, не удаляе
 | v2/chat.html:432 | GET ../demo/cash_gap.csv | текст CSV, общий timeout 35 s |
 | v2/chat.html:443 | POST /api/score | CSV файла/демо, фиксированные need/questionnaire, пустые confirmed_fields/history; JSON core/view |
 
-В остальных HTML fetch отсутствует. Часы, анимации, карта путей и v2 подбор работают локально.
+Часы, анимации и карта путей работают локально. Актуальные провода v2-чата и агента перечислены ниже.
+
+## Полный e2e-прогон (20.10.2026)
+
+```sh
+node tests/e2e/run_all.mjs --main http://127.0.0.1 --tolya http://127.0.0.1:4173
+node tests/e2e/agent_live.mjs --base http://127.0.0.1:4173
+```
+
+Node 24, только stdlib. run_all последовательно запускает main_site, tolya_site и agent_live;
+собирает OK/FAIL/WARN и пишет `tests/e2e/REPORT.md`: UTC-даты, адреса, итоги,
+каждый FAIL со шагом и ответом сервера до 300 символов, без cookie и паролей.
+FAIL даёт exit 1, только WARN — exit 0. `--help` не использует сеть и не создаёт отчёт.
+Живой прогон выполняется архитектором; синтаксис и help не доказывают доступность стенда.
+
+| Откуда / метод / путь | Провод, тело и проверка |
+|---|---|
+| v2 chat, POST `/agent/turn` (не под /api: Caddy отдаёт /api/* в Go) | nginx: только POST, тело до 64 KiB; rewrite в `/turn` на `agent:8090`; session_id, text, questionnaire; 200 JSON с непустым text |
+| GET `/agent/turn` (не под /api: Caddy отдаёт /api/* в Go) | nginx возвращает 405 |
+| Основной сайт, GET `/api/health` | nginx → api:8080/health → ядро; 200 JSON status=ok |
+| Основной сайт, POST `/api/score` | nginx → api:8080/score → ml-model:5000/score; demo CSV → 200 core/view |
+| Толя, POST `/api/auth/register` | phone, password, profile; синтетическая учётка e2e, cookie alfa_session остаётся только в памяти процесса |
+| Толя, POST `/api/chats` | {}; новый пустой чат; следующий чат той же учётки проверяет память клиента |
+| Толя, POST `/api/chats/:id/messages` | {text}; ответ — state.chats[id].messages, последняя assistant.text и mode=team-agent; TEAM_AGENT_URL → agent:8090/turn |
+| Агент, POST `/turn` (внутри compose) | session_id — разговор, client_id — пользователь сайта; sessions и clients в agent_state; без client_id нет памяти между чатами |
+| Агент, GET `/health` (внутри compose) | healthcheck compose; напрямую наружу agent не опубликован |
+| Толя, POST `/api/team-score` | TEAM_API_URL → api:8080 → ядро; B12: годовая cash_gap.csv (>100 KiB) → 200 core/view/decision_id; тело >2 MiB → 413 JSON error |
+
+main_site сохраняет обход всех локальных v1/v2 HTML и внутренних href/src с HTTP 200,
+MIME и якорями; отдельно проверяет ссылку оформления в v2/podbor.html: есть назначение,
+href не равен `#`. Проверка через HTTP не исполняет обработчики интерфейса.
+
+agent_live создаёт отдельную синтетическую учётку и проверяет три хода про миллион на
+плитку, оплату заказчиком через 60 дней и срок 8 месяцев: без повторных вопросов о
+цели/сумме, к третьему ходу запрос выписки. Затем новый чат проверяет память о плитке
+или миллионе; отдельные чаты — честное «ИИ», отсутствие цифр паспорта в ответе и
+отсутствие «одобрен» после инъекции. Время каждого отправленного хода печатается;
+свыше 30 секунд — WARN. Ответы сверяются с текущими заготовками dialog.py
+(включая QUESTIONS, RETRY_QUESTIONS и составные подтверждения) и explain_templates.py.
+Все ответы на заготовках → FAIL «LLM не включён: агент на заготовках».
+Отличие от заготовок — наблюдаемый признак, а не доказательство вызова LLM по телеметрии.
+Данные на сервере не удаляются. Для tolya_site нужен EGR_PROVIDER=mock.

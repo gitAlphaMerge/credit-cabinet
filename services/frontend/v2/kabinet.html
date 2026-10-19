@@ -250,7 +250,7 @@ class Component extends DCLogic {
     const timer = setTimeout(() => controller.abort(), 40000);
     this.setState({ sending: true });
     try {
-      const response = await fetch('/api/agent/turn', { method: 'POST',
+      const response = await fetch('/agent/turn', { method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: this.agentSession(), text, card: {} }), signal: controller.signal });
       if (!response.ok) throw new Error('agent unavailable');

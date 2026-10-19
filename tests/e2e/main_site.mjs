@@ -15,9 +15,12 @@ const base = new URL(option('--base', 'http://127.0.0.1'));
 const timeout = Number(option('--timeout', '40000'));
 if (!/^https?:$/.test(base.protocol) || !Number.isFinite(timeout) || timeout <= 0) throw Error('Invalid base or timeout');
 let failed = 0, passed = 0;
+const results = [];
+let lastResponse = '';
 async function step(name, fn) {
-  try { const detail = await fn(); passed++; console.log(`OK ${name}: ${detail ?? ''}`); }
-  catch (e) { failed++; console.log(`FAIL ${name}: ${e.message}`); }
+  lastResponse = '';
+  try { const detail = await fn(); passed++; results.push({ status: 'OK', step: name }); console.log(`OK ${name}: ${detail ?? ''}`); }
+  catch (e) { failed++; results.push({ status: 'FAIL', step: name, detail: e.message, response: lastResponse.slice(0, 300) }); console.log(`FAIL ${name}: ${e.message}`); }
 }
 function check(ok, message) { if (!ok) throw Error(message); }
 const root = new URL('../../services/frontend/', import.meta.url);
@@ -32,6 +35,7 @@ async function inventory(dir, prefix = '') {
 async function request(path, init = {}) {
   const r = await fetch(new URL(path, base), { ...init, redirect: 'manual', signal: AbortSignal.timeout(timeout) });
   const text = await r.text();
+  lastResponse = `HTTP ${r.status}: ${text}`;
   return { r, text };
 }
 const files = await inventory(root), pages = files.filter(p => p.endsWith('.html'));
@@ -49,7 +53,7 @@ async function resource(url) {
   const key = url.origin + url.pathname + url.search;
   if (seen.has(key)) return seen.get(key);
   const data = await request(key);
-  check(data.r.status === 200, `HTTP ${data.r.status} ${key}`);
+  check(data.r.status === 200, `HTTP ${data.r.status} ${key}: ${data.text.slice(0, 180)}`);
   const type = data.r.headers.get('content-type') || '', expected = mime(url);
   check(!expected || expected.test(type), `wrong Content-Type ${type} ${key}`);
   seen.set(key, data);
@@ -61,6 +65,15 @@ for (const page of ['/', ...pages]) {
   await step(`page ${url.pathname}`, async () => { html = (await resource(url)).text; return '200 text/html'; });
   if (!html) continue;
   const clean = html.replace(/<!--[\s\S]*?-->/g, '');
+  if (page === 'v2/podbor.html') await step('B02 podbor application link', () => {
+    const links = [...clean.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].filter(m => /оформлен/i.test(m[2]));
+    check(links.length > 0, 'application link missing');
+    for (const m of links) {
+      const href = m[1].match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+      check(href && href !== '#' && !/^javascript:/i.test(href), `invalid application href: ${href}`);
+    }
+    return 'application link has a destination';
+  });
   for (const m of clean.matchAll(/(?<![\w:-])(href|src)\s*=\s*(["'])(.*?)\2/gi)) {
     const raw = decode(m[3]);
     if (!raw || /\$\{|\{\{|^(?:data|javascript|mailto|tel):/i.test(raw)) continue;
@@ -102,6 +115,23 @@ async function score(body, status, contentType = 'application/json') {
   else check(r.status >= 400 && r.status < 500 && typeof json?.error === 'string' && json.error.length > 0, `expected JSON 4xx error, got ${r.status}: ${text.slice(0, 180)}`);
   return `HTTP ${r.status}, JSON`;
 }
+await step('API health through nginx', async () => {
+  const { r, text } = await request('/api/health');
+  check(r.status === 200 && /application\/json/i.test(r.headers.get('content-type') || ''), `health HTTP ${r.status}: ${text.slice(0, 180)}`);
+  check(JSON.parse(text).status === 'ok', `unhealthy: ${text.slice(0, 180)}`);
+  return '200 JSON status=ok';
+});
+await step('v2 agent POST through nginx', async () => {
+  const { r, text } = await request('/agent/turn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: `e2e-v2-${crypto.randomUUID()}`, text: 'Нужен миллион на закупку плитки под объект', questionnaire: { form: 'ООО', sector: 'стройка', years: 'больше 3', trend: 'в плюс' } }) });
+  check(r.status === 200 && /application\/json/i.test(r.headers.get('content-type') || ''), `HTTP ${r.status}: ${text.slice(0, 180)}`);
+  const data = JSON.parse(text);
+  check(typeof data.text === 'string' && data.text.trim(), `empty agent text: ${text.slice(0, 180)}`);
+  return '200 nonempty text';
+});
+await step('v2 agent GET through nginx', async () => {
+  const { r } = await request('/agent/turn');
+  check(r.status === 405, `expected 405, got ${r.status}`); return '405';
+});
 for (const file of files.filter(p => /^demo\/.*\.csv$/.test(p))) await step(`score ${file}`, async () => {
   const csv = (await resource(new URL(file, base))).text;
   return score(JSON.stringify(payload(csv, file)), 'success');
@@ -114,4 +144,5 @@ for (const [name, body, ct] of [
   ['bad CSV', JSON.stringify(payload('date,amount,counterparty,purpose\nNOT-DATE,NOT-MONEY,"unterminated')), 'application/json'],
 ]) await step(`negative ${name}`, () => score(body, 'error', ct));
 console.log(`TOTAL OK=${passed} FAIL=${failed}`);
+console.log('E2E_RESULT ' + JSON.stringify({ results }));
 process.exitCode = failed ? 1 : 0;
