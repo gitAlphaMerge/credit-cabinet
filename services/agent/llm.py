@@ -31,10 +31,16 @@ def _env(name: str) -> str | None:
 
 
 def _key() -> str | None:
-    # прямой DeepSeek API на сервере YC (OpenRouter оттуда 403) — свой ключ; sim и eval-бот на ноуте берут ключ из .env корня
-    if os.getenv("AGENT_LLM_URL"):
+    # OpenRouter: ключ OPENROUTER_API_KEY; на сервере ключ OpenRouter лежит в секрете DEEPSEEK_API_KEY (так его кладёт deploy.yml)
+    if "api.deepseek.com" in os.getenv("AGENT_LLM_URL", URL):
         return _env("DEEPSEEK_API_KEY")
-    return _env("OPENROUTER_API_KEY")
+    return _env("OPENROUTER_API_KEY") or _env("DEEPSEEK_API_KEY")
+
+
+def _opener():
+    # AGENT_LLM_PROXY: выход наружу (http://host:port), когда провайдер LLM режет IP сервера, как OpenRouter для YC
+    proxy = os.getenv("AGENT_LLM_PROXY")
+    return urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy, "https": proxy} if proxy else {}))
 
 
 def available() -> bool:
@@ -50,7 +56,7 @@ def chat(system: str, user: str, model: str = MODEL, as_json: bool = False, temp
         body["response_format"] = {"type": "json_object"}
     req = urllib.request.Request(URL, json.dumps(body).encode("utf-8"), {
         "Content-Type": "application/json", "Authorization": f"Bearer {_key()}"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with _opener().open(req, timeout=60) as r:
         return json.load(r)["choices"][0]["message"]["content"]
 
 
