@@ -77,6 +77,8 @@ jobs:
             rm -rf ~/credit-cabinet.old && mv ~/credit-cabinet ~/credit-cabinet.old && mv ~/credit-cabinet.new ~/credit-cabinet
             cd ~/credit-cabinet
             sudo docker compose $PROFILES up --build -d --remove-orphans
+            # пароль прокси новый на каждый деплой: egress обязан перечитать конфиг, иначе агент получит отказ и уйдёт в заготовки
+            if [ -n "$PROFILES" ]; then sudo docker compose $PROFILES up -d --force-recreate --no-deps egress agent; fi
             sudo docker image prune -f > /dev/null
           '
 
