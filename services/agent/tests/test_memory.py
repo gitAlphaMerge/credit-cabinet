@@ -167,6 +167,7 @@ def test_updates_for_same_client_are_serialized(monkeypatch):
 
 
 def test_server_sends_reply_before_memory_and_survives_memory_failure(monkeypatch):
+    monkeypatch.setattr(server, "MEMORY_ON", True)
     events = []
     monkeypatch.setattr(llm, "available", lambda: False)
     monkeypatch.setattr(server, "_save_session", lambda *_: None)
@@ -182,6 +183,7 @@ def test_server_sends_reply_before_memory_and_survives_memory_failure(monkeypatc
 
 
 def test_new_session_receives_client_memory(monkeypatch):
+    monkeypatch.setattr(server, "MEMORY_ON", True)
     memory._save("client", memory.apply([], [add("purpose: оборудование", "need")]))
     seen = []
     monkeypatch.setattr(llm, "available", lambda: True)

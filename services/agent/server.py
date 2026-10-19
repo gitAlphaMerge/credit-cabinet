@@ -24,6 +24,20 @@ MAX_BODY = 1_000_000
 # в репо это корень проекта, в контейнере файлы лежат в /app и глубже некуда
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parents[1] if len(_HERE.parents) > 1 else _HERE
+# память клиента: лишний LLM-вызов на каждый ход, по умолчанию выключена (AGENT_MEMORY=1 включает)
+MEMORY_ON = os.getenv("AGENT_MEMORY", "0") == "1"
+
+
+def _usage():
+    calls = list(llm.USAGE)
+    if not calls:
+        return {}
+    cached = sum((u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0 for u in calls)
+    return {"calls": len(calls), "tok_in": sum(u.get("prompt_tokens") or 0 for u in calls),
+            "tok_cached": cached, "tok_out": sum(u.get("completion_tokens") or 0 for u in calls),
+            "cost": round(sum(u.get("cost") or 0 for u in calls), 6)}
+
+
 AGENT_LOG = Path(os.getenv("AGENT_LOG", str(ROOT / "var" / "log" / "team-agent.log")))
 STARTED_AT = datetime.now(timezone.utc).isoformat()
 TURNS = 0
@@ -187,7 +201,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, result)
             return
         if self.path == "/health":
-            self._json(200, {"ok": True, "llm": _llm_name(), "memory": True, "started_at": STARTED_AT, "turns": TURNS})
+            self._json(200, {"ok": True, "llm": _llm_name(), "memory": MEMORY_ON, "started_at": STARTED_AT, "turns": TURNS})
         else:
             self._json(404, {"error": "not found"})
 
@@ -227,7 +241,8 @@ class Handler(BaseHTTPRequestHandler):
             SESSIONS[session_id] = _load_session(session_id, card)
         state = SESSIONS[session_id]
         try:
-            client_memory = memory.active(memory.load(client_id))
+            client_memory = memory.active(memory.load(client_id)) if MEMORY_ON else []
+            llm.USAGE.clear()
             if memory.forget_requested(text):
                 client_memory = []
             use_llm = llm.available()
@@ -259,14 +274,15 @@ class Handler(BaseHTTPRequestHandler):
             status = view.get("status") if view else ("collecting" if state.get("asking") else "ready")
             _log({"event": "agent_turn", "ts": datetime.now(timezone.utc).isoformat(),
                   "session_id": session_id, "status": status, "llm": llm_name,
-                  "ms": elapsed_ms, **({"fallback": True} if fallback else {})})
+                  "ms": elapsed_ms, **({"fallback": True} if fallback else {}), **_usage()})
             self._json(200, {
                 "text": reply, "mode": "team-agent",
                 "status": status, "llm": llm_name,
                 "view": view,
             })
             try:
-                memory.update(client_id, text, reply, state, use_llm=use_llm)
+                if MEMORY_ON:
+                    memory.update(client_id, text, reply, state, use_llm=use_llm)
             except Exception as error:
                 _log({"event": "memory_update_error", "error_type": type(error).__name__})
         except Exception as error:

@@ -142,7 +142,7 @@ def test_need_manager_template_hides_reason():
 def test_system_prompts_start_with_agent_voice():
     import llm
     voice = (Path(__file__).resolve().parents[1] / "AGENT.md").read_text(encoding="utf-8")
-    assert llm.INTAKE_SYSTEM.startswith(voice)
+    assert voice not in llm.INTAKE_SYSTEM  # приёмщик отдаёт JSON, голос ему не нужен
     assert llm.EXPLAIN_SYSTEM.startswith(voice)
 
 
