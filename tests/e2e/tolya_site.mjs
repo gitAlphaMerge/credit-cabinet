@@ -12,10 +12,19 @@ const base = new URL(option('--base', 'http://127.0.0.1:4180'));
 const timeout = Number(option('--timeout', '70000'));
 if (!/^https?:$/.test(base.protocol) || !Number.isFinite(timeout) || timeout <= 0) throw Error('Invalid base or timeout');
 let failed = 0, passed = 0;
+const results = [];
+let lastResponse = '';
+const secrets = new Set(['e2e-Synthetic-24!', 'Wrong-password']);
+function redact(value) {
+  let text = String(value);
+  for (const secret of secrets) if (secret) text = text.replaceAll(secret, '[REDACTED]');
+  return text.replace(/("?(?:password|cookie|set-cookie|alfa_session|token)"?\s*[:=]\s*)("[^"\r\n]*"|[^\s;,}]+)/gi, '$1[REDACTED]');
+}
 function check(ok, text) { if (!ok) throw Error(text); }
 async function step(name, fn) {
-  try { const result = await fn(); passed++; console.log(`OK ${name}: ${typeof result === 'string' ? result : 'verified'}`); return result; }
-  catch (e) { failed++; console.log(`FAIL ${name}: ${e.message}`); return undefined; }
+  lastResponse = '';
+  try { const result = await fn(); passed++; results.push({ status: 'OK', step: name }); console.log(`OK ${name}: ${typeof result === 'string' ? result : 'verified'}`); return result; }
+  catch (e) { failed++; results.push({ status: 'FAIL', step: name, detail: redact(e.message), response: redact(lastResponse).slice(0, 300) }); console.log(`FAIL ${name}: ${redact(e.message)}`); return undefined; }
 }
 function client() {
   let cookie = '';
@@ -23,12 +32,13 @@ function client() {
     const headers = cookie ? { Cookie: cookie } : {};
     if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
     const r = await fetch(new URL(path, base), { method, headers, body: body === undefined || body instanceof FormData ? body : JSON.stringify(body), redirect: 'manual', signal: AbortSignal.timeout(timeout) });
-    for (const value of r.headers.getSetCookie()) if (value.startsWith('alfa_session=')) cookie = value.split(';')[0];
+    for (const value of r.headers.getSetCookie()) if (value.startsWith('alfa_session=')) { cookie = value.split(';')[0]; secrets.add(cookie); secrets.add(cookie.slice('alfa_session='.length)); }
     const bytes = new Uint8Array(await r.arrayBuffer()), text = new TextDecoder().decode(bytes);
-    check([expected].flat().includes(r.status), `${method} ${path}: expected ${expected}, HTTP ${r.status}: ${text.slice(0, 220)}`);
+    lastResponse = `HTTP ${r.status}: ${text}`;
+    check([expected].flat().includes(r.status), `${method} ${path}: expected ${expected}, HTTP ${r.status}: ${redact(text).slice(0, 220)}`);
     if (html) { check(/text\/html/i.test(r.headers.get('content-type') || ''), `${path}: not HTML`); check(/<div\s+id=["']root["']/.test(text), `${path}: missing SPA root`); return text; }
     if (binary) { check(bytes.length > 0, `${path}: empty download`); return bytes; }
-    check(/application\/json/i.test(r.headers.get('content-type') || ''), `${path}: non-JSON ${text.slice(0, 120)}`);
+    check(/application\/json/i.test(r.headers.get('content-type') || ''), `${path}: non-JSON ${redact(text).slice(0, 120)}`);
     let data; try { data = JSON.parse(text); } catch { throw Error(`${path}: invalid JSON`); }
     if (r.status >= 400) check(typeof data?.error === 'string' && data.error.length > 0, `${path}: missing error`);
     return data;
@@ -39,6 +49,7 @@ const phone = () => '79' + String(randomInt(0, 1e9)).padStart(9, '0');
 const primaryPhone = phone();
 let otherPhone = phone(); while (otherPhone === primaryPhone) otherPhone = phone();
 const password = 'e2e-Synthetic-24!';
+secrets.add(primaryPhone); secrets.add(otherPhone); secrets.add(password);
 const profile = { name: 'e2e synthetic ' + Date.now(), form: 'ООО', stage: 'operating', sector: 'Производство', registered: true, ageBand: '3–5 лет', result: 'Прибыль', debt: 'Нет', intent: 'Подбор финансирования' };
 for (const route of ['/', '/demo', '/login', '/onboarding', '/cabinet', '/cabinet-v2', '/efficiency', '/profile', '/chat', '/financing']) await step(`SPA ${route}`, async () => { await guest.call(route, { html: true }); return '200 HTML shell (render not checked)'; });
 await step('public config', () => guest.call('/api/config'));
@@ -89,12 +100,18 @@ for (const file of (await readdir(fixtureRoot)).filter(f => /\.(csv|pdf|xlsx|doc
   await b.call(`/api/documents/${doc.id}/download`, { expected: 404 });
   return `${doc.id}, ${doc.category}, confirmed, download exact`;
 });
-await step('team core through site API', async () => {
+await step('B12 team core through site API: annual cash_gap.csv', async () => {
   const statement_csv = await readFile(new URL('../../services/frontend/demo/cash_gap.csv', import.meta.url), 'utf8');
+  check(Buffer.byteLength(statement_csv) > 100 * 1024, 'annual fixture must exceed old 100 KiB limit');
   const result = await a.call('/api/team-score', { method: 'POST', body: { statement_csv,
     need: { purpose: 'кассовый разрыв', amount_rub: 900000, term_months: 12, repay_from: 'текущая выручка', asked_for: 'кредит' },
     questionnaire: { form: 'ООО', need: 'кассовый разрыв', sector: 'стройка', years: 'больше 3', trend: 'в плюс' }, confirmed_fields: {} } });
   check(result.core && result.view && result.decision_id, 'no core decision');
+  return `200 core/view/decision_id, CSV ${Buffer.byteLength(statement_csv)} bytes`;
+});
+await step('B12 team-score body above 2 MiB = 413', async () => {
+  await a.call('/api/team-score', { method: 'POST', body: { statement_csv: 'x'.repeat(2 * 1024 * 1024 + 1) }, expected: 413 });
+  return '413 JSON error';
 });
 await step('funding context', async () => { const c = await a.call('/api/financing/context'); check(c.data && c.catalog?.length, 'no context/catalog'); });
 const input = { purpose: 'Кассовый разрыв', amount: 500000, term: 12, needed: 'month', usage: 'once', description: 'e2e заказчик платит позже расходов', repayFrom: 'оплата заказчика по договору', cycleDays: 30, details: {}, financials: { incoming: 1200000, expenses: 600000, existing: 0, available: 100000, flow: 600000 } };
@@ -172,4 +189,5 @@ for (const [method, path] of [
 await step('logout B', () => b.call('/api/auth/logout', { method: 'POST', body: {} }));
 await step('logout A', () => a.call('/api/auth/logout', { method: 'POST', body: {} }));
 console.log(`TOTAL OK=${passed} FAIL=${failed}; uploaded=${docs.length}; synthetic users retained on server`);
+console.log('E2E_RESULT ' + JSON.stringify({ results }));
 process.exitCode = failed ? 1 : 0;
