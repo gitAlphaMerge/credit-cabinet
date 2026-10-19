@@ -18,6 +18,70 @@ import { ChatHistory } from "./ChatHistory";
 import { STARTER_PROMPTS } from "./chat-ui";
 import { useReducedMotion } from "./motion";
 import type { Chat as ChatModel } from "../shared/types";
+
+type FeedbackValue = { kind: "message" | "conversation"; message_id?: string | null;
+  rating: "up" | "down" | number | null; reasons: string[]; text: string };
+const FEEDBACK_REASONS = [
+  ["G", "Выдумал или ошибся"], ["L", "Не ответил на мой вопрос"],
+  ["M", "Переспросил то, что я уже говорил"], ["P", "Пообещал лишнее или нарушил правила"],
+  ["V", "Звучит как робот"], ["F", "Непонятно, что делать дальше"], ["other", "Другое"],
+];
+function MessageFeedback({ messageId, value, disabled, save }: {
+  messageId: string; value?: FeedbackValue; disabled: boolean; save: (v: FeedbackValue) => Promise<void>;
+}) {
+  const form = useRef<HTMLFormElement>(null);
+  const current: FeedbackValue = value || {kind:"message",message_id:messageId,rating:null,reasons:[],text:""};
+  return <div style={{marginTop:8}} aria-label="Оценка ответа">
+    {(["up","down"] as const).map(rating => <button key={rating} type="button" className="text-button"
+      style={{minWidth:44,minHeight:44,borderRadius:8,background:current.rating === rating ? "var(--surface-hover, #eee)" : undefined}} disabled={disabled} aria-label={rating === "up" ? "Хороший ответ" : "Плохой ответ"}
+      aria-pressed={current.rating === rating} onClick={() => void save({...current,
+        rating: current.rating === rating ? null : rating, reasons:[],text:""})}>
+      {rating === "up" ? "👍" : "👎"}</button>)}
+    {current.rating && <form ref={form} className="proposal" onSubmit={e => {
+      e.preventDefault(); const data = new FormData(e.currentTarget);
+      void save({...current,text:String(data.get("text") || "")});
+    }}>
+      {current.rating === "down" && <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+        {FEEDBACK_REASONS.map(([code,label]) => <label key={code} style={{display:"flex",gap:6,alignItems:"center",minHeight:44}}>
+          <input type="checkbox" name="reason" disabled={disabled} checked={current.reasons.includes(code)}
+            onChange={() => void save({...current,reasons:current.reasons.includes(code)
+              ? current.reasons.filter(c => c !== code) : [...current.reasons,code],
+              text: String(new FormData(form.current!).get("text") || "")})} />{label}
+        </label>)}
+      </div>}
+      <label>{current.rating === "up" ? "Что понравилось?" : "Что было не так?"}
+        <textarea name="text" maxLength={1000} defaultValue={current.text} key={String(current.rating)}
+          style={{width:"100%",boxSizing:"border-box",minHeight:64}} />
+      </label>
+      <Button disabled={disabled}>Сохранить отзыв</Button>
+    </form>}
+  </div>;
+}
+function ConversationFeedback({eligible,done,disabled,save}: {
+  eligible:boolean; done:boolean; disabled:boolean; save:(v:FeedbackValue)=>Promise<void>;
+}) {
+  const [finished,setFinished] = useState(false), [rating,setRating] = useState<number|null>(null);
+  if (done) return null;
+  if (!eligible && !finished) return <button className="text-button" disabled={disabled}
+    onClick={() => setFinished(true)}>Завершить разговор</button>;
+  return <form className="proposal" aria-label="Итог разговора" onSubmit={e => {
+    e.preventDefault(); if (rating === null) return;
+    void save({kind:"conversation",rating,reasons:[],text:String(new FormData(e.currentTarget).get("text") || "")});
+  }}>
+    <button type="button" className="text-button" aria-label="Закрыть итоговую карточку" disabled={disabled}
+      style={{alignSelf:"flex-end"}} onClick={() => void save({kind:"conversation",rating:null,reasons:[],text:""})}>×</button>
+    <p>Насколько вы согласны: ИИ-помощник помог мне легко разобраться с задачей</p>
+    <div role="group" aria-label="Оценка от 1 до 7" style={{display:"flex",flexWrap:"wrap",gap:4}}>
+      {[1,2,3,4,5,6,7].map(n => <button type="button" key={n} className="text-button"
+        style={{minWidth:36,minHeight:44,borderRadius:8,background:rating === n ? "var(--surface-hover, #eee)" : undefined}} aria-pressed={rating === n} disabled={disabled} onClick={() => setRating(n)}>{n}</button>)}
+    </div>
+    <div style={{display:"flex",justifyContent:"space-between",gap:12,fontSize:12}}>
+      <span>совсем не согласен</span><span>полностью согласен</span>
+    </div>
+    <label>Что сделать проще?<textarea name="text" maxLength={1000} style={{width:"100%",boxSizing:"border-box",minHeight:64}} /></label>
+    <Button disabled={disabled || rating === null}>Отправить</Button>
+  </form>;
+}
 export function Chat({
   full = false,
   onHide,
@@ -40,6 +104,36 @@ export function Chat({
       w.state.chats.find((c) => c.id === w.activeChatId) || w.state.chats[0];
   const busy = !!w.sending,
     sendingText = w.sending?.chatId === chat?.id ? w.sending.text : "";
+  const [feedback,setFeedback] = useState<FeedbackValue[]>([]), [feedbackLoaded,setFeedbackLoaded] = useState(false),
+    [feedbackSaving,setFeedbackSaving] = useState(false);
+  const feedbackLock = useRef(false), activeFeedbackChat = useRef(chat?.id);
+  activeFeedbackChat.current = chat?.id;
+  useEffect(() => {
+    let cancelled = false;
+    setFeedbackLoaded(false); setFeedback([]);
+    if (!chat?.id) return;
+    fetch(`/api/chats/${encodeURIComponent(chat.id)}/feedback`).then(async r => {
+      if (!r.ok) throw new Error("Не удалось загрузить оценки");
+      const rows = await r.json() as FeedbackValue[];
+      if (!cancelled) {setFeedback(rows);setFeedbackLoaded(true);}
+    }).catch(e => { if (!cancelled) w.error(e.message); });
+    return () => {cancelled = true;};
+  },[chat?.id]);
+  async function saveFeedback(value: FeedbackValue) {
+    if (!chat || feedbackLock.current) return;
+    const id = chat.id;
+    feedbackLock.current = true; setFeedbackSaving(true);
+    try {
+      // Send only input fields; GET also includes server timestamps and identifiers.
+      const {kind,message_id,rating,reasons,text} = value;
+      const response = await fetch(`/api/chats/${encodeURIComponent(id)}/feedback`, {
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind,message_id,rating,reasons,text})});
+      if (!response.ok) throw new Error("Не удалось сохранить оценку. Попробуйте ещё раз.");
+      const rows = await response.json() as FeedbackValue[];
+      if (activeFeedbackChat.current === id) setFeedback(rows);
+    } catch(e) {w.error((e as Error).message);}
+    finally {feedbackLock.current = false;setFeedbackSaving(false);}
+  }
   useEffect(() => {
     const query = matchMedia("(max-width:760px)");
     const update = () => {
@@ -309,6 +403,9 @@ export function Chat({
                           </Button>
                         </div>
                       )}
+                      {m.role === "assistant" && <MessageFeedback messageId={m.id}
+                        value={feedback.find(f => f.kind === "message" && f.message_id === m.id)}
+                        disabled={!feedbackLoaded || feedbackSaving} save={saveFeedback} />}
                       <time>
                         {new Date(m.createdAt).toLocaleTimeString("ru-RU", {
                           hour: "2-digit",
@@ -338,6 +435,11 @@ export function Chat({
                   </div>
                 </div>
               )}
+              {!!chat?.messages.length && !busy && feedbackLoaded && <ConversationFeedback key={chat.id}
+                eligible={chat.messages.some(m => m.role === "assistant" &&
+                  typeof (m as typeof m & {status?:string}).status === "string" &&
+                  (m as typeof m & {status?:string}).status !== "collecting")}
+                done={feedback.some(f => f.kind === "conversation")} disabled={feedbackSaving} save={saveFeedback} />}
               {!!chat?.messages.length &&
                 !busy &&
                 chat.messages.at(-1)?.role === "assistant" && (

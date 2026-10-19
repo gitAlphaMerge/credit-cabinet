@@ -13,6 +13,7 @@ export interface AIProvider {
   ): Promise<{
     text: string;
     mode: string;
+    status?: string;
     calculation?: Calculation;
     warning?: string;
     proposal?: { field: string; value: number };
@@ -112,7 +113,7 @@ export class TeamAgentProvider implements AIProvider {
       if (!response.ok) throw new Error("agent request failed");
       const data = await response.json() as { text?: unknown; status?: unknown; view?: unknown };
       if (typeof data.text !== "string") throw new Error("invalid agent response");
-      return { text: data.text, mode: "team-agent", status: data.status, view: data.view };
+      return { text: data.text, mode: "team-agent", status: typeof data.status === "string" ? data.status : undefined, view: data.view };
     } catch {
       return { text: "Ассистент сейчас недоступен, попробуйте через минуту", mode: "agent-offline" };
     }

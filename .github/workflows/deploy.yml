@@ -28,6 +28,7 @@ jobs:
         env:
           TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          FEEDBACK_EXPORT_TOKEN: ${{ secrets.FEEDBACK_EXPORT_TOKEN }}
           VPN_CLASH_PROFILE: ${{ secrets.VPN_CLASH_PROFILE }}
         run: |
           git archive --format=tar.gz HEAD -o /tmp/app.tgz
@@ -40,11 +41,12 @@ jobs:
           fi
           scp -i ~/.ssh/deploy /tmp/app.tgz "$TARGET:/tmp/app.tgz"
           # новая папка с нуля, чтобы удалённые из репо файлы не оставались на сервере; .env сервера переносится
-          printf '%s\n%s\n%s\n' "$DEEPSEEK_API_KEY" "$EGRESS_PASS" "$EGRESS_CFG" | ssh -i ~/.ssh/deploy "$TARGET" '
+          printf '%s\n%s\n%s\n%s\n' "$DEEPSEEK_API_KEY" "$EGRESS_PASS" "$EGRESS_CFG" "$FEEDBACK_EXPORT_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" '
             set -e
             IFS= read -r DEEPSEEK_API_KEY
             IFS= read -r EGRESS_PASS
             IFS= read -r EGRESS_CFG
+            IFS= read -r FEEDBACK_EXPORT_TOKEN
             rm -rf ~/credit-cabinet.new && mkdir ~/credit-cabinet.new
             tar xzf /tmp/app.tgz -C ~/credit-cabinet.new
             cp ~/credit-cabinet/.env ~/credit-cabinet.new/.env 2>/dev/null || true
@@ -54,6 +56,13 @@ jobs:
               sed -i "/^DEEPSEEK_API_KEY=/d" ~/credit-cabinet.new/.env
               printf "\nDEEPSEEK_API_KEY=%s\n" "$DEEPSEEK_API_KEY" >> ~/credit-cabinet.new/.env
               unset DEEPSEEK_API_KEY
+            fi
+            if [ -n "$FEEDBACK_EXPORT_TOKEN" ]; then
+              touch ~/credit-cabinet.new/.env
+              chmod 600 ~/credit-cabinet.new/.env
+              sed -i "/^FEEDBACK_EXPORT_TOKEN=/d" ~/credit-cabinet.new/.env
+              printf "\nFEEDBACK_EXPORT_TOKEN=%s\n" "$FEEDBACK_EXPORT_TOKEN" >> ~/credit-cabinet.new/.env
+              unset FEEDBACK_EXPORT_TOKEN
             fi
             touch ~/credit-cabinet.new/.env && chmod 600 ~/credit-cabinet.new/.env
             sed -i "/^AGENT_LLM_PROXY=/d" ~/credit-cabinet.new/.env

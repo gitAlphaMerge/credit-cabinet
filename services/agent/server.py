@@ -1,4 +1,6 @@
 """Small stdlib HTTP adapter for the deterministic/template agent."""
+import hmac
+from urllib.parse import urlsplit, parse_qs
 import hashlib
 import json
 import os
@@ -154,6 +156,36 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.flush()
 
     def do_GET(self):
+        parsed = urlsplit(self.path)
+        if parsed.path == "/admin/sessions":
+            expected = os.getenv("FEEDBACK_EXPORT_TOKEN", "")
+            if not expected:
+                self._json(404, {"error": "not found"})
+                return
+            if not hmac.compare_digest(self.headers.get("Authorization", "").encode(),
+                                       ("Bearer " + expected).encode()):
+                self._json(401, {"error": "unauthorized"})
+                return
+            ids = parse_qs(parsed.query).get("ids", [""])[0].split(",")
+            if not 1 <= len(ids) <= 200 or any(not i or len(i) > 200 for i in ids):
+                self._json(400, {"error": "invalid ids"})
+                return
+            result = {}
+            for session_id in ids:
+                # Read the atomic on-disk snapshot; never initialize or mutate sessions.
+                try:
+                    state = json.loads(_session_path(session_id).read_text(encoding="utf-8"))
+                    def clean(value):
+                        if isinstance(value, dict):
+                            return {k: clean(v) for k, v in value.items() if k != "statement_csv"}
+                        if isinstance(value, list):
+                            return [clean(v) for v in value]
+                        return value
+                    result[session_id] = clean({k: state.get(k) for k in ("trace", "need", "history")})
+                except (OSError, ValueError, TypeError, AttributeError):
+                    result[session_id] = None
+            self._json(200, result)
+            return
         if self.path == "/health":
             self._json(200, {"ok": True, "llm": _llm_name(), "memory": True, "started_at": STARTED_AT, "turns": TURNS})
         else:
