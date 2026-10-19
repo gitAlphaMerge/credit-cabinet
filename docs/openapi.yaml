@@ -18,6 +18,115 @@ tags:
 - name: agent
 - name: alfa-intellect
 paths:
+  /api/chats/{id}/feedback:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema: {type: string}
+    get:
+      tags: [alfa-intellect]
+      summary: Оценки своего чата, включая снятые оценки и закрытую итоговую карточку
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Массив оценок
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Feedback'}
+        '401': {description: Требуется вход}
+        '404': {description: Чат не найден или чужой}
+    post:
+      tags: [alfa-intellect]
+      summary: Создать или перезаписать оценку своего чата
+      description: 'Для message нужен существующий ответ assistant. rating null снимает оценку; для conversation — закрывает карточку. Отдельный уникальный индекс гарантирует одну итоговую карточку на пользователя и чат. agent_mode определяется сервером.'
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FeedbackInput'}
+      responses:
+        '200':
+          description: Все оценки чата после upsert
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Feedback'}
+        '401': {description: Требуется вход}
+        '404': {description: Свой чат или ответ агента не найден}
+        '422': {description: Неверные причины, rating, message_id или текст длиннее 1000}
+  /api/admin/feedback.jsonl:
+    get:
+      tags: [alfa-intellect]
+      summary: Оценки и реплики до оценённого ответа включительно
+      description: 'JSONL: одна активная оценка, user SHA-256, messages, agent_trace. Для conversation — весь чат. ПДн заменены на [скрыто]; при недоступном агенте agent_trace null.'
+      security: [{feedbackExport: []}]
+      parameters:
+      - in: query
+        name: since
+        schema: {type: string, format: date-time}
+        description: Только оценки, изменённые строго после ISO-даты
+      responses:
+        '200':
+          description: JSONL оценок
+          content:
+            application/x-ndjson:
+              schema: {type: string}
+        '404': {description: FEEDBACK_EXPORT_TOKEN не задан}
+        '401': {description: Неверный Bearer токен}
+        '422': {description: Неверный since}
+  /api/admin/history.jsonl:
+    get:
+      tags: [alfa-intellect]
+      summary: Вся история чатов, включая чаты без оценок
+      description: 'JSONL: chat_id, user SHA-256, title, created_at, updated_at, messages с mode/status, feedback (включая закрытую итоговую карточку), status, agent_trace (trace/need/history). ПДн заменены на [скрыто]. agent_trace null при недоступном агенте. since учитывает также изменение оценки и названия чата.'
+      security: [{feedbackExport: []}]
+      parameters:
+      - in: query
+        name: since
+        schema: {type: string, format: date-time}
+        description: Чаты, изменённые строго после ISO-даты
+      responses:
+        '200':
+          description: JSONL чатов
+          content:
+            application/x-ndjson:
+              schema: {type: string}
+        '404': {description: FEEDBACK_EXPORT_TOKEN не задан}
+        '401': {description: Неверный Bearer токен}
+        '422': {description: Неверный since}
+  /admin/sessions:
+    get:
+      tags: [agent]
+      summary: Внутренняя выгрузка сессий по SHA-256 session_id
+      servers: [{url: 'http://agent:8090', x-internal: true}]
+      security: [{feedbackExport: []}]
+      parameters:
+      - in: query
+        name: ids
+        required: true
+        description: От 1 до 200 session_id через запятую, каждый до 200 символов
+        schema: {type: string}
+      responses:
+        '200':
+          description: Объект session_id → trace/need/history либо null. statement_csv исключён рекурсивно.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: [object, 'null']
+                  properties:
+                    trace: {type: array, items: {type: object}}
+                    need: {type: object}
+                    history: {type: array, items: {type: object}}
+        '400': {description: Неверный список ids}
+        '404': {description: FEEDBACK_EXPORT_TOKEN не задан}
+        '401': {description: Неверный Bearer токен}
   /health:
     get:
       summary: Здоровье сервисов
@@ -1650,11 +1759,55 @@ paths:
               description: Без id помечает все. Код сравнивает id без Zod-валидации.
 components:
   securitySchemes:
+    feedbackExport:
+      type: http
+      scheme: bearer
+      description: FEEDBACK_EXPORT_TOKEN; сравнение за постоянное время
     cookieAuth:
       type: apiKey
       in: cookie
       name: alfa_session
   schemas:
+    FeedbackInput:
+      type: object
+      additionalProperties: false
+      required: [kind, rating]
+      properties:
+        kind: {type: string, enum: [message, conversation]}
+        message_id:
+          type: [string, 'null']
+          maxLength: 200
+          description: Обязателен для message, null или отсутствует для conversation
+        rating:
+          description: up/down/null для message; целое 1–7/null для conversation
+          oneOf:
+          - {type: string, enum: [up, down]}
+          - {type: integer, minimum: 1, maximum: 7}
+          - {type: 'null'}
+        reasons:
+          type: array
+          maxItems: 7
+          default: []
+          description: Непустой массив разрешён только для down
+          items: {type: string, enum: [G, L, M, P, V, F, other]}
+        text: {type: string, maxLength: 1000, default: ''}
+    Feedback:
+      type: object
+      properties:
+        id: {type: string}
+        chat_id: {type: string}
+        message_id: {type: [string, 'null']}
+        kind: {type: string, enum: [message, conversation]}
+        rating:
+          oneOf:
+          - {type: string, enum: [up, down]}
+          - {type: integer, minimum: 1, maximum: 7}
+          - {type: 'null'}
+        reasons: {type: array, items: {type: string, enum: [G, L, M, P, V, F, other]}}
+        text: {type: string, maxLength: 1000}
+        agent_mode: {type: [string, 'null']}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
     Error:
       type: object
       properties:
@@ -1980,7 +2133,7 @@ components:
         storage:
           const: sqlite
         schema:
-          const: 2
+          const: 3
       required:
       - status
       - db
@@ -2248,6 +2401,12 @@ components:
     Message:
       type: object
       properties:
+        status:
+          type: string
+          description: Статус ответа агента; collecting означает продолжение сбора данных
+        view:
+          type: [object, 'null']
+          description: Представление расчёта командного агента
         id:
           type: string
         role:
@@ -2275,6 +2434,8 @@ components:
     Chat:
       type: object
       properties:
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
         id:
           type: string
         title:

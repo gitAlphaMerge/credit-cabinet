@@ -99,6 +99,7 @@ services:
       DATABASE_PATH: /app/var/alfa.sqlite
       TEAM_API_URL: http://api:8080
       TEAM_AGENT_URL: http://agent:8090
+      FEEDBACK_EXPORT_TOKEN: ${FEEDBACK_EXPORT_TOKEN:-}
       EGR_PROVIDER: mock   # ЕГРЮЛ/ЕГРИП без платных ключей: синтетические компании с пометкой «мок»
     depends_on:
       api:
