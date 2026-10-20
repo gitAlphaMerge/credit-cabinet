@@ -100,6 +100,7 @@ def test_turn_uses_llm_slots_when_available_and_logs_no_reply(monkeypatch, tmp_p
         assert events[0]["event"] == "agent_turn"
         assert events[0]["session_id"] == "llm-session"
         assert "reply" not in events[0] and "text" not in events[0]
+        assert set(events[0]["stage_ms"]) == {"intake", "core", "speak"}
         with urllib.request.urlopen(f"http://127.0.0.1:{httpd.server_port}/health") as response:
             health = json.load(response)
         assert health["llm"] == server.llm.MODEL
