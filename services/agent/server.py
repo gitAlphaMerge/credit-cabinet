@@ -247,21 +247,40 @@ class Handler(BaseHTTPRequestHandler):
                 client_memory = []
             use_llm = llm.available()
             fallback = False
+            stage_ms = {"intake": 0, "core": 0, "speak": 0}
 
             def intake_slot(value, asking):
                 nonlocal fallback
-                if not use_llm:
-                    return intake_rules.parse(value, asking)
+                stage_started = time.monotonic()
                 try:
-                    return llm.intake(value, asking)
-                except Exception:
-                    fallback = True
-                    return intake_rules.parse(value, asking)
+                    if not use_llm:
+                        return intake_rules.parse(value, asking)
+                    try:
+                        return llm.intake(value, asking)
+                    except Exception:
+                        fallback = True
+                        return intake_rules.parse(value, asking)
+                finally:
+                    stage_ms["intake"] += round((time.monotonic() - stage_started) * 1000)
+
+            def decide_slot(*args):
+                stage_started = time.monotonic()
+                try:
+                    return core_http.decide(*args)
+                finally:
+                    stage_ms["core"] += round((time.monotonic() - stage_started) * 1000)
+
+            def speak_slot(*args):
+                stage_started = time.monotonic()
+                try:
+                    return llm.speak(*args)
+                finally:
+                    stage_ms["speak"] += round((time.monotonic() - stage_started) * 1000)
 
             started = time.monotonic()
-            decide = core_http.decide if os.getenv("AGENT_CORE_URL") else None
+            decide = decide_slot if os.getenv("AGENT_CORE_URL") else None
             reply = dialog.turn(state, text, intake=intake_slot, decide=decide,
-                                speak=llm.speak if use_llm else None, client_memory=client_memory)
+                                speak=speak_slot if use_llm else None, client_memory=client_memory)
             _save_session(session_id, state)
             elapsed_ms = round((time.monotonic() - started) * 1000)
             view = state.get("view")
@@ -274,7 +293,8 @@ class Handler(BaseHTTPRequestHandler):
             status = view.get("status") if view else ("collecting" if state.get("asking") else "ready")
             _log({"event": "agent_turn", "ts": datetime.now(timezone.utc).isoformat(),
                   "session_id": session_id, "status": status, "llm": llm_name,
-                  "ms": elapsed_ms, **({"fallback": True} if fallback else {}), **_usage()})
+                  "ms": elapsed_ms, "stage_ms": stage_ms,
+                  **({"fallback": True} if fallback else {}), **_usage()})
             self._json(200, {
                 "text": reply, "mode": "team-agent",
                 "status": status, "llm": llm_name,

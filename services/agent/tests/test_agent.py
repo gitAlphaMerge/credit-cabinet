@@ -115,6 +115,47 @@ def test_llm_intake_falls_back_to_rules_on_empty_answer(monkeypatch):
         "purpose": "рост", "amount_rub": 1000000, "term_months": 12}
 
 
+def test_short_slot_answers_skip_llm_but_corrections_do_not(monkeypatch):
+    """Simple replies save one remote call; a correction keeps the richer parser."""
+    import llm
+    calls = []
+    monkeypatch.setattr(llm, "chat", lambda *a, **k: calls.append(a) or '{"amount_rub": 1500000}')
+    assert llm.intake("900 тыс", "amount") == {"amount_rub": 900000}
+    assert llm.intake("12 месяцев", "term") == {"term_months": 12}
+    assert llm.intake("привет", "purpose") == {"intent": "smalltalk"}
+    assert calls == []
+    assert llm.intake("не 900 тыс, а 1,5 млн", "amount") == {"amount_rub": 1500000}
+    assert len(calls) == 1
+
+
+def test_speak_knows_attached_contract_without_its_contents(monkeypatch):
+    """The LLM receives receipt metadata, so it can avoid asking for the file again."""
+    import llm
+    prompts = []
+    monkeypatch.setattr(llm, "chat", lambda system, user, **kwargs: prompts.append(system) or "Договор получил. Что дальше?")
+    state = dialog.new_state({"form": "ООО", "years": "больше 3"})
+    state.update(need={"purpose": "кассовый разрыв", "amount_rub": 1500000,
+                       "term_months": 12, "repay_from": "оплата по договору"}, statement_csv="csv")
+    dialog.turn(state, "прикрепил", attachment={"contract_main_customer": {"sum_rub": 1440000, "months": 12}},
+                intake=lambda *_: {}, decide=lambda *a: {"view": VIEW}, speak=llm.speak)
+    assert "договор с главным заказчиком" in prompts[0]
+    assert "Уже получены документы" in prompts[0]
+    assert "1440000" not in prompts[0]
+
+
+def test_uploaded_contract_is_not_requested_again_when_core_still_lists_it():
+    """The known core limitation must not turn into a repeated client request."""
+    state = dialog.new_state({"form": "ООО", "years": "больше 3"})
+    state.update(need={"purpose": "кассовый разрыв", "amount_rub": 1500000,
+                       "term_months": 12, "repay_from": "оплата по договору"}, statement_csv="csv")
+    reply = dialog.turn(state, "прикрепил", attachment={"contract_main_customer": {"sum_rub": 1440000, "months": 12}},
+                        intake=lambda *_: {}, decide=lambda *a: {"view": VIEW},
+                        speak=lambda *_: "Скиньте договор с главным заказчиком?")
+    assert "Договор получил" in reply and "менеджеру" in reply
+    assert "Скиньте" not in reply
+    assert "повторно просит полученный договор" in state["trace"][-1]["violations"]
+
+
 # спецификация Саши (hw/sasha/agent-spec.md): 6 — без «ядра» и жаргона, 13 — причину стопа в лоб не называем
 @pytest.mark.parametrize("text,needle", [
     ("Расчётное ядро показывает 1 015 000 ₽. Подаём?", "ядр"),

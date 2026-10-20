@@ -5,6 +5,7 @@
 Решения: context/architecture.md (агент → ядро → агент), context/core.md (первые вопросы, без «одобрено»).
 """
 import logging
+import re
 
 import explain_templates
 import guard
@@ -211,6 +212,14 @@ def turn(state: dict, text: str, attachment: dict | None = None,
         goal = ("manager" if trace["kind"] == "fallback" else
                 "ask:" + trace["slot"] if trace["kind"] == "question" else
                 "explain" if trace["kind"] == "explain" else "manager")
+        # The current core can still list an uploaded contract as a next step.
+        # Do not ask the customer to submit the same document twice.
+        if (attachment or {}).get("contract_main_customer") and any(
+            step.get("code") == "contract_main_customer"
+            for step in (state.get("view") or {}).get("next_steps", [])
+        ):
+            reply = "Договор получил. Передам его менеджеру, чтобы он проверил условия. Подключить его?"
+            goal = "manager"
     # факты памяти записаны со слов клиента (числа ядра memory.py не пропускает), их числа тоже можно повторять
     memory_text = " ".join(f.get("text", "") for f in client_memory or [] if f.get("status") == "active")
     if not history and client_memory and intent not in {"pii", "identity", "manager_request"}:
@@ -222,9 +231,15 @@ def turn(state: dict, text: str, attachment: dict | None = None,
             reply = f"В прошлый раз говорили: {detail}. Это ещё актуально?"
     fallback = reply
     trace = state["trace"][-1]
+    documents_received = []
+    if state.get("statement_csv"):
+        documents_received.append("выписка")
+    if state.get("confirmed_fields", {}).get("contract_main_customer"):
+        documents_received.append("договор с главным заказчиком")
     ctx = {"history": (history + [{"role": "user", "text": text}])[-8:], "text": text,
            "need": state["need"], "view": state["view"], "memory": client_memory or [],
-           "return_slot": state["asking"], "intent": intent}
+           "return_slot": state["asking"], "intent": intent,
+           "documents_received": documents_received}
     if speak is not None and trace["kind"] != "core_error":
         try:
             candidate = speak(goal, ctx)
@@ -234,6 +249,10 @@ def turn(state: dict, text: str, attachment: dict | None = None,
                 violations.append("нечестная идентичность")
             if intent == "pii" and not guard.pii_warning_safe(candidate, client_text):
                 violations.append("нет предупреждения о личных данных")
+            if ("договор с главным заказчиком" in documents_received
+                    and "договор" in candidate.lower()
+                    and re.search(r"загруз|пришл|прикреп|скин|покаж|договор под рукой", candidate, re.I)):
+                violations.append("повторно просит полученный договор")
             trace["violations"].extend(violations)
             if not violations:
                 reply = candidate
