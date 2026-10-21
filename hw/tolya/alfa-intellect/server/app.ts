@@ -25,6 +25,7 @@ import { cabinetRouter, syncCabinetNotices } from "./cabinet";
 import type { Profile, AppState } from "../shared/types";
 import { russianValidationErrors } from "../shared/facility-validation";
 import { fundingRouter } from "./funding-routes";
+import { applicationsRouter } from "./applications-routes";
 export const app = express();
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
@@ -126,7 +127,7 @@ app.get(["/health", "/api/health"], async (_req, res) => {
     db: database,
     team_api,
     storage: "sqlite",
-    schema: 3,
+    schema: 4,
   });
 });
 app.get("/api/public-demo", (req, res) => {
@@ -485,6 +486,7 @@ app.get("/api/documents/:id/download", (req, res) => {
     .send(Buffer.from(f.data));
 });
 app.use("/api", fundingRouter);
+app.use("/api", applicationsRouter);
 const feedbackSchema = z.object({
   kind: z.enum(["message", "conversation"]),
   message_id: z.string().min(1).max(200).nullable().optional(),
