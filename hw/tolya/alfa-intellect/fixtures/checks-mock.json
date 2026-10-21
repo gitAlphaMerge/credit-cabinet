@@ -1,0 +1,247 @@
+[
+  {
+    "inn": "9900000001",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 2,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0.25
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    }
+  },
+  {
+    "inn": "9900000002",
+    "bki": {
+      "status": "bad",
+      "reasonCode": "BKI_OVERDUE_90_PLUS",
+      "managerText": "В синтетической истории есть просрочка 90+ за 12 месяцев. Уточните обстоятельства и документы о погашении.",
+      "data": {
+        "openLoans": 4,
+        "overdue30Plus12m": 2,
+        "overdue90Plus12m": 1,
+        "debtBurdenRatio": 0.65
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "bad",
+      "reasonCode": "FNS_UNRELIABLE_DETAILS",
+      "managerText": "В синтетических сведениях ФНС есть недостоверные сведения и задолженность. Запросите пояснения и актуальные документы.",
+      "data": {
+        "taxDebtRub": 120000,
+        "unreliableDetails": true
+      }
+    }
+  },
+  {
+    "inn": "990000000001",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 2,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0.25
+      }
+    },
+    "aml": {
+      "status": "unavailable",
+      "managerText": "Мок 115-ФЗ: сервис временно недоступен. Повторите проверку позже; результат не означает отсутствие рисков."
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    }
+  },
+  {
+    "inn": "990000000002",
+    "bki": {
+      "status": "unavailable",
+      "managerText": "Мок БКИ: сервис временно недоступен. Повторите проверку позже; результат не означает отсутствие рисков."
+    },
+    "aml": {
+      "status": "bad",
+      "reasonCode": "AML_REVIEW_REQUIRED",
+      "managerText": "Синтетический флаг 115-ФЗ: требуется ручная проверка операций и подтверждающих документов.",
+      "data": {
+        "requiresReview": true
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    }
+  },
+  {
+    "inn": "9900000011",
+    "bki": {
+      "status": "bad",
+      "reasonCode": "BKI_OVERDUE_90_PLUS",
+      "managerText": "В синтетической истории есть просрочка 90+ за 12 месяцев. Уточните обстоятельства и документы о погашении.",
+      "data": {
+        "openLoans": 4,
+        "overdue30Plus12m": 2,
+        "overdue90Plus12m": 1,
+        "debtBurdenRatio": 0.65
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    }
+  },
+  {
+    "inn": "9900000012",
+    "bki": {
+      "status": "unavailable",
+      "managerText": "Мок БКИ: сервис временно недоступен. Повторите проверку позже; результат не означает отсутствие рисков."
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    }
+  },
+  {
+    "inn": "9900000021",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 2,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0.25
+      }
+    },
+    "aml": {
+      "status": "bad",
+      "reasonCode": "AML_REVIEW_REQUIRED",
+      "managerText": "Синтетический флаг 115-ФЗ: требуется ручная проверка операций и подтверждающих документов.",
+      "data": {
+        "requiresReview": true
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    }
+  },
+  {
+    "inn": "9900000022",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 2,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0.25
+      }
+    },
+    "aml": {
+      "status": "unavailable",
+      "managerText": "Мок 115-ФЗ: сервис временно недоступен. Повторите проверку позже; результат не означает отсутствие рисков."
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    }
+  },
+  {
+    "inn": "9900000031",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 2,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0.25
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "bad",
+      "reasonCode": "FNS_UNRELIABLE_DETAILS",
+      "managerText": "В синтетических сведениях ФНС есть недостоверные сведения и задолженность. Запросите пояснения и актуальные документы.",
+      "data": {
+        "taxDebtRub": 120000,
+        "unreliableDetails": true
+      }
+    }
+  },
+  {
+    "inn": "9900000032",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 2,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0.25
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "unavailable",
+      "managerText": "Мок ФНС: сервис временно недоступен. Повторите проверку позже; результат не означает отсутствие рисков."
+    }
+  }
+]

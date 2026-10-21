@@ -25,6 +25,7 @@ import { cabinetRouter, syncCabinetNotices } from "./cabinet";
 import type { Profile, AppState } from "../shared/types";
 import { russianValidationErrors } from "../shared/facility-validation";
 import { fundingRouter } from "./funding-routes";
+import { checksRouter } from "./checks";
 export const app = express();
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
@@ -306,6 +307,7 @@ app.get("/api/state", (_req, res) => {
   res.json(s);
 });
 app.use("/api/cabinet", cabinetRouter);
+app.use("/api/checks", checksRouter);
 app.patch("/api/profile", (req, res) => {
   const s = stateOf(res.locals.userId);
   const patch = z
