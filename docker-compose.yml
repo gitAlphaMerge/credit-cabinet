@@ -1,30 +1,38 @@
-version: '3.8'
+version: "3.8"
 
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
+    build: ./services/api
     ports:
       - "8080:8080"
     environment:
-      - ML_URL=http://ml-model:5000
       - PORT=8080
+      - ML_URL=http://ml-model:5000
     depends_on:
-      ml-model:
-        condition: service_started
-    networks:
-      - internal-net
+      - ml-model
+    deploy:
+      resources:
+        limits:
+          memory: 100M
 
   ml-model:
-    build:
-      context: ./ml-model
-      dockerfile: Dockerfile
+    build: ./services/ml-model
     expose:
-      - "5000"
-    networks:
-      - internal-net
+      - "5000" # Заменяем ports на expose, чтобы сервис был доступен только внутри сети Docker
+    deploy:
+      resources:
+        limits:
+          memory: 500M
 
-networks:
-  internal-net:
-    driver: bridge
+  agent:
+    build: ./services/agent
+    env_file:
+      - .env
+    environment:
+      - LLM_API_KEY=${LLM_API_KEY}
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+
+  # frontend и другие сервисы по аналогии
