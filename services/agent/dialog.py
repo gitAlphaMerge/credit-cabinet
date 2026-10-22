@@ -34,6 +34,41 @@ def new_state(questionnaire: dict) -> dict:
             "confirmed_fields": {}, "view": None, "asking": None, "attempts": {}, "trace": [], "history": []}
 
 
+def application_turn(state: dict, text: str, application: dict, mode: str | None) -> str:
+    """Process facts are authoritative; these replies never invoke intake or scoring."""
+    if state.get("objection_application_id") != application.get("id"):
+        state["objection_lines"] = []
+        state["objections_summary"] = ""
+    state["objection_application_id"] = application.get("id")
+    reply = explain_templates.application_explain(application, mode)
+    # Only numbers from the approved application snapshot authorize this text.
+    values = [application[k] for k in ("n", "m", "limit_now_rub") if k in application]
+    for option in application.get("alternatives", []):
+        values.extend(v for v in option.values() if isinstance(v, (int, float)) and not isinstance(v, bool))
+    view = {"status": "need_manager" if application.get("stops_fired") else "application",
+            "numbers": dict(enumerate(values))}
+    violations = guard.check(reply, view, {})
+    if violations:
+        logging.getLogger(__name__).warning("application template rejected: %s", violations)
+        reply = "Посмотрите данные в карточке заявки. Менеджер поможет уточнить дальнейшие шаги."
+    if intake_rules.intent(text, None) == "pii":
+        reply = PII
+    elif mode == "objections":
+        # Verbatim client lines, never inferred motivations or the agent's own offer.
+        lines = state.setdefault("objection_lines", [])
+        line = " ".join(text.split())[:1000]
+        if line and line not in lines:
+            lines.append(line)
+        lines[:] = lines[-3:]
+        state["objections_summary"] = "\n".join(lines)
+    history = state.setdefault("history", [])
+    history.extend([{"role": "user", "text": text}, {"role": "assistant", "text": reply}])
+    history[:] = history[-8:]
+    state["trace"].append({"user": text, "kind": "application", "goal": mode or "application",
+                           "reply": reply, "violations": violations, "status": application.get("status")})
+    return reply
+
+
 def next_slot(state: dict) -> str | None:
     need = state["need"]
     if "purpose" not in need:

@@ -116,7 +116,7 @@ def _log(event):
 
 
 def _llm_name():
-    return llm.MODEL if llm.available() else "templates"
+    return os.getenv("AGENT_LLM_MODEL", llm.MODEL) if llm.available() else "templates"
 
 
 def _number(value, low=0, high=10**12):
@@ -146,6 +146,37 @@ def _card(raw):
         if isinstance(item, dict) and isinstance(item.get("type"), str)
         and _number(item.get("amount_rub"), 0, 10**9) is not None
     ] if isinstance(raw.get("obligations"), list) else []
+    if isinstance(raw.get("application"), dict):
+        out["application"] = _application(raw["application"])
+    return out
+
+
+def _application(raw):
+    """Allowlisted process snapshot, never a whole dossier or customer record."""
+    out = {key: raw[key][:100] for key in ("id", "status", "red_reason")
+           if isinstance(raw.get(key), str)}
+    for key in ("n", "m", "limit_now_rub"):
+        if (value := _number(raw.get(key))) is not None:
+            out[key] = int(value)
+    for key in ("holes", "reasons", "stops_fired"):
+        values = raw.get(key)
+        out[key] = []
+        for item in values[:20] if isinstance(values, list) else []:
+            if isinstance(item, str):
+                out[key].append(item[:200])
+            elif isinstance(item, dict):
+                out[key].append({k: item[k][:200] for k in ("code", "text") if isinstance(item.get(k), str)})
+    out["alternatives"] = []
+    options = raw.get("alternatives")
+    for item in options[:10] if isinstance(options, list) else []:
+        if not isinstance(item, dict):
+            continue
+        option = {k: item[k][:100] for k in ("option_id", "kind", "product_id", "product_name", "product", "reason")
+                  if isinstance(item.get(k), str)}
+        for key in ("amount_rub", "term_months", "rate_annual_pct", "monthly_payment_rub"):
+            if (value := _number(item.get(key))) is not None:
+                option[key] = value
+        out["alternatives"].append(option)
     return out
 
 
@@ -222,7 +253,10 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError
             if not isinstance(session_id, str) or not session_id or len(session_id) > 200:
                 raise ValueError
-            if not isinstance(text, str) or not text.strip() or len(text) > 4000:
+            mode = payload.get("mode")
+            if mode not in (None, "nudge", "objections"):
+                raise ValueError
+            if not isinstance(text, str) or (not text.strip() and mode != "nudge") or len(text) > 4000:
                 raise ValueError
         except (ValueError, TypeError, json.JSONDecodeError):
             self._json(400, {"error": "invalid request"})
@@ -232,11 +266,11 @@ class Handler(BaseHTTPRequestHandler):
         with lock:
             if client_id:
                 with memory.client_lock(client_id):
-                    self._turn(session_id, text, _card(payload.get("card")), client_id)
+                    self._turn(session_id, text, _card(payload.get("card")), client_id, mode=mode)
             else:
-                self._turn(session_id, text, _card(payload.get("card")))
+                self._turn(session_id, text, _card(payload.get("card")), mode=mode)
 
-    def _turn(self, session_id, text, card, client_id=None):
+    def _turn(self, session_id, text, card, client_id=None, mode=None):
         if session_id not in SESSIONS:
             SESSIONS[session_id] = _load_session(session_id, card)
         state = SESSIONS[session_id]
@@ -279,8 +313,12 @@ class Handler(BaseHTTPRequestHandler):
 
             started = time.monotonic()
             decide = decide_slot if os.getenv("AGENT_CORE_URL") else None
-            reply = dialog.turn(state, text, intake=intake_slot, decide=decide,
-                                speak=speak_slot if use_llm else None, client_memory=client_memory)
+            application = card.get("application")
+            if application is not None or mode is not None:
+                reply = dialog.application_turn(state, text, application or {}, mode)
+            else:
+                reply = dialog.turn(state, text, intake=intake_slot, decide=decide,
+                                    speak=speak_slot if use_llm else None, client_memory=client_memory)
             _save_session(session_id, state)
             elapsed_ms = round((time.monotonic() - started) * 1000)
             view = state.get("view")
@@ -291,6 +329,8 @@ class Handler(BaseHTTPRequestHandler):
                 global TURNS
                 TURNS += 1
             status = view.get("status") if view else ("collecting" if state.get("asking") else "ready")
+            if application is not None:
+                status = application.get("status", status)
             _log({"event": "agent_turn", "ts": datetime.now(timezone.utc).isoformat(),
                   "session_id": session_id, "status": status, "llm": llm_name,
                   "ms": elapsed_ms, "stage_ms": stage_ms,
@@ -299,6 +339,7 @@ class Handler(BaseHTTPRequestHandler):
                 "text": reply, "mode": "team-agent",
                 "status": status, "llm": llm_name,
                 "view": view,
+                **({"objections_summary": state.get("objections_summary", "")} if mode == "objections" else {}),
             })
             try:
                 if MEMORY_ON:

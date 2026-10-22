@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DemoProvider, OpenAIProvider, contextOf } from "../server/ai-provider";
+import { DemoProvider, OpenAIProvider, TeamAgentProvider, createAIProvider, contextOf } from "../server/ai-provider";
 import type { AppState, Message } from "../shared/types";
 import { publicPreview } from "../server/preview";
 import { calculate } from "../server/finance";
@@ -30,6 +30,40 @@ const message = (text: string): Message => ({
   role: "user",
   createdAt: "2026-10-16",
   text,
+});
+test("OpenAI requires an explicit provider, even with a key", () => {
+  assert.ok(createAIProvider({ OPENAI_API_KEY: "unused" }) instanceof DemoProvider);
+  assert.ok(createAIProvider({ AI_PROVIDER: "openai", OPENAI_API_KEY: "test" }) instanceof OpenAIProvider);
+  assert.ok(createAIProvider({ TEAM_AGENT_URL: "http://agent" }) instanceof TeamAgentProvider);
+});
+test("Unavailable team agent falls back to the deterministic demo", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async () => { throw new Error("offline"); }) as typeof fetch;
+  try {
+    const history = [message("Помогите")];
+    const expected = await new DemoProvider().reply(state, history);
+    const actual = await new TeamAgentProvider("http://agent").reply(state, history);
+    assert.equal(actual.mode, "demo");
+    assert.equal(actual.text, expected.text);
+  } finally { globalThis.fetch = original; }
+});
+test("Application context and objections cross the team adapter without extra dossier fields", async () => {
+  const original = globalThis.fetch;
+  let sent: any;
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    sent = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ text: "Обсудим условия", objections_summary: "Срок короткий" }));
+  }) as typeof fetch;
+  try {
+    const answer = await new TeamAgentProvider("http://agent").reply(state, [message("Срок короткий")], undefined, {
+      mode: "objections", application: { id: "a", status: "info_requested", n: 2, m: 3,
+        holes: ["contract_main_customer"], secret: "private" } as any,
+    });
+    assert.equal(sent.mode, "objections");
+    assert.equal(sent.card.application.id, "a");
+    assert.equal(sent.card.application.secret, undefined);
+    assert.equal(answer.objections_summary, "Срок короткий");
+  } finally { globalThis.fetch = original; }
 });
 test("Демо явно маркируется, предупреждение основано на вычислении", async () => {
   const selection = publicPreview("ip").selections[0];
