@@ -1,0 +1,102 @@
+.manager-workspace {
+  padding: 28px;
+  max-width: 1500px;
+  margin: 0 auto;
+  width: 100%;
+}
+.manager-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.manager-tabs [aria-pressed="true"],
+.manager-row[aria-pressed="true"] {
+  border-color: var(--cv-accent);
+}
+.manager-columns {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.7fr);
+  gap: 24px;
+  align-items: start;
+}
+.manager-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.manager-row .cv-progress {
+  width: 100%;
+  margin: 0;
+}
+.manager-dossier {
+  overflow-wrap: anywhere;
+}
+.manager-dossier h3 {
+  margin: 28px 0 12px;
+  font-size: 15px;
+}
+.manager-dossier p {
+  line-height: 1.7;
+}
+.manager-dossier small {
+  display: block;
+  margin-top: 8px;
+}
+.manager-dossier article {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--cv-line);
+}
+.manager-workspace .manager-verified {
+  color: var(--green);
+}
+.manager-workspace .manager-missing {
+  color: var(--muted);
+  /* Existing warning colour from cabinet.css metric-scale-track. */
+  border-left: 3px solid #eab867;
+  padding-left: 12px;
+}
+.manager-workspace .manager-stop {
+  color: var(--red);
+}
+.manager-form {
+  display: grid;
+  gap: 14px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--cv-line);
+}
+.manager-form .button {
+  justify-self: start;
+}
+.manager-objections {
+  white-space: pre-wrap;
+}
+.manager-timeline {
+  padding-left: 24px;
+}
+.manager-timeline li {
+  padding: 12px;
+  border-left: 1px solid var(--cv-line);
+}
+.manager-workspace :is(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 3px;
+}
+.manager-workspace button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (max-width: 800px) {
+  .manager-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .manager-workspace {
+    padding: 16px;
+  }
+  .manager-workspace .cv-heading {
+    flex-wrap: wrap;
+  }
+}
