@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 21799812.0,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 16600188.0,
+  "purpose_code": "wc_regular_expenses",
+  "purpose_text": "перечислить деньги по назначению",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 38400000.0,
+  "stale": false,
+  "term_months": 6
+}

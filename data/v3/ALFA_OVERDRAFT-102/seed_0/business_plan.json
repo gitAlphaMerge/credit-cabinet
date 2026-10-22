@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 27883962.01,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 27316038.0,
+  "purpose_code": "cg_rent_utilities",
+  "purpose_text": "оплатить аренду и коммунальные услуги",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 55200000.01,
+  "stale": false,
+  "term_months": 24
+}

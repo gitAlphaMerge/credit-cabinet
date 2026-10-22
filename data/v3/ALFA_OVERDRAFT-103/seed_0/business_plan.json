@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 1656458.0,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": -1656458.0,
+  "purpose_code": "cg_supplier_due",
+  "purpose_text": "оплатить поставщику",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 0.0,
+  "stale": false,
+  "term_months": 24
+}
