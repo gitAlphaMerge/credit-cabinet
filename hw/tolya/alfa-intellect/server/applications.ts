@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppState, Selection } from "../shared/types";
+import { runChecks } from "./checks";
 
 export type Role = "client" | "manager" | "system";
 export type Status = "draft" | "queued" | "info_requested" | "underwriting" | "approved"
@@ -16,6 +17,7 @@ export const TRANSITIONS: readonly (readonly [Status | null, Event, Role, Status
   ["draft", "submit", "system", "rejected"],
   ["queued", "request_info", "manager", "info_requested"],
   ["info_requested", "client_update", "client", "queued"],
+  ["info_requested", "client_update", "system", "rejected"],
   ["queued", "reject", "manager", "rejected"],
   ["queued", "send_to_underwriting", "manager", "underwriting"],
   ["underwriting", "underwriter_approve", "system", "approved"],
@@ -48,7 +50,7 @@ export type Application = {
   consent_at: string | null; queued_at: string | null; created_at: string; updated_at: string;
 };
 export type CoreReply = {
-  core_result: Record<string, unknown>; N: number; M: number; holes: string[]; checks: unknown[];
+  core_result: Record<string, unknown>;
 };
 export type CoreClient = { score(input: unknown): Promise<CoreReply> };
 export type Dependencies = { core: CoreClient; clock: () => Date };
@@ -59,7 +61,11 @@ export type Command = {
 type Dossier = {
   application_id: string; version: number; core_result: string; checks: string; holes: string;
   created_at: string; readiness_n: number | null; readiness_m: number | null;
+  checklist_version: string | null;
 };
+type ScoredDossier = CoreReply & { N: number; M: number; holes: string[];
+  checks: Record<string, unknown>; checklist_version: string };
+export const CHECKLIST_VERSION = "mvp2-demo-v1";
 
 function configNumber(name: string, fallback: number, min: number, max = Infinity) {
   const n = Number(process.env[name] ?? fallback);
@@ -100,12 +106,12 @@ function record(value: unknown): Record<string, unknown> {
     ? value as Record<string, unknown> : {};
 }
 function validateReply(value: CoreReply): CoreReply {
-  if (!value || !Number.isFinite(value.N) || !Number.isFinite(value.M) || value.M <= 0
-    || value.N < 0 || value.N > value.M || !Array.isArray(value.holes)
-    || !value.holes.every(h => typeof h === "string") || !Array.isArray(value.checks)
-    || !value.core_result || typeof value.core_result !== "object"
-    || !Array.isArray(record(value.core_result.core).stops_fired)) {
-    throw new ApplicationError(503, "Ядро не вернуло необходимые данные готовности");
+  const core = record(value?.core_result?.core);
+  if (!value?.core_result || !Array.isArray(core.stops_fired)
+    || !core.stops_fired.every(s => typeof s === "string")
+    || !Array.isArray(core.missing) || !core.missing.every(s => typeof s === "string")
+    || typeof core.limit_now_rub !== "number" || !Number.isFinite(core.limit_now_rub) || core.limit_now_rub < 0) {
+    throw new ApplicationError(503, "Ядро не вернуло необходимые данные расчёта");
   }
   return value;
 }
@@ -117,10 +123,7 @@ export const httpCoreClient: CoreClient = {
     });
     if (!response.ok) { await response.body?.cancel(); throw new Error("Core unavailable"); }
     const raw = await response.json() as Record<string, unknown>;
-    // N/M must be supplied by the core. Never derive readiness from local assessment.
-    // The current api-contract lacks these fields; fail closed until the owner maps them.
-    return validateReply({ core_result: raw, N: raw.N as number, M: raw.M as number,
-      holes: record(raw.core).missing as string[], checks: (raw.checks ?? []) as unknown[] });
+    return validateReply({ core_result: raw });
   },
 };
 let dependencies: Dependencies = { core: httpCoreClient, clock: () => new Date() };
@@ -201,6 +204,21 @@ function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
     throw new ApplicationError(422, "Укажите причину");
   if (command.event === "send_to_underwriting" && (typeof p.memo !== "string" || !p.memo.trim()))
     throw new ApplicationError(422, "Нужна записка андеррайтеру");
+  if (command.event === "send_to_underwriting") {
+    const dossier = dossierOf(db, a.id);
+    const limit = dossier && record(JSON.parse(dossier.core_result).core).limit_now_rub;
+    if (!dossier || typeof limit !== "number" || !Number.isFinite(limit) || a.amount > limit
+      || dossier.readiness_n == null || dossier.readiness_m == null || dossier.readiness_m < 1
+      || dossier.readiness_n !== dossier.readiness_m)
+      throw new ApplicationError(409, "Нужны полное досье и сумма в пределах текущего лимита");
+  }
+  if (command.event === "reject" && p.alternative !== undefined) {
+    const alternative = record(p.alternative);
+    if (!Number.isSafeInteger(alternative.amount) || Number(alternative.amount) <= 0
+      || !Number.isInteger(alternative.term_months) || Number(alternative.term_months) < 1
+      || Number(alternative.term_months) > 120)
+      throw new ApplicationError(422, "Неверные условия альтернативы");
+  }
   if (command.event === "client_update" && !Object.keys(record(p.confirmed_fields)).length)
     throw new ApplicationError(422, "Нужны новые подтверждённые данные");
   if (command.event === "sign" && p.code !== "0000") throw new ApplicationError(422, "Неверный SMS-код");
@@ -227,11 +245,37 @@ async function scoreCommand(db: DatabaseSync, command: Command, deps: Dependenci
   const a = checkCommand(db, command, deps);
   if (command.event !== "submit" && command.event !== "client_update") return undefined;
   try {
-    const reply = validateReply(await deps.core.score(coreInput(db, a, command.payload ?? {})));
-    // Contract has no transition for a newly discovered stop on client_update.
-    if (command.event === "client_update" && (record(reply.core_result.core).stops_fired as unknown[]).length)
-      throw new ApplicationError(409, "Новый стоп-фактор требует решения по контракту");
-    return reply;
+    const input = coreInput(db, a, command.payload ?? {});
+    const reply = validateReply(await deps.core.score(input));
+    const state = userState(db, a.user_id);
+    // Checks are local mocks; unavailable/unknown sources never count as pass.
+    let checks: Record<string, unknown>;
+    try { checks = await runChecks(state.profile.inn ?? ""); }
+    catch {
+      checks = Object.fromEntries(["bki", "aml", "fns"].map(key => [key,
+        { status: "unavailable", source: "синтетические данные (мок)", managerText: "Проверка недоступна" }]));
+    }
+    const core = record(reply.core_result.core);
+    const items: [string, boolean][] = [
+      ["request", a.amount > 0 && a.term_months > 0 && !!a.purpose.trim()],
+      ["business", !!state.profile.form?.trim() && !!state.profile.ageBand?.trim()],
+      ["consent", command.event === "submit" ? command.payload?.consent === true : !!a.consent_at],
+      ["statement", state.documents.some(d => d.category === "statement" && d.confirmed)
+        && !(core.stops_fired as string[]).includes("SHORT_STATEMENT")],
+      ["checks", ["bki", "aml", "fns"].every(key => record(checks[key]).status === "ok")],
+    ];
+    for (const key of ["contract_main_customer", "reconciliation_act"]) {
+      if ((core.missing as string[]).includes(key)) {
+        const value = input.confirmed_fields[key];
+        const confirmed = value === true || (typeof value === "string" && !!value.trim())
+          || (typeof value === "number" && Number.isFinite(value) && value > 0)
+          || (Object.keys(record(value)).length > 0 && record(value).verified !== false);
+        items.push([key, confirmed]);
+      }
+    }
+    return { ...reply, checks, checklist_version: CHECKLIST_VERSION,
+      N: items.filter(([, complete]) => complete).length, M: items.length,
+      holes: items.filter(([, complete]) => !complete).map(([key]) => key) } satisfies ScoredDossier;
   } catch (error) {
     if (error instanceof ApplicationError) throw error;
     throw new ApplicationError(503, "Ядро недоступно, повторите позже");
@@ -243,26 +287,35 @@ function transaction<T>(db: DatabaseSync, fn: () => T): T {
   try { const result = fn(); db.exec("COMMIT"); return result; }
   catch (error) { db.exec("ROLLBACK"); throw error; }
 }
-function persistTransition(db: DatabaseSync, command: Command, deps: Dependencies, reply?: CoreReply) {
+// Strip sensitive keys at any depth while preserving evidence needed by later updates.
+function eventPayload(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(eventPayload);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => !["phone", "inn", "passport", "email"].includes(key.toLowerCase()))
+    .map(([key, item]) => [key, eventPayload(item)]));
+  return value;
+}
+function persistTransition(db: DatabaseSync, command: Command, deps: Dependencies, reply?: ScoredDossier) {
   const a = checkCommand(db, command, deps), at = deps.clock().toISOString();
   let actorRole = command.actorRole, actorId = command.actorId, reason = command.reason ?? null;
-  const stops = reply ? record(reply.core_result.core).stops_fired as string[] : [];
-  if (command.event === "submit") {
+  const stops = reply ? (record(reply.core_result.core).stops_fired as string[])
+    .filter(code => code !== "SHORT_STATEMENT") : [];
+  if (command.event === "submit" || command.event === "client_update") {
     if (stops.length) { actorRole = "system"; actorId = null; reason = stops[0]; }
     else if (actorRole === "system") throw new ApplicationError(409, "Нет стоп-фактора ядра");
   }
   const next = transition(a.status, command.event, actorRole);
   if (reply) {
     const latest = dossierOf(db, a.id);
-    db.prepare(`INSERT INTO dossiers(application_id,version,core_result,checks,holes,created_at,readiness_n,readiness_m)
-      VALUES(?,?,?,?,?,?,?,?)`).run(a.id, (latest?.version ?? 0) + 1, JSON.stringify(reply.core_result),
-        JSON.stringify(reply.checks), JSON.stringify(reply.holes), at, reply.N, reply.M);
+    db.prepare(`INSERT INTO dossiers(application_id,version,core_result,checks,holes,created_at,readiness_n,readiness_m,checklist_version)
+      VALUES(?,?,?,?,?,?,?,?,?)`).run(a.id, (latest?.version ?? 0) + 1, JSON.stringify(reply.core_result),
+        JSON.stringify(reply.checks), JSON.stringify(reply.holes), at, reply.N, reply.M, reply.checklist_version);
   }
   const seq = (db.prepare("SELECT COALESCE(MAX(seq),0)+1 AS seq FROM application_events WHERE application_id=?")
     .get(a.id) as { seq: number }).seq;
   db.prepare(`INSERT INTO application_events(application_id,seq,event,from_status,to_status,actor_role,actor_id,reason,payload,at)
     VALUES(?,?,?,?,?,?,?,?,?,?)`).run(a.id, seq, command.event, a.status, next, actorRole,
-      actorRole === "system" ? null : actorId, reason, JSON.stringify(command.payload ?? {}), at);
+      actorRole === "system" ? null : actorId, reason, JSON.stringify(eventPayload(command.payload ?? {})), at);
   const result = db.prepare(`UPDATE applications SET status=?,version=version+1,updated_at=?,consent_at=?,queued_at=?
     WHERE id=? AND version=?`).run(next, at, command.event === "submit" ? at : a.consent_at,
       next === "queued" ? a.queued_at ?? at : a.queued_at, a.id, command.expectedVersion);
@@ -356,10 +409,9 @@ export function bankQueue(db: DatabaseSync, deps: Dependencies) {
     .map(application => {
       const dossier = dossierOf(db, application.id);
       if (!dossier || !application.queued_at) throw new ApplicationError(503, "Не хватает данных досье");
-      const core = JSON.parse(dossier.core_result);
-      const N = dossier.readiness_n ?? core.N, M = dossier.readiness_m ?? core.M;
-      if (!Number.isFinite(N) || !Number.isFinite(M) || M <= 0 || N < 0 || N > M)
-        throw new ApplicationError(503, "Ядро не вернуло N/M");
+      const N = dossier.readiness_n, M = dossier.readiness_m;
+      if (N == null || M == null || !Number.isFinite(N) || !Number.isFinite(M) || M <= 0 || N < 0 || N > M)
+        throw new ApplicationError(503, "Не хватает данных полноты досье");
       const ready = N / M, holes = (JSON.parse(dossier.holes) as unknown[]).length;
       const hours = Math.max(0, (now - Date.parse(application.queued_at)) / 3_600_000);
       const terms = { amount: application.amount, ready, holes, hours, K };

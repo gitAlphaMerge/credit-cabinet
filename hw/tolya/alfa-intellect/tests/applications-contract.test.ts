@@ -15,15 +15,14 @@
  *
  * Integration conventions, NOT additional claims about the frozen contract:
  * - CoreClient is an adapter: { core_result, N, M, holes, checks }. core_result is
- *   the untouched /score JSON; N and M must come from the core, not be recomputed.
+ *   the untouched /score JSON. v1 computes N/M and holes with the Express checklist.
  * - consent and client_update.confirmed_fields live inside the HTTP payload.
  * - offer payload: { amount, rate, term_months, schedule }, where each schedule
  *   row has { principal, interest, payment }; rate is an annual decimal fraction.
  * - underwriter_approve payload.amount is the approved principal.
  *
  * Contract gaps to resolve with the architect (file itself is NOT modified):
- * 1. /score in api-contract.md has no N/M. The adapter seam below makes test data
- *    explicit; the real wire mapping still requires an owner's decision.
+ * 1. v1 resolves absent N/M: checklist metadata belongs to the persisted dossier.
  * 2. Offer/update payload field names and rate units are unspecified. Conventions
  *    above are proposed interoperability names, not a mandated amortization model.
  * 3. draft already has a create event. "No events" on failed submit means no NEW
@@ -31,13 +30,13 @@
  * 4. Aging cannot reverse two applications already queued: both gain K*t equally.
  *    Aging test compares an old small application to a NEW large arrival after
  *    46 hours. Equal queue-entry times can never change their relative priority.
- * 5. client_update with a newly discovered stop, M=0, automatic expiry scheduling,
+ * 5. v1 resolves a newly discovered stop on client_update; M=0, automatic expiry scheduling,
  *    and recovery of a partly completed automatic cascade are unspecified.
  *    This suite does not invent those policies. Expiry is exercised internally.
  * 6. Invalid pair + invalid role precedence is unspecified: either 409 or 403;
  *    valid pair + wrong role is strictly 403. Foreign client ownership is 404.
  *
- * Coverage: 396 single-transition cases (11*12*3: 17 allowed, 379 denied),
+ * Coverage: 396 single-transition cases (11*12*3: 18 allowed, 378 denied),
  * 300 chains of 1..15 events with seed/step diagnostics; invariants 1, 2, 3 and
  * independent journal replay checked after EVERY attempted step and matrix cell.
  * Separate HTTP guards, cascade, queue, persistence, CAS, idempotency, core and
@@ -70,6 +69,7 @@ const TABLE: readonly Transition[] = [
   ["draft", "submit", "system", "rejected"],
   ["queued", "request_info", "manager", "info_requested"],
   ["info_requested", "client_update", "client", "queued"],
+  ["info_requested", "client_update", "system", "rejected"],
   ["queued", "reject", "manager", "rejected"],
   ["queued", "send_to_underwriting", "manager", "underwriting"],
   ["underwriting", "underwriter_approve", "system", "approved"],
@@ -130,7 +130,7 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-function coreReply(N = 7, M = 11, holes: string[] = ["contract_main_customer"]) : CoreReply {
+function coreReply(N = 5, M = 5, holes: string[] = []) : CoreReply {
   return {
     N, M, holes, checks: [{ code: "synthetic-check", result: "unknown" }],
     core_result: {
@@ -169,11 +169,11 @@ function validPayload(event: Event): Record<string, unknown> {
 }
 
 // This test executes even before the missing implementation exists.
-test("test oracle: 11 statuses, 12 events, 396 cells, 17 allowed, four terminal states", () => {
+test("test oracle: 11 statuses, 12 events, 396 cells, 18 allowed, four terminal states", () => {
   assert.equal(new Set(STATUSES).size, 11);
   assert.equal(new Set(EVENTS).size, 12);
   assert.equal(STATUSES.length * EVENTS.length * ROLES.length, 396);
-  assert.equal(TABLE.filter(([from]) => from !== null).length, 17);
+  assert.equal(TABLE.filter(([from]) => from !== null).length, 18);
   assert.equal(new Set(TABLE.map(([f, e, r]) => `${f}/${e}/${r}`)).size, TABLE.length);
   for (const status of TERMINAL) assert.equal(TABLE.some(([from]) => from === status), false);
   assert.equal(expected(null, "create", "client"), "draft");
@@ -214,7 +214,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     ({ db } = await import("../server/store"));
     dbOpen = true;
     owner = request.agent(app); stranger = request.agent(app); manager = request.agent(app);
-    const profile = { name: "Синтетическое ООО", form: "ООО", registered: true,
+    const profile = { name: "Синтетическое ООО", form: "ООО", registered: true, inn: "9900000001",
       stage: "operating", sector: "Производство", ageBand: "3-5 лет",
       result: "Прибыль", debt: "Есть", intent: "Подбор" };
     for (const [agent, phone] of [[owner, "79001118901"], [stranger, "79001118902"],
@@ -223,6 +223,12 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
         password: "P1-test-pass-918", profile }).expect(200);
     }
     ownerId = (db.prepare("SELECT id FROM users WHERE phone=?").get("79001118901") as { id: string }).id;
+    // v1 underwriting requires a confirmed statement and three passing local checks.
+    const ownerState = JSON.parse((db.prepare("SELECT state FROM users WHERE id=?").get(ownerId) as { state: string }).state);
+    ownerState.profile.inn = "9900000001";
+    ownerState.documents.push({ id: "p1-statement", category: "statement", name: "demo.csv", period: "12 месяцев",
+      fields: {}, confirmed: true, createdAt: OLD_TIME, currency: "RUB", mime: "text/csv", records: [] });
+    db.prepare("UPDATE users SET state=? WHERE id=?").run(JSON.stringify(ownerState), ownerId);
     managerId = (db.prepare("SELECT id FROM users WHERE phone=?").get("79001118903") as { id: string }).id;
     // Test fixture only; production must not expose a public role-upgrade endpoint.
     db.prepare("UPDATE users SET role='manager' WHERE id=?").run(managerId);
@@ -351,16 +357,16 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     }
     if (queuedAt) {
       const value = options.core ?? coreReply();
-      db.prepare(`INSERT INTO dossiers(application_id,version,core_result,checks,holes,created_at)
-        VALUES(?,?,?,?,?,?)`).run(id, 1, JSON.stringify(value.core_result),
-          JSON.stringify(value.checks), JSON.stringify(value.holes), OLD_TIME);
+      db.prepare(`INSERT INTO dossiers(application_id,version,core_result,checks,holes,created_at,readiness_n,readiness_m,checklist_version)
+        VALUES(?,?,?,?,?,?,?,?,?)`).run(id, 1, JSON.stringify(value.core_result),
+          JSON.stringify(value.checks), JSON.stringify(value.holes), OLD_TIME, value.N, value.M, "mvp2-demo-v1");
     }
     invariants(id, `seed ${status}`);
     return id;
   }
   async function assertSingle(id: string, event: Event, role: Role, label: string) {
     const before = snapshot(id), target = expected(before.application.status, event, role);
-    if (event === "submit" && role === "system") stopReply();
+    if ((event === "submit" || event === "client_update") && role === "system") stopReply();
     else reply = coreReply();
     let result: { application: Application } | undefined, failure: unknown;
     try { result = await module.transitionApplication(db, command(id, event, role), deps); }
@@ -562,7 +568,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     invariants(id, "core outage retry");
   });
 
-  test("core evidence is preserved byte-for-byte, including nonround N/M and limits", async () => {
+  test("core evidence is preserved byte-for-byte; checklist ignores raw N/M and unknown missing hints", async () => {
     const id = (await create()).id;
     reply = coreReply(7, 11, ["one", "two", "three"]);
     const raw = JSON.stringify(reply.core_result);
@@ -570,12 +576,13 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     assert.equal(coreInputs.length, 1);
     const dossier = dossiers(id).at(-1)!;
     assert.equal(dossier.core_result, raw);
-    assert.deepEqual(JSON.parse(dossier.checks), reply.checks);
-    assert.deepEqual(JSON.parse(dossier.holes), reply.holes);
+    const { runChecks } = await import("../server/checks");
+    assert.deepEqual(JSON.parse(dossier.checks), await runChecks("9900000001"));
+    assert.deepEqual(JSON.parse(dossier.holes), []);
     const item = ((await manager.get("/api/bank/queue").expect(200)).body as QueueRow[])
       .find(r => r.application.id === id)!;
-    assert.ok(item); assert.equal(item.terms.ready, 7 / 11); assert.equal(item.terms.holes, 3);
-    assert.equal(item.priority, 1_000_000 * (7 / 11) / 4);
+    assert.ok(item); assert.equal(item.terms.ready, 1); assert.equal(item.terms.holes, 0);
+    assert.equal(item.priority, 1_000_000);
   });
 
   test("queue: six hand-calculated priorities, all terms, both tie-breakers, status filter", async () => {

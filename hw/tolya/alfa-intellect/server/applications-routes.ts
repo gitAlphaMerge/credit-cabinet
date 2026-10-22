@@ -33,7 +33,10 @@ applicationsRouter.get("/applications", (_req, res) => {
 });
 applicationsRouter.get("/applications/:id", (req, res) => {
   const application = visibleApplication(db, req.params.id, res.locals.applicationRole, res.locals.userId);
-  res.json({ application, events: eventsOf(db, application.id), dossier: dossierOf(db, application.id) ?? null });
+  const events = eventsOf(db, application.id);
+  const rejection = events.findLast(e => e.event === "reject");
+  const alternative = rejection ? JSON.parse(rejection.payload as string).alternative ?? null : null;
+  res.json({ application, events, dossier: dossierOf(db, application.id) ?? null, alternative });
 });
 const eventSchema = z.object({
   event: z.enum(["create", "submit", "request_info", "client_update", "reject", "send_to_underwriting",
@@ -53,7 +56,7 @@ applicationsRouter.post("/applications/:id/events", async (req, res) => {
 applicationsRouter.get("/bank/queue", (_req, res) => res.json(bankQueue(db, applicationsDependencies())));
 applicationsRouter.get("/bank/rejected", (_req, res) => {
   res.json(db.prepare(`SELECT a.* FROM applications a WHERE a.status='rejected' AND EXISTS
-    (SELECT 1 FROM application_events e WHERE e.application_id=a.id AND e.event='submit'
+    (SELECT 1 FROM application_events e WHERE e.application_id=a.id AND e.event IN ('submit','client_update')
       AND e.actor_role='system' AND e.to_status='rejected') ORDER BY a.updated_at,a.id`).all());
 });
 // Keep application errors local; the legacy app error handler maps generic failures to 400.
@@ -61,6 +64,6 @@ applicationsRouter.use((error: unknown, _req: import("express").Request,
   res: import("express").Response, next: import("express").NextFunction) => {
   if (error instanceof z.ZodError) { next(error); return; }
   const status = error instanceof ApplicationError ? error.status : 500;
-  if (status === 500) console.error("[applications] transaction failed", error);
+  if (status === 500) console.error("[applications] transaction failed", error instanceof Error ? error.message : "Unknown error");
   res.status(status).json({ error: error instanceof ApplicationError ? error.message : "Не удалось сохранить заявку" });
 });

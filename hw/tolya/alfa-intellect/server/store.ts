@@ -55,6 +55,11 @@ try {
         request_hash TEXT NOT NULL, response TEXT NOT NULL, PRIMARY KEY(key,user_id));
       INSERT INTO migrations VALUES(4);`);
   }
+  // v1 metadata belongs to the dossier, never to the untouched core JSON.
+  if (!db.prepare("SELECT version FROM migrations WHERE version=5").get()) {
+    db.exec(`ALTER TABLE dossiers ADD COLUMN checklist_version TEXT;
+      INSERT INTO migrations VALUES(5);`);
+  }
   db.exec("COMMIT");
 } catch (error) {
   db.exec("ROLLBACK");
