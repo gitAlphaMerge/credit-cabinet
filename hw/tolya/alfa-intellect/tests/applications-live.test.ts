@@ -185,7 +185,7 @@ describe("live Liza core: S1 and S4", { skip: unavailable, concurrency: false },
     return core;
   }
 
-  test("S1 seasonal_ok: consent guard, queued, offered 400000/6, disbursed", async () => {
+  test("S1 seasonal_ok: consent guard, automatic offered 400000/6, disbursed", async () => {
     const { owner, g, card: draft } = await fixture("seasonal_ok", "79001118701");
     const stranger = await register("79001118703", g);
     await stranger.get(`/api/applications/${draft.application.id}`).expect(404);
@@ -201,29 +201,21 @@ describe("live Liza core: S1 and S4", { skip: unavailable, concurrency: false },
     } finally { process.env.TEAM_API_URL = url; }
     assert.deepEqual(await read(owner, draft.application.id), draft, "core outage must not mutate draft");
     await post(owner, draft, "submit", { consent: true }).expect(200);
-    const queued = await read(owner, draft.application.id);
-    assert.equal(queued.application.status, "queued");
-    assert.equal(queued.application.queued_at, AT);
-    coreOf(queued, g);
-    assert.ok(queued.dossier!.readiness_m > 0);
-    assert.equal(queued.dossier!.readiness_n, queued.dossier!.readiness_m);
-    assert.deepEqual(JSON.parse(queued.dossier!.holes), []);
-    const queue = await manager.get("/api/bank/queue").expect(200);
-    const row = queue.body.find((r: { application: Application }) => r.application.id === draft.application.id);
-    assert.ok(row);
-    assert.deepEqual(row.terms, { amount: 400000, ready: 1, holes: 0, hours: 0, K: 20000 });
-    assert.equal(row.priority, 400000);
-    const dossier = await read(manager, draft.application.id);
-    assert.deepEqual(dossier, queued);
-    const memo = "Запрос seasonal_ok, сумма 400000, срок 6; расчёт и проверки в текущей версии досье";
-    await post(manager, draft, "send_to_underwriting", { memo }).expect(409);
-    assert.deepEqual(await read(owner, draft.application.id), queued, "stale version must not mutate journal");
-    await post(manager, queued, "send_to_underwriting", { memo }).expect(200);
     const offered = await read(owner, draft.application.id);
     assert.equal(offered.application.status, "offered");
+    assert.equal(offered.application.queued_at, null);
+    coreOf(offered, g);
+    assert.ok(offered.dossier!.readiness_m > 0);
+    assert.equal(offered.dossier!.readiness_n, offered.dossier!.readiness_m);
+    assert.deepEqual(JSON.parse(offered.dossier!.holes), []);
+    const queue = await manager.get("/api/bank/queue").expect(200);
+    assert.ok(!queue.body.some((r: { application: Application }) => r.application.id === draft.application.id));
+    assert.deepEqual(await read(manager, draft.application.id), offered);
+    await post(manager, draft, "send_to_underwriting", { memo: "Stale version" }).expect(409);
+    assert.deepEqual(await read(owner, draft.application.id), offered);
     assert.deepEqual(offered.events.map(e => e.event),
-      ["create", "submit", "send_to_underwriting", "underwriter_approve", "make_offer"]);
-    assert.equal(JSON.parse(offered.events[2].payload).memo, memo);
+      ["create", "submit", "underwriter_approve", "make_offer"]);
+    assert.deepEqual(offered.events.slice(1).map(e => e.actor_role), ["system", "system", "system"]);
     const offer = JSON.parse(offered.events.at(-1)!.payload);
     assert.equal(offer.amount, 400000);
     assert.equal(offer.term_months, 6);
@@ -236,9 +228,9 @@ describe("live Liza core: S1 and S4", { skip: unavailable, concurrency: false },
     const disbursed = await read(owner, draft.application.id);
     assert.equal(disbursed.application.status, "disbursed");
     assert.deepEqual(disbursed.events.map(e => e.event),
-      ["create", "submit", "send_to_underwriting", "underwriter_approve", "make_offer", "sign", "disburse"]);
+      ["create", "submit", "underwriter_approve", "make_offer", "sign", "disburse"]);
     assert.deepEqual(disbursed.events.map(e => e.actor_role),
-      ["client", "client", "manager", "system", "system", "client", "system"]);
+      ["client", "system", "system", "system", "client", "system"]);
     // Fresh connection verifies committed persistence, not a full process restart.
     const reopened = new DatabaseSync(databasePath, { readOnly: true });
     try {
@@ -292,7 +284,8 @@ describe("live Liza core: S1 and S4", { skip: unavailable, concurrency: false },
     const queue = await manager.get("/api/bank/queue").expect(200);
     assert.ok(!queue.body.some((r: { application: Application }) => r.application.id === draft.application.id));
     const list = await manager.get("/api/bank/rejected").expect(200);
-    assert.ok(list.body.some((a: Application) => a.id === draft.application.id));
+    assert.ok(list.body.some((a: Application & {red_reason:string;reason:string}) => a.id === draft.application.id
+      && a.red_reason === "UNDERWRITING_REJECTED" && a.reason === "ENFORCEMENT"));
     await post(owner, rejected, "sign", { code: "0000" }).expect(409);
     await post(manager, rejected, "send_to_underwriting", { memo: "Must not reopen" }).expect(409);
     const replay = await post(owner, draft, "submit", { consent: true }, key).expect(200);
