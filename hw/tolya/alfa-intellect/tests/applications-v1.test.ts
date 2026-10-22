@@ -5,6 +5,7 @@ import type { Express } from "express";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppState } from "../shared/types";
 import * as applications from "../server/applications";
+import { statementDate } from "./statement-fixture";
 
 let app: Express, db: DatabaseSync, cookie: string, managerCookie: string, state: AppState;
 let raw: Record<string, unknown>, now: number;
@@ -37,6 +38,9 @@ before(async () => {
 });
 beforeEach(() => {
   now = Date.parse("2026-10-22T12:00:00Z"); inputs.length = 0;
+  state.documents[0].records!.forEach((record, index) => {
+    record.date = statementDate(now, 2 - index);
+  });
   raw = { decision_id: "real-shaped", created_at: "2026-10-22T12:00:00Z", core_id: "liza",
     model_version: "v1", core: { status: "можно сейчас", stops_fired: [], missing: [],
       limit_now_rub: 200000, limit_after_rub: 300000 }, view: {} };
@@ -166,7 +170,7 @@ test("mutant: PRIORITY_AGING_K configuration affects literal manual priority", a
 });
 test("mutant: core receives exact confirmed statement CSV with escaping", async () => {
   await submit();
-  assert.equal(inputs[0].statement_csv, 'date,amount,counterparty,purpose\n"2026-01-02","1234.56","ООО ""А,Б""","Оплата\nдоговора"\n"2026-01-03","-55.07","Банк","Комиссия"');
+  assert.equal(inputs[0].statement_csv, `date,amount,counterparty,purpose\n"${statementDate(now, 2)}","1234.56","ООО ""А,Б""","Оплата\nдоговора"\n"${statementDate(now)}","-55.07","Банк","Комиссия"`);
 });
 test("mutant: two info cycles accumulate confirmed fields and close conditional holes", async () => {
   core().missing = ["contract_main_customer", "reconciliation_act", "unrecognized-core-hint"];

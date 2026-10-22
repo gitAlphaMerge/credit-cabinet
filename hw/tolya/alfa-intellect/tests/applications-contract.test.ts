@@ -52,6 +52,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { blankFundingRequest } from "../shared/financing";
+import { statementDate } from "./statement-fixture";
 
 const STATUSES = ["draft", "queued", "info_requested", "underwriting", "approved",
   "offered", "signed", "disbursed", "rejected", "expired", "withdrawn"] as const;
@@ -227,7 +228,8 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     const ownerState = JSON.parse((db.prepare("SELECT state FROM users WHERE id=?").get(ownerId) as { state: string }).state);
     ownerState.profile.inn = "9900000001";
     ownerState.documents.push({ id: "p1-statement", category: "statement", name: "demo.csv", period: "12 месяцев",
-      fields: {}, confirmed: true, createdAt: OLD_TIME, currency: "RUB", mime: "text/csv", records: [] });
+      fields: {}, confirmed: true, createdAt: OLD_TIME, currency: "RUB", mime: "text/csv",
+      records: [{ date: statementDate(now), amount: 1000 }] });
     db.prepare("UPDATE users SET state=? WHERE id=?").run(JSON.stringify(ownerState), ownerId);
     managerId = (db.prepare("SELECT id FROM users WHERE phone=?").get("79001118903") as { id: string }).id;
     // Test fixture only; production must not expose a public role-upgrade endpoint.
@@ -305,6 +307,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     assert.equal(application.status, replay(events, label), `${label}: cache != replay`);
   }
   function command(id: string, event: Event, actorRole: Role): Command {
+    refreshStatement(event);
     return { applicationId: id, event, expectedVersion: row(id).version, actorRole,
       actorId: actorRole === "client" ? ownerId : actorRole === "manager" ? managerId : null,
       reason: event === "submit" && actorRole === "system" ? "STOP_FIXTURE" : "Synthetic reason",
@@ -313,10 +316,20 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
   function post(agent: Agent, id: string, event: Event, options: {
     expectedVersion?: number; key?: string; reason?: string;
     payload?: Record<string, unknown> } = {}) {
+    refreshStatement(event);
     return agent.post(`/api/applications/${id}/events`)
       .set("Idempotency-Key", options.key ?? randomUUID())
       .send({ event, expectedVersion: options.expectedVersion ?? row(id).version,
         reason: options.reason ?? "Synthetic reason", payload: options.payload ?? validPayload(event) });
+  }
+  // Random chains advance the clock by eight days per step. Refresh only the
+  // positive statement fixture before operations that rerun compliance.
+  function refreshStatement(event: Event) {
+    if (event !== "submit" && event !== "client_update") return;
+    const state = JSON.parse((db.prepare("SELECT state FROM users WHERE id=?").get(ownerId) as { state: string }).state);
+    state.documents.find((d: { id: string }) => d.id === "p1-statement").records =
+      [{ date: statementDate(now), amount: 1000 }];
+    db.prepare("UPDATE users SET state=? WHERE id=?").run(JSON.stringify(state), ownerId);
   }
   function stopReply() {
     reply = coreReply();
@@ -569,7 +582,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     const { checkCreditHistory } = await import("../server/checks");
     const { runComplianceGate } = await import("../server/compliance");
     const compliance = await runComplianceGate({ inn: "9900000001", now: new Date(now),
-      documents: [{ category: "statement", confirmed: true, documentDate: null }] });
+      documents: [{ category: "statement", confirmed: true, documentDate: statementDate(now) }] });
     assert.deepEqual(checks.bki, await checkCreditHistory("9900000001"));
     assert.deepEqual(checks._v2.compliance, compliance);
     for (const check of compliance.checks) assert.deepEqual(checks[check.key], check);

@@ -97,6 +97,7 @@ test("Сквозной API: сессия, изоляция, документ, ч
   await a.post("/api/lookup/confirm").send({ inn: "7712345678" }).expect(409);
   const originalFetch = globalThis.fetch;
   process.env.FNS_API_KEY = "test-key-not-real";
+  const previousRegistryProvider = process.env.EGR_PROVIDER;
   let found;
   try {
     globalThis.fetch = (async () =>
@@ -113,11 +114,15 @@ test("Сквозной API: сессия, изоляция, документ, ч
           ],
         }),
       )) as typeof fetch;
+    // The fetch stub is installed before explicitly selecting its provider.
+    process.env.EGR_PROVIDER = "api-fns";
     found = (
       await a.post("/api/lookup").send({ inn: "7712345678" }).expect(200)
     ).body;
     assert.equal(found.demo, false);
   } finally {
+    if (previousRegistryProvider === undefined) delete process.env.EGR_PROVIDER;
+    else process.env.EGR_PROVIDER = previousRegistryProvider;
     globalThis.fetch = originalFetch;
     delete process.env.FNS_API_KEY;
   }
