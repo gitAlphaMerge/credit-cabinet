@@ -24,6 +24,47 @@ db.exec(`CREATE TABLE IF NOT EXISTS feedback (
   UNIQUE(user_id,message_id,kind));
   CREATE UNIQUE INDEX IF NOT EXISTS feedback_conversation ON feedback(user_id,chat_id) WHERE kind='conversation';
   INSERT OR IGNORE INTO migrations VALUES(3);`);
+// Migration 4 is atomic, including the role column on existing databases.
+db.exec("BEGIN IMMEDIATE");
+try {
+  if (!db.prepare("SELECT version FROM migrations WHERE version=4").get()) {
+    db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'client'
+      CHECK(role IN ('client','manager'));
+      CREATE TABLE applications (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
+        selection_id TEXT NOT NULL, selection_version INTEGER NOT NULL,
+        status TEXT NOT NULL, amount INTEGER NOT NULL CHECK(amount>0),
+        term_months INTEGER NOT NULL CHECK(term_months BETWEEN 1 AND 120), purpose TEXT NOT NULL,
+        version INTEGER NOT NULL CHECK(version>0), consent_at TEXT, queued_at TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+      CREATE INDEX applications_owner ON applications(user_id,created_at);
+      CREATE INDEX applications_queue ON applications(status,queued_at,id);
+      CREATE TABLE application_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        application_id TEXT NOT NULL REFERENCES applications(id), seq INTEGER NOT NULL CHECK(seq>0),
+        event TEXT NOT NULL, from_status TEXT, to_status TEXT NOT NULL,
+        actor_role TEXT NOT NULL CHECK(actor_role IN ('client','manager','system')),
+        actor_id TEXT REFERENCES users(id), reason TEXT, payload TEXT NOT NULL, at TEXT NOT NULL,
+        UNIQUE(application_id,seq));
+      CREATE TABLE dossiers (
+        application_id TEXT NOT NULL REFERENCES applications(id), version INTEGER NOT NULL,
+        core_result TEXT NOT NULL, checks TEXT NOT NULL, holes TEXT NOT NULL, created_at TEXT NOT NULL,
+        readiness_n REAL, readiness_m REAL, PRIMARY KEY(application_id,version));
+      CREATE TABLE application_idempotency (
+        key TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id),
+        request_hash TEXT NOT NULL, response TEXT NOT NULL, PRIMARY KEY(key,user_id));
+      INSERT INTO migrations VALUES(4);`);
+  }
+  // v1 metadata belongs to the dossier, never to the untouched core JSON.
+  if (!db.prepare("SELECT version FROM migrations WHERE version=5").get()) {
+    db.exec(`ALTER TABLE dossiers ADD COLUMN checklist_version TEXT;
+      INSERT INTO migrations VALUES(5);`);
+  }
+  db.exec("COMMIT");
+} catch (error) {
+  db.exec("ROLLBACK");
+  throw error;
+}
 export type Feedback = {
   id: string; user_id: string; chat_id: string; message_id: string | null;
   kind: "message" | "conversation"; rating: string | null; reasons: string;
@@ -61,10 +102,11 @@ export type User = {
   phone: string;
   password: string;
   state: string;
+  role: "client" | "manager";
 };
 export function createUser(phone: string, password: string, profile: Profile) {
   const id = randomUUID();
-  db.prepare("INSERT INTO users VALUES(?,?,?,?)").run(
+  db.prepare("INSERT INTO users(id,phone,password,state) VALUES(?,?,?,?)").run(
     id,
     phone,
     hashPassword(password),
