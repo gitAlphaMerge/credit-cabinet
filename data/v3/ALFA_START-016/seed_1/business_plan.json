@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 15038772.01,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 20961228.0,
+  "purpose_code": "wc_regular_expenses",
+  "purpose_text": "оплатить текущие расходы",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 36000000.01,
+  "stale": false,
+  "term_months": 6
+}

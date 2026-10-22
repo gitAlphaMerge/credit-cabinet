@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 31334561.97,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 23865438.0,
+  "purpose_code": "wc_goods_restock",
+  "purpose_text": "закупить товары",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 55199999.97,
+  "stale": false,
+  "term_months": 24
+}

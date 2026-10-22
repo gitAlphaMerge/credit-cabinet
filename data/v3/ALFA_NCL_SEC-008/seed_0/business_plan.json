@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 20612222.02,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 20187778.0,
+  "purpose_code": "ex_new_outlet",
+  "purpose_text": "открыть торговую точку",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 40800000.02,
+  "stale": false,
+  "term_months": 60
+}

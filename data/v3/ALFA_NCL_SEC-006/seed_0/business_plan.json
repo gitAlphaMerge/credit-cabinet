@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 27929221.96,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 21270778.0,
+  "purpose_code": "ex_new_market",
+  "purpose_text": "выйти на новый рынок",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 49199999.96,
+  "stale": false,
+  "term_months": 60
+}

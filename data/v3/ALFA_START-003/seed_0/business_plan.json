@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 104763767.99,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": -63963768.0,
+  "purpose_code": "wc_marketplace_inventory",
+  "purpose_text": "пополнить склад маркетплейса",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 40799999.99,
+  "stale": false,
+  "term_months": 6
+}

@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 8999074.03,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 7400926.0,
+  "purpose_code": "do_reduce_installment",
+  "purpose_text": "снизить кредитный платёж",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 16400000.03,
+  "stale": false,
+  "term_months": 12
+}

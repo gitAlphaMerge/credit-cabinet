@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 32697111.96,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 24902888.0,
+  "purpose_code": "wc_raw_materials",
+  "purpose_text": "закупить сырьё",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 57599999.96,
+  "stale": false,
+  "term_months": 12
+}

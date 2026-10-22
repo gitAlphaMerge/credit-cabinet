@@ -1,0 +1,18 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "currency": "RUB",
+  "form": "0710002",
+  "lines": {
+    "2100": 1502338.0,
+    "2110": 36000000.0,
+    "2120": -34497662.0,
+    "2300": 1502338.0,
+    "2400": 1502338.0
+  },
+  "note": "",
+  "period": "current",
+  "present": true,
+  "stale": false,
+  "unit": "RUB"
+}

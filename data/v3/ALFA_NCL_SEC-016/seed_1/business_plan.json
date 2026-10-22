@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 29972451.96,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 22827548.0,
+  "purpose_code": "ap_machinery",
+  "purpose_text": "купить станок",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 52799999.96,
+  "stale": false,
+  "term_months": 60
+}
