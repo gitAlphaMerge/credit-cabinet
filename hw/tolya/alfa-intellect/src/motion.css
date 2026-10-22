@@ -1,0 +1,896 @@
+/* Product motion: code-native, no video downloads or animation dependencies. */
+.hero-visual.finance-theatre {
+  min-height: 495px;
+  isolation: isolate;
+  width: 100%;
+  max-width: none;
+}
+.finance-aura {
+  position: absolute;
+  inset: 0 -5% 4%;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse at 55% 45%,
+    #ffe3db 0,
+    #fff1ec 35%,
+    transparent 68%
+  );
+  animation: aura-breathe 7s ease-in-out infinite;
+}
+.finance-orbits {
+  position: absolute;
+  inset: 5% 0 10%;
+  pointer-events: none;
+}
+.finance-orbits > i {
+  position: absolute;
+  width: 85%;
+  aspect-ratio: 1;
+  top: 0;
+  left: 8%;
+  border: 1px solid #f2d8d0;
+  border-radius: 50%;
+  transform: rotateX(24deg) rotateZ(-25deg);
+}
+.finance-orbits > i:nth-child(2) {
+  inset: 9% 0 auto 0;
+  width: 100%;
+  border-style: dashed;
+  border-color: #e9e5e4;
+  transform: rotateX(45deg) rotateZ(40deg);
+}
+.finance-orbits > i:nth-child(3) {
+  width: 65%;
+  top: 13%;
+  left: 18%;
+  border-color: #f8e6df;
+}
+.orbit-satellite {
+  position: absolute;
+  top: 18%;
+  right: 8%;
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  color: #a08b82;
+  background: #ffffffd9;
+  border: 1px solid #f1e8e3;
+  border-radius: 13px;
+  box-shadow: 0 10px 24px #985a3510;
+  animation: satellite-drift 7s ease-in-out infinite;
+}
+.orbit-satellite.second {
+  top: 58%;
+  right: auto;
+  left: 1%;
+  color: #12865f;
+  animation-delay: -3s;
+}
+.finance-core {
+  position: absolute;
+  top: 8%;
+  left: 10%;
+  width: 112px;
+  height: 112px;
+  display: grid;
+  place-items: center;
+  z-index: 3;
+  border-radius: 31px;
+  color: #fff;
+  background: linear-gradient(145deg, #ff9781 -15%, #ff4435 35%, #e4201b 80%);
+  border: 1px solid #ffafa3;
+  box-shadow:
+    0 23px 55px #ef31243b,
+    inset 3px 3px 13px #ffffff80,
+    inset -4px -5px 14px #b31b2260;
+  transform: rotate(-12deg);
+  animation: core-float 6s ease-in-out infinite;
+}
+.finance-core > svg {
+  filter: drop-shadow(0 2px 2px #b61c20);
+}
+.finance-core > span {
+  position: absolute;
+  inset: 9px;
+  border-radius: 23px;
+  border: 1px solid #ffffff48;
+}
+.finance-core > i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff1d9;
+  right: 18px;
+  top: 15px;
+  box-shadow: 0 0 15px #ffe7bb;
+}
+.finance-signal {
+  position: absolute;
+  left: 34%;
+  top: 19%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: rotate(-12deg);
+}
+.finance-signal > span {
+  height: 4px;
+  width: 4px;
+  border-radius: 50%;
+  background: #ef3124;
+  animation: signal-travel 1.8s ease-in-out infinite;
+}
+.finance-signal > span:nth-child(2n) {
+  animation-delay: 0.3s;
+}
+.finance-signal > span:nth-child(3n) {
+  animation-delay: 0.6s;
+}
+.finance-live-label {
+  position: absolute;
+  top: 4%;
+  left: 16%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8f7b74;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.motion-status-dot {
+  width: 5px;
+  height: 5px;
+  background: #ef3124;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #ef31240c;
+}
+.finance-scene-card {
+  position: absolute;
+  top: 27%;
+  right: 0;
+  width: 78%;
+  padding: 24px 26px 16px;
+  background: linear-gradient(125deg, #fff, #ffffffed);
+  border: 1px solid #f1e0da;
+  border-radius: 20px;
+  box-shadow:
+    0 22px 60px #70483615,
+    inset 0 1px 0 #fff;
+  animation: scene-arrive 0.65s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+.finance-scene-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #7c8190;
+  margin-bottom: 13px;
+}
+.finance-scene-heading svg {
+  color: #12865f;
+}
+.finance-scene-card > strong {
+  display: block;
+  font-size: clamp(24px, 2.8vw, 37px);
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -1.1px;
+  font-variant-numeric: tabular-nums;
+}
+.finance-scene-card > strong > span {
+  color: #b9bcc4;
+  font-weight: 450;
+}
+.finance-scene-card > p {
+  font-size: 10px;
+  color: #9398a5;
+  margin: 11px 0 0;
+  line-height: 1.5;
+}
+.finance-sparkline {
+  display: block;
+  width: 100%;
+  height: 115px;
+  overflow: visible;
+  margin: 2px 0 5px;
+}
+.finance-sparkline polyline {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sparkline-write 1.8s cubic-bezier(0.2, 0.5, 0.2, 1) forwards;
+}
+.finance-scene-foot {
+  border-top: 1px solid #eff0f3;
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: #969ba8;
+}
+.finance-scene-foot > span:first-child {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: #12865f;
+}
+.finance-insight {
+  position: absolute;
+  left: -2%;
+  bottom: 13%;
+  z-index: 4;
+  width: 75%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 17px;
+  background: #fff;
+  border: 1px solid #e7e9ed;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px #1d2d4c0b;
+  animation: insight-arrive 0.7s ease both;
+}
+.finance-insight b {
+  display: block;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.finance-insight small {
+  display: block;
+  font-size: 9px;
+  color: #9399a7;
+  margin-top: 4px;
+}
+.finance-insight .icon-tile {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.finance-controls {
+  position: absolute;
+  bottom: 4%;
+  left: 5%;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.finance-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 10px;
+  color: #8d929f;
+  background: transparent;
+}
+.finance-controls button > span {
+  font-size: 8px;
+  opacity: 0.6;
+}
+.finance-controls button.active {
+  color: #d93126;
+  background: #fff3ef;
+  border-color: #f8ded7;
+}
+.finance-controls button:hover {
+  background: #f7f8fa;
+}
+.finance-controls button:focus-visible {
+  outline: 2px solid #ef3124;
+  outline-offset: 2px;
+}
+.finance-controls .finance-play {
+  background: #fff;
+  border-color: #edf0f3;
+  width: 33px;
+  padding: 0;
+}
+.finance-example-note {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  bottom: -3%;
+  margin: 0;
+  color: #a2a5af;
+  font-size: 9px;
+}
+.finance-theatre[data-playing="false"] .finance-aura,
+.finance-theatre[data-playing="false"] .finance-core,
+.finance-theatre[data-playing="false"] .orbit-satellite,
+.finance-theatre[data-playing="false"] .finance-signal > span {
+  animation-play-state: paused;
+}
+@keyframes core-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-12deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(-5deg);
+  }
+}
+@keyframes satellite-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(5deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(-7deg);
+  }
+}
+@keyframes aura-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+@keyframes signal-travel {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.2);
+  }
+}
+@keyframes scene-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(16px) rotate(2deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes insight-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sparkline-write {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.landing .steps-grid {
+  gap: 22px;
+}
+.landing .journey-step {
+  padding: 26px;
+  border: 1px solid #e5e8ed;
+  border-radius: 20px;
+  background: #ffffffcf;
+  position: relative;
+  box-shadow: 0 10px 35px #182a4303;
+}
+.journey-step.reveal-section {
+  transform: translateY(35px) scale(0.97);
+  transition:
+    opacity 0.7s ease,
+    transform 0.8s cubic-bezier(0.2, 0.75, 0.2, 1),
+    border-color 0.4s,
+    box-shadow 0.4s;
+}
+.journey-step.revealed {
+  transform: none;
+  border-color: #f0cfc7;
+  box-shadow: 0 12px 40px #ef312406;
+}
+.journey-illustration {
+  position: relative;
+  height: 100px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  padding-left: 22px;
+  color: #ef3124;
+  background: radial-gradient(ellipse at 30% 50%, #ffe7df, transparent 70%);
+}
+.journey-illustration > svg {
+  position: relative;
+  z-index: 2;
+}
+.journey-mini-line {
+  position: absolute;
+  top: 36px;
+  left: 83px;
+  width: 70px;
+  height: 7px;
+  background: #e5e8ed;
+  border-radius: 4px;
+  transform-origin: left;
+}
+.journey-mini-line.short {
+  top: 54px;
+  width: 46px;
+}
+.journey-check {
+  position: absolute;
+  right: 25px;
+  top: 35px;
+  color: #12865f;
+  background: #e8f5ee;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.journey-doc {
+  position: absolute;
+  height: 59px;
+  width: 43px;
+  top: 20px;
+  left: 86px;
+  background: #fff;
+  border: 1px solid #f3c9bf;
+  border-radius: 7px;
+  transform: rotate(-8deg);
+}
+.journey-doc::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 15px;
+  height: 4px;
+  background: #f5d5ce;
+  box-shadow:
+    0 9px #eeeef2,
+    0 18px #eeeef2;
+  border-radius: 3px;
+}
+.journey-doc.second {
+  left: 111px;
+  transform: rotate(9deg);
+}
+.journey-bar {
+  position: absolute;
+  height: 25px;
+  width: 16px;
+  bottom: 20px;
+  left: 89px;
+  border-radius: 4px 4px 1px 1px;
+  background: #f7b2a7;
+  transform-origin: bottom;
+}
+.journey-bar.second {
+  left: 113px;
+  height: 42px;
+  background: #f47b6b;
+}
+.journey-bar.third {
+  left: 137px;
+  height: 60px;
+  background: #ef3124;
+}
+.journey-step.revealed .journey-mini-line {
+  animation: journey-grow 0.8s 0.3s ease both;
+}
+.journey-step.revealed .journey-doc {
+  animation: journey-document 0.8s 0.35s ease both;
+}
+.journey-step.revealed .journey-bar {
+  animation: journey-grow 0.9s 0.4s ease both;
+}
+.journey-step.revealed .journey-check {
+  animation: journey-pop 0.6s 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.landing .journey-step .step-number {
+  position: static;
+  margin-bottom: 14px;
+  background: #fff4f0;
+  border: none;
+  font-weight: 650;
+}
+@keyframes journey-grow {
+  from {
+    opacity: 0;
+    scale: 0.2 0.2;
+  }
+  to {
+    opacity: 1;
+    scale: 1 1;
+  }
+}
+@keyframes journey-document {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes journey-pop {
+  from {
+    opacity: 0;
+    scale: 0.3;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+.preparation-screen {
+  min-height: 100dvh;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 50% 40%, #fff0e8, #fafbfc 55%);
+}
+.preparation-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.35;
+  background-image: radial-gradient(#a3a8b8 0.6px, transparent 0.6px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse at center, #000, transparent 70%);
+}
+.preparation-screen > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 25px 40px;
+}
+.preparation-screen .preparation-header-note {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #9398a6;
+}
+.preparation-content {
+  position: relative;
+  width: min(660px, 100%);
+  margin: auto;
+  padding: 40px 24px 32px;
+  text-align: center;
+}
+.preparation-orbit {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  width: 355px;
+  height: 355px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.preparation-orbit i {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #eddcd5;
+  border-radius: 50%;
+  animation: preparation-orbit 18s linear infinite;
+}
+.preparation-orbit i:nth-child(2) {
+  inset: 18px;
+  border-style: dashed;
+  animation-direction: reverse;
+  animation-duration: 30s;
+}
+.preparation-orbit i:nth-child(3) {
+  inset: 42px;
+  border-color: #ffffff;
+}
+.preparation-orbit i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -3px;
+  width: 6px;
+  height: 6px;
+  background: #ef7660;
+  border-radius: 50%;
+  box-shadow: 0 0 13px #ed5c4460;
+}
+.preparation-sphere {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  margin: 0 auto 60px;
+  overflow: hidden;
+  background: radial-gradient(
+    circle at 30% 23%,
+    #ffffffec,
+    #fff7f0 60%,
+    #f0d6c7
+  );
+  border: 1px solid #fff;
+  box-shadow:
+    inset -12px -12px 28px #97533216,
+    inset 5px 5px 16px #fff,
+    0 25px 65px #b7523420,
+    0 0 0 8px #ffffff45;
+}
+.sphere-liquid {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #ff8f72, #f04432 40%, #d71f24);
+  transform: translateY(calc(100% - var(--progress)));
+  transition: transform 0.15s linear;
+}
+.sphere-liquid i {
+  position: absolute;
+  width: 210%;
+  height: 45px;
+  background: #f6604680;
+  left: -55%;
+  top: -24px;
+  border-radius: 50%;
+  animation: sphere-wave 7s linear infinite;
+}
+.sphere-liquid i:nth-child(2) {
+  background: #ffb49b65;
+  top: -18px;
+  animation-duration: 10s;
+  animation-direction: reverse;
+}
+.sphere-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset -12px -10px 22px #86111813,
+    inset 7px 9px 20px #ffffffb5;
+  pointer-events: none;
+}
+.sphere-shine::before {
+  content: "";
+  position: absolute;
+  width: 85px;
+  height: 23px;
+  background: #ffffff85;
+  filter: blur(6px);
+  top: 26px;
+  left: 25px;
+  border-radius: 50%;
+  transform: rotate(-33deg);
+}
+.sphere-number {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #3b211f;
+  mix-blend-mode: multiply;
+}
+.sphere-number > svg {
+  margin-bottom: 10px;
+  opacity: 0.65;
+}
+.sphere-number strong {
+  font-size: 57px;
+  line-height: 1;
+  font-weight: 550;
+  letter-spacing: -3px;
+  font-variant-numeric: tabular-nums;
+}
+.sphere-number small {
+  font-size: 21px;
+  font-weight: 450;
+  letter-spacing: -1px;
+  margin-left: 4px;
+}
+.preparation-copy .eyebrow {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  color: #ac7e6e;
+}
+.preparation-copy h1 {
+  min-height: 66px;
+  max-width: 520px;
+  margin: 14px auto 0;
+  font-size: clamp(25px, 4vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+  background: linear-gradient(105deg, #292630 15%, #d85842 42%, #292630 67%);
+  background-size: 250% auto;
+  color: #292630;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    preparation-copy-enter 0.5s ease both,
+    preparation-shimmer 3s linear infinite;
+}
+.preparation-copy > p {
+  color: #9298a5;
+  font-size: 12px;
+  line-height: 1.7;
+  max-width: 360px;
+  margin: 7px auto 24px;
+}
+.preparation-stages {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 20px;
+}
+.preparation-stages > span {
+  width: 38px;
+  height: 5px;
+  border-radius: 4px;
+  background: #e3e6eb;
+  display: grid;
+  place-items: center;
+  color: #ef3124;
+  transition: background 0.4s;
+}
+.preparation-stages > span > svg {
+  display: none;
+}
+.preparation-stages .current {
+  background: #f9a292;
+}
+.preparation-stages .done {
+  background: #ef3124;
+}
+.preparation-skip {
+  margin: 0 auto;
+  color: #8b909d;
+  font-size: 12px;
+  min-height: 36px;
+}
+.preparation-opening {
+  color: #858b98;
+  font-size: 12px;
+  min-height: 36px;
+}
+.preparation-error {
+  max-width: 450px;
+  margin: 0 auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #b33327;
+}
+.preparation-screen > footer {
+  text-align: center;
+  color: #9b9faa;
+  font-size: 10px;
+  padding: 20px;
+}
+@keyframes preparation-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sphere-wave {
+  0%,
+  100% {
+    transform: translateX(-6%) rotate(-3deg);
+  }
+  50% {
+    transform: translateX(6%) rotate(3deg);
+  }
+}
+@keyframes preparation-copy-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes preparation-shimmer {
+  to {
+    background-position: -250% center;
+  }
+}
+@media (max-width: 760px) {
+  .hero-visual.finance-theatre {
+    min-height: 445px;
+    width: 100%;
+    max-width: 420px;
+    margin: 10px auto 20px;
+  }
+  .finance-core {
+    width: 92px;
+    height: 92px;
+    border-radius: 26px;
+  }
+  .finance-core > span {
+    border-radius: 18px;
+  }
+  .finance-scene-card {
+    padding: 20px;
+  }
+  .finance-insight {
+    bottom: 14%;
+    left: 0;
+    padding: 11px 13px;
+    width: 86%;
+  }
+  .finance-insight b {
+    font-size: 10px;
+  }
+  .finance-live-label {
+    left: 8%;
+    font-size: 9px;
+  }
+  .finance-controls {
+    left: 0;
+    bottom: 3%;
+    gap: 3px;
+  }
+  .finance-controls button {
+    padding: 7px 8px;
+  }
+  .finance-example-note {
+    font-size: 8px;
+    bottom: -2%;
+  }
+  .landing .journey-step {
+    padding: 22px;
+  }
+  .journey-illustration {
+    max-width: 240px;
+  }
+  .preparation-screen > header {
+    padding: 20px;
+  }
+  .preparation-screen .preparation-header-note {
+    display: none;
+  }
+  .preparation-content {
+    padding-top: 35px;
+  }
+  .preparation-orbit {
+    width: 295px;
+    height: 295px;
+    top: -5px;
+  }
+  .preparation-sphere {
+    width: 205px;
+    height: 205px;
+    margin-bottom: 50px;
+  }
+  .preparation-copy h1 {
+    min-height: 64px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .journey-step.reveal-section {
+    opacity: 1;
+    transform: none;
+  }
+  .finance-sparkline polyline {
+    stroke-dashoffset: 0;
+  }
+}

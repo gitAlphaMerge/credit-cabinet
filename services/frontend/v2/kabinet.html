@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кредитный кабинет v2 · лента и агент сбоку</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#f3f4f5}
+a{color:#0072ef}a:hover{color:#005bbf}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes ring{from{stroke-dashoffset:302}}
+@keyframes draw{from{stroke-dashoffset:900}to{stroke-dashoffset:0}}
+@keyframes slideOrb{from{left:0%}}
+@keyframes orbit{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.in{animation:msgIn .4s cubic-bezier(.2,.7,.2,1) both}
+.ringv{animation:ring 1.4s cubic-bezier(.2,.8,.2,1) both}
+.line{stroke-dasharray:900;animation:draw 1.6s cubic-bezier(.4,0,.2,1) both}
+.orbpos{animation:slideOrb 1.2s cubic-bezier(.2,.8,.2,1) both}
+.idle{animation:orbit 9s linear infinite}
+.core{animation:breathe 2.4s ease-in-out infinite}
+.hbar{transform-origin:left;animation:grow .9s cubic-bezier(.2,.8,.2,1) both}
+.tab:hover{color:#0b0b0c}
+.card:hover{border-color:#b9b9bc}
+.ghost:hover{background:#f3f4f5}
+.cta:hover{background:#d92a1e}
+.dark:hover{background:#2c2c2e}
+.chip:hover{background:#f7d3d0}
+@media (prefers-reduced-motion: reduce){.in,.ringv,.line,.orbpos,.idle,.core,.hbar{animation:none}}
+.seg:not([aria-current]):hover{background:#e4e4e6!important}
+</style>
+<style>[v-cloak]{display:none}</style>
+</head>
+<body>
+<div id="app" v-cloak>
+<div style="min-height: 1000px; display: flex; flex-direction: column; font-family: 'Manrope', system-ui, sans-serif; color: #0b0b0c; background: #f3f4f5">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding: 12px 44px; background: #ffffff; border-bottom: 1px solid #dcdcdd">
+<div style="display: flex; align-items: center; gap: 10px">
+<img src="img/alfa.svg" alt="" style="width: 28px; height: 28px">
+<span style="font-weight: 800; font-size: 17px">Альфа-Бизнес</span>
+</div>
+<nav aria-label="Разделы" style="display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 999px; background: #f3f4f5; margin-left: auto"><a href="index.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">Главная</a><a href="kabinet.html" aria-current="page" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: #0b0b0c; color: #ffffff">Кредитный кабинет</a><a href="chat.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">ИИ-агент</a><a href="podbor.html" class="seg" style="min-height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 700; background: transparent; color: #0b0b0c">Подбор</a></nav>
+<button type="button" aria-label="Уведомления, 3 новых" class="ghost" style="position: relative; width: 44px; height: 44px; border-radius: 999px; border: 1px solid #dcdcdd; background: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+<span style="position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 999px; background: #ef3124; border: 2px solid #ffffff"></span>
+</button>
+</header>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<main style="flex: 999 1 640px; min-width: 0; padding: 32px 44px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box">
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px">
+<span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em">Кровельщик · ИП, 4 года</span>
+<span style="font-size: 13px; color: #6b6b70">данные на 17 октября, из выписки и кредитного договора</span>
+</div>
+
+<section class="in" style="background: #ffffff; border-radius: 16px; padding: 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 28px">
+<div style="position: relative; width: 120px; height: 120px; flex: 0 0 120px">
+<svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="60" cy="60" r="48" fill="none" stroke="#f3f4f5" stroke-width="14"></circle><circle class="ringv" cx="60" cy="60" r="48" fill="none" stroke="#13a463" stroke-width="14" stroke-linecap="round" stroke-dasharray="302" stroke-dashoffset="251"></circle></svg>
+<div style="position: absolute; left: 0; top: 0; width: 120px; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center"><span style="font-size: 22px; font-weight: 800">17%</span><span style="font-size: 12px; color: #6b6b70">погашено</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 260px">
+<span style="font-size: 13px; color: #6b6b70">Осталось вернуть</span>
+<span style="font-size: 46px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1">2 491 702 ₽</span>
+<span style="font-size: 15px; color: #6b6b70">из 3 000 000 ₽ · 8 платежей из 36 · ставка 22%</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; flex: 1 1 300px; max-width: 380px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 13px; color: #6b6b70">Покрытие платежей, DSCR</span><span style="font-size: 22px; font-weight: 800">3,67×</span></div>
+<div style="position: relative; height: 10px; border-radius: 999px; background: linear-gradient(90deg, #d91d0b 0 25%, #cb830f 25% 42%, #13a463 42% 100%)">
+<span class="orbpos" style="position: absolute; left: 82%; top: -8px; width: 26px; height: 26px; margin-left: -13px; border-radius: 999px; background: #ffffff; border: 4px solid #13a463; box-sizing: border-box; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06)"></span>
+</div>
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #6b6b70"><span>меньше 1</span><span>1,25 порог банка</span><span>запас</span></div>
+</div>
+</section>
+
+<nav style="display: flex; gap: 6px; flex-wrap: wrap" aria-label="Разделы кабинета">
+<template v-for="(t, $index) in v.tabs">
+<button type="button" class="tab" @click="t.pick" :style="`min-height: 40px; border: 1px solid ${t.border}; border-radius: 999px; background: ${t.bg}; color: ${t.ink}; padding: 6px 16px; font: 700 14px 'Manrope', sans-serif; cursor: pointer`">{{ t.label }}</button>
+</template>
+</nav>
+
+<template v-if="v.isFeed">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 12px">
+<template v-for="(f, $index) in v.feed">
+<article class="card in" :style="`background: #ffffff; border: 1px solid #dcdcdd; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; animation-delay: ${f.delay}`">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 36px; height: 36px; flex: 0 0 36px; border-radius: 12px; background: #fbe8e7; display: flex; align-items: center; justify-content: center"><img :src="f.img" alt="" style="width: 22px; height: 22px"></span>
+<span style="font-size: 15px; font-weight: 700; flex: 1 1 auto; line-height: 1.3">{{ f.title }}</span>
+<span style="font-size: 12px; color: #6b6b70">{{ f.when }}</span>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<span :style="`font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: ${f.valueInk}`">{{ f.value }}</span>
+<span :style="`font-size: 12px; font-weight: 700; color: ${f.chipInk}; background: ${f.chipBg}; border-radius: 999px; padding: 4px 10px`">{{ f.chip }}</span>
+</div>
+<template v-if="f.isOpen">
+<span class="in" style="font-size: 14px; color: #6b6b70; line-height: 1.45">{{ f.text }}</span>
+</template>
+<div style="display: flex; gap: 6px">
+<button type="button" class="dark" @click="f.discuss" style="flex: 1 1 auto; min-height: 40px; border: 0; border-radius: 12px; background: #0b0b0c; color: #ffffff; font: 700 14px 'Manrope', sans-serif; cursor: pointer">Обсудить</button>
+<button type="button" class="ghost" @click="f.toggle" :aria-label="f.toggleLabel" style="width: 40px; height: 40px; border: 1px solid #dcdcdd; border-radius: 12px; background: #ffffff; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" :style="`transform: rotate(${f.rot})`"><path d="M6 9l6 6 6-6"></path></svg></button>
+</div>
+</article>
+</template>
+</div>
+</template>
+
+<template v-if="v.isPayments">
+<div class="in" style="background: #ffffff; border-radius: 16px; padding: 8px; display: flex; flex-direction: column">
+<template v-for="(p, $index) in v.payments">
+<button type="button" class="ghost" @click="p.open" style="border: 0; background: transparent; border-radius: 12px; padding: 14px; display: grid; grid-template-columns: 120px 1fr 140px 120px; align-items: center; gap: 12px; text-align: left; font-family: inherit; cursor: pointer">
+<span style="font-size: 15px; font-weight: 700">{{ p.date }}</span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #6b6b70">долг {{ p.debt }} · проценты {{ p.pct }}</span><span style="height: 6px; border-radius: 999px; background: #fbe8e7; overflow: hidden"><span class="hbar" :style="`display: block; height: 6px; width: ${p.share}; background: #ef3124`"></span></span></span>
+<span style="font-size: 17px; font-weight: 800; text-align: right">{{ p.sum }}</span>
+<span :style="`font-size: 13px; font-weight: 700; color: ${p.ink}; text-align: right`">{{ p.state }}</span>
+</button>
+</template>
+</div>
+</template>
+
+<template v-if="v.isPayment">
+<div class="in" style="background: #ffffff; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<button type="button" class="ghost" @click="v.backToPayments" aria-label="Назад к платежам" style="width: 40px; height: 40px; border: 1px solid #dcdcdd; border-radius: 12px; background: #ffffff; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+<span style="font-size: 22px; font-weight: 800; flex: 1 1 auto">Платёж 17 ноября · 114 571 ₽</span>
+<button type="button" class="cta" @click="v.discussPayment" style="height: 44px; border: 0; border-radius: 12px; background: #ef3124; color: #ffffff; padding: 0 18px; font: 700 15px 'Manrope', sans-serif; cursor: pointer">Обсудить с агентом</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 10px">
+<div style="background: #f3f4f5; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #6b6b70">Основной долг</span><span style="font-size: 22px; font-weight: 800">68 890 ₽</span></div>
+<div style="background: #f3f4f5; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #6b6b70">Проценты</span><span style="font-size: 22px; font-weight: 800">45 681 ₽</span></div>
+<div style="background: #0b0b0c; color: #ffffff; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #a1a1a6">Останется после платежа</span><span style="font-size: 22px; font-weight: 800">{{ v.afterPay }}</span></div>
+</div>
+<div style="display: flex; gap: 6px">
+<button type="button" @click="v.setBase" :style="`min-height: 40px; border: 1px solid ${v.baseBorder}; border-radius: 999px; background: ${v.baseBg}; padding: 0 14px; font: 700 13px 'Manrope', sans-serif; cursor: pointer; color: #0b0b0c`">Базовый прогноз</button>
+<button type="button" @click="v.setStress" :style="`min-height: 40px; border: 1px solid ${v.stressBorder}; border-radius: 999px; background: ${v.stressBg}; padding: 0 14px; font: 700 13px 'Manrope', sans-serif; cursor: pointer; color: #0b0b0c`">Поступления −30%</button>
+</div>
+<svg viewBox="0 0 800 180" width="100%" height="180" role="img" aria-label="Прогноз остатка до даты платежа">
+<line x1="0" y1="150" x2="800" y2="150" stroke="#dcdcdd" stroke-dasharray="4 6"></line>
+<line x1="0" y1="90" x2="800" y2="90" stroke="#dcdcdd" stroke-dasharray="4 6"></line>
+<path class="line" :d="v.forecastPath" fill="none" :stroke="v.forecastInk" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+<circle cx="780" :cy="v.forecastEndY" r="7" :fill="v.forecastInk"></circle>
+</svg>
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #6b6b70"><span>17 октября</span><span>поступления от заказчиков</span><span>17 ноября, после платежа</span></div>
+</div>
+</template>
+
+<template v-if="v.isEff">
+<div class="in" style="background: #ffffff; border-radius: 16px; padding: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px">
+<template v-for="(e, $index) in v.eff">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 13px; color: #6b6b70">{{ e.label }}</span>
+<span style="font-size: 28px; font-weight: 800; letter-spacing: -.02em">{{ e.value }}</span>
+<div style="height: 8px; border-radius: 999px; background: #f3f4f5; overflow: hidden"><div class="hbar" :style="`height: 8px; width: ${e.bar}; background: ${e.ink}; border-radius: 999px`"></div></div>
+<span style="font-size: 12px; color: #6b6b70">{{ e.note }}</span>
+</div>
+</template>
+</div>
+</template>
+
+</main>
+
+<aside style="flex: 1 1 340px; max-width: 400px; min-width: 300px; background: #ffffff; border-left: 1px solid #dcdcdd; display: flex; flex-direction: column; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #dcdcdd">
+<svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true" style="flex: 0 0 32px"><circle cx="50" cy="50" r="35" fill="none" stroke="#fbe8e7" stroke-width="5"></circle><circle class="core" cx="50" cy="50" r="24" fill="#ef3124" style="transform-origin: 50px 50px"></circle><g class="idle" style="transform-origin: 50px 50px"><circle cx="85" cy="50" r="7" fill="#ef3124"></circle></g></svg>
+<span style="font-size: 16px; font-weight: 800; flex: 1 1 auto">{{ v.agentName }}</span>
+<a href="chat.html" style="font-size: 13px; text-decoration: none">Открыть чат целиком</a>
+</div>
+<template v-if="v.hasContext">
+<div style="margin: 12px 16px 0; display: flex; align-items: center; gap: 8px; border: 1px solid #dcdcdd; border-radius: 12px; padding: 8px 10px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef3124" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v4M8 3h8l-1 6 3 3H6l3-3z"></path></svg>
+<span style="font-size: 13px; font-weight: 700; flex: 1 1 auto">Ветка: {{ v.contextName }}</span>
+<button type="button" @click="v.clearContext" aria-label="Открепить" style="width: 32px; height: 32px; border: 0; background: transparent; cursor: pointer; font-size: 16px; color: #6b6b70">×</button>
+</div>
+</template>
+<div style="flex: 1 1 auto; height: 560px; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px">
+<template v-for="(m, $index) in v.thread"><div style="display: contents">
+<template v-if="m.agent">
+<div class="in" style="display: flex; flex-direction: column; gap: 4px; max-width: 320px">
+<div style="font-size: 14px; line-height: 1.5; white-space: pre-line">{{ m.text }}</div>
+<template v-if="m.retry"><button type="button" @click="v.retry(m)" :disabled="v.sending">попробовать ещё раз</button></template>
+<span style="font-size: 12px; color: #6b6b70">{{ m.time }}</span>
+</div>
+</template>
+<template v-if="m.user">
+<div class="in" style="align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: 280px">
+<div style="background: #f3f4f5; border-radius: 16px 16px 4px 16px; padding: 10px 14px; font-size: 14px; line-height: 1.45">{{ m.text }}</div>
+<span style="font-size: 12px; color: #6b6b70">{{ m.time }}</span>
+</div>
+</template>
+</div></template>
+<template v-if="v.sending"><div role="status">печатает</div></template>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<template v-for="(c, $index) in v.agentChips">
+<button type="button" class="chip" @click="c.pick" style="min-height: 40px; border: 0; border-radius: 999px; background: #fbe8e7; color: #b3241a; padding: 6px 12px; font: 600 13px 'Manrope', sans-serif; cursor: pointer">{{ c.label }}</button>
+</template>
+</div>
+</div>
+<div style="padding: 10px 12px 14px">
+<div style="border: 1px solid #dcdcdd; border-radius: 999px; padding: 6px; display: flex; align-items: center; gap: 4px">
+<label for="kmsg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Сообщение агенту</label>
+<input id="kmsg" @keydown.enter="v.send($event)" type="text" placeholder="Спросите про платёж или ленту" style="flex: 1 1 auto; border: 0; outline: none; font: 400 14px 'Manrope', sans-serif; background: transparent; min-width: 0; height: 40px; padding-left: 10px">
+<button type="button" aria-label="Надиктовать" class="ghost" style="width: 40px; height: 40px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0b0b0c" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></button>
+<button type="button" aria-label="Отправить" @click="v.send" :disabled="v.sending" class="cta" style="width: 40px; height: 40px; border: 0; border-radius: 999px; background: #ef3124; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
+</div>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+<script src="petite-vue.iife.js"></script>
+<script src="dc-lite.js"></script>
+<script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'feed', stress: false, context: null, open: null, thread: [
+      { id: 1, agent: true, time: '09:02', text: 'Доброе утро. Ночью пришло 3 события по вашему бизнесу, самое важное сверху. Любое можно взять в ветку и обсудить.' }
+    ] };
+  }
+  t() { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  agentSession() {
+    if (this.sessionId) return this.sessionId;
+    const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+    try {
+      this.sessionId = sessionStorage.getItem('v2-agent-session') || id;
+      sessionStorage.setItem('v2-agent-session', this.sessionId);
+    } catch (_) { this.sessionId = id; }
+    return this.sessionId;
+  }
+  send(event) {
+    if (event && event.isComposing) return;
+    if (event && event.preventDefault) event.preventDefault();
+    const input = document.getElementById('kmsg');
+    const text = input.value.trim();
+    if (!text || this.state.sending) return;
+    input.value = '';
+    return this.sendTurn(text);
+  }
+  async sendTurn(text, retry = null) {
+    text = text.trim();
+    if (!text || this.state.sending) return;
+    if (retry) this.setState(s => ({ thread: s.thread.filter(m => m.id !== retry.id) }));
+    else this.pushTurn({ user: true, text });
+    const controller = new AbortController();
+    this.agentController = controller;
+    const timer = setTimeout(() => controller.abort(), 40000);
+    this.setState({ sending: true });
+    try {
+      const response = await fetch('/agent/turn', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: this.agentSession(), text, card: {} }), signal: controller.signal });
+      if (!response.ok) throw new Error('agent unavailable');
+      const result = await response.json();
+      if (!result || typeof result.text !== 'string' || !result.text.trim()) throw new Error('invalid agent response');
+      if (this.agentController !== controller) return;
+      this.pushTurn({ agent: true, text: result.text });
+    } catch (_) {
+      if (this.agentController !== controller) return;
+      this.pushTurn({ agent: true, text: 'Ассистент сейчас недоступен, попробуйте через минуту', retry: text });
+    } finally {
+      clearTimeout(timer);
+      if (this.agentController === controller) {
+        this.agentController = null;
+        this.setState({ sending: false });
+      }
+    }
+  }
+  pushTurn(m) { this.setState(s => ({ thread: s.thread.concat([Object.assign({ id: s.thread.length + 1, time: this.t() }, m)]) })); }
+  componentWillUnmount() { if (this.agentController) this.agentController.abort(); }
+  discuss(name, reply) {
+    const now = this.t();
+    this.setState(s => ({ context: name, thread: s.thread.concat([
+      { id: s.thread.length + 1, user: true, time: now, text: 'Разбери: ' + name },
+      { id: s.thread.length + 2, agent: true, time: now, text: reply }
+    ]) }));
+  }
+  renderVals() {
+    const tab = this.state.tab;
+    const tabDefs = [['feed', 'Лента'], ['payments', 'Платежи'], ['eff', 'Эффективность']];
+    const tabs = tabDefs.map(([id, label]) => {
+      const on = tab === id || (id === 'payments' && tab === 'payment');
+      return { label, bg: on ? '#0b0b0c' : '#ffffff', ink: on ? '#ffffff' : '#6b6b70', border: on ? '#0b0b0c' : '#dcdcdd', pick: () => this.setState({ tab: id }) };
+    });
+    const feedDefs = [
+      { id: 'p', value: '114 571 ₽', valueInk: '#0b0b0c', chip: 'денег хватает', chipInk: '#0b6b40', chipBg: '#e7f6ef', kind: 'Платёж', img: 'img/feed-platezh.svg', when: 'через 31 день', dot: '#13a463', bar: '82%', title: 'Платёж 17 ноября', text: 'На дату платежа прогноз остатка 1 155 429 ₽. Даже при −30% поступлений хватает.', reply: 'Платёж 114 571 ₽. Прогноз остатка после него 1 155 429 ₽, при −30% поступлений около 760 000 ₽. Риск низкий, напомню за 5 дней.' },
+      { id: 'i', value: '−22%', valueInk: '#8a5a08', chip: 'следим', chipInk: '#6b4606', chipBg: '#f7ebd9', kind: 'Поступления', img: 'img/feed-postuplenie.svg', when: 'сегодня 07:40', dot: '#cb830f', bar: '58%', title: 'Заказчик заплатил меньше', text: 'Крупнейший плательщик перевёл 410 000 ₽ вместо привычных 525 000 ₽. Агент следит за следующим поступлением.', reply: 'Разница 115 000 ₽. Если это задержка, а не скидка, на платёж не влияет. Попросить у заказчика акт сверки? Набросаю письмо.' },
+      { id: 'l', value: '+508 000 ₽', valueInk: '#0b6b40', chip: '1 документ', chipInk: '#0058b8', chipBg: '#d6e8fc', kind: 'Лимит', img: 'img/feed-limit.svg', when: 'вчера', dot: '#0072ef', bar: '66%', title: 'Договор поднимет лимит', text: 'Сейчас договор с заказчиком учтён со слов. Документ переводит его в подтверждённые данные.', reply: 'Нужен скан договора с подписью обеих сторон. После проверки лимит 1 015 000 → 1 523 000 ₽. Загрузите, проверю поля.' },
+      { id: 'n', value: '[событие]', valueInk: '#6b6b70', chip: 'с источником', chipInk: '#6b6b70', chipBg: '#f3f4f5', kind: 'Новости компании', img: 'img/feed-novosti.svg', when: '16 окт', dot: '#6b6b70', bar: '30%', title: 'Новости отрасли', text: 'Сюда приходят новости рынка и контрагентов, которые меняют ваши цифры. Источник обязателен.', reply: 'Новости показываю только с источником и только если они меняют ваш поток или платёж.' }
+    ];
+    const feed = feedDefs.map((f, i) => { const open = this.state.open === f.id; return Object.assign({}, f, { delay: (i * 90) + 'ms', isOpen: open, rot: open ? '180deg' : '0deg', toggleLabel: open ? 'Свернуть' : 'Подробнее', toggle: () => this.setState({ open: open ? null : f.id }), discuss: () => this.discuss(f.title, f.reply) }); });
+    const payDefs = [
+      { date: '17 ноя', debt: '68 890 ₽', pct: '45 681 ₽', share: '60%', sum: '114 571 ₽', state: 'хватает', ink: '#0b6b40' },
+      { date: '17 дек', debt: '70 153 ₽', pct: '44 418 ₽', share: '61%', sum: '114 571 ₽', state: 'хватает', ink: '#0b6b40' },
+      { date: '17 янв', debt: '71 439 ₽', pct: '43 132 ₽', share: '62%', sum: '114 571 ₽', state: 'сезон, следить', ink: '#8a5a08' },
+      { date: '17 фев', debt: '72 749 ₽', pct: '41 822 ₽', share: '64%', sum: '114 571 ₽', state: 'сезон, следить', ink: '#8a5a08' }
+    ];
+    const payments = payDefs.map(p => Object.assign({}, p, { open: () => this.setState({ tab: 'payment' }) }));
+    const st = this.state.stress;
+    return {
+      sending: !!this.state.sending,
+      send: event => this.send(event),
+      retry: m => this.sendTurn(m.retry, m),
+      agentName: this.props.agentName ?? 'Кредитный агент',
+      tabs, feed, payments,
+      isFeed: tab === 'feed', isPayments: tab === 'payments', isPayment: tab === 'payment', isEff: tab === 'eff',
+      backToPayments: () => this.setState({ tab: 'payments' }),
+      discussPayment: () => this.discuss('Платёж 17 ноября', 'Платёж 114 571 ₽: долг 68 890 ₽ и проценты 45 681 ₽. ' + (st ? 'При −30% поступлений после платежа останется около 760 000 ₽.' : 'После платежа останется 1 155 429 ₽.') + ' Отложить часть заранее?'),
+      afterPay: st ? '≈760 000 ₽' : '1 155 429 ₽',
+      forecastPath: st ? 'M 20 140 C 200 120, 360 96, 420 92 S 640 118, 780 128' : 'M 20 140 C 200 100, 360 40, 420 34 S 640 66, 780 76',
+      forecastEndY: st ? 128 : 76,
+      forecastInk: st ? '#cb830f' : '#13a463',
+      baseBg: st ? '#ffffff' : '#f3f4f5', baseBorder: st ? '#dcdcdd' : '#0b0b0c',
+      stressBg: st ? '#f3f4f5' : '#ffffff', stressBorder: st ? '#0b0b0c' : '#dcdcdd',
+      setBase: () => this.setState({ stress: false }), setStress: () => this.setState({ stress: true }),
+      eff: [
+        { label: 'Покрытие платежей, DSCR', value: '3,67×', bar: '92%', ink: '#13a463', note: 'ориентир банка от 1,25×' },
+        { label: 'Платежи / свободный поток', value: '27%', bar: '27%', ink: '#0072ef', note: 'чем меньше, тем спокойнее' },
+        { label: 'Запас ежемесячного платежа', value: '221 429 ₽', bar: '70%', ink: '#13a463', note: 'до порога DSCR 1,25' },
+        { label: 'Покрытие при −30% потока', value: '2,57×', bar: '78%', ink: '#cb830f', note: 'стресс-сценарий' }
+      ],
+      hasContext: !!this.state.context, contextName: this.state.context || '',
+      clearContext: () => this.setState({ context: null }),
+      thread: this.state.thread,
+      agentChips: ['Что важнее всего сегодня', 'Можно досрочно погасить?', 'Сколько отложить на платёж'].map(label => ({ label, pick: () => this.discuss(label, 'Секунду, посчитаю по выписке и графику платежей. [ответ ядра]') }))
+    };
+  }
+}
+mountDC(Component, {"agentName": "Кредитный агент"});
+</script>
+</body>
+</html>

@@ -50,5 +50,6 @@ def to_view(core: dict, need: dict, rate: float, dscr_min: float) -> dict:
             {"code": m, "text": STEPS.get(m, (m, ""))[0], "confirms": STEPS.get(m, ("", ""))[1]}
             for m in core["missing"]
         ],
-        "monthly_flow": [{"month": m, "flow": v} for m, v in core["evidence"]["flow_by_month"].items()],
+        # evidence есть не у каждого ядра: нет помесячного потока, график просто пустой
+        "monthly_flow": [{"month": m, "flow": v} for m, v in core.get("evidence", {}).get("flow_by_month", {}).items()],
     }

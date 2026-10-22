@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 20839852.05,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 17560148.0,
+  "purpose_code": "ct_materials",
+  "purpose_text": "купить материалы по контракту",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 38400000.05,
+  "stale": false,
+  "term_months": 6
+}

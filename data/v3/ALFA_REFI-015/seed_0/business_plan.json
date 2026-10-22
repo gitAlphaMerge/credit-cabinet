@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 27735651.9,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 21464348.0,
+  "purpose_code": "do_consolidate",
+  "purpose_text": "объединить бизнес-кредиты",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 49199999.9,
+  "stale": false,
+  "term_months": 12
+}

@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 33376741.99,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 25423258.0,
+  "purpose_code": "ex_capacity",
+  "purpose_text": "расширить производство",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 58799999.99,
+  "stale": false,
+  "term_months": 12
+}

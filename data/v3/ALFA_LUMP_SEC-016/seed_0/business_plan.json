@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 23161581.99,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 17638418.0,
+  "purpose_code": "ap_vehicle",
+  "purpose_text": "купить автомобиль",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 40799999.99,
+  "stale": false,
+  "term_months": 12
+}

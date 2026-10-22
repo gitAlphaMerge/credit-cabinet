@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 24404192.0,
+  "currency": "RUB",
+  "note": "",
+  "period": "2026",
+  "present": true,
+  "profit_rub": 21195808.0,
+  "purpose_code": "dividends",
+  "purpose_text": "перечислить деньги по назначению",
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 45600000.0,
+  "stale": false,
+  "term_months": 60
+}

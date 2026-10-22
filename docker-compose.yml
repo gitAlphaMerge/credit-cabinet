@@ -1,25 +1,124 @@
 services:
   api:
+    restart: unless-stopped
     build: ./services/api
     ports:
       - "8080:8080"
+    environment:
+      - ML_URL=http://ml-model:5000   # провод Тёмы: /score уходит в окошко
+      - PORT=8080
+    depends_on:
+      ml-model:
+        condition: service_started   # api живёт и без ядра: отдаёт 502 JSON, а не молчит
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     mem_limit: 64m
 
   ml-model:
     build:
       context: .
       dockerfile: services/ml-model/Dockerfile
+    restart: unless-stopped
     ports:
       - "127.0.0.1:5000:5000"   # только с этой машины: снаружи кухня закрыта
+    environment:
+      - CORE_ID=liza
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=4).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     volumes:
       - journal:/app/journal
     mem_limit: 384m
 
   frontend:
+    restart: unless-stopped
     build: ./services/frontend
+    depends_on:
+      api:
+        condition: service_started   # статика встаёт всегда, даже если api лежит
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     ports:
       - "${FRONTEND_PORT:-80}:80"
     mem_limit: 64m
 
+  agent:
+    build: ./services/agent
+    restart: unless-stopped
+    environment:
+      AGENT_PORT: 8090
+      AGENT_CORE_URL: http://api:8080
+      AGENT_STATE_DIR: /app/var
+      AGENT_LLM_URL: ${AGENT_LLM_URL:-https://openrouter.ai/api/v1/chat/completions}
+      AGENT_LLM_MODEL: ${AGENT_LLM_MODEL:-deepseek/deepseek-v4.1-flash}
+      AGENT_LLM_PROXY: ${AGENT_LLM_PROXY:-}   # выход наружу, если OpenRouter режет IP сервера (403)
+      AGENT_MEMORY: ${AGENT_MEMORY:-0}        # память клиента: +1 LLM-вызов на ход, пока выключена
+      AGENT_LLM_PROVIDER: ${AGENT_LLM_PROVIDER:-}  # закрепить провайдера OpenRouter, чтобы попадал кэш
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - agent_state:/app/var
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=4).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: 96m
+    depends_on:
+      api:
+        condition: service_started
+
+  egress:   # выход агента к LLM через VPN: OpenRouter режет российский IP сервера; включается, только если есть секрет профиля
+    image: metacubex/mihomo:v1.19.32
+    profiles: ["egress"]
+    restart: unless-stopped
+    # портов наружу нет; в сети compose вход по паролю, который знает только agent (.env, chmod 600)
+    volumes:
+      - ./secrets/mihomo:/root/.config/mihomo
+    mem_limit: 48m
+
+  alfa-intellect:   # сайт Толи: аккаунты, кабинет, подбор; расчёт через api -> ядро Лизы
+    build: ./hw/tolya/alfa-intellect
+    restart: unless-stopped
+    ports:
+      - "${ALFA_PORT:-4173}:4173"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4173
+      DATABASE_PATH: /app/var/alfa.sqlite
+      TEAM_API_URL: http://api:8080
+      TEAM_AGENT_URL: http://agent:8090
+      FEEDBACK_EXPORT_TOKEN: ${FEEDBACK_EXPORT_TOKEN:-}
+      EGR_PROVIDER: mock   # ЕГРЮЛ/ЕГРИП без платных ключей: синтетические компании с пометкой «мок»
+    depends_on:
+      api:
+        condition: service_started
+      agent:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/health', {signal: AbortSignal.timeout(4000)}).then(async r => {if (!r.ok || (await r.json()).db !== 'ok') process.exit(1)}).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    volumes:
+      - alfa_data:/app/var
+    mem_limit: 256m
+
 volumes:
   journal:
+  alfa_data:
+  agent_state:

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Подгружаю данные · Кредитный агент</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>
+/* 3 · загрузка: Figma «3 страница» 72:2. Пуш танцует, пока грузится; после анкеты → кабинет с туром */
+.load { min-height: calc(100vh - 67px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 24px 16px 48px; }
+.push { width: min(560px, 80vw); aspect-ratio: 1; object-fit: contain; animation: dance 1.1s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes dance {
+  0%, 100% { transform: rotate(-4deg) translateY(0); }
+  25% { transform: rotate(0) translateY(-14px); }
+  50% { transform: rotate(4deg) translateY(0); }
+  75% { transform: rotate(0) translateY(-8px); }
+}
+.load-cap { background: var(--accent); color: #fff; border-radius: 20px; padding: 18px 40px; font-size: 22px; font-weight: 600; letter-spacing: .08em; text-align: center; max-width: 675px; width: 100%; }
+@media (max-width: 960px) { .load-cap { font-size: 17px; padding: 14px 20px; letter-spacing: .04em; } }
+@media (prefers-reduced-motion: reduce) { .push { animation: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/">
+      <span class="logo-mark"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill-rule="evenodd" d="M12.2975 11.0981L10.25 5.04891C10.056 4.45979 9.82608 4 9.05018 4C8.27428 4 8.03719 4.45979 7.82885 5.04891L5.7023 11.0981H7.13916L7.62769 9.66121H10.3433L10.8031 11.0981H12.2975ZM9.90511 8.44707H8.01564L8.9927 5.57336L9.90511 8.44707ZM12.5921 14H5.40784V12.5631H12.5921V14Z" fill="#fff"/></svg></span>
+      Альфа-Банк <span class="biz">Бизнес</span>
+    </a>
+    <nav class="nav" aria-label="Разделы">
+      <a href="anketa.html" aria-current="page">Подбор финансирования</a>
+      <a href="kabinet.html">Кредитный кабинет</a>
+      <a href="/#features">Аналитика</a>
+      <a href="/#features">О продукте</a>
+    </nav>
+    <a class="user" href="#" aria-label="Профиль"><svg class="line" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></a>
+  </div>
+</header>
+
+<main class="load" aria-live="polite">
+  <img class="push" src="img/push.png" alt="Пуш, помощник Альфа-Бизнеса, танцует">
+  <p class="load-cap">Подождите, подгружаю данные для Вас</p>
+</main>
+
+<script>
+// загрузка декоративная: ядро отвечает быстрее, экран нужен, чтобы клиент видел переход
+setTimeout(() => { location.href = 'kabinet.html?tour=1'; }, 2600);
+</script>
+</body>
+</html>

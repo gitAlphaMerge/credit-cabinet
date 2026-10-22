@@ -1,0 +1,26 @@
+services:
+  alfa-intellect:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4173:4173"
+    environment:
+      HOST: 0.0.0.0
+      DATABASE_PATH: /app/var/alfa.sqlite
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-5.4-mini}
+      DADATA_API_KEY: ${DADATA_API_KEY:-}
+      FNS_API_KEY: ${FNS_API_KEY:-}
+      EGR_PROVIDER: ${EGR_PROVIDER:-}
+      TEAM_API_URL: ${TEAM_API_URL:-http://host.docker.internal:8080}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/health', {signal: AbortSignal.timeout(4000)}).then(async r => {if (!r.ok || (await r.json()).db !== 'ok') process.exit(1)}).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    volumes:
+      - alfa_data:/app/var
+    mem_limit: 256m
+volumes:
+  alfa_data:

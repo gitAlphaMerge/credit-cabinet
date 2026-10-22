@@ -1,0 +1,15 @@
+{
+  "as_of": "2026-10-22",
+  "consistent": true,
+  "cost_rub": 18711992.02,
+  "currency": "RUB",
+  "monthly_free_cashflow_rub": 2040667.33,
+  "note": "",
+  "period": "2026",
+  "period_months": 12,
+  "present": true,
+  "profit_rub": 24488008.0,
+  "requested_amount_rub": 1000000,
+  "revenue_rub": 43200000.02,
+  "stale": false
+}

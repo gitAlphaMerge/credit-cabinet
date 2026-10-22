@@ -3,7 +3,7 @@ WORKDIR /app
 COPY go.mod main.go ./
 RUN CGO_ENABLED=0 go build -o /bin/api main.go
 
-FROM scratch
+FROM alpine:3.20
 COPY --from=build /bin/api /bin/api
 EXPOSE 8080
 ENTRYPOINT ["/bin/api"]

@@ -28,3 +28,9 @@ data/raw/
 Thumbs.db
 .idea/
 .vscode/
+
+# ответы скрытого экзамена: Лизе не уходят
+data/hidden/
+services/agent/var/
+/var/
+/secrets/
