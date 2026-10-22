@@ -38,7 +38,16 @@ def reference_score(statement_csv, need, questionnaire, _labeled=None):
     from reference import reference
     with open(_labeled, encoding="utf-8") as f:
         rows = [dict(r, amount=float(r["amount"])) for r in csv.DictReader(f)]
-    return reference(rows, need, questionnaire)
+    result = reference(rows, need, questionnaire)
+    # Only the legacy reference adapter translates vocabulary. The actual core
+    # must return catalogue IDs and cannot pass by returning a legacy label.
+    result["instrument"] = {
+        "овердрафт": "ALFA_OVERDRAFT",
+        "кредитная линия": "ALFA_RCL_UNSEC",
+        "кредит на развитие": "ALFA_START",
+        "лизинг": "ALFA_LUMP_SEC",
+    }.get(result.get("instrument"), result.get("instrument"))
+    return result
 
 
 def without_label(src, tmp):
@@ -59,9 +68,11 @@ def in_band(x, band):
 
 def check(got, exp):
     fails, notes = [], []
-    for key in ("status", "instrument"):
+    for key in ("status",):
         if got.get(key) != exp[key]:
             fails.append(f"{key}: ждали «{exp[key]}», ядро «{got.get(key)}»")
+    if got.get("instrument") not in exp["instrument"]:
+        fails.append(f"instrument: ждали одно из {exp['instrument']}, ядро «{got.get('instrument')}»; {exp['why_products']}")
     stops = got.get("stops_fired") or []
     if (stops[:1] != exp["stops_fired"][:1]) or set(stops) != set(exp["stops_fired"]):
         fails.append(f"stops_fired: ждали {exp['stops_fired']}, ядро {stops}")
