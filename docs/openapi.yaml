@@ -18,6 +18,161 @@ tags:
 - name: agent
 - name: alfa-intellect
 paths:
+  /api/applications:
+    post:
+      tags: [alfa-intellect]
+      summary: Create a bank application draft from an owned selection version
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [selectionId, selectionVersion]
+              properties:
+                selectionId: {type: string, minLength: 1, maxLength: 128}
+                selectionVersion: {type: integer, minimum: 1}
+                parent_id: {type: string, description: Owned rejected parent application}
+      responses:
+        '201':
+          description: Draft created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApplicationResult'}
+        '401': {description: Authentication required}
+        '403': {description: Client role required}
+        '404': {description: Owned selection or parent not found}
+        '409': {description: Selection version or parent status conflict}
+        '422': {description: Invalid principal or term}
+    get:
+      tags: [alfa-intellect]
+      security: [{cookieAuth: []}]
+      summary: List own client applications
+      responses:
+        '200':
+          description: Owned applications ordered by created_at and id
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/BankApplication'}}
+        '401': {description: Authentication required}
+        '403': {description: Client role required}
+  /api/applications/{id}:
+    parameters:
+    - {in: path, name: id, required: true, schema: {type: string}}
+    get:
+      tags: [alfa-intellect]
+      security: [{cookieAuth: []}]
+      summary: Read application, journal and latest dossier
+      responses:
+        '200':
+          description: Client owns application or caller is manager
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [application, events, dossier, alternative]
+                properties:
+                  application: {$ref: '#/components/schemas/BankApplication'}
+                  events: {type: array, items: {$ref: '#/components/schemas/ApplicationJournalEvent'}}
+                  dossier:
+                    anyOf:
+                    - {$ref: '#/components/schemas/ApplicationDossier'}
+                    - {type: 'null'}
+                  alternative: {type: [object, 'null'], description: Legacy manager rejection alternative}
+        '401': {description: Authentication required}
+        '404': {description: Not found or foreign client application}
+  /api/applications/{id}/events:
+    parameters:
+    - {in: path, name: id, required: true, schema: {type: string}}
+    - {in: header, name: Idempotency-Key, required: true, schema: {type: string, minLength: 1, maxLength: 200}}
+    post:
+      tags: [alfa-intellect]
+      security: [{cookieAuth: []}]
+      summary: Apply a guarded application event with atomic automatic cascade
+      description: >-
+        submit requires payload.consent=true. client_update requires confirmed_fields or documents;
+        stored user documents supply scoring evidence. accept_alternative requires option_id from
+        the latest dossier and reruns compliance, core and BKI with the option amount and term.
+        Green results return offered after three system events. Hard stops return rejected,
+        incomplete evidence and excessive principal return info_requested. agent_nudge requires text;
+        escalate_silent requires a nudge after the latest info cycle; escalate_disagreed requires
+        client_objections. These three agent events can be delegated only by the owning client session,
+        and are recorded as system. Manager request_info/reject require reason; send_to_underwriting
+        requires memo and a complete dossier within limit and cascades to offered. Client sign with
+        code 0000 cascades to disbursed. Other system events are internal only. Role comes from the
+        session database, never from request payload. Exact Idempotency-Key replay returns the original
+        response without rescoring, including stale expectedVersion. Conflicting key reuse returns 422.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [event, expectedVersion]
+              properties:
+                event:
+                  type: string
+                  enum: [create, submit, request_info, client_update, reject, send_to_underwriting,
+                    underwriter_approve, make_offer, sign, disburse, expire, withdraw,
+                    accept_alternative, agent_nudge, escalate_silent, escalate_disagreed]
+                expectedVersion: {type: integer, minimum: 1}
+                reason: {type: string, maxLength: 4000}
+                payload: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: Final committed application or idempotent replay
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApplicationResult'}
+        '401': {description: Authentication required}
+        '403': {description: Forbidden role or internal system event}
+        '404': {description: Application absent or foreign}
+        '409': {description: Invalid transition, stale version, missing nudge or AMOUNT_EXCEEDS_LIMIT}
+        '422': {description: Invalid payload, unknown option_id or conflicting idempotency key}
+        '500': {description: Transaction failed and all writes rolled back}
+        '503': {description: Compliance or core unavailable; no application writes committed}
+  /api/bank/queue:
+    get:
+      tags: [alfa-intellect]
+      security: [{cookieAuth: []}]
+      summary: Red queued applications only, sorted by priority
+      description: >-
+        Principal for priority is min(amount, limit_now_rub), or zero without a scored limit.
+        Priority = principal * (N/M) / (1+holes.length) + PRIORITY_AGING_K * hours.
+        Ties use queued_at then application id. info_requested and rejected are excluded.
+      responses:
+        '200':
+          description: Manager queue
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/BankQueueItem'}}
+        '401': {description: Authentication required}
+        '403': {description: Manager role required}
+        '503': {description: Dossier or completeness metadata missing}
+  /api/bank/rejected:
+    get:
+      tags: [alfa-intellect]
+      security: [{cookieAuth: []}]
+      summary: Rejected applications with reason, separate from the active queue
+      responses:
+        '200':
+          description: Rejected applications ordered by updated_at then id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                  - {$ref: '#/components/schemas/BankApplication'}
+                  - type: object
+                    properties:
+                      red_reason: {const: UNDERWRITING_REJECTED}
+                      reason: {type: [string, 'null']}
+        '401': {description: Authentication required}
+        '403': {description: Manager role required}
   /api/chats/{id}/feedback:
     parameters:
     - in: path
@@ -1768,6 +1923,90 @@ components:
       in: cookie
       name: alfa_session
   schemas:
+    BankApplication:
+      type: object
+      required: [id, user_id, selection_id, selection_version, status, amount, term_months, purpose, version]
+      properties:
+        id: {type: string}
+        user_id: {type: string}
+        selection_id: {type: string}
+        selection_version: {type: integer}
+        status: {type: string, enum: [draft, queued, info_requested, underwriting, approved, offered, signed, disbursed, rejected, expired, withdrawn]}
+        amount: {type: integer, minimum: 1}
+        term_months: {type: integer, minimum: 1, maximum: 120}
+        purpose: {type: string}
+        version: {type: integer, minimum: 1}
+        consent_at: {type: [string, 'null']}
+        queued_at: {type: [string, 'null']}
+        created_at: {type: string}
+        updated_at: {type: string}
+    ApplicationResult:
+      type: object
+      required: [application]
+      properties:
+        application: {$ref: '#/components/schemas/BankApplication'}
+    ApplicationJournalEvent:
+      type: object
+      properties:
+        application_id: {type: string}
+        seq: {type: integer}
+        event: {type: string}
+        from_status: {type: [string, 'null']}
+        to_status: {type: string}
+        actor_role: {type: string, enum: [client, manager, system]}
+        actor_id: {type: [string, 'null']}
+        reason: {type: [string, 'null']}
+        payload: {type: string, description: JSON string with sensitive keys stripped recursively}
+        at: {type: string}
+    ApplicationAlternative:
+      type: object
+      required: [option_id, kind, product_id, product_name, amount_rub, term_months, rate_annual_pct, monthly_payment_rub, reason]
+      properties:
+        option_id: {type: string}
+        kind: {type: string, enum: [smaller_amount, longer_term, other_product]}
+        product_id: {type: string}
+        product_name: {type: string}
+        amount_rub: {type: integer}
+        term_months: {type: integer}
+        rate_annual_pct: {type: number}
+        monthly_payment_rub: {type: number}
+        reason: {type: string}
+    ApplicationDossier:
+      type: object
+      properties:
+        application_id: {type: string}
+        version: {type: integer}
+        core_result: {type: string, description: Untouched core reply JSON, empty object when compliance blocked core}
+        checks: {type: string, description: JSON map of checks plus _v2 compliance and alternatives metadata}
+        holes: {type: string, description: JSON array of checklist hole keys}
+        readiness_n: {type: [number, 'null']}
+        readiness_m: {type: [number, 'null']}
+        checklist_version: {type: [string, 'null']}
+        created_at: {type: string}
+        compliance: {type: object, description: Full gate report with checks including source and checkedAt, documents, reasons, holes and enrichment}
+        alternatives: {type: array, items: {$ref: '#/components/schemas/ApplicationAlternative'}}
+        client_objections: {type: [string, 'null']}
+    BankQueueItem:
+      type: object
+      required: [application, priority, terms, red_reason, client_objections, alternatives, N, M, holes, checks]
+      properties:
+        application: {$ref: '#/components/schemas/BankApplication'}
+        priority: {type: number}
+        terms:
+          type: object
+          properties:
+            amount: {type: number}
+            ready: {type: number}
+            holes: {type: integer}
+            hours: {type: number}
+            K: {type: number}
+        red_reason: {enum: [CLIENT_SILENT, CLIENT_DISAGREED, null], description: Null only for legacy queue entries without escalation events}
+        client_objections: {type: [string, 'null']}
+        alternatives: {type: array, items: {$ref: '#/components/schemas/ApplicationAlternative'}}
+        N: {type: number}
+        M: {type: number}
+        holes: {type: array, items: {type: string}}
+        checks: {type: object}
     FeedbackInput:
       type: object
       additionalProperties: false

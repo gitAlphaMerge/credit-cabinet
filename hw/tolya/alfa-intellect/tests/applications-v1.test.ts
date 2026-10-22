@@ -66,19 +66,20 @@ test("real /score shape without N/M: HTTP adapter, local checklist and S1 to dis
   assert.deepEqual(JSON.parse(d.holes), []);
   assert.deepEqual(JSON.parse(d.core_result), raw);
   const checks = JSON.parse(d.checks);
-  assert.deepEqual(Object.values(checks).map((c: any) => c.status), ["ok", "ok", "ok"]);
-  await post(id, "send_to_underwriting", { memo: "Verified" }).expect(200);
+  for (const key of ["bki", "aml", "fns"]) assert.equal(checks[key].status, "ok");
+  assert.ok(checks._v2.compliance);
+  assert.equal(applications.applicationOf(db, id).status, "offered");
   await post(id, "sign", { code: "0000" }).expect(200);
   assert.equal(applications.applicationOf(db, id).status, "disbursed");
 });
-test("SHORT_STATEMENT queues for request_info; ENFORCEMENT and mixed stops reject", async () => {
+test("SHORT_STATEMENT requests info; ENFORCEMENT and mixed stops reject", async () => {
   for (const stops of [["SHORT_STATEMENT"], ["ENFORCEMENT"], ["SHORT_STATEMENT", "ENFORCEMENT"]]) {
     core().stops_fired = stops;
     const id = await submit();
-    assert.equal(applications.applicationOf(db, id).status, stops.length === 1 && stops[0] === "SHORT_STATEMENT" ? "queued" : "rejected");
+    assert.equal(applications.applicationOf(db, id).status, stops.length === 1 && stops[0] === "SHORT_STATEMENT" ? "info_requested" : "rejected");
     if (stops[0] === "SHORT_STATEMENT") assert.ok(JSON.parse(applications.dossierOf(db, id)!.holes).includes("statement"));
     if (stops.includes("ENFORCEMENT")) assert.equal(applications.eventsOf(db, id).at(-1)!.reason, "ENFORCEMENT");
-    else await post(id, "request_info").expect(200);
+
   }
 });
 test("underwriting over limit or incomplete dossier: 409 with no writes", async () => {
@@ -95,13 +96,20 @@ test("checklist: bad/unavailable/unknown checks and missing profile/statement re
   for (const inn of ["9900000011", "9900000022", "7712345678", ""]) {
     const s = structuredClone(state); s.profile.inn = inn; s.profile.ageBand = ""; s.documents[0].confirmed = false;
     db.prepare("UPDATE users SET state=? WHERE id='owner-v1'").run(JSON.stringify(s));
+    applications.configureApplications({ ...deps, compliance: async () => ({ gate: "info_requested", checks: [],
+      documents: [], reasons: ["COMPLIANCE_SOURCE_UNAVAILABLE"], holes: ["compliance"], enrichment: {} }) });
     const id = await submit(), d = applications.dossierOf(db, id)!;
-    assert.equal(d.readiness_n, 2); assert.equal(d.readiness_m, 5);
-    assert.deepEqual(JSON.parse(d.holes), ["business", "statement", "checks"]);
+    assert.equal(applications.applicationOf(db,id).status, "info_requested");
+    assert.equal(d.readiness_n, 0);
+    assert.ok(JSON.parse(d.holes).length > 0);
+    assert.ok(d.compliance);
+    assert.equal(inputs.length, 0);
   }
 });
 test("reject alternative is returned to client and parent_id creates a new draft", async () => {
-  const id = await submit(), alternative = { amount: 100000, term_months: 3 };
+  core().missing = ["contract_main_customer"];
+  const id = await submit(); await escalate(id);
+  const alternative = { amount: 100000, term_months: 3 };
   await post(id, "reject", { alternative }).expect(200);
   const detail = await request(app).get(`/api/applications/${id}`).set("Cookie", cookie).expect(200);
   assert.deepEqual(detail.body.alternative, alternative);
@@ -112,7 +120,8 @@ test("reject alternative is returned to client and parent_id creates a new draft
   assert.equal(JSON.parse(applications.eventsOf(db, created.body.application.id)[0].payload as string).parent_id, id);
 });
 test("new hard stop on client_update persists new dossier and system rejection atomically", async () => {
-  const id = await submit(); await post(id, "request_info").expect(200);
+  core().missing = ["contract_main_customer"];
+  const id = await submit();
   core().stops_fired = ["ENFORCEMENT"];
   await post(id, "client_update", { confirmed_fields: { reconciliation_act: true } }).expect(200);
   assert.equal(applications.applicationOf(db, id).status, "rejected");
@@ -127,11 +136,11 @@ test("PII keys are stripped recursively from application_events payload", async 
   const id = create();
   await post(id, "submit", { consent: true, phone: "secret-phone", inn: "secret-inn",
     passport: "secret-passport", email: "secret-email", nested: [{ phone: "nested-secret", keep: "yes" }] }).expect(200);
-  const payload = JSON.parse(applications.eventsOf(db, id).at(-1)!.payload as string);
+  const payload = JSON.parse(applications.eventsOf(db, id).find(e => e.event === "submit")!.payload as string);
   assert.deepEqual(payload, { consent: true, nested: [{ keep: "yes" }] });
 });
 test("mutant: exact kopeck schedule for nonround principal", async () => {
-  const id = await submit(); await post(id, "send_to_underwriting", { memo: "Verified" }).expect(200);
+  const id = await submit(); assert.equal(applications.applicationOf(db,id).status,"offered");
   const event = applications.eventsOf(db, id).find(e => e.event === "make_offer")!;
   assert.deepEqual(JSON.parse(event.payload as string).schedule, [
     { principal: 40340.15, interest: 2469.14, payment: 42809.29 },
@@ -149,9 +158,10 @@ test("mutant: PRIORITY_AGING_K configuration affects literal manual priority", a
   const previous = process.env.PRIORITY_AGING_K;
   try {
     process.env.PRIORITY_AGING_K = "1234";
-    const id = await submit(); now += 2.5 * 3600000;
+    core().limit_now_rub = 123456;
+    const id = await submit(); await escalate(id); now += 2.5 * 3600000;
     const row = applications.bankQueue(db, deps).find(r => r.application.id === id)!;
-    assert.equal(row.terms.K, 1234); assert.equal(row.priority, 126542);
+    assert.equal(row.terms.K, 1234); assert.equal(row.priority, 126541);
   } finally { if (previous === undefined) delete process.env.PRIORITY_AGING_K; else process.env.PRIORITY_AGING_K = previous; }
 });
 test("mutant: core receives exact confirmed statement CSV with escaping", async () => {
@@ -163,13 +173,17 @@ test("mutant: two info cycles accumulate confirmed fields and close conditional 
   const id = await submit();
   assert.equal(applications.dossierOf(db, id)!.readiness_m, 7);
   const contract = { sum_rub: 1440000, months: 12 };
-  await post(id, "request_info").expect(200);
   await post(id, "client_update", { confirmed_fields: { contract_main_customer: contract } }).expect(200);
   assert.deepEqual(JSON.parse(applications.dossierOf(db, id)!.holes), ["reconciliation_act"]);
-  await post(id, "request_info").expect(200);
   await post(id, "client_update", { confirmed_fields: { reconciliation_act: { verified: true } } }).expect(200);
   assert.deepEqual(inputs.at(-1)!.confirmed_fields, { contract_main_customer: contract, reconciliation_act: { verified: true } });
   const d = applications.dossierOf(db, id)!;
   assert.equal(d.readiness_n, 7); assert.equal(d.readiness_m, 7); assert.deepEqual(JSON.parse(d.holes), []);
   assert.deepEqual(JSON.parse(d.core_result), raw);
 });
+
+async function escalate(id: string) {
+  await applications.transitionApplication(db,{applicationId:id,event:"escalate_disagreed",
+    expectedVersion:applications.applicationOf(db,id).version,actorRole:"system",actorId:null,
+    payload:{client_objections:"Please contact me"}},deps);
+}

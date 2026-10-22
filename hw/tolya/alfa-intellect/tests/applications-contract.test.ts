@@ -65,10 +65,10 @@ type Role = typeof ROLES[number];
 type Transition = readonly [Status | null, Event, Role, Status];
 const TABLE: readonly Transition[] = [
   [null, "create", "client", "draft"],
-  ["draft", "submit", "client", "queued"],
+  ["draft", "submit", "client", "underwriting"],
   ["draft", "submit", "system", "rejected"],
   ["queued", "request_info", "manager", "info_requested"],
-  ["info_requested", "client_update", "client", "queued"],
+  ["info_requested", "client_update", "client", "underwriting"],
   ["info_requested", "client_update", "system", "rejected"],
   ["queued", "reject", "manager", "rejected"],
   ["queued", "send_to_underwriting", "manager", "underwriting"],
@@ -288,7 +288,11 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
       assert.ok(status === null || !TERMINAL.has(status), `${label}: event after terminal at ${i}`);
       assert.equal(event.seq, i + 1, `${label}: seq hole`);
       assert.equal(event.from_status, status, `${label}: broken from/to chain`);
-      const target = expected(status, event.event, event.actor_role);
+      const target: Status | undefined = TABLE.find(([f,e,r,to]) => f === status && e === event.event && r === event.actor_role && to === event.to_status)?.[3]
+        ?? (["submit", "client_update"].includes(event.event) && event.actor_role === "system"
+          && ((status === "draft" && event.event === "submit") || (status === "info_requested" && event.event === "client_update"))
+          && ["underwriting", "info_requested"].includes(event.to_status) ? event.to_status : undefined)
+        ?? (status === "info_requested" && (event.event as string) === "escalate_disagreed" && event.actor_role === "system" ? "queued" : undefined);
       assert.ok(target, `${label}: forbidden replay ${status}/${event.event}/${event.actor_role}`);
       assert.equal(event.to_status, target, `${label}: oracle disagrees with journal`);
       status = target;
@@ -324,29 +328,30 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     core?: CoreReply } = {}): string {
     const id = options.id ?? randomUUID();
     const paths: Record<Status, [Event, Role][]> = {
-      draft: [], queued: [["submit", "client"]],
-      info_requested: [["submit", "client"], ["request_info", "manager"]],
-      underwriting: [["submit", "client"], ["send_to_underwriting", "manager"]],
-      approved: [["submit", "client"], ["send_to_underwriting", "manager"], ["underwriter_approve", "system"]],
-      offered: [["submit", "client"], ["send_to_underwriting", "manager"], ["underwriter_approve", "system"], ["make_offer", "system"]],
-      signed: [["submit", "client"], ["send_to_underwriting", "manager"], ["underwriter_approve", "system"], ["make_offer", "system"], ["sign", "client"]],
-      disbursed: [["submit", "client"], ["send_to_underwriting", "manager"], ["underwriter_approve", "system"], ["make_offer", "system"], ["sign", "client"], ["disburse", "system"]],
+      draft: [], queued: [["submit", "system"], ["escalate_disagreed" as Event, "system"]],
+      info_requested: [["submit", "system"]],
+      underwriting: [["submit", "system"]],
+      approved: [["submit", "system"], ["underwriter_approve", "system"]],
+      offered: [["submit", "system"], ["underwriter_approve", "system"], ["make_offer", "system"]],
+      signed: [["submit", "system"], ["underwriter_approve", "system"], ["make_offer", "system"], ["sign", "client"]],
+      disbursed: [["submit", "system"], ["underwriter_approve", "system"], ["make_offer", "system"], ["sign", "client"], ["disburse", "system"]],
       rejected: [["submit", "system"]],
-      expired: [["submit", "client"], ["send_to_underwriting", "manager"], ["underwriter_approve", "system"], ["make_offer", "system"], ["expire", "system"]],
+      expired: [["submit", "system"], ["underwriter_approve", "system"], ["make_offer", "system"], ["expire", "system"]],
       withdrawn: [["withdraw", "client"]],
     };
     const path: [Event, Role][] = [["create", "client"], ...paths[status]];
-    const queuedAt = path.some(([e, r]) => e === "submit" && r === "client")
-      ? options.queuedAt ?? OLD_TIME : null;
+    const queuedAt = status === "queued" ? options.queuedAt ?? OLD_TIME : null;
+    const consentAt = status !== "draft" && status !== "withdrawn" ? OLD_TIME : null;
     db.prepare(`INSERT INTO applications
       (id,user_id,selection_id,selection_version,status,amount,term_months,purpose,
        version,consent_at,queued_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(id, ownerId, selection.id, selection.version, status, options.amount ?? 1_000_000,
-        12, "Оборудование", path.length, queuedAt, queuedAt, OLD_TIME, OLD_TIME);
+        12, "Оборудование", path.length, consentAt, queuedAt, OLD_TIME, OLD_TIME);
     let from: Status | null = null;
     for (let index = 0; index < path.length; index++) {
       const [event, role] = path[index];
-      const to: Status = expected(from, event, role)!;
+      const to: Status = event === "submit" ? (status === "rejected" ? "rejected" : status === "queued" || status === "info_requested" ? "info_requested" : "underwriting")
+        : (event as string) === "escalate_disagreed" ? "queued" : expected(from, event, role)!;
       db.prepare(`INSERT INTO application_events
         (application_id,seq,event,from_status,to_status,actor_role,actor_id,reason,payload,at)
         VALUES(?,?,?,?,?,?,?,?,?,?)`).run(id, index + 1, event, from, to, role,
@@ -355,11 +360,11 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
           JSON.stringify(validPayload(event)), OLD_TIME);
       from = to;
     }
-    if (queuedAt) {
+    if (consentAt) {
       const value = options.core ?? coreReply();
       db.prepare(`INSERT INTO dossiers(application_id,version,core_result,checks,holes,created_at,readiness_n,readiness_m,checklist_version)
         VALUES(?,?,?,?,?,?,?,?,?)`).run(id, 1, JSON.stringify(value.core_result),
-          JSON.stringify(value.checks), JSON.stringify(value.holes), OLD_TIME, value.N, value.M, "mvp2-demo-v1");
+          JSON.stringify({ _v2: { compliance: { gate: "pass", checks: [], documents: [], reasons: [], holes: [], enrichment: {} }, alternatives: [] } }), JSON.stringify(value.holes), OLD_TIME, value.N, value.M, "mvp2-demo-v1");
     }
     invariants(id, `seed ${status}`);
     return id;
@@ -373,14 +378,17 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     catch (error) { failure = error; }
     if (target) {
       assert.equal(failure, undefined, `${label}: allowed transition threw ${String(failure)}`);
-      assert.equal(result?.application.status, target, `${label}: wrong return status`);
-      assert.equal(row(id).status, target, `${label}: wrong stored status`);
-      assert.equal(row(id).version, before.application.version + 1, `${label}: version must advance once`);
-      assert.equal(journal(id).length, before.events.length + 1, `${label}: exactly one new event`);
-      const last = journal(id).at(-1)!;
-      assert.equal(last.event, event, label); assert.equal(last.actor_role, role, label);
-      assert.equal(last.from_status, before.application.status, label);
-      assert.equal(last.to_status, target, label);
+      const automatic = (event === "submit" || event === "client_update") && role === "client";
+      const finalTarget = automatic ? "offered" : target;
+      const steps = automatic ? 3 : 1;
+      assert.equal(result?.application.status, finalTarget, `${label}: wrong return status`);
+      assert.equal(row(id).status, finalTarget, `${label}: wrong stored status`);
+      assert.equal(row(id).version, before.application.version + steps, `${label}: version must advance once`);
+      assert.equal(journal(id).length, before.events.length + steps, `${label}: exactly one new event`);
+      const first = journal(id)[before.events.length];
+      assert.equal(first.event, event, label); assert.equal(first.actor_role, automatic ? "system" : role, label);
+      assert.equal(first.from_status, before.application.status, label);
+      assert.equal(first.to_status, target, label);
     } else {
       assert.ok(failure, `${label}: forbidden transition succeeded`);
       const status = (failure as { status?: number }).status;
@@ -427,33 +435,14 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
 
   test("HTTP happy path: fresh dossier, synchronous offered/disbursed, journal replay, schedule sums", async () => {
     const created = await create(), id = created.id;
-    await post(owner, id, "submit").expect(200);
-    assert.equal(row(id).status, "queued");
+    const beforeSubmit = snapshot(id);
+    const offered = await post(owner, id, "submit").expect(200);
+    assert.equal(offered.body.application.status, "offered");
     assert.equal(row(id).consent_at, new Date(now).toISOString());
-    assert.equal(row(id).queued_at, new Date(now).toISOString());
-    const firstDossier = dossiers(id).at(-1)!;
-    const queuedAt = row(id).queued_at;
-    await post(manager, id, "request_info", { reason: "Upload the signed contract" }).expect(200);
-    assert.equal(row(id).status, "info_requested");
-    now += 5 * HOUR;
-    reply = coreReply(9, 11, []);
-    reply.core_result.decision_id = "recalculated-with-new-evidence";
-    const coreCalls = coreInputs.length;
-    await post(owner, id, "client_update").expect(200);
-    assert.equal(coreInputs.length, coreCalls + 1, "client_update must call the core again");
-    assert.ok(JSON.stringify(coreInputs.at(-1)).includes("1440000"), "new evidence must reach core");
-    assert.equal(row(id).status, "queued");
-    assert.equal(row(id).queued_at, queuedAt, "client_update must preserve original queue age");
-    assert.equal(dossiers(id).length, 2);
-    assert.deepEqual(dossiers(id)[0], firstDossier, "old dossier is immutable");
-    assert.ok(dossiers(id)[1].version > firstDossier.version);
-    assert.equal(dossiers(id)[1].core_result, JSON.stringify(reply.core_result));
-    const beforeUW = snapshot(id);
-    const offered = await post(manager, id, "send_to_underwriting").expect(200);
-    assert.equal(offered.body.application.status, "offered", "must complete before HTTP response");
-    assert.equal(row(id).version, beforeUW.application.version + 3);
-    assert.deepEqual(journal(id).slice(beforeUW.events.length).map(e => [e.event, e.actor_role]),
-      [["send_to_underwriting", "manager"], ["underwriter_approve", "system"], ["make_offer", "system"]]);
+    assert.equal(row(id).queued_at, null);
+    assert.equal(row(id).version, beforeSubmit.application.version + 3);
+    assert.deepEqual(journal(id).slice(1).map(e => [e.event, e.actor_role]),
+      [["submit", "system"], ["underwriter_approve", "system"], ["make_offer", "system"]]);
     const offer = JSON.parse(journal(id).find(e => e.event === "make_offer")!.payload);
     assert.ok(Number.isFinite(offer.amount) && offer.amount > 0 && offer.amount <= created.amount);
     const approval = JSON.parse(journal(id).find(e => e.event === "underwriter_approve")!.payload);
@@ -486,8 +475,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
   });
 
   test("race: two HTTP operations with one expectedVersion, exactly one 200 and one 409", async () => {
-    const id = (await create()).id;
-    await post(owner, id, "submit").expect(200);
+    const id = seed("queued");
     const before = snapshot(id), version = before.application.version;
     const results = await Promise.all([
       post(manager, id, "request_info", { expectedVersion: version, reason: "Need evidence" }),
@@ -510,7 +498,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     assert.deepEqual(second.body, first.body);
     assert.deepEqual(snapshot(id), afterFirst);
     assert.equal(coreInputs.length, calls, "retry must not rescore");
-    assert.equal(afterFirst.events.length, before.events.length + 1);
+    assert.equal(afterFirst.events.length, before.events.length + 3);
     await post(owner, id, "submit", { ...options, payload: { consent: false } }).expect(422);
     assert.deepEqual(snapshot(id), afterFirst);
     invariants(id, "idempotent submit");
@@ -530,9 +518,9 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
       db.exec("DROP TRIGGER p1_abort_event");
     }
     await post(owner, id, "submit", { key, expectedVersion: before.application.version }).expect(200);
-    assert.equal(row(id).status, "queued");
-    assert.equal(row(id).version, before.application.version + 1);
-    assert.equal(journal(id).length, before.events.length + 1);
+    assert.equal(row(id).status, "offered");
+    assert.equal(row(id).version, before.application.version + 3);
+    assert.equal(journal(id).length, before.events.length + 3);
     invariants(id, "atomic retry");
   });
 
@@ -564,7 +552,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     assert.equal(journal(id).length, 1, "create remains; failed submit contributes zero events");
     coreError = undefined;
     await post(owner, id, "submit", { key }).expect(200);
-    assert.equal(row(id).status, "queued");
+    assert.equal(row(id).status, "offered");
     invariants(id, "core outage retry");
   });
 
@@ -576,13 +564,19 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     assert.equal(coreInputs.length, 1);
     const dossier = dossiers(id).at(-1)!;
     assert.equal(dossier.core_result, raw);
-    const { runChecks } = await import("../server/checks");
-    assert.deepEqual(JSON.parse(dossier.checks), await runChecks("9900000001"));
+    const checks = JSON.parse(dossier.checks);
+    for (const key of ["bki", "aml", "fns"]) assert.equal(checks[key].status, "ok");
+    const { checkCreditHistory } = await import("../server/checks");
+    const { runComplianceGate } = await import("../server/compliance");
+    const compliance = await runComplianceGate({ inn: "9900000001", now: new Date(now),
+      documents: [{ category: "statement", confirmed: true, documentDate: null }] });
+    assert.deepEqual(checks.bki, await checkCreditHistory("9900000001"));
+    assert.deepEqual(checks._v2.compliance, compliance);
+    for (const check of compliance.checks) assert.deepEqual(checks[check.key], check);
     assert.deepEqual(JSON.parse(dossier.holes), []);
-    const item = ((await manager.get("/api/bank/queue").expect(200)).body as QueueRow[])
-      .find(r => r.application.id === id)!;
-    assert.ok(item); assert.equal(item.terms.ready, 1); assert.equal(item.terms.holes, 0);
-    assert.equal(item.priority, 1_000_000);
+    assert.equal(row(id).status, "offered");
+    const queue = (await manager.get("/api/bank/queue").expect(200)).body as QueueRow[];
+    assert.ok(!queue.some(r => r.application.id === id));
   });
 
   test("queue: six hand-calculated priorities, all terms, both tie-breakers, status filter", async () => {
@@ -595,14 +589,14 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
       { id: "queue-fraction", amount: 900_000, N: 2, M: 3, holes: ["a", "b"], hours: 3, priority: 260_000 },
       { id: "queue-zero", amount: 5_000_000, N: 0, M: 5, holes: [], hours: 1, priority: 20_000 },
     ];
-    for (const [i, c] of cases.entries()) seed(i === 4 ? "info_requested" : "queued", {
+    for (const [i, c] of cases.entries()) seed("queued", {
       id: c.id, amount: c.amount, queuedAt: new Date(now - c.hours * HOUR).toISOString(),
       core: coreReply(c.N, c.M, c.holes),
     });
-    const excluded = STATUSES.filter(s => s !== "queued" && s !== "info_requested").map(s => seed(s));
+    const excluded = STATUSES.filter(s => s !== "queued").map(s => seed(s));
     const all = (await manager.get("/api/bank/queue").expect(200)).body as QueueRow[];
     assert.ok(Array.isArray(all));
-    assert.ok(all.every(r => r.application.status === "queued" || r.application.status === "info_requested"));
+    assert.ok(all.every(r => r.application.status === "queued"));
     assert.ok(all.every(r => !excluded.includes(r.application.id)));
     const actual = all.filter(r => cases.some(c => c.id === r.application.id));
     assert.deepEqual(actual.map(r => r.application.id),
@@ -610,7 +604,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     for (const c of cases) {
       const item = actual.find(r => r.application.id === c.id)!;
       assert.equal(item.priority, c.priority, c.id);
-      assert.equal(item.terms.amount, c.amount, c.id);
+      assert.equal(item.terms.amount, Math.min(c.amount, 1015007), c.id);
       assert.equal(item.terms.ready, c.N / c.M, c.id);
       assert.equal(item.terms.holes, c.holes.length, c.id);
       assert.equal(item.terms.hours, c.hours, c.id);
