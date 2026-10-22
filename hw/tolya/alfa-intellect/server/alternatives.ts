@@ -3,7 +3,8 @@
  * Заглушка базы: типы заморожены, тело заменит P3. Источник продуктов: data/catalog/products.json
  * (8 продуктов Толи, ALFA_*). Ставки и рамки берутся только оттуда, не выдумываются.
  */
-export type AlternativeKind = "smaller_amount" | "longer_term" | "other_product";
+export type AlternativeKind =
+  "smaller_amount" | "longer_term" | "other_product";
 export type AlternativeOffer = {
   option_id: string;
   kind: AlternativeKind;
@@ -27,6 +28,8 @@ export type AlternativesRequest = {
   core_instrument: string | null;
   core_status: string | null;
 };
-export type AlternativesBuilder = (req: AlternativesRequest) => AlternativeOffer[];
+export type AlternativesBuilder = (
+  req: AlternativesRequest,
+) => AlternativeOffer[];
 
 export const buildAlternatives: AlternativesBuilder = () => [];

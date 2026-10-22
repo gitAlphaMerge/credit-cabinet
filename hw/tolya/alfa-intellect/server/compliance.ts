@@ -46,10 +46,16 @@ export type ComplianceReport = {
 };
 export type ComplianceInput = {
   inn: string;
-  documents: { category: string; confirmed: boolean; documentDate: string | null }[];
+  documents: {
+    category: string;
+    confirmed: boolean;
+    documentDate: string | null;
+  }[];
   now: Date;
 };
-export type ComplianceGate = (input: ComplianceInput) => Promise<ComplianceReport>;
+export type ComplianceGate = (
+  input: ComplianceInput,
+) => Promise<ComplianceReport>;
 
 export const runComplianceGate: ComplianceGate = async ({ inn, now }) => {
   const r = await runChecks(inn);
@@ -58,8 +64,22 @@ export const runComplianceGate: ComplianceGate = async ({ inn, now }) => {
   return {
     gate: ok ? "pass" : "info_requested",
     checks: [
-      { key: "aml", status: r.aml.status, managerText: "status" in r.aml && r.aml.status !== "ok" ? r.aml.managerText : "ok", source: r.aml.source, checkedAt: at },
-      { key: "fns", status: r.fns.status, managerText: "status" in r.fns && r.fns.status !== "ok" ? r.fns.managerText : "ok", source: r.fns.source, checkedAt: at },
+      {
+        key: "aml",
+        status: r.aml.status,
+        managerText:
+          "status" in r.aml && r.aml.status !== "ok" ? r.aml.managerText : "ok",
+        source: r.aml.source,
+        checkedAt: at,
+      },
+      {
+        key: "fns",
+        status: r.fns.status,
+        managerText:
+          "status" in r.fns && r.fns.status !== "ok" ? r.fns.managerText : "ok",
+        source: r.fns.source,
+        checkedAt: at,
+      },
     ],
     documents: [],
     reasons: [],
