@@ -6,6 +6,7 @@ import {
   checkCreditHistory,
   checkAml,
   checkTransparentBusiness,
+  checkBankruptcy,
   runChecks,
 } from "../server/checks";
 import { RegistryError } from "../server/registry";
@@ -68,10 +69,17 @@ test("Все четыре мока ЕГР имеют разные детерми
     readFileSync(new URL("../fixtures/egr-mock.json", import.meta.url), "utf8"),
   ) as { inn: string }[];
   const combinations = new Set<string>();
+  const allCombinations = new Set<string>();
   for (const { inn } of companies) {
     const first = await runChecks(inn);
     assert.deepEqual(await runChecks(inn), first);
-    combinations.add(JSON.stringify(Object.values(first).map((r) => r.status)));
+    allCombinations.add(JSON.stringify(Object.values(first).map((r) => r.status)));
+    if (
+      ["9900000001", "9900000002", "990000000001", "990000000002"].includes(inn)
+    )
+      combinations.add(
+        JSON.stringify(Object.values(first).map((r) => r.status)),
+      );
     for (const result of Object.values(first))
       assert.equal(result.source, source);
   }
@@ -80,7 +88,20 @@ test("Все четыре мока ЕГР имеют разные детерми
     await runChecks(scenario.unavailable);
   }
   assert.equal(combinations.size, 4);
+  assert.equal(allCombinations.size, 5);
   assert.equal(calls, 0);
+});
+
+test("bankruptcy: explicit clean and active scenarios are independent copies", async () => {
+  assert.equal((await checkBankruptcy("9900000001")).status, "ok");
+  const result = await checkBankruptcy("9900000042");
+  assert.equal(result.status, "bad");
+  if (result.status !== "bad") return;
+  assert.equal(result.data.active, true);
+  assert.equal(result.reasonCode, "COMPLIANCE_BANKRUPTCY");
+  result.data.active = false;
+  const again = await checkBankruptcy("9900000042");
+  assert.ok(again.status === "bad" && again.data.active);
 });
 
 test("Неизвестный и неполный ИНН: понятные 404/422 как у registry", async () => {

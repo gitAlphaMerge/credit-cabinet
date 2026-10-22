@@ -28,6 +28,7 @@ type FixtureResult<T> =
       : never
     : never;
 type CheckData = {
+  bankruptcy: { active: boolean };
   bki: CreditHistory;
   aml: { requiresReview: boolean };
   fns: { taxDebtRub: number; unreliableDetails: boolean };
@@ -63,9 +64,14 @@ function result<K extends keyof CheckData>(
   inn: string,
   key: K,
 ): CheckResult<CheckData[K]> {
-  return { ...structuredClone(fixtureFor(inn)[key]), source } as CheckResult<
-    CheckData[K]
-  >;
+  const fixture = fixtureFor(inn)[key];
+  if (!fixture)
+    return {
+      status: "unavailable",
+      managerText: "Результат отсутствует в локальном моке.",
+      source,
+    };
+  return { ...structuredClone(fixture), source } as CheckResult<CheckData[K]>;
 }
 
 /** Читает синтетическую кредитную историю. */
@@ -79,6 +85,10 @@ export async function checkAml(inn: string) {
 /** Читает синтетические сведения ФНС «Прозрачный бизнес». */
 export async function checkTransparentBusiness(inn: string) {
   return result(inn, "fns");
+}
+/** Читает синтетические сведения о действующем банкротстве. */
+export async function checkBankruptcy(inn: string) {
+  return result(inn, "bankruptcy");
 }
 /** Собирает три результата; недоступность хранится как исход проверки. */
 export async function runChecks(inn: string) {

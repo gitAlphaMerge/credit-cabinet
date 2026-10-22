@@ -21,13 +21,9 @@ export class RegistryError extends Error {
   }
 }
 export function registryProvider(env: NodeJS.ProcessEnv = process.env) {
-  return env.EGR_PROVIDER === "mock"
-    ? "mock"
-    : env.FNS_API_KEY
-      ? "api-fns"
-      : env.DADATA_API_KEY
-        ? "dadata"
-        : "mock";
+  return env.EGR_PROVIDER === "api-fns" || env.EGR_PROVIDER === "dadata"
+    ? env.EGR_PROVIDER
+    : "mock";
 }
 export async function findCompany(
   inn: string,

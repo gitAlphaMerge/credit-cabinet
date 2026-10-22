@@ -22,6 +22,12 @@
         "taxDebtRub": 0,
         "unreliableDetails": false
       }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
     }
   },
   {
@@ -51,6 +57,12 @@
         "taxDebtRub": 120000,
         "unreliableDetails": true
       }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
     }
   },
   {
@@ -74,6 +86,12 @@
         "taxDebtRub": 0,
         "unreliableDetails": false
       }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
     }
   },
   {
@@ -95,6 +113,12 @@
       "data": {
         "taxDebtRub": 0,
         "unreliableDetails": false
+      }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
       }
     }
   },
@@ -123,6 +147,12 @@
         "taxDebtRub": 0,
         "unreliableDetails": false
       }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
     }
   },
   {
@@ -142,6 +172,12 @@
       "data": {
         "taxDebtRub": 0,
         "unreliableDetails": false
+      }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
       }
     }
   },
@@ -170,6 +206,12 @@
         "taxDebtRub": 0,
         "unreliableDetails": false
       }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
     }
   },
   {
@@ -192,6 +234,12 @@
       "data": {
         "taxDebtRub": 0,
         "unreliableDetails": false
+      }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
       }
     }
   },
@@ -220,6 +268,12 @@
         "taxDebtRub": 120000,
         "unreliableDetails": true
       }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
     }
   },
   {
@@ -242,6 +296,78 @@
     "fns": {
       "status": "unavailable",
       "managerText": "Мок ФНС: сервис временно недоступен. Повторите проверку позже; результат не означает отсутствие рисков."
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
+    }
+  },
+  {
+    "inn": "9900000041",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 2,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0.25
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "bad",
+      "reasonCode": "FNS_UNRELIABLE_DETAILS",
+      "managerText": "В синтетических сведениях ФНС есть недостоверные сведения и задолженность. Запросите пояснения и актуальные документы.",
+      "data": {
+        "taxDebtRub": 120000,
+        "unreliableDetails": true
+      }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
+    }
+  },
+  {
+    "inn": "9900000042",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 2,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0.25
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    },
+    "bankruptcy": {
+      "status": "bad",
+      "reasonCode": "COMPLIANCE_BANKRUPTCY",
+      "managerText": "Синтетический Федресурс: действует процедура банкротства.",
+      "data": {
+        "active": true
+      }
     }
   }
 ]
