@@ -5,15 +5,34 @@ import type { AppState, Calculation, Message } from "../shared/types";
 import { cabinetSnapshot } from "../shared/cabinet";
 import { fundingCatalog } from "../shared/financing";
 import { fundingInput, transparentFundingEngine } from "./funding-engine";
+export type AgentApplication = {
+  id: string;
+  status: string;
+  n?: number;
+  m?: number;
+  holes?: string[];
+  reasons?: (string | { code: string; text?: string })[];
+  stops_fired?: string[];
+  limit_now_rub?: number;
+  alternatives?: {
+    option_id: string; kind: string; product_id: string; product_name: string;
+    amount_rub: number; term_months: number; rate_annual_pct: number;
+    monthly_payment_rub: number; reason: string;
+  }[];
+  red_reason?: string;
+};
+export type AgentTurnContext = { application?: AgentApplication; mode?: "nudge" | "objections" };
 export interface AIProvider {
   reply(
     state: AppState & { userId?: string },
     history: Message[],
     selectionId?: string,
+    turnContext?: AgentTurnContext,
   ): Promise<{
     text: string;
     mode: string;
     status?: string;
+    objections_summary?: string;
     calculation?: Calculation;
     warning?: string;
     proposal?: { field: string; value: number };
@@ -76,7 +95,7 @@ export function contextOf(s: AppState, selectionId?: string) {
 }
 
 /** Sends only the cabinet facts the agent needs; never forward contextOf wholesale. */
-export function agentCard(s: AppState, selectionId?: string) {
+export function agentCard(s: AppState, selectionId?: string, application?: AgentApplication) {
   const context = contextOf(s, selectionId), selection = context.selection;
   return {
     ...(selection ? {
@@ -89,13 +108,24 @@ export function agentCard(s: AppState, selectionId?: string) {
     obligations: typeof s.financials.existing === "number"
       ? [{ type: "existing_payments", amount_rub: s.financials.existing }]
       : [],
+    ...(application ? { application: {
+      id: application.id, status: application.status, n: application.n, m: application.m,
+      holes: application.holes, reasons: application.reasons,
+      stops_fired: application.stops_fired, limit_now_rub: application.limit_now_rub,
+      alternatives: application.alternatives?.map((option) => ({
+        option_id: option.option_id, kind: option.kind, product_id: option.product_id,
+        product_name: option.product_name, amount_rub: option.amount_rub,
+        term_months: option.term_months, rate_annual_pct: option.rate_annual_pct,
+        monthly_payment_rub: option.monthly_payment_rub, reason: option.reason,
+      })), red_reason: application.red_reason,
+    } } : {}),
   };
 }
 
 export class TeamAgentProvider implements AIProvider {
   constructor(private baseUrl: string) {}
 
-  async reply(s: AppState & { userId?: string }, history: Message[], selectionId?: string) {
+  async reply(s: AppState & { userId?: string }, history: Message[], selectionId?: string, turnContext: AgentTurnContext = {}) {
     const chat = s.chats.find((c) => c.messages === history);
     try {
       const endpoint = new URL("/turn", this.baseUrl);
@@ -106,16 +136,18 @@ export class TeamAgentProvider implements AIProvider {
           session_id: chat?.id || "",
           ...(s.userId ? { client_id: s.userId } : {}),
           text: history.at(-1)?.text || "",
-          card: agentCard(s, selectionId),
+          card: agentCard(s, selectionId, turnContext.application),
+          ...(turnContext.mode ? { mode: turnContext.mode } : {}),
         }),
         signal: AbortSignal.timeout(35_000),
       });
       if (!response.ok) throw new Error("agent request failed");
-      const data = await response.json() as { text?: unknown; status?: unknown; view?: unknown };
+      const data = await response.json() as { text?: unknown; status?: unknown; view?: unknown; objections_summary?: unknown };
       if (typeof data.text !== "string") throw new Error("invalid agent response");
-      return { text: data.text, mode: "team-agent", status: typeof data.status === "string" ? data.status : undefined, view: data.view };
+      return { text: data.text, mode: "team-agent", status: typeof data.status === "string" ? data.status : undefined, view: data.view,
+        ...(typeof data.objections_summary === "string" ? { objections_summary: data.objections_summary } : {}) };
     } catch {
-      return { text: "Ассистент сейчас недоступен, попробуйте через минуту", mode: "agent-offline" };
+      return new DemoProvider().reply(s, history, selectionId);
     }
   }
 }
@@ -124,8 +156,8 @@ export function createAIProvider(
   env: NodeJS.ProcessEnv = process.env,
   beforeCall: () => void = () => {},
 ): AIProvider {
+  if (env.AI_PROVIDER === "openai") return new OpenAIProvider(beforeCall);
   if (env.TEAM_AGENT_URL) return new TeamAgentProvider(env.TEAM_AGENT_URL);
-  if (env.OPENAI_API_KEY) return new OpenAIProvider(beforeCall);
   return new DemoProvider();
 }
 

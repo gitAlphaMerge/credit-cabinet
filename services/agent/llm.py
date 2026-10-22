@@ -1,8 +1,4 @@
-"""LLM-слоты агента через OpenAI-совместимый API (OpenRouter для eval на ноуте; на сервере YC OpenRouter даёт 403,
-там нужен прямой DeepSeek API — меняется AGENT_LLM_URL). Только стандартная библиотека.
-
-Ключ: OPENROUTER_API_KEY в .env корня репо. Нет ключа → available() == False, агент работает на шаблонах.
-"""
+"""Optional OpenAI-compatible language layer. Empty URL disables all LLM traffic."""
 import json
 import os
 import re
@@ -14,28 +10,25 @@ import intake_rules
 # в репо это корень проекта, в контейнере файлы лежат в /app и глубже некуда
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parents[1] if len(_HERE.parents) > 1 else _HERE
-URL = os.getenv("AGENT_LLM_URL", "https://openrouter.ai/api/v1/chat/completions")
-MODEL = os.getenv("AGENT_LLM_MODEL", "deepseek/deepseek-v4.1-flash")
+URL = "http://127.0.0.1:11434/v1/chat/completions"
+MODEL = "qwen3:8b"
 AGENT_VOICE = (Path(__file__).resolve().parent / "AGENT.md").read_text(encoding="utf-8")
 PERMISSIONS = (_HERE / "PERMISSIONS.md").read_text(encoding="utf-8")
 
 
 def _env(name: str) -> str | None:
-    if os.getenv(name):
-        return os.environ[name]
-    env = ROOT / ".env"
-    if env.exists():
-        for line in env.read_text(encoding="utf-8-sig").splitlines():
-            if line.startswith(name + "="):
-                return line.split("=", 1)[1].strip() or None
-    return None
+    return os.getenv(name) or None
 
 
 def _key() -> str | None:
+    if "AGENT_LLM_API_KEY" in os.environ:
+        return _env("AGENT_LLM_API_KEY")
     # OpenRouter: ключ OPENROUTER_API_KEY; на сервере ключ OpenRouter лежит в секрете DEEPSEEK_API_KEY (так его кладёт deploy.yml)
     if "api.deepseek.com" in os.getenv("AGENT_LLM_URL", URL):
         return _env("DEEPSEEK_API_KEY")
-    return _env("OPENROUTER_API_KEY") or _env("DEEPSEEK_API_KEY")
+    if "openrouter.ai" in os.getenv("AGENT_LLM_URL", URL):
+        return _env("OPENROUTER_API_KEY") or _env("DEEPSEEK_API_KEY")
+    return None
 
 
 def _opener():
@@ -45,17 +38,18 @@ def _opener():
 
 
 def available() -> bool:
-    return bool(_key())
+    return bool(os.getenv("AGENT_LLM_URL", URL).strip())
 
 
 USAGE: list = []  # usage вызовов хода, server.py пишет в лог и чистит
 
 
-def chat(system: str, user: str, model: str = MODEL, as_json: bool = False, temperature: float = 0.0,
+def chat(system: str, user: str, model: str | None = None, as_json: bool = False, temperature: float = 0.0,
          max_tokens: int = 600) -> str:
-    if not _key():
-        raise RuntimeError("LLM key unavailable")
-    body = {"model": model, "temperature": temperature, "max_tokens": max_tokens,
+    url = os.getenv("AGENT_LLM_URL", URL).strip()
+    if not url:
+        raise RuntimeError("LLM disabled")
+    body = {"model": model or os.getenv("AGENT_LLM_MODEL", MODEL), "temperature": temperature, "max_tokens": max_tokens,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
     if "openrouter.ai" in os.getenv("AGENT_LLM_URL", URL):
         # рассуждения модели оплачиваются как выход и ответу в 2-3 фразы не нужны
@@ -65,10 +59,12 @@ def chat(system: str, user: str, model: str = MODEL, as_json: bool = False, temp
             body["provider"] = {"order": [os.getenv("AGENT_LLM_PROVIDER")], "allow_fallbacks": True}
     if as_json:
         body["response_format"] = {"type": "json_object"}
-    req = urllib.request.Request(URL, json.dumps(body).encode("utf-8"), {
-        "Content-Type": "application/json", "Authorization": f"Bearer {_key()}"})
-    # короткий таймаут: сайт Толи ждёт ответ 35 с, а за ход бывает два вызова; дохлый узел VPN не должен его съесть
-    with _opener().open(req, timeout=float(os.getenv("AGENT_LLM_TIMEOUT", "15"))) as r:
+    headers = {"Content-Type": "application/json"}
+    if key := _key():
+        headers["Authorization"] = f"Bearer {key}"
+    req = urllib.request.Request(url, json.dumps(body).encode("utf-8"), headers)
+    # CPU inference can be slow; the cabinet falls back if its own deadline expires.
+    with _opener().open(req, timeout=float(os.getenv("AGENT_LLM_TIMEOUT", "30"))) as r:
         data = json.load(r)
     USAGE.append(data.get("usage") or {})
     return data["choices"][0]["message"]["content"]

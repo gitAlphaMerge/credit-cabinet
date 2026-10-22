@@ -12,9 +12,11 @@ const message: Message = { id: "m", role: "user", text: "Помогите", crea
 const history = [message];
 state.chats = [{ id: "chat-123", title: "Тест", messages: history }];
 
-test("provider priority: team agent, OpenAI, demo", () => {
+// v2 (решение 22.10): закрытая модель только по явному AI_PROVIDER=openai, ключа в env мало.
+test("provider priority: team agent, explicit OpenAI, demo", () => {
   assert.ok(createAIProvider({ TEAM_AGENT_URL: "http://agent", OPENAI_API_KEY: "key" }) instanceof TeamAgentProvider);
-  assert.equal(createAIProvider({ OPENAI_API_KEY: "key" }).constructor.name, "OpenAIProvider");
+  assert.equal(createAIProvider({ OPENAI_API_KEY: "key" }).constructor.name, "DemoProvider");
+  assert.equal(createAIProvider({ AI_PROVIDER: "openai", OPENAI_API_KEY: "key" }).constructor.name, "OpenAIProvider");
   assert.equal(createAIProvider({}).constructor.name, "DemoProvider");
 });
 
@@ -57,12 +59,13 @@ test("team agent uses the account ID for memory, never a phone or business name"
   } finally { globalThis.fetch = original; }
 });
 
-test("team agent network failure is an honest offline answer", async () => {
+// v2: недоступный агент не обрывает путь, отвечает детерминированный DemoProvider.
+test("team agent network failure falls back to demo answer", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = (async () => { throw new Error("offline"); }) as typeof fetch;
   try {
     const answer = await new TeamAgentProvider("http://agent").reply(state, history);
-    assert.equal(answer.mode, "agent-offline");
-    assert.match(answer.text, /Ассистент сейчас недоступен, попробуйте через минуту/);
+    assert.equal(answer.mode, "demo");
+    assert.ok(answer.text.trim().length > 0);
   } finally { globalThis.fetch = original; }
 });
