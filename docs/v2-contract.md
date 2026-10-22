@@ -57,10 +57,10 @@ submit / client_update
 
 | Пакет | Правит | Только читает |
 |---|---|---|
-| P1 комплаенс | `server/compliance.ts`, `server/checks.ts`, `server/registry.ts`, `fixtures/checks-mock.json`, `fixtures/egr-mock.json`, `compose.yaml` и `.env.example` кабинета, `tests/compliance.test.ts`, `tests/checks.test.ts`, `tests/registry.test.ts` | всё остальное |
+| P1 комплаенс | `server/compliance.ts`, `server/checks.ts`, `server/registry.ts`, `fixtures/checks-mock.json`, `fixtures/egr-mock.json`, `tests/compliance.test.ts`, `tests/checks.test.ts`, `tests/registry.test.ts` | всё остальное |
 | P2 машина состояний | `server/applications.ts`, `server/applications-routes.ts`, `tests/applications-*.test.ts`, `docs/application-states.md`, `docs/openapi.yaml` | `compliance.ts`, `alternatives.ts` (типы) |
 | P3 альтернативы и экзамен | `server/alternatives.ts`, `tests/alternatives.test.ts`, `data/realistic/check_v3.py`, `data/golden.json`, `data/check_golden.py` | `data/catalog/products.json`, `core.py` |
-| P4 агент на Qwen | `services/agent/**`, `server/ai-provider.ts`, `tests/ai.test.ts`, корневой `docker-compose.yml`, `README.md`, `THIRD_PARTY_NOTICES.md` | |
+| P4 агент на Qwen | `services/agent/**`, `server/ai-provider.ts`, `tests/ai.test.ts`, `compose.yaml` и `.env.example` кабинета, корневой `docker-compose.yml`, `README.md`, `THIRD_PARTY_NOTICES.md` | |
 | P5 экран менеджера | новые файлы `src/manager/**`, одна строка подключения роли в `src/App.tsx`, `tests/manager-ui.test.tsx` | маршруты P2 |
 
 Пути `server/`, `src/`, `tests/`, `fixtures/` даны от `hw/tolya/alfa-intellect/`.
