@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-11",
+  "version": "v2-2026-10-23",
   "how_to_use": "python data/check_golden.py: ядро получает CSV без label, анкету и нужду; статус, инструмент и стопы сверяются точно, суммы в коридоре min..max.",
   "params": {
     "rate": 0.24,
@@ -39,7 +39,8 @@
       },
       "expected": {
         "status": "можно после шага",
-        "instrument": "овердрафт",
+        "instrument": ["ALFA_OVERDRAFT"],
+        "why_products": "story: временный разрыв до оплаты заказчика; product_family=overdraft, bank_allowed_purposes=short_term_working_capital; срок договора не равен сроку транша.",
         "stops_fired": [],
         "reasons": [
           "CONCENTRATION_ONE_CUSTOMER",
@@ -122,7 +123,8 @@
       },
       "expected": {
         "status": "можно подавать",
-        "instrument": "овердрафт",
+        "instrument": ["ALFA_OVERDRAFT"],
+        "why_products": "Тот же временный разрыв, что cash_gap: product_family=overdraft, bank_allowed_purposes=short_term_working_capital.",
         "stops_fired": [],
         "reasons": [
           "CONCENTRATION_ONE_CUSTOMER",
@@ -201,7 +203,8 @@
       },
       "expected": {
         "status": "лучше другой инструмент",
-        "instrument": "лизинг",
+        "instrument": ["ALFA_LUMP_UNSEC", "ALFA_LUMP_SEC", "ALFA_NCL_SEC", "ALFA_DELO"],
+        "why_products": "Лизинга в каталоге нет; оборудование относится к business_development в bank_allowed_purposes разового кредита и НКЛ, либо general_purpose_per_contract у DELO; наличие залога и этапы не указаны, множество широкое, прежний статус сохранён.",
         "stops_fired": [],
         "reasons": [
           "STRESS_NEGATIVE_FLOW"
@@ -275,7 +278,8 @@
       },
       "expected": {
         "status": "можно подавать",
-        "instrument": "кредитная линия",
+        "instrument": ["ALFA_RCL_UNSEC", "ALFA_START"],
+        "why_products": "Сезонная закупка 400 тыс. на 6 месяцев: product_family=revolving_line/young_business_revolving_line, bank_allowed_purposes=working_capital_only/business_purchase_of_goods_equipment_services; обе суммы и транши допустимы.",
         "stops_fired": [],
         "reasons": [
           "STRESS_NEGATIVE_FLOW",
@@ -350,7 +354,8 @@
       },
       "expected": {
         "status": "нужен менеджер",
-        "instrument": "овердрафт",
+        "instrument": ["ALFA_OVERDRAFT"],
+        "why_products": "need.purpose=кассовый разрыв: product_family=overdraft, bank_allowed_purposes=short_term_working_capital; стоп ENFORCEMENT проверяется отдельно от выбора инструмента.",
         "stops_fired": [
           "ENFORCEMENT"
         ],
@@ -427,7 +432,8 @@
       },
       "expected": {
         "status": "нужен менеджер",
-        "instrument": "овердрафт",
+        "instrument": ["ALFA_OVERDRAFT"],
+        "why_products": "need.purpose=кассовый разрыв: product_family=overdraft, bank_allowed_purposes=short_term_working_capital; постоянный дефицит запрещён bank_restricted_uses, поэтому это только инструмент нужды, пригодность блокирует NO_FREE_CASHFLOW.",
         "stops_fired": [
           "NO_FREE_CASHFLOW"
         ],
@@ -500,7 +506,8 @@
       },
       "expected": {
         "status": "нужен менеджер",
-        "instrument": "кредит на развитие",
+        "instrument": ["ALFA_START", "ALFA_DELO"],
+        "why_products": "story: бизнес 5 месяцев, найм разработчиков, 1 млн; bank_min_business_age_months=0, product_family=young_business_revolving_line/young_business_secured_finance; services/general_purpose_per_contract; залог и транши требуют уточнения, статус и стопы не менялись.",
         "stops_fired": [
           "TOO_YOUNG",
           "SHORT_STATEMENT"
@@ -570,7 +577,8 @@
       },
       "expected": {
         "status": "нужен менеджер",
-        "instrument": "кредитная линия",
+        "instrument": ["ALFA_RCL_UNSEC", "ALFA_NCL_SEC"],
+        "why_products": "story/tests: линия на закупку под контракт, need.purpose: working_capital; product_family=revolving_line/nonrevolving_line_secured, bank_allowed_purposes=working_capital_only/working_capital; транши и залог неизвестны, множество не сужено по ответу ядра.",
         "stops_fired": [
           "CASH_OUT"
         ],

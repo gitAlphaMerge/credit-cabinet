@@ -1,4 +1,4 @@
-"""Run Lisa's unchanged core on seed_0 dirty CSV; statuses are diagnostic only."""
+"""Run the unchanged core on seed_0: reasons, catalogue products and outcomes."""
 
 import argparse
 from collections import Counter
@@ -12,6 +12,46 @@ from validate_specs import ROOT
 CORE_CODES = set('SHORT_STATEMENT TOO_YOUNG STRESS_NEGATIVE_FLOW NO_FREE_CASHFLOW NOT_BUSINESS '
                  'ENFORCEMENT CONCENTRATION_ONE_CUSTOMER CASH_OUT CASH_GAP'.split())
 STOP_CODES = {'SHORT_STATEMENT', 'TOO_YOUNG', 'NO_FREE_CASHFLOW', 'NOT_BUSINESS', 'ENFORCEMENT', 'CASH_OUT'}
+
+# core.make_decision: amount <= limit_now maps to golden_v3 / README approve.
+# SHORT_STATEMENT and amount <= limit_after share a status, while labels distinguish
+# request_info (documents) from counteroffer (changed terms): keep ambiguous.
+# Manager merges stops (reject) and amount > both limits (counteroffer).
+# Legacy context/stop-rules.md: another instrument means counteroffer.
+STATUS_OUTCOMES = {
+    'можно подавать': 'approve',
+    'можно после шага': None,
+    'нужен менеджер': None,
+    'лучше другой инструмент': 'counteroffer',
+}
+
+
+def compare_result(expected, result):
+    """Compare public output only; the expected labels remain independent."""
+    wanted = expected.get('product')
+    product = ('n/a' if wanted is None else
+               'ok' if result.get('instrument') == wanted else 'fail')
+    status = result.get('status')
+    outcome = STATUS_OUTCOMES.get(status)
+    verdict = ('n/a' if expected.get('outcome') is None else
+               'ambiguous' if outcome is None else
+               'ok' if outcome == expected['outcome'] else 'fail')
+    if str(status).startswith('ERROR '):
+        return 'fail', 'fail'
+    return product, verdict
+
+
+def self_test():
+    """Mutate copied responses, and check ambiguity and mismatched outcomes."""
+    expected = dict(product='ALFA_OVERDRAFT', outcome='approve')
+    response = dict(instrument='ALFA_OVERDRAFT', status='можно подавать')
+    assert compare_result(expected, response) == ('ok', 'ok')
+    assert compare_result(expected, dict(response, instrument='ALFA_REFI')) == ('fail', 'ok')
+    assert response['instrument'] == 'ALFA_OVERDRAFT'
+    for status in ('нужен менеджер', 'можно после шага', 'unknown'):
+        assert compare_result(expected, dict(response, status=status))[1] == 'ambiguous'
+    assert compare_result(dict(expected, outcome='reject'), response)[1] == 'fail'
+    print('SELF TEST PASS: mutated product caught; outcome mismatch caught; ambiguous never ok')
 
 
 def load_core():
@@ -46,28 +86,30 @@ def evaluate(manifest):
         except Exception as exc:
             result = dict(status=f'ERROR {type(exc).__name__}: {exc}', stops_fired=[], reasons=[])
             verdict, detail = 'fail', 'core exception'
-        rows.append(dict(case_id=cid, product=cid.rsplit('-', 1)[0], trap=expected['trap'] or 'none',
+        product_verdict, outcome_verdict = compare_result(expected, result)
+        rows.append(dict(product_verdict=product_verdict, outcome_verdict=outcome_verdict,
+                         case_id=cid, product=cid.rsplit('-', 1)[0], trap=expected['trap'] or 'none',
                          expected=expected, core=result, verdict=verdict, detail=detail))
     return rows
 
 
-def summaries(rows, field):
+def summaries(rows, field, metric='verdict'):
     """Count combined traps under each individual T code and controls under none."""
     counts = {}
     for row in rows:
         keys = row[field].split('+') if field == 'trap' else [row[field]]
         for key in keys:
-            counts.setdefault(key, Counter())[row['verdict']] += 1
+            counts.setdefault(key, Counter())[row[metric]] += 1
     return counts
 
 
-def summary_lines(rows, field):
+def summary_lines(rows, field, metric='verdict'):
     """Return stable printable summary tables for the CLI and generated README."""
-    counts = summaries(rows, field)
-    lines = [f'{field} | ok | fail | n/a', '--- | ---: | ---: | ---:']
-    lines += [f'{key} | {c["ok"]} | {c["fail"]} | {c["n/a"]}' for key, c in sorted(counts.items())]
-    total = Counter(r['verdict'] for r in rows)
-    lines.append(f'TOTAL | {total["ok"]} | {total["fail"]} | {total["n/a"]}')
+    counts = summaries(rows, field, metric)
+    lines = [f'{field} ({metric}) | ok | fail | n/a | ambiguous', '--- | ---: | ---: | ---: | ---:']
+    lines += [f'{key} | {c["ok"]} | {c["fail"]} | {c["n/a"]} | {c["ambiguous"]}' for key, c in sorted(counts.items())]
+    total = Counter(r[metric] for r in rows)
+    lines.append(f'TOTAL | {total["ok"]} | {total["fail"]} | {total["n/a"]} | {total["ambiguous"]}')
     return lines
 
 
@@ -107,7 +149,7 @@ def readme(rows):
         'T19 / T20 | Дивиденды / опечатки в понятной цели | RESTRICTED_PURPOSE, досье / проверка агента',
         'Таблица описывает все T-коды схемы; наличие каждого в текущем наборе показывает coverage_v3.py.',
         'approve: подходит; request_info: нужен документ; counteroffer: меньше сумма или другой продукт; reject: стоп; clarify: уточнить факт.',
-        'Ядро пока выдаёт другие status. check_v3 печатает их, но сравнивает только поддерживаемые коды причин.',
+        'check_v3 сравнивает причины, продукт и исход; неоднозначный status помечается ambiguous.',
         'ok: все ожидаемые коды найдены; approve дополнительно без стопов. fail: пропуск кода, лишний стоп approve или исключение.',
         'n/a (досье): только документные, продуктовые или анкетные проверки вне текущего ядра.',
         'Запуск из корня: python data/realistic/check_v3.py. Вручную: score(путь_к_statement_dirty.csv, need, questionnaire).',
@@ -123,20 +165,40 @@ def readme(rows):
 def main():
     """Print diagnostics; red core results are a deliverable, not a runner failure."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--hidden', action='store_true', help='run Sasha\'s hidden clients instead of public')
+    parser.add_argument('--strict', action='store_true', help='fail on mismatch or ambiguous outcome')
+    parser.add_argument('--self-test', action='store_true', help='check comparison and mutation guards')
     args = parser.parse_args()
-    name = 'data/hidden/v3/golden_v3_hidden.json' if args.hidden else 'data/v3/golden_v3.json'
+    if args.self_test:
+        self_test()
+        return
+    name = 'data/v3/golden_v3.json'
     manifest = json.loads((ROOT / name).read_text(encoding='utf-8'))
     rows = evaluate(manifest)
-    print('case_id | продукт | ловушка | ждём исход и причины | ядро status, stops_fired; reasons | ok/fail')
+    print('case_id | группа | ловушка | ожидаемый продукт | ядро продукт | продукт | ожидаемый исход | ядро status | исход | ожидаемые причины | stops_fired; reasons | причины | детали')
     for row in rows:
         exp, core = row['expected'], row['core']
-        verdict = 'n/a (досье)' if row['verdict'] == 'n/a' else row['verdict']
-        print(f'{row["case_id"]} | {row["product"]} | {row["trap"]} | {exp["outcome"]}, {",".join(exp["reasons"]) or "-"} | '
-              f'{core["status"]}, {core.get("stops_fired", [])}; {core.get("reasons", [])} | {verdict} {row["detail"]}'.rstrip())
-    for field in ('trap', 'product'):
-        print('\n' + '\n'.join(summary_lines(rows, field)))
-    print('CORE CHECK COMPLETE: status не сравнивается; fail фиксирует результат ядра, exit=0.')
+        print(f'{row["case_id"]} | {row["product"]} | {row["trap"]} | {exp.get("product")} | '
+              f'{core.get("instrument")} | {row["product_verdict"]} | {exp["outcome"]} | '
+              f'{core["status"]} | {row["outcome_verdict"]} | {exp["reasons"]} | '
+              f'{core.get("stops_fired", [])}; {core.get("reasons", [])} | {row["verdict"]} | {row["detail"]}')
+    for metric in ('verdict', 'product_verdict', 'outcome_verdict'):
+        for field in ('trap', 'product'):
+            print('\n' + '\n'.join(summary_lines(rows, field, metric)))
+    print('\nFAILURE EVIDENCE: case | dimension | expected | actual | label/source')
+    for row in rows:
+        exp, core = row['expected'], row['core']
+        for dimension, verdict, expected, actual in (
+            ('product', row['product_verdict'], exp.get('product'), core.get('instrument')),
+            ('outcome', row['outcome_verdict'], exp['outcome'], core.get('status')),
+        ):
+            if verdict in ('fail', 'ambiguous'):
+                print(f'{row["case_id"]} | {dimension} ({verdict}) | {expected} | {actual} | '
+                      f'golden_v3.expected.{dimension}; {exp["why"]}')
+    print('CORE CHECK COMPLETE: reasons/product/outcome checked; ambiguous is not ok.')
+    failed = any(r[k] in ('fail', 'ambiguous') for r in rows
+                 for k in ('verdict', 'product_verdict', 'outcome_verdict'))
+    if args.strict and failed:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
