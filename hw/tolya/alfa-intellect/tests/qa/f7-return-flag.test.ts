@@ -12,7 +12,7 @@ async function requestInfo(flag?: unknown) {
   }, manager).expect(200);
   return id;
 }
-const update = (id: string, key?: string, version?: number) =>
+const update = (id: string, key?: `${string}-${string}-${string}-${string}-${string}`, version?: number) =>
   post(id, "client_update", { confirmed_fields: { qa: true } }, owner,
     version ?? a.applicationOf(db, id).version, key);
 const queue = () => request(app).get("/api/bank/queue").set("Cookie", cookies[manager]);
@@ -40,7 +40,7 @@ for (const mode of ["green", "holes", "stop", "gate_info", "gate_stop", "limit"]
     const before = scoreCalls;
     setMode(mode);
     const version = a.applicationOf(db, id).version;
-    const result = await update(id, "f7-" + mode, version).expect(200);
+    const result = await update(id, `f7-${mode}-0000-0000-0000` as `${string}-${string}-${string}-${string}-${string}`, version).expect(200);
     assert.equal(result.body.application.status, "queued");
     assert.equal(scoreCalls, before + (mode.startsWith("gate_") ? 0 : 1));
     const row = (await queue().expect(200)).body.find((r: any) => r.application.id === id);
@@ -58,7 +58,7 @@ for (const mode of ["green", "holes", "stop", "gate_info", "gate_stop", "limit"]
     assert.equal(event.actor_id, manager);
     assert.equal(event.at, deps.clock().toISOString());
     const journal = a.eventsOf(db, id);
-    const replay = await update(id, "f7-" + mode, version).expect(200);
+    const replay = await update(id, `f7-${mode}-0000-0000-0000` as `${string}-${string}-${string}-${string}-${string}`, version).expect(200);
     assert.deepEqual(replay.body, result.body);
     assert.deepEqual(a.eventsOf(db, id), journal);
     if (mode === "green") {

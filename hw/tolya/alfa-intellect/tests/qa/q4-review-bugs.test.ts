@@ -107,7 +107,7 @@ test("#7 extra unconfirmed old statement cannot block confirmed fresh evidence",
 
 // Proposed oracle: inputs section 4 permits enrichment, but does not mandate precedence.
 // REPORT.md deliberately leaves #8 unverified pending the architect's decision.
-test("BUG: #8 candidate oracle - registry age takes precedence over editable age", async () => {
+test("#8 registry age takes precedence over editable age", async () => {
   const f = fixture(db);
   await f.submit();
   assert.equal(f.gate.enrichment.monthsActive, 79);

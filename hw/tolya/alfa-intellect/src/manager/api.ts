@@ -15,6 +15,12 @@ export type Application = {
 };
 export type Dossier = {
   return_to_manager?: boolean;
+  age?: {
+    years: string;
+    source: "registry" | "questionnaire";
+    months: number | null;
+    mismatch: boolean;
+  };
   core_verdict?: "underwriting" | "info_requested" | "rejected";
   limit_now_rub?: number | null;
   N?: number | null;

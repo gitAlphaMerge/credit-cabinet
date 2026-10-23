@@ -65,7 +65,14 @@ function predicted(
   );
   if (!rule || !rule.callers.includes(delegatedCaller ? "system" : caller))
     return;
-  if (step.event === "expire" || step.event === "send_to_underwriting") return; // fresh offer; queued dossier is incomplete or above limit.
+  if (step.event === "expire") return; // fresh offer
+  // docs/v2-contract.md:45: send_to_underwriting `{ option_id? }`, amount <= limit_now_rub.
+  // The fixture option (100 000) fits the limit scenario (100 000); otherwise the
+  // queued dossier is incomplete or above limit. HTTP cascades to offered (states.md:141).
+  if (step.event === "send_to_underwriting")
+    return scenario === "limit" && hasOption
+      ? http ? "offered" : "underwriting"
+      : undefined;
   if (step.event === "escalate_silent" && !nudged) return;
   if (step.event === "accept_alternative" && !hasOption) return;
   if (["submit", "client_update", "accept_alternative"].includes(step.event)) {
@@ -190,7 +197,7 @@ function generate(seed: number): { steps: Step[]; scenario: Scenario } {
 
 for (const http of [false, true])
   test(
-    `BUG: 500 seeded sequences via ${http ? "HTTP" : "transitionApplication"} against document oracle`,
+    `500 seeded sequences via ${http ? "HTTP" : "transitionApplication"} against document oracle`,
     { timeout: 180000 },
     async () => {
       const base = Number(process.env.Q1_SEED ?? 20261023) >>> 0;

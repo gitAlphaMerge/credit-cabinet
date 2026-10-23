@@ -178,8 +178,6 @@ test("S-manager: resupplied green case receives automatic offer without manager 
 
 test("S-manager: resupplied still-red disagreement returns to manager queue", async () => {
   const { db, api, seedManager } = await setup();
-  const { resumeDisagreedReview } =
-    await import("../../server/application-silence");
   const transport = realCoreTransport();
   const deps = api.applicationsDependencies();
   const configured = { ...deps, clock, core: api.httpCoreClient };
@@ -228,13 +226,13 @@ test("S-manager: resupplied still-red disagreement returns to manager queue", as
         configured,
       )
     ).application;
+    // F7 (23.10): a still-red resupply returns straight to the manager queue,
+    // keeping the original escalation reason.
     assert.equal(
       a.status,
-      "info_requested",
+      "queued",
       "real core still cannot cover the requested amount",
     );
-    a = (await resumeDisagreedReview(db, a, configured)).application;
-    assert.equal(a.status, "queued");
     const row = api
       .bankQueue(db, configured)
       .find((q) => q.application.id === a.id)!;

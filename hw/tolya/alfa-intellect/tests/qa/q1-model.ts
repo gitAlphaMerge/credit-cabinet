@@ -43,7 +43,7 @@ export const rules: readonly Rule[] = [
     from: ["info_requested"],
     event: "client_update",
     callers: ["client", "system"],
-    outcomes: ["underwriting", "info_requested", "rejected"],
+    outcomes: ["underwriting", "info_requested", "rejected", "queued"], // docs/v2-contract.md «Возврат менеджеру после досылки»
     journal: "system",
   },
   // docs/v2-contract.md:40: "accept_alternative | info_requested, queued | client"; application-states.md:99-101: "system".
@@ -51,7 +51,7 @@ export const rules: readonly Rule[] = [
     from: ["info_requested", "queued"],
     event: "accept_alternative",
     callers: ["client"],
-    outcomes: ["underwriting", "info_requested", "rejected"],
+    outcomes: ["underwriting", "info_requested", "rejected", "queued"], // docs/v2-contract.md «Возврат менеджеру после досылки»
     journal: "system",
   },
   // docs/v2-contract.md:41: "agent_nudge | info_requested | system | info_requested".
@@ -158,11 +158,9 @@ export const rules: readonly Rule[] = [
     journal: "client",
   },
 ];
-export const delegated = [
-  "agent_nudge",
-  "escalate_silent",
-  "escalate_disagreed",
-];
+// FIX-A7 (tests/applications-v2.test.ts): agent_nudge and escalations are
+// system-only and return 403 over HTTP for every role; nothing is delegated.
+export const delegated: readonly string[] = [];
 export const terminals: readonly ModelStatus[] = [
   "disbursed",
   "rejected",

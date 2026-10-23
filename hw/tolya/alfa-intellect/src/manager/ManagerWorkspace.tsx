@@ -226,6 +226,17 @@ export function ManagerView(p: ViewProps) {
                 {d?.core_verdict && (
                   <p>Новый вердикт: {verdicts[d.core_verdict]}</p>
                 )}
+                {d?.age?.source === "questionnaire" && (
+                  <p className="manager-missing">
+                    Возраст бизнеса со слов клиента, реестр не подтвердил
+                  </p>
+                )}
+                {d?.age?.mismatch && (
+                  <p className="manager-missing">
+                    Возраст в анкете расходится с реестром: по реестру{" "}
+                    {d.age.months} мес., скоринг по реестру
+                  </p>
+                )}
                 <button
                   type="button"
                   className="button secondary"

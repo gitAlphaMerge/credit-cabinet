@@ -94,6 +94,7 @@ stateDiagram-v2
     info_requested --> underwriting: client_update / accept_alternative, green (system)
     info_requested --> info_requested: client_update / accept_alternative, incomplete (system)
     info_requested --> rejected: client_update / accept_alternative, stop (system)
+    info_requested --> queued: client_update / accept_alternative after request_info, still red or return_to_manager (system)
     info_requested --> info_requested: agent_nudge (system)
     info_requested --> queued: escalate_silent / escalate_disagreed (system)
     queued --> info_requested: request_info (manager) / accept_alternative (system)
@@ -116,8 +117,8 @@ stateDiagram-v2
 |---|---|---|---|
 | create | none | client | draft, owned selection version |
 | submit | draft | client/system | underwriting, info_requested, rejected; consent=true |
-| client_update | info_requested | client/system | same outcomes, confirmed_fields or stored documents |
-| accept_alternative | info_requested, queued | client | same outcomes, option_id from latest dossier; 422 otherwise |
+| client_update | info_requested | client/system | same outcomes, confirmed_fields or stored documents; after a manager `request_info`: queued if still red or `return_to_manager=true` |
+| accept_alternative | info_requested, queued | client | same outcomes, option_id from latest dossier; 422 otherwise; after a manager `request_info`: queued if still red or `return_to_manager=true` |
 | agent_nudge | info_requested | system | info_requested; nonblank text |
 | escalate_silent | info_requested | system | queued, CLIENT_SILENT; nudge after latest info cycle, else 409 |
 | escalate_disagreed | info_requested | system | queued, CLIENT_DISAGREED; nonblank client_objections |

@@ -352,6 +352,7 @@ export function dossierOf(db: DatabaseSync, id: string) {
     compliance: metadata.compliance as ComplianceReport | undefined,
     alternatives: (metadata.alternatives ?? []) as AlternativeOffer[],
     core_verdict: metadata.core_verdict as ScoredDossier["target"] | undefined,
+    age: metadata.age as ReturnType<typeof businessAge> | undefined,
     return_to_manager: returnedToManager(db, id),
     client_objections: objection
       ? JSON.parse(objection.payload as string).client_objections
@@ -466,6 +467,48 @@ function coreInput(
       need: application.purpose,
     },
     confirmed_fields: confirmed,
+  };
+}
+
+// Core vocabulary: services/ml-model/core.py:198,284 compares "меньше года" and "1–3".
+function yearsFromMonths(months: number) {
+  if (months < 12) return "меньше года";
+  if (months < 36) return "1–3";
+  if (months < 60) return "3–5";
+  if (months < 120) return "5–10";
+  return "более 10";
+}
+const BAND_MONTHS: Record<string, [number, number]> = {
+  "менее 3 месяцев": [0, 3],
+  "3–12 месяцев": [3, 12],
+  "менее года": [0, 12],
+  "до года": [0, 12],
+  "более года": [12, 36],
+  "1–3 года": [12, 36],
+  "3–5 лет": [36, 60],
+  "5–10 лет": [60, 120],
+  "более 10 лет": [120, Infinity],
+};
+/** Q4 #8, решение 23.10: возраст бизнеса берётся из реестра, анкета только запасной источник. */
+export function businessAge(band: string | undefined, registryMonths?: number) {
+  const range = BAND_MONTHS[(band ?? "").trim().toLowerCase()];
+  if (typeof registryMonths === "number" && Number.isFinite(registryMonths)) {
+    const months = Math.max(0, registryMonths);
+    const mismatch =
+      !!range && (months < range[0] - 12 || months > range[1] + 12);
+    return {
+      years: yearsFromMonths(months),
+      source: "registry" as const,
+      months,
+      mismatch,
+    };
+  }
+  return {
+    // Unknown wording keeps the client's text; the core treats it as mature.
+    years: range ? yearsFromMonths(range[0]) : (band ?? ""),
+    source: "questionnaire" as const,
+    months: null,
+    mismatch: false,
   };
 }
 
@@ -793,6 +836,9 @@ async function scoreCommand(
         reason: compliance.reasons[0],
       };
     }
+    const age = businessAge(state.profile.ageBand, compliance.enrichment.monthsActive);
+    input.questionnaire.years = age.years;
+    checks._v2 = { ...record(checks._v2), age };
     const reply = validateReply(await deps.core.score(input));
     let bki: CheckResult<CreditHistory>;
     try {
