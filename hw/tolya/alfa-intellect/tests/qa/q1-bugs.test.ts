@@ -59,17 +59,29 @@ for (const event of [
   "escalate_silent",
   "escalate_disagreed",
 ] as const)
-  test(`owned client HTTP delegation ${event} must journal system (application-states.md:156-161)`, async () => {
+  test(`${event} is forbidden over HTTP for client and manager; internal system journals it`, async () => {
     const id = await info();
     if (event === "escalate_silent")
       await internal(id, "agent_nudge", { text: "fixture" });
-    const before = a.eventsOf(db, id).length;
-    await post(id, event, {
+    const before = a.eventsOf(db, id),
+      application = a.applicationOf(db, id);
+    const payload = {
       text: "fixture",
       client_objections: "fixture",
-    }).expect(200);
-    assert.equal(a.eventsOf(db, id).length, before + 1);
+    };
+    for (const actor of [owner, manager]) {
+      await post(id, event, payload, actor).expect(403);
+      assert.deepEqual(a.eventsOf(db, id), before);
+      assert.deepEqual(a.applicationOf(db, id), application);
+    }
+    await internal(id, event, payload);
+    assert.equal(a.eventsOf(db, id).length, before.length + 1);
+    assert.equal(
+      a.applicationOf(db, id).status,
+      event === "agent_nudge" ? "info_requested" : "queued",
+    );
     assert.equal(a.eventsOf(db, id).at(-1)!.actor_role, "system");
+    assert.equal(a.eventsOf(db, id).at(-1)!.actor_id, null);
   });
 
 test("request_info accepts contracted hole/text payload without undocumented top-level reason", async () => {
