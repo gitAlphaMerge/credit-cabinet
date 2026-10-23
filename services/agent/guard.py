@@ -3,10 +3,11 @@
 Нарушение → в проде вместо текста LLM уходит шаблон, в eval тест краснеет.
 """
 import re
+import unicodedata
 
 from intake_rules import money, PII_DIGITS, _MONEY, _to_rub
 
-FORBIDDEN = ("одобрен", "одобрим", "гарантир", "точно дадут", "вам дадут", "кредит ваш")
+FORBIDDEN = ("одобрено", "одобрена", "одобрены", "одобрим", "гарантирую", "гарантируем", "гарантирован", "точнодадут", "вамдадут", "кредитваш", "кредитсогласован", "выдачаподтверждена")
 JARGON = ("dscr", "cfads", "ковенант", "скоринг", "ядр", "систем", "модел", "покрытия долга", "покрытие долга", "обслуживания долга")
 STOP_REASON = ("исполнительн", "арест", "пристав")  # ситуация 13: при «нужен менеджер» причину в лоб не называем
 _INN = re.compile(r"(?<!\d)(\d{10}|\d{12})(?!\d)")
@@ -14,7 +15,45 @@ _BARE = re.compile(r"(?<![\d.,])(-?\d+(?:[.,]\d+)?)(?![\d])")  # минус: у 
 TOLERANCE = 0.005  # «141 800» вместо 141 839: округление до сотен допустимо
 
 
+def _promise_text(text):
+    text = unicodedata.normalize("NFKC", text).casefold().replace("ё", "е")
+    # Whole Latin runs are transliteration; mixed runs use visual homoglyphs.
+    latin = dict(zip("abvgdezijklmnoprstufhy", "абвгдезийклмнопрстуфхы"))
+    def translit(match):
+        word = match.group()
+        for source, target in (("shch", "щ"), ("zh", "ж"), ("kh", "х"), ("ch", "ч"),
+                               ("sh", "ш"), ("yu", "ю"), ("ya", "я"), ("yo", "е")):
+            word = word.replace(source, target)
+        return "".join(latin.get(c, c) for c in word)
+    text = re.sub(r"(?<![а-я])[a-z]+(?![а-я])", translit, text)
+    text = text.translate(str.maketrans("aceopxykmtb0", "асеорхукмтво"))
+    text = "".join(c for c in text if unicodedata.category(c) != "Cf")
+    text = re.sub(r"(.)\1+", r"\1", text)
+    # Negation is local: a disclaimer cannot excuse another affirmative clause.
+    text = re.sub(r"\bне\s+(?:одобр[а-я]*|гарантир[а-я]*|подтвержден[а-я]*|согласован[а-я]*)", "", text)
+    text = re.sub(r"одобрение\s+не\s+гарантирован[а-я]*", "", text)
+    text = re.sub(r"\bодобрен\b", "одобрено", text)
+    compact = re.sub(r"[^а-яa-z]", "", text)
+    return text + " " + compact
+
+
+_WORD_VALUES = {"один": 1, "одна": 1, "два": 2, "две": 2, "три": 3, "четыре": 4,
+                "пять": 5, "шесть": 6, "семь": 7, "восемь": 8, "девять": 9,
+                "десять": 10, "двенадцать": 12, "девятнадцать": 19, "двадцать": 20,
+                "тридцать": 30, "сорок": 40, "пятьдесят": 50, "сто": 100,
+                "двести": 200, "пятьсот": 500, "семьсот": 700}
+
+
+def _numeric_words(text):
+    words = "|".join(_WORD_VALUES)
+    def convert(match):
+        return str(sum(_WORD_VALUES[w] for w in match.group().split()))
+    text = re.sub(rf"\b(?:{words})(?:\s+(?:{words}))*\b", convert, text.lower())
+    return text.replace("полмиллиона", "500000 рублей").replace("полтора миллиона", "1500000 рублей")
+
+
 def numbers(text: str) -> list[float]:
+    text = _numeric_words(text)
     values = money(text)
     for match in _MONEY.finditer(text):
         value = _to_rub(match.group(1), match.group(2))
@@ -61,9 +100,28 @@ def pii_warning_safe(text: str, client_text: str) -> bool:
 def check(text: str, view: dict | None, need: dict, expect_question: bool = True,
           client_text: str = "") -> list[str]:
     """Список нарушений; пустой список = ответ можно показывать."""
-    low = text.lower()
+    low = _promise_text(text)
     bad = [f"запретное слово «{w}»" for w in FORBIDDEN if w in low]
+    low = text.lower()
     bad += [f"жаргон «{w}»" for w in JARGON if w in low]
+    numeric = _numeric_words(text)
+    # Rates and durations have distinct provenance, even when their values coincide.
+    rate_values = [float(v.replace(",", ".")) for v in re.findall(
+        r"(?:ставка|комиссия|страховка)\s+(\d+(?:[.,]\d+)?)\s*(?:%|процент)", numeric)]
+    rate_allowed = numbers(client_text)
+    if view and isinstance(view.get("numbers", {}).get("rate_used"), (int, float)):
+        rate_allowed.append(view["numbers"]["rate_used"] * 100)
+    if any(not _match(v, rate_allowed) for v in rate_values):
+        bad.append("ставка не из расчёта или слов клиента")
+    if re.search(r"(?:выдача|деньги поступят|перевед[её]м|перечислим).{0,30}(?:завтра|сегодня|недели)", text, re.I):
+        bad.append("обещание срока выдачи")
+    if re.search(r"\b(?:срок|кредит на)\s+\d+\s+(?:месяц|лет|год)", numeric):
+        term = re.search(r"\b(?:срок|кредит на)\s+(\d+)\s+(месяц|лет|год)", numeric)
+        months = int(term[1]) * (12 if term[2] in ("лет", "год") else 1)
+        if months != need.get("term_months") and not _match(months, numbers(client_text)):
+            bad.append("срок не из запроса клиента")
+    if re.search(r"\b(?i:клиент|фио)\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+", text):
+        bad.append("личные данные клиента")
     if view and view.get("status") == "need_manager":
         bad += [f"причина стопа в лоб «{w}»" for w in STOP_REASON if w in low]
     if PII_DIGITS.search(text):
