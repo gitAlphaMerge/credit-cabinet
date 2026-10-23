@@ -1,8 +1,14 @@
 // Native Node fallback for hosts where tsx cannot call os.userInfo().
 // Mutations exist only in loader output, never in production files on disk.
-import { registerHooks, stripTypeScriptTypes } from "node:module";
+import {
+  registerHooks,
+  stripTypeScriptTypes,
+  createRequire,
+} from "node:module";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+const require = createRequire(import.meta.url);
 
 export const mutations = [
   [
@@ -47,7 +53,12 @@ export const mutations = [
     'if (kind === "debt" && amount < 0) debtPayments += amount;',
     "debt sign inverted",
   ],
-  ["documents.ts", "rows.length > 50000", "rows.length > 2", "row cap reduced"],
+  [
+    "documents.ts",
+    "rows.length > maxOperations + 1",
+    "rows.length > 2",
+    "row cap reduced",
+  ],
   [
     "documents.ts",
     "!Number.isFinite(amount)",
@@ -76,9 +87,28 @@ registerHooks({
     }
   },
   load(url, context, nextLoad) {
-    if (!url.startsWith("file:") || !url.endsWith(".ts"))
+    if (!url.startsWith("file:") || !/\.tsx?$/.test(new URL(url).pathname))
       return nextLoad(url, context);
     let source = readFileSync(new URL(url), "utf8");
+    if (
+      process.env.Q2_BASELINE_DOCUMENTS === "1" &&
+      url.endsWith("/server/documents.ts")
+    )
+      source = execFileSync(
+        "git",
+        ["show", "HEAD:hw/tolya/alfa-intellect/server/documents.ts"],
+        { encoding: "utf8", windowsHide: true },
+      );
+    // SQLite's empty filename creates a disk-backed temporary DB, removed by SQLite
+    // on close. This avoids overwriting a developer DB during isolated load runs.
+    if (
+      process.env.Q2_TEMP_DATABASE === "1" &&
+      url.endsWith("/server/store.ts")
+    )
+      source = source.replace(
+        'const file = process.env.DATABASE_PATH || "var/alfa.sqlite";',
+        'const file = "";',
+      );
     const index = Number(process.env.Q2_MUTANT ?? -1);
     const mutation = mutations[index];
     if (
@@ -95,7 +125,18 @@ registerHooks({
     // Installed Node typings only expose strip mode; Node 24 also supports transform.
     return {
       format: "module",
-      source: stripTypeScriptTypes(source, { mode: "transform" } as any),
+      source: new URL(url).pathname.endsWith(".tsx")
+        ? (require("esbuild") as typeof import("esbuild")).transformSync(
+            source,
+            {
+              loader: "tsx",
+              format: "esm",
+              jsx: "automatic",
+              target: "es2023",
+              sourcefile: fileURLToPath(url),
+            },
+          ).code
+        : stripTypeScriptTypes(source, { mode: "transform" } as any),
       shortCircuit: true,
     };
   },

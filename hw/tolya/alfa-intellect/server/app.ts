@@ -974,7 +974,21 @@ app.post("/api/team-score", async (req, res) => {
       await r.body?.cancel();
       throw new Error("Team API unavailable");
     }
-    res.status(r.status).json(await r.json());
+    const result = await r.json();
+    if (r.ok) {
+      const core = result?.core;
+      if (
+        !core ||
+        typeof core.limit_now_rub !== "number" ||
+        !Number.isFinite(core.limit_now_rub) ||
+        core.limit_now_rub < 0 ||
+        !Array.isArray(core.stops_fired) ||
+        !core.stops_fired.every((code: unknown) => typeof code === "string") ||
+        !Array.isArray(core.missing) ||
+        !core.missing.every((code: unknown) => typeof code === "string")
+      ) throw new Error("Invalid team score response");
+    }
+    res.status(r.status).json(result);
   } catch {
     res.status(502).json({
       error:

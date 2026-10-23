@@ -4,7 +4,7 @@ import { extract } from "../../server/documents";
 import { seed, csv } from "./q2-harness";
 const message = `seed=${seed}`;
 
-test("BUG: semicolon and comma CSV must preserve statement records", async () => {
+test("semicolon and comma CSV must preserve statement records", async () => {
   const source = csv();
   assert.deepEqual(
     await extract(Buffer.from(source.replaceAll(",", ";")), "statement.csv"),
@@ -13,7 +13,7 @@ test("BUG: semicolon and comma CSV must preserve statement records", async () =>
   );
 });
 
-test("BUG: CP1251 statement must preserve counterparty and enforcement purpose", async () => {
+test("CP1251 statement must preserve counterparty and enforcement purpose", async () => {
   const source =
     "date,amount,counterparty,purpose,kind\n2026-10-22,-100,Банк,ФССП,operating";
   const bytes = Buffer.from(
@@ -34,7 +34,7 @@ test("BUG: CP1251 statement must preserve counterparty and enforcement purpose",
   );
 });
 
-test("BUG: impossible calendar date is not a valid operation", async () => {
+test("impossible calendar date is not a valid operation", async () => {
   await assert.rejects(
     extract(
       Buffer.from("date,amount,kind\n2026-02-30,1000,operating"),
@@ -44,7 +44,7 @@ test("BUG: impossible calendar date is not a valid operation", async () => {
   );
 });
 
-test("BUG: 50000 operations plus header fit the advertised row limit", async () => {
+test("50000 operations plus header fit the advertised row limit", async () => {
   const source =
     "date,amount,kind\n" +
     Array(50_000).fill("2026-10-22,1,operating").join("\n");
