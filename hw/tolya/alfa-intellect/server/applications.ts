@@ -1256,11 +1256,8 @@ export async function executeApplicationEvent(
     ["agent_nudge", "escalate_silent", "escalate_disagreed"].includes(
       command.event,
     )
-  ) {
-    if (command.actorRole !== "client")
-      throw new ApplicationError(403, "Делегирование доступно клиенту");
-    command = { ...command, actorRole: "system", actorId: null };
-  }
+  )
+    throw new ApplicationError(403, "Системное событие недоступно через HTTP");
   const cached = replay(db, userId, key, hash);
   if (cached) return cached;
   const reply = await scoreCommand(db, command, deps);
