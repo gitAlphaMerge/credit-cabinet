@@ -99,6 +99,16 @@ type ViewProps = {
   onAction(event: ManagerEvent, payload: ManagerPayload): Promise<void>;
   onMemo?(): void;
 };
+// Досье, собранные до 23.10, хранят технический ключ проверки в тексте.
+const CHECK_LABELS: Record<string, string> = {
+  egrul: "ЕГРЮЛ/ЕГРИП",
+  fns: "ФНС",
+  bankruptcy: "Банкротство",
+  aml: "115-ФЗ",
+};
+const checkText = (text?: string) =>
+  text?.replace(/^(egrul|fns|bankruptcy|aml):/, (_, key) => `${CHECK_LABELS[key]}:`);
+
 export function ManagerView(p: ViewProps) {
   const row = p.rows.find((r) => r.application.id === p.selected);
   const d = p.detail?.dossier;
@@ -182,7 +192,7 @@ export function ManagerView(p: ViewProps) {
                   {r.return_to_manager && (
                     <span className="manager-missing">вы просили вернуть</span>
                   )}
-                  {r.core_verdict && (
+                  {r.return_to_manager && r.core_verdict && (
                     <span>Новый вердикт: {verdicts[r.core_verdict]}</span>
                   )}
                   <span>
@@ -223,7 +233,7 @@ export function ManagerView(p: ViewProps) {
                 {d?.return_to_manager && (
                   <p className="manager-missing">вы просили вернуть</p>
                 )}
-                {d?.core_verdict && (
+                {d?.return_to_manager && d.core_verdict && (
                   <p>Новый вердикт: {verdicts[d.core_verdict]}</p>
                 )}
                 {d?.age?.source === "questionnaire" && (
@@ -276,7 +286,7 @@ export function ManagerView(p: ViewProps) {
                                 : "Не пройдено"}
                           </strong>
                           :{" "}
-                          {c.managerText ||
+                          {checkText(c.managerText) ||
                             (c.reasonCode
                               ? explain(c.reasonCode)
                               : "Описание отсутствует")}

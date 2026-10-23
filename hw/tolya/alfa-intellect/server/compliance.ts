@@ -12,6 +12,12 @@ import { findCompany, RegistryError } from "./registry";
 
 export type GateStatus = "pass" | "info_requested" | "hard_stop";
 export type ComplianceCheckKey = "egrul" | "fns" | "bankruptcy" | "aml";
+const CHECK_LABEL: Record<ComplianceCheckKey, string> = {
+  egrul: "ЕГРЮЛ/ЕГРИП",
+  fns: "ФНС",
+  bankruptcy: "Банкротство",
+  aml: "115-ФЗ",
+};
 export type ComplianceCheck = {
   key: ComplianceCheckKey;
   status: "ok" | "bad" | "unavailable";
@@ -222,7 +228,7 @@ export const runComplianceGate: ComplianceGate = async ({
       codes.length ? "bad" : "ok",
       result.status === "bad"
         ? result.managerText
-        : `${key}: синтетические сведения проверены.`,
+        : `${CHECK_LABEL[key]}: синтетические сведения проверены.`,
       clientText,
       codes,
     );

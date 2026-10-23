@@ -7,11 +7,19 @@
   box-sizing: border-box;
   overflow-wrap: anywhere;
 }
+/* Как у менеджера: .app-shell не скроллит, а сетка .unified-cabinet здесь не нужна. */
+.app-shell > .application-page {
+  min-height: 0;
+  overflow-y: auto;
+}
+.application-status.unified-cabinet {
+  display: block;
+}
 .application-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  align-items: center;
+  align-items: flex-end;
 }
 .application-columns {
   display: grid;

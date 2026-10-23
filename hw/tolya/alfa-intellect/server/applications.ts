@@ -1400,6 +1400,8 @@ export function bankQueue(db: DatabaseSync, deps: DependencyInput) {
       );
       return {
         application,
+        client_name: userState(db, application.user_id).profile.name ?? null,
+        limit_now_rub: typeof limit === "number" ? limit : null,
         priority: (amount * ready) / (1 + holes) + K * hours,
         terms,
         red_reason: escalation?.reason ?? null,

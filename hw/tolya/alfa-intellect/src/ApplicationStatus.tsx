@@ -488,7 +488,7 @@ export function ApplicationStatus() {
       </main>
     );
   return (
-    <>
+    <div className="application-page">
       <div className="application-toolbar">
         <button
           className="button secondary"
@@ -572,6 +572,6 @@ export function ApplicationStatus() {
           </main>
         )
       )}
-    </>
+    </div>
   );
 }
