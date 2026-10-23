@@ -10,6 +10,7 @@ import re
 import explain_templates
 import guard
 import intake_rules
+import privacy
 
 QUESTIONS = {
     "purpose": ("На что нужны деньги?",),
@@ -212,6 +213,9 @@ def turn(state: dict, text: str, attachment: dict | None = None,
     detected = fields.pop("intent", None)
     intent = "pii" if rule_intent == "pii" else (
         detected if detected in intake_rules.INTENTS else rule_intent)
+    if rule_intent == "pii":
+        # Parse business facts without interpreting private identifiers as money.
+        fields = intake_rules.parse(privacy.redact(text, state["questionnaire"]), state["asking"])
     if fields and intent == "smalltalk":
         intent = "answer_slot"
     slot = next_slot(state)

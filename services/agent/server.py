@@ -18,6 +18,7 @@ import intake_rules
 import llm
 import guard
 import memory
+import privacy
 
 SESSIONS: dict[str, dict] = {}
 MAX_BODY = 1_000_000
@@ -95,6 +96,8 @@ def _save_session(session_id, state):
     saved["has_statement"] = bool(statement) or bool(state.get("has_statement"))
     if statement:
         saved["statement_sha256"] = hashlib.sha256(statement.encode("utf-8")).hexdigest()
+    saved = privacy.redact(saved, {"questionnaire": state.get("questionnaire", {}),
+                                  "profile": state.get("_privacy_profile", {})})
     path.parent.mkdir(parents=True, exist_ok=True)
     # Unique temporary names and per-session locks keep concurrent turns atomic.
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
@@ -127,6 +130,9 @@ def _card(raw):
     """Copy only explicitly approved, non-identifying card fields."""
     raw = raw if isinstance(raw, dict) else {}
     out = {}
+    # Retain only name values for masking; the profile never goes to the model or disk.
+    out["_privacy_profile"] = {str(i): {"full_name": name} for i, name in
+                               enumerate(privacy.name_values(raw))}
     purpose = raw.get("purpose")
     if isinstance(purpose, str) and purpose in {"кассовый разрыв", "закупка под контракт", "оборудование", "сезон", "рост"}:
         out["purpose"] = purpose
@@ -274,6 +280,9 @@ class Handler(BaseHTTPRequestHandler):
         if session_id not in SESSIONS:
             SESSIONS[session_id] = _load_session(session_id, card)
         state = SESSIONS[session_id]
+        if card.get("_privacy_profile"):
+            state["_privacy_name_hashes"] = sorted(set(state.get("_privacy_name_hashes", [])) |
+                {privacy.name_hash(name) for name in privacy.name_values(card["_privacy_profile"])})
         try:
             client_memory = memory.active(memory.load(client_id)) if MEMORY_ON else []
             llm.USAGE.clear()
