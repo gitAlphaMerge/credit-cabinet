@@ -12,6 +12,7 @@ import {
   executeApplicationEvent,
   visibleApplication,
   safeErrorMetadata,
+  userState,
   type Event,
 } from "./applications";
 
@@ -143,6 +144,7 @@ applicationsRouter.get("/bank/rejected", (_req, res) => {
       );
       return {
         ...a,
+        client_name: userState(db, a.user_id as string).profile.name ?? null,
         red_reason: "UNDERWRITING_REJECTED",
         reason: decision?.reason ?? null,
       };

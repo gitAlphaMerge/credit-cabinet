@@ -190,7 +190,7 @@ export const buildAlternatives: AlternativesBuilder = (req) => {
       term_months: term,
       rate_annual_pct: rate,
       monthly_payment_rub: rounded,
-      reason: `Можно рассмотреть ${money(amount)} ₽${condition}, ${detail} ${money(rounded)} ₽ в месяц, окончательные условия определяет банк`,
+      reason: `Можно рассмотреть ${money(amount)} ₽${condition}, ${detail} ${money(Math.round(rounded))} ₽ в месяц, окончательные условия определяет банк`,
     };
   };
   const current = list.find((p) => p.id === req.core_instrument);

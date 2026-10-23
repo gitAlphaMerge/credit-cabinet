@@ -398,7 +398,7 @@ function returnedToManager(db: DatabaseSync, id: string) {
     Number(latest.seq) > Number(request.seq)
   );
 }
-function userState(db: DatabaseSync, id: string): AppState {
+export function userState(db: DatabaseSync, id: string): AppState {
   const user = db.prepare("SELECT state FROM users WHERE id=?").get(id) as
     { state: string } | undefined;
   if (!user) throw new ApplicationError(404, "Клиент не найден");

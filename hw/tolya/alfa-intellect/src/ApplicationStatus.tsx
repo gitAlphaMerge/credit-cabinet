@@ -9,6 +9,7 @@ import {
   loadOwnApplications,
   offerOf,
   sendClientEvent,
+  escalateToManager,
   statusLabels,
   type ClientDetail,
 } from "./application-client";
@@ -27,7 +28,12 @@ type Props = {
   onUpload?(file: File, category: string): Promise<void>;
   onReview?(id: string): void;
   onDisagree?(text: string): Promise<void>;
+  toolbar?: React.ReactNode;
+  onEscalate?(text: string): Promise<void>;
+  onOpenProfile?(): void;
 };
+// Эти пробелы закрывает ИНН в профиле, а не загрузка документа.
+const registryHoles = ["egrul", "fns", "bankruptcy", "aml"];
 const nextSteps: Record<string, string> = {
   draft:
     "Заявка ещё не отправлена. Вернитесь в подбор финансирования, чтобы проверить условия и согласие.",
@@ -94,11 +100,14 @@ export function ApplicationStatusView(p: Props) {
             {statusLabels[a.status] || "Статус уточняется"}
           </span>
         </div>
-        {typeof icon === "string" ? (
-          <img src={icon} width="48" height="48" alt="" />
-        ) : (
-          <FileText aria-hidden="true" />
-        )}
+        <div className="application-heading-actions">
+          {p.toolbar}
+          {typeof icon === "string" ? (
+            <img src={icon} width="48" height="48" alt="" />
+          ) : (
+            <FileText aria-hidden="true" />
+          )}
+        </div>
       </header>
       <div className="application-columns">
         <section className="application-stack">
@@ -130,6 +139,24 @@ export function ApplicationStatusView(p: Props) {
                     "Дополнительные сведения: уточните в чате с банком"}
                 </p>
               ))}
+              {d?.holes?.some((h) => registryHoles.includes(h)) && (
+                <div className="application-hint" role="status">
+                  <p>
+                    Эти проверки банк делает по ИНН компании. Укажите или
+                    проверьте ИНН в профиле, затем вернитесь сюда, загрузите
+                    выписку и нажмите «Дослать».
+                  </p>
+                  {p.onOpenProfile && (
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={p.onOpenProfile}
+                    >
+                      Открыть профиль
+                    </button>
+                  )}
+                </div>
+              )}
               {d?.holes?.some((h) =>
                 ["contract_main_customer", "reconciliation_act"].includes(h),
               ) && (
@@ -230,6 +257,31 @@ export function ApplicationStatusView(p: Props) {
                 </button>
                 {documentError && <p role="alert">{documentError}</p>}
               </form>
+              {p.onEscalate && !options.length && (
+                <form
+                  className="application-escalate"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const text = String(
+                      new FormData(e.currentTarget).get("cannot") || "",
+                    ).trim();
+                    if (text && !p.busy) await p.onEscalate?.(text);
+                  }}
+                >
+                  <label className="field">
+                    <span>Не можете дослать? Напишите почему, заявку посмотрит менеджер</span>
+                    <textarea
+                      name="cannot"
+                      required
+                      maxLength={2000}
+                      disabled={p.busy}
+                    />
+                  </label>
+                  <button className="button secondary" disabled={p.busy}>
+                    Передать менеджеру
+                  </button>
+                </form>
+              )}
             </section>
           )}
           {!!options.length && (
@@ -245,7 +297,7 @@ export function ApplicationStatusView(p: Props) {
                     <p>Срок: {option.term_months} мес.</p>
                   )}
                   {finite(option.rate_annual_pct) && (
-                    <p>Ставка: {option.rate_annual_pct}% годовых</p>
+                    <p>Ставка: {String(option.rate_annual_pct).replace(".", ",")}% годовых</p>
                   )}
                   {finite(option.monthly_payment_rub) && (
                     <p>Платёж: {money(option.monthly_payment_rub)}</p>
@@ -487,9 +539,8 @@ export function ApplicationStatus() {
         <h1>Доступно только клиенту</h1>
       </main>
     );
-  return (
-    <div className="application-page">
-      <div className="application-toolbar">
+  const toolbar = (
+    <div className="application-toolbar">
         <button
           className="button secondary"
           disabled={busy || loading}
@@ -517,7 +568,11 @@ export function ApplicationStatus() {
             </select>
           </label>
         )}
-      </div>
+    </div>
+  );
+  return (
+    <div className="application-page">
+      {!(detail && detail.application.id === selected) && toolbar}
       {error && (
         <p role="alert" className="application-toolbar">
           {error}
@@ -533,6 +588,11 @@ export function ApplicationStatus() {
           busy={busy}
           uploading={w.uploading}
           documents={w.state.documents}
+          toolbar={toolbar}
+          onOpenProfile={() => w.go("/profile")}
+          onEscalate={(text) =>
+            perform(() => escalateToManager(detail, text))
+          }
           onUpload={async (file, category) => {
             await w.upload(file, category);
           }}

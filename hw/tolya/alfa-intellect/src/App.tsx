@@ -355,7 +355,11 @@ export function App() {
               onClick={() => go("/profile")}
             >
               <Building2 size={17} />
-              <span>{state.profile.name}</span>
+              <span>
+                {config.role === "manager"
+                  ? "Менеджер банка"
+                  : state.profile.name}
+              </span>
               <span>⌄</span>
             </button>
             <NotificationCenter />

@@ -122,6 +122,16 @@ export function sendClientEvent(
     },
   );
 }
+// Клиент не может дослать запрошенное: явное возражение, сервер сам переводит заявку к менеджеру.
+export function escalateToManager(detail: ClientDetail, text: string) {
+  return clientRequest(
+    "/applications/" + encodeURIComponent(detail.application.id) + "/disagreement",
+    {
+      expectedVersion: detail.application.version,
+      client_objections: text,
+    },
+  );
+}
 export function offerOf(detail: ClientDetail) {
   return jsonObject(
     detail.events.findLast((e) => e.event === "make_offer")?.payload,

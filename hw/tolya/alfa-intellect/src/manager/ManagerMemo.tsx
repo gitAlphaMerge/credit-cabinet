@@ -49,7 +49,7 @@ export function memoBlocks(detail: ApplicationDetail, optionId?: string) {
         ? checks
             .map(
               (c) =>
-                `${c.source || "Источник не указан"}: ${c.status === "ok" ? "пройдено" : c.status === "unavailable" ? "источник недоступен" : "не пройдено"}. ${c.managerText || "Описание отсутствует"}`,
+                `${c.status === "ok" ? "Пройдено" : c.status === "unavailable" ? "Источник недоступен" : "Не пройдено"}: ${c.managerText || "описание отсутствует"} (${c.source || "источник не указан"})`,
             )
             .join("\n")
         : "Данных о проверках нет.",

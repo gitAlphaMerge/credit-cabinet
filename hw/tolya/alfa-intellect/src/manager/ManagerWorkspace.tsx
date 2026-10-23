@@ -182,12 +182,14 @@ export function ManagerView(p: ViewProps) {
                       "Имя клиента: нет данных"}
                   </strong>
                   <span className="manager-stop">
-                    {r.return_to_manager
+                    {p.tab === "rejected"
+                      ? "Отказ"
+                      : r.return_to_manager
                       ? "Возврат после досылки"
                       : r.red_reason
                       ? explain(r.red_reason)
                       : "Причина передачи: нет данных"}
-                    {r.reason ? `: ${explain(r.reason)}` : ""}
+                    {r.reason ? `: ${labels[r.reason] || r.reason}` : ""}
                   </span>
                   {r.return_to_manager && (
                     <span className="manager-missing">вы просили вернуть</span>
@@ -377,11 +379,12 @@ export function ManagerView(p: ViewProps) {
                             <h4>{option.product_name}</h4>
                             <p>
                               {rub(option.amount_rub)} · {option.term_months}{" "}
-                              мес. · {option.rate_annual_pct}% годовых
+                              мес. · {String(option.rate_annual_pct).replace(".", ",")}% годовых
                             </p>
                             <p>Платёж: {rub(option.monthly_payment_rub)}</p>
                             <p>{option.reason}</p>
                             <form
+                              className="manager-option-form"
                               data-option-form={option.option_id}
                               onSubmit={(e) => {
                                 e.preventDefault();
@@ -440,7 +443,13 @@ export function ManagerView(p: ViewProps) {
                           name="hole"
                           required
                           disabled={!actionable || !d.holes?.length}
+                          defaultValue=""
                         >
+                          <option value="" disabled>
+                            {d.holes?.length
+                              ? "Выберите, что запросить"
+                              : "Ядро не нашло недостающих данных"}
+                          </option>
                           {d.holes?.map((h) => (
                             <option key={h} value={h}>
                               {explain(h)}
@@ -487,6 +496,7 @@ export function ManagerView(p: ViewProps) {
                         });
                       }}
                     >
+                      <h3>Отказать</h3>
                       <label className="field">
                         <span>Причина отказа</span>
                         <textarea

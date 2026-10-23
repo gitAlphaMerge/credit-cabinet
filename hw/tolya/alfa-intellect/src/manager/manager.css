@@ -158,3 +158,43 @@
     flex-wrap: wrap;
   }
 }
+/* Формы действий в досье: одинаковые отступы, подписи и чекбокс в одном кегле. */
+.manager-option-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.manager-option-form .button {
+  justify-self: start;
+}
+.manager-form h3 {
+  margin: 0;
+}
+.manager-return {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.manager-return input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--red);
+}
+.manager-form small {
+  margin-top: -6px;
+  color: var(--muted);
+}
+.manager-tabs .button[aria-pressed="true"] {
+  background: var(--ink, #171923);
+  border-color: var(--ink, #171923);
+  color: #fff;
+}
+.modal-backdrop .checkbox-row {
+  font-size: 14px;
+  color: var(--ink, #171923);
+  font-weight: 600;
+}

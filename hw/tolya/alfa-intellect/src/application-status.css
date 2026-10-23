@@ -89,3 +89,35 @@
     flex-wrap: wrap;
   }
 }
+/* Обновить и выбор заявки живут в строке заголовка, справа, а не над ним. */
+.application-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 16px;
+}
+.application-heading-actions .application-toolbar {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+.application-hint {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff4f3;
+}
+.application-escalate {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding-top: 16px;
+  border-top: 1px solid var(--line, #e3e7ed);
+}
+.application-escalate .field {
+  width: 100%;
+}

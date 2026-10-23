@@ -61,7 +61,7 @@
   },
   {
     "inn": "9900050018",
-    "name": "ООО Demo Q5 Furniture",
+    "name": "ООО «Мебель на заказ»",
     "form": "ООО",
     "registeredAt": "2020-03-12",
     "region": "Moscow",
@@ -72,7 +72,7 @@
   },
   {
     "inn": "990005000140",
-    "name": "ИП Demo Q5 Bakery",
+    "name": "ИП Пекарня «Колос»",
     "form": "ИП",
     "registeredAt": "2020-03-12",
     "region": "Moscow",
@@ -83,7 +83,7 @@
   },
   {
     "inn": "9900050025",
-    "name": "ООО Demo Q5 Textile",
+    "name": "ООО «Ткани и пошив»",
     "form": "ООО",
     "registeredAt": "2020-03-12",
     "region": "Moscow",
@@ -94,7 +94,7 @@
   },
   {
     "inn": "990005000214",
-    "name": "ИП Demo Q5 Service",
+    "name": "ИП Сервис техники",
     "form": "ИП",
     "registeredAt": "2020-03-12",
     "region": "Moscow",
