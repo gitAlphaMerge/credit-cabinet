@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Illustration } from "./Illustration";
 import {
   ArrowLeft,
   ArrowRight,
@@ -379,6 +380,7 @@ export function Onboarding({
                   />
                 </div>
               </div>
+              <Illustration group="docs" name="questionnaire" size={48} decorative />
               <h1>{titles[0]}</h1>
               <p className="lead">{titles[1]}</p>
               <div className="onboarding-fields">

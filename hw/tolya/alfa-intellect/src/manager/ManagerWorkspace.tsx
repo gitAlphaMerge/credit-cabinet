@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { money } from "../api";
+import { formatRate } from "../format-rate";
+import { Illustration, StatusIllustration, ProductIllustration, DocumentIllustration, CheckIllustration } from "../Illustration";
 import { ManagerMemo } from "./ManagerMemo";
 import {
   loadApplication,
@@ -150,13 +152,15 @@ export function ManagerView(p: ViewProps) {
       </nav>
       {p.error && (
         <p role="alert" className="manager-stop">
-          {p.error}
+          {p.error}{" "}
+          <Illustration group="empty" name="network" size={48} decorative />
         </p>
       )}
       {p.loading ? (
         <p role="status">Загружаем очередь…</p>
       ) : !p.rows.length ? (
         <p className="cv-card">
+          <Illustration group="empty" name="ready" size={64} decorative />{" "}
           {p.tab === "queue"
             ? "Красных заявок нет, система разобрала остальные сама"
             : "Отказов нет"}
@@ -177,6 +181,7 @@ export function ManagerView(p: ViewProps) {
                   onClick={() => p.onSelect(r.application.id)}
                 >
                   <strong>
+                    <StatusIllustration status={r.application.status} size={32} decorative />{" "}
                     {r.client_name ||
                       r.application.client_name ||
                       "Имя клиента: нет данных"}
@@ -231,7 +236,7 @@ export function ManagerView(p: ViewProps) {
               <p>Выберите заявку, чтобы открыть досье</p>
             ) : (
               <>
-                <h2>Досье заявки</h2>
+                <h2><StatusIllustration status={p.detail.application.status} size={48} decorative /> Досье заявки</h2>
                 {d?.return_to_manager && (
                   <p className="manager-missing">вы просили вернуть</p>
                 )}
@@ -265,7 +270,7 @@ export function ManagerView(p: ViewProps) {
                   <p>Досье пока нет</p>
                 ) : (
                   <>
-                    <h3>Проверки комплаенса</h3>
+                    <h3><Illustration group="status" name="underwriting-checks" size={48} decorative /> Проверки комплаенса</h3>
                     {!d.checks?.length ? (
                       <p>Нет данных о проверках</p>
                     ) : (
@@ -281,6 +286,7 @@ export function ManagerView(p: ViewProps) {
                           }
                         >
                           <strong>
+                            <CheckIllustration check={c.key} size={32} decorative />{" "}
                             {c.status === "ok"
                               ? "Пройдено"
                               : c.status === "unavailable"
@@ -328,6 +334,7 @@ export function ManagerView(p: ViewProps) {
                             : "manager-missing"
                         }
                       >
+                        <DocumentIllustration category={doc.category} size={32} decorative />{" "}
                         {explain(doc.category)}:{" "}
                         {doc.status === "fresh"
                           ? "Актуален"
@@ -338,6 +345,7 @@ export function ManagerView(p: ViewProps) {
                       </p>
                     ))}
                     <h3>Стоп-факторы</h3>
+                    {d.stops_fired?.some((s) => ["BKI_OVERDUE_30_PLUS", "BKI_OVERDUE_90_PLUS"].includes(s)) && <CheckIllustration check="bki" size={32} decorative />}
                     <div className="manager-stop">
                       {d.stops_fired ? (
                         d.stops_fired.length ? (
@@ -376,10 +384,10 @@ export function ManagerView(p: ViewProps) {
                             className="manager-option"
                             key={option.option_id}
                           >
-                            <h4>{option.product_name}</h4>
+                            <h4><ProductIllustration productId={option.product_id} size={32} decorative /> {option.product_name}</h4>
                             <p>
                               {rub(option.amount_rub)} · {option.term_months}{" "}
-                              мес. · {String(option.rate_annual_pct).replace(".", ",")}% годовых
+                              мес. · {formatRate(option.rate_annual_pct)} годовых
                             </p>
                             <p>Платёж: {rub(option.monthly_payment_rub)}</p>
                             <p>{option.reason}</p>

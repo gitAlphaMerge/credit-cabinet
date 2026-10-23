@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { Illustration } from "./Illustration";
 import {
   ArrowRight,
   CalendarDays,
@@ -12,6 +13,7 @@ import {
 import { useWorkspace } from "./context";
 import { Button, Modal } from "./ui";
 import { date, money, ApiError } from "./api";
+import { formatRate } from "./format-rate";
 import {
   addDays,
   cabinetSnapshot,
@@ -977,7 +979,7 @@ export function CabinetV2({
               <div className="cv-terms">
                 <div>
                   <span>Ставка</span>
-                  <strong>{c.rate}% годовых</strong>
+                  <strong>{formatRate(c.rate)} годовых</strong>
                 </div>
                 <div>
                   <span>
@@ -996,6 +998,7 @@ export function CabinetV2({
           ) : (
             <>
               <p>
+                <Illustration group="empty" name="applications" size={48} decorative />{" "}
                 {s.cabinet?.noCreditConfirmedAt
                   ? "Вы подтвердили отсутствие действующего кредита."
                   : "Сведения о действующем финансировании пока не добавлены."}

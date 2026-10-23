@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { Calculation } from "../shared/types";
 import { money } from "./api";
+import { formatRate } from "./format-rate";
 export function Brand() {
   return (
     <span className="brand">
@@ -279,7 +280,7 @@ export function CalculationView({
           </div>
           <div>
             <small>Демо-ставка</small>
-            <strong>{c.rate}%</strong>
+            <strong>{formatRate(c.rate)}</strong>
           </div>
           <div>
             <small>Платёж в месяц</small>

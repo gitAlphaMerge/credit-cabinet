@@ -1,0 +1,241 @@
+✔ F1 visible submission enters conveyor with selected terms and retries once (2306.0755ms)
+✔ F1 explicit disagreement is a system event and rejects forged escalation (120.8182ms)
+✔ F1 silence sweep waits after a delivered nudge, then queues only once (71.6411ms)
+✔ F1 offline chat objections preserve application context and enter manager queue (108.4223ms)
+[applications] scoring pipeline failed code=OPERATION_FAILED class=Error
+✔ F1 scoring outage leaves one resumable draft, no success lead, and human error (98.901ms)
+✔ F1 red resupply through HTTP resumes an unresolved disagreement and replays once (161.1489ms)
+✔ F1 customer reply in an unlinked single-application chat cancels silence escalation (113.5535ms)
+✔ F1 configured server timer delivers a nudge and escalates without a manual sweep (79.5888ms)
+✔ BUG: F1 still-red resupply after CLIENT_SILENT returns to the manager queue (5525.5805ms)
+(node:16188) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ submit: changed evidence during compliance rolls back the entire response (76.2742ms)
+✔ client_update: changed evidence during compliance rolls back the entire response (38.2649ms)
+✔ accept_alternative: changed evidence during compliance rolls back the entire response (49.4878ms)
+✔ submit: changed evidence during core rolls back the entire response (20.2024ms)
+✔ client_update: changed evidence during core rolls back the entire response (18.3768ms)
+✔ accept_alternative: changed evidence during core rolls back the entire response (28.9923ms)
+✔ submit: changed evidence during bki rolls back the entire response (18.4627ms)
+✔ client_update: changed evidence during bki rolls back the entire response (32.6796ms)
+✔ accept_alternative: changed evidence during bki rolls back the entire response (34.6771ms)
+✔ non-evidence chat changes and unconfirmed uploads do not cancel a current score (11.4067ms)
+✔ accepted catalogue terms survive a request for more evidence and a later client update (41.7868ms)
+✔ live array oracle rejects a product outside the permitted golden set (19.0622ms)
+✔ contracted request_info journals payload.text when the legacy reason is blank (11.9972ms)
+Q1_SQLITE=C:\Users\s1107\projects\cc-night-int\hw\tolya\alfa-intellect\tests\qa\q1-sqlite-FYVF80\applications.sqlite
+✔ SQLite retry yields to the event loop and reuses a single score after the writer releases (331.2297ms)
+✔ F3 every contract status has a safe client screen (425.5749ms)
+✔ F3 memo has six deterministic dossier blocks and explicit review (56.8809ms)
+✖ F3 offer renders only actual server terms, not requested amount as offer (24.0945ms)
+✔ F3 own list/detail and events use session, exact version, payload and idempotency (63.881ms)
+✔ F3 transport hides internal errors and exposes retryable network, malformed and conflict errors (13.26ms)
+✔ F3 client controls have accessible names, are native keyboard controls, and lock while busy (203.5292ms)
+✔ F3 document, alternative, disagreement and signature handlers use contract payloads (28.7099ms)
+✔ F3 manager memo cannot submit without review or beyond limit; reviewed memo reaches existing event (82.7936ms)
+✔ F3 manager or unknown role never loads client applications (153.3164ms)
+✔ F3 memo completion uses existing manager event; failure retains the draft (37.9546ms)
+✔ F3 obsolete client detail response is ignored after selection changes (51.1443ms)
+✔ CSV preserves quoted separators, escaped quotes, CRLF and multiline text (7.7736ms)
+✔ CSV rejects malformed quotes and 50001 operations (93.3032ms)
+✔ calendar validation allows leap day and rejects rollover in statements and schedules (2.2244ms)
+✔ 150 KiB request reaches team core, valid response passes unchanged, oversized request is 413 (232.7856ms)
+✔ team score malformed JSON and upstream failure return a safe 502 (72.2599ms)
+✔ team score accepts view-only responses and validates any supplied core (225.4168ms)
+F4_V3 {"files":654,"accepted":0,"rejected":654,"digest":"71fab4229efeae612f15794c862e94b3b912ba76699a18cfeff5d0df2a2ac632"}
+✔ v3 CSV and 1C compatibility across every client and seed (7668.3218ms)
+✔ F7 manager checkbox defaults unchecked and submits boolean through the real API adapter (82.8222ms)
+✔ F7 queue and dossier show the return badge alongside the fresh verdict (36.8872ms)
+Q1_SQLITE=C:\Users\s1107\projects\cc-night-int\hw\tolya\alfa-intellect\tests\qa\q1-sqlite-losVGQ\applications.sqlite
+✔ F7 unchecked green resupply automatically offers without another manager action (559.2582ms)
+✔ F7 checked green resupply returns with fresh dossier and audited flag (162.69ms)
+✔ F7 checked holes resupply returns with fresh dossier and audited flag (151.5591ms)
+✔ F7 checked stop resupply returns with fresh dossier and audited flag (156.2086ms)
+✔ F7 checked gate_info resupply returns with fresh dossier and audited flag (162.4658ms)
+✔ F7 checked gate_stop resupply returns with fresh dossier and audited flag (151.238ms)
+✔ F7 checked limit resupply returns with fresh dossier and audited flag (129.3323ms)
+✔ F7 next unchecked request clears the previous cycle flag (127.9237ms)
+✔ F7 unchecked red resupply returns after prior CLIENT_SILENT without a new silence event (87.542ms)
+✔ F7 flag is boolean and belongs only to manager request_info; rejected requests are atomic (231.5407ms)
+✔ F7 flagged cycle cannot bypass manager through accepting an alternative (139.7628ms)
+✔ F7 Q1 seed=20261198 above-limit send_to_underwriting is rejected by documented guard (44.9355ms)
+✔ F8 registry months win over the questionnaire band (2.4389ms)
+✔ F8 no registry: questionnaire band mapped to core vocabulary and marked (2.035ms)
+✔ F8 mismatch only beyond 12 months outside the declared band (0.8087ms)
+✔ F8 young business by registry reaches the core as TOO_YOUNG vocabulary (0.7064ms)
+✔ G4 rate formatter preserves percentage-point units, decimals and absent data (3.7698ms)
+✔ G4 auditor reads nested CSS, ignores comments, resolves tokens and counts real contrast (12.511ms)
+✔ G4 all stylesheet and inline sizes resolve to the shared seven-step scale (1102.4963ms)
+✔ G4 text controls have growing heights, numeric sums wrap, and shell rows can grow (916.7545ms)
+✔ G4 source typography and contrast audit exits successfully (1445.0628ms)
+✔ G4 calculation displays a decimal Russian rate separated from percent (86.473ms)
+✔ G4 server offer converts a fractional rate once and preserves missing terms (134.3342ms)
+✔ G5 all six palettes and actual product tokens meet contrast thresholds (8886.0525ms)
+✔ G5 header mounts the theme switch beside the profile (0.9736ms)
+✔ G5 real button toggles data-theme both ways, persists and exposes its state (115.6164ms)
+✔ G5 system theme, saved override, invalid storage and denied storage work (27.3144ms)
+✔ G5 follows system until manual choice, syncs tabs and cleans listeners (5.0763ms)
+✔ G5 checker rejects low contrast, missing palettes and product drift (19.6752ms)
+✔ G5 board has six real samples, valid local icons and working direction controls (4.9522ms)
+Q1_SQLITE=C:\Users\s1107\projects\cc-night-int\hw\tolya\alfa-intellect\tests\qa\q1-sqlite-4vUoOq\applications.sqlite
+Q1_SQLITE_CONTENTION: HTTP=409 body={"error":"Заявка занята другим запросом, повторите попытку"}
+✔ another SQLite writer must yield a conflict, never SQLITE_BUSY as HTTP 500 (519.6164ms)
+✔ accept_alternative caller is client only in frozen contract, internal system must not accept it (44.9311ms)
+✔ agent_nudge is forbidden over HTTP for client and manager; internal system journals it (75.1275ms)
+✔ escalate_silent is forbidden over HTTP for client and manager; internal system journals it (75.7979ms)
+✔ escalate_disagreed is forbidden over HTTP for client and manager; internal system journals it (74.2713ms)
+✔ request_info accepts contracted hole/text payload without undocumented top-level reason (51.3165ms)
+Q1_STALE_PROFILE: HTTP=409 status=draft
+✔ changing profile during scoring invalidates stale underwriting before it can offer (46.0554ms)
+Q1_STALE_DOCUMENT: HTTP=409 status=draft
+✔ changing document during scoring invalidates stale underwriting before it can offer (88.3378ms)
+✔ document oracle matches all persisted transition edges and caller preflights (4.5393ms)
+✔ all undefined status/event/role/target combinations fail; terminals have no exits (136.5265ms)
+Q1_SQLITE=C:\Users\s1107\projects\cc-night-int\hw\tolya\alfa-intellect\tests\qa\q1-sqlite-Fi3dpO\applications.sqlite
+✔ gate/core/BKI/limit: only a complete green dossier reaches offered, journal is system-owned (685.0054ms)
+✔ missing consent, stale version and invalid transitions leave application, journal and dossier unchanged (67.8035ms)
+✔ idempotency: exact response replay after further events; canonical body; conflicting body/path rejected (97.8414ms)
+✔ idempotency: 24 concurrent same-key submits produce one cascade and identical responses (325.6764ms)
+✔ file SQLite: 24 unique-key submits with one version have one winner and 23 conflicts (361.561ms)
+✔ file SQLite: 24 mixed events with one version have exactly one winner, no duplicate journal entries (327.5858ms)
+✔ CAS: in-flight score loses to a committed withdraw over a separate SQLite connection (38.8829ms)
+[applications] transaction failed code=OPERATION_FAILED class=Error
+✔ atomic rollback: offer failure leaves no cascade, dossier or replay-cache residue; same key can retry (63.8492ms)
+✔ IDOR: every application route and bank route refuses foreign mutation/disclosure (424.6427ms)
+✔ HTTP ignores payload actorRole, reads live database role, rejects forged top-level role (75.3332ms)
+✔ manager queue excludes info, offered and rejected; includes only queued (123.6352ms)
+✔ nudge is required in latest info cycle; system approval cannot bypass incomplete dossier (67.8777ms)
+Q1_SQLITE=C:\Users\s1107\projects\cc-night-int\hw\tolya\alfa-intellect\tests\qa\q1-sqlite-OEsRwi\applications.sqlite
+✔ 500 seeded sequences via transitionApplication against document oracle (22297.3825ms)
+✔ 500 seeded sequences via HTTP against document oracle (82230.8566ms)
+✔ team-score must reject missing upstream payload instead of HTTP 200 (190.7565ms)
+✔ team-score must reject string-limit upstream payload instead of HTTP 200 (29.3073ms)
+✔ team-score must reject negative-limit upstream payload instead of HTTP 200 (18.6861ms)
+✔ BUG: upstream exception must not expose confidential values in server journal (285.9121ms)
+✔ semicolon and comma CSV must preserve statement records (50.9628ms)
+✔ CP1251 statement must preserve counterparty and enforcement purpose (2.1432ms)
+✔ impossible calendar date is not a valid operation (4.7654ms)
+✔ 50000 operations plus header fit the advertised row limit (419.6628ms)
+✔ reject empty, header-only, binary CSV and nonnumeric amount (11.6279ms)
+✔ signed amounts, localized numbers and debt excluded from operating flow (23.5592ms)
+✔ permutation preserves extracted fields and canonical multiset of operations (7.2329ms)
+✔ UTF8 BOM preserves statement fields and records (2.1637ms)
+✔ duplicates are observable rather than silently lost (0.6977ms)
+✔ real v3 dirty CSV and CP1251 1C fail explicitly without unsupported success (123.6511ms)
+✔ core offline: 503, no partial writes, same-key recovery and single offer (406.0777ms)
+✔ core 500: 503, no partial writes, same-key recovery and single offer (158.3268ms)
+✔ core invalid-json: 503, no partial writes, same-key recovery and single offer (127.1055ms)
+✔ core missing: 503, no partial writes, same-key recovery and single offer (131.2654ms)
+✔ core string-limit: 503, no partial writes, same-key recovery and single offer (130.4866ms)
+✔ core negative-limit: 503, no partial writes, same-key recovery and single offer (110.4374ms)
+✔ core delayed-30s: 503, no partial writes, same-key recovery and single offer (30089.9706ms)
+✔ compliance 500: safe 503, core never called, unchanged draft, retry (36.0538ms)
+✔ registry adapter 500: injected transport returns safe RegistryError (1.1686ms)
+✔ compliance timeout: safe 503, core never called, unchanged draft, retry (35.9216ms)
+✔ registry adapter timeout: injected transport returns safe RegistryError (0.2771ms)
+✔ local compliance unavailable source: persisted info_requested, core skipped, recovery (34.1372ms)
+✔ BKI transport throws: persists incomplete dossier, recovery completes (32.9772ms)
+✔ LLM disabled: chat uses demo and full application still offers (34.0215ms)
+✔ Unicode, emoji, SQL and HTML are inert profile data; oversized names rejected (267.0507ms)
+✔ wrong-checksum INN absent from mocks is refused with no profile overwrite (28.6725ms)
+✔ future statement date produces an explicit hole before scoring (1.8658ms)
+✔ BOM and permutations preserve N/M, limit and stops through the submit pipeline (250.0504ms)
+KILLED ManagerWorkspace: p.detail?.application.status === "queued"
+KILLED ManagerWorkspace: option.amount_rub > limit
+KILLED ManagerWorkspace: {n} из {m}
+KILLED ManagerWorkspace: {p.error && (
+✔ Q3 manager guards: ten non-queue statuses, unknown/invalid/over limit, equality, busy (102.466ms)
+✔ Q3 manager empty, loading, absent detail/dossier, success and textual alert (50.3117ms)
+✔ Q3 client cannot render manager controls, unknown and unauthenticated roles denied (13.7594ms)
+✔ Q3 manager uses server N/M verbatim and never converts unavailable checks to passed (11.3036ms)
+✔ Q3 manager API network, malformed JSON and 401/403/404/409/422 preserve caller error (68.1132ms)
+✔ Q3 manager retry/select/tab callbacks and accessible names of all native controls (7.1453ms)
+✔ Q3 mutation strength: status guard, limit boundary, server N/M and visible errors (454.9534ms)
+KILLED Onboarding.tsx: swallowed error
+KILLED manager/api.ts: expectedVersion: application.version
+KILLED manager/api.ts: ? { reason }
+KILLED manager/api.ts: { "Idempotency-Key": crypto.randomUUID() }
+✔ Q3 landing CTAs resolve to implemented public routes and images have alt (619.6407ms)
+✔ Q3 login blank, loading, server success and linked invalid field messages (478.1205ms)
+✔ Q3 authentication network and 4xx errors reach a visible alert (90.5854ms)
+✔ Q3 financing new/history/empty, saved result, pending submission, loading and errors (504.3894ms)
+✔ Q3 profile empty documents, lookup loading, invalid INN, transport and 4xx linked errors (323.2148ms)
+✔ Q3 cabinet empty and populated; notifications empty, loaded and mark pending (178.9146ms)
+✔ Q3 chat empty and sending states render with context; error boundary provides recovery (93.3016ms)
+✔ Q3 generic API preserves structured 422 fields and network/malformed responses (5.7287ms)
+✔ Q3 shared shell exposes network/4xx failures from notifications/profile and chat, with sending lock (296.1938ms)
+✔ Q3 mutation strength: authentication error handler and manager event version/reason/headers (82.0309ms)
+HTTP request_info -> 200
+✔ Q3 real manager form -> real route -> persisted request_info (1568.9429ms)
+HTTP send_to_underwriting -> 200
+✔ Q3 real manager form -> real route -> persisted send_to_underwriting (68.2387ms)
+HTTP reject -> 200
+✔ Q3 real manager form -> real route -> persisted reject (45.2207ms)
+✔ Q3 client server access: queue/rejected/detail, spoofed role, config authoritative (78.1024ms)
+✔ Q3 client navigation does not include the manager tab (313.7971ms)
+✔ Q3 client profile save, notification read and new chat buttons reach real routes (105.0188ms)
+KILLED applications-routes.ts: user.role !== manager (baseline expects 403, mutant 200)
+KILLED app.ts: client config role changed to manager
+✔ Q3 mutation strength: real client role denial and config role (298.7387ms)
+✔ BUG: Q3 visible client submission must enter v2 and expose a submitted application (95.5554ms)
+✔ #1 profile changed during core cannot commit stale pass (143.2158ms)
+✔ #1 statement changed during core cannot commit stale pass (5.8517ms)
+✔ #4 accepted alternative preserves asked_for (19.1781ms)
+✔ #4 accepted alternative preserves rate (13.5417ms)
+✔ #4 accepted alternative preserves repayment (15.2806ms)
+✔ #7 extra unconfirmed old statement cannot block confirmed fresh evidence (4.9668ms)
+✔ #8 registry age takes precedence over editable age (8.5674ms)
+✔ #9 equivalent purpose Развитие produces same real catalogue alternatives (30.264ms)
+✔ #9 equivalent purpose Исполнение контракта produces same real catalogue alternatives (10.9704ms)
+Q4_PII_SCAN=application_events.payload []
+(node:27920) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ BUG: #11 real chat handler must attach owned application and objections mode (165.5785ms)
+✔ #12 application journal must not retain private text inside objections (9.641ms)
+✔ #15 real live oracle accepts a member of golden instrument array (11.2337ms)
+Q4_MUTATION=applications.ts:1021 inn-key killed
+Q4_MUTATION=applications.ts:1015 array-recursion killed
+Q4_MUTATION=applications.ts:1023 object-recursion killed
+(node:19992) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ #1 unchanged evidence yields one system offer and version CAS denies replay (49.6919ms)
+✔ #4 accepted alternative amount and term are rescored, foreign option rejected (19.8603ms)
+✔ #7 confirmed stale evidence blocks, fresh evidence passes (3.5994ms)
+✔ #9 canonical goals produce bounded catalogue alternatives (21.1628ms)
+✔ #11 adapter supports explicit application context and drops profile PII (20.586ms)
+✔ #15 live helper accepts its legacy scalar oracle and rejects wrong instrument (21.9559ms)
+✔ #12 structured PII redaction mutations killed in production eventPayload (19.4684ms)
+✔ S1: green application reaches offer and schedule without manager or LLM (1575.9049ms)
+✔ S4: inactive company rejected with understandable compliance reason before core (81.3459ms)
+✔ S-manager: resupplied green case receives automatic offer without manager memo (2137.5215ms)
+✔ S-manager: resupplied still-red disagreement returns to manager queue (238.0699ms)
+[applications] scoring pipeline failed code=OPERATION_FAILED class=Error
+✔ Q5 seed: four genuinely red cases, priority, journal replay, credentials and retry (2969.068ms)
+✔ Q5 core outage leaves draft with no invented dossier; retry succeeds (1118.9312ms)
+ℹ tests 179
+ℹ suites 0
+ℹ pass 178
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109829.3319
+
+✖ failing tests:
+
+test at tests\qa\f3-screens.test.tsx:98:1
+✖ F3 offer renders only actual server terms, not requested amount as offer (24.0945ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /24%/. Input:
+  
+  '<main class="cabinet-v2 unified-cabinet application-status"><header class="cv-heading"><div><small>МОЯ ЗАЯВКА</small><h1>Моя заявка</h1><span class="badge">Банк подготовил предложение</span></div><div class="application-heading-actions"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg></div></header><div class="application-columns"><section class="application-stack"><article class="cv-card"><h2>Банк подготовил предложение</h2><p>Проверьте условия и график перед подписанием договора.</p><p>Запрошено: <b>300 000 ₽</b></p></article><section class="cv-card application-stack"><h2>Условия предложения</h2><div class="application-terms"><p>Сумма <b>250 000 ₽</b></p><p>Срок <b>6 мес.</b></p><p>Ставка <b>24 % годовых</b></p><p>Первый платёж <b>45 000 ₽</b></p></div><details><summary>График платежей</summary><ol><li>Платёж 1: 45 000 ₽</li></ol></details><form><label class="field"><span>Код из СМС</span><input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{4}" maxLength="4" required="" name="code"/></label><p class="fine-print">Демонстрационная подпись. Код: 0000, СМС не отправляется.</p><button class="button">Подписать договор</button><button type="button" class="button secondary">Отказаться от предложения</button></form></section><section class="cv-card"><h2>История заявки</h2><ol class="application-history"><li><b>Банк подготовил предложение</b><time dateTime="2026-10-23">23.10.2026, 03:00:00</time></li></ol></section></section><aside class="application-stack"><section class="cv-card"><h2>Готовность заявки</h2><p>3 из 5</p><p>Лимит сейчас: 400 000 ₽</p><p class="fine-print">Оценка готовности не заменяет решение банка.</p></section></aside></div></main>'
+  
+      at TestContext.<anonymous> (file:///C:/Users/s1107/projects/cc-night-int/hw/tolya/alfa-intellect/tests/qa/f3-screens.test.tsx:112:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<main class="cabinet-v2 unified-cabinet application-status"><header class="cv-heading"><div><small>МОЯ ЗАЯВКА</small><h1>Моя заявка</h1><span class="badge">Банк подготовил предложение</span></div><div class="application-heading-actions"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg></div></header><div class="application-columns"><section class="application-stack"><article class="cv-card"><h2>Банк подготовил предложение</h2><p>Проверьте условия и график перед подписанием договора.</p><p>Запрошено: <b>300 000 ₽</b></p></article><section class="cv-card application-stack"><h2>Условия предложения</h2><div class="application-terms"><p>Сумма <b>250 000 ₽</b></p><p>Срок <b>6 мес.</b></p><p>Ставка <b>24 % годовых</b></p><p>Первый платёж <b>45 000 ₽</b></p></div><details><summary>График платежей</summary><ol><li>Платёж 1: 45 000 ₽</li></ol></details><form><label class="field"><span>Код из СМС</span><input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{4}" maxLength="4" required="" name="code"/></label><p class="fine-print">Демонстрационная подпись. Код: 0000, СМС не отправляется.</p><button class="button">Подписать договор</button><button type="button" class="button secondary">Отказаться от предложения</button></form></section><section class="cv-card"><h2>История заявки</h2><ol class="application-history"><li><b>Банк подготовил предложение</b><time dateTime="2026-10-23">23.10.2026, 03:00:00</time></li></ol></section></section><aside class="application-stack"><section class="cv-card"><h2>Готовность заявки</h2><p>3 из 5</p><p>Лимит сейчас: 400 000 ₽</p><p class="fine-print">Оценка готовности не заменяет решение банка.</p></section></aside></div></main>',
+    expected: /24%/,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { DocumentIllustration } from "./Illustration";
 import {
   Pencil,
   Search,
@@ -288,7 +289,7 @@ export function ProfilePage() {
             return (
               <article className="document-card" key={c}>
                 <span className={"doc-icon color-" + i}>
-                  <FileText size={23} />
+                  <DocumentIllustration category={c} size={32} decorative />
                 </span>
                 <h3>{title}</h3>
                 <span className={"doc-status " + (d ? "loaded" : "")}>

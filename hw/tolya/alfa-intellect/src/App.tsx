@@ -25,6 +25,7 @@ import { Financing } from "./Financing";
 import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
 import { ApplicationStatus } from "./ApplicationStatus";
+import { ThemeToggle } from "./ThemeToggle";
 import "./application-status.css";
 import "./manager/manager.css";
 import type { AppState, Doc } from "../shared/types";
@@ -347,6 +348,7 @@ export function App() {
             </button>
           </nav>
           <div className="header-tools">
+            <ThemeToggle />
             <button
               data-tour="profile"
               className={

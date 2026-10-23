@@ -82,7 +82,7 @@ function ConversationFeedback({eligible,done,disabled,save}: {
       {[1,2,3,4,5,6,7].map(n => <button type="button" key={n} className="text-button"
         style={{minWidth:36,minHeight:44,borderRadius:8,background:rating === n ? "var(--surface-hover, #eee)" : undefined}} aria-pressed={rating === n} disabled={disabled} onClick={() => setRating(n)}>{n}</button>)}
     </div>
-    <div style={{display:"flex",justifyContent:"space-between",gap:12,fontSize:12}}>
+    <div style={{display:"flex",justifyContent:"space-between",gap:12,fontSize:"var(--text-sm)"}}>
       <span>совсем не согласен</span><span>полностью согласен</span>
     </div>
     <label>Что сделать проще?<textarea name="text" maxLength={1000} style={{width:"100%",boxSizing:"border-box",minHeight:64}} /></label>

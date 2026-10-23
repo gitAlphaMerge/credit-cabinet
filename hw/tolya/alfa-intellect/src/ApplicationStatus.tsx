@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { FileText } from "lucide-react";
+import { Illustration, StatusIllustration, ProductIllustration, DocumentIllustration } from "./Illustration";
 import { useWorkspace } from "./context";
 import { money } from "./api";
+import { formatRate } from "./format-rate";
 import {
   clientLabels,
   finite,
@@ -82,14 +83,6 @@ export function ApplicationStatusView(p: Props) {
   const options = ["info_requested", "queued"].includes(a.status)
     ? (d?.alternatives ?? [])
     : [];
-  const icons = import.meta.env
-    ? import.meta.glob("/public/icons/status/*.svg", {
-        eager: true,
-        query: "?url",
-        import: "default",
-      })
-    : {};
-  const icon = icons["/public/icons/status/" + a.status + ".svg"];
   return (
     <main className="cabinet-v2 unified-cabinet application-status">
       <header className="cv-heading">
@@ -102,11 +95,7 @@ export function ApplicationStatusView(p: Props) {
         </div>
         <div className="application-heading-actions">
           {p.toolbar}
-          {typeof icon === "string" ? (
-            <img src={icon} width="48" height="48" alt="" />
-          ) : (
-            <FileText aria-hidden="true" />
-          )}
+          <StatusIllustration status={a.status} size={48} decorative />
         </div>
       </header>
       <div className="application-columns">
@@ -220,9 +209,10 @@ export function ApplicationStatusView(p: Props) {
                   После загрузки проверьте извлечённые данные и подтвердите
                   документ.
                 </p>
-                {!p.documents?.length && <p>Документов пока нет</p>}
+                {!p.documents?.length && <p><Illustration group="empty" name="upload" size={64} decorative /> Документов пока нет</p>}
                 {p.documents?.map((doc) => (
                   <div key={doc.id}>
+                    <DocumentIllustration category={doc.category} size={32} decorative />{" "}
                     {doc.confirmed ? (
                       <label className="checkbox-row">
                         <input
@@ -289,7 +279,7 @@ export function ApplicationStatusView(p: Props) {
               <h2>Доступные варианты</h2>
               {options.map((option) => (
                 <article key={option.option_id} className="application-option">
-                  <h3>{option.product_name}</h3>
+                  <h3><ProductIllustration productId={option.product_id} size={32} decorative /> {option.product_name}</h3>
                   {finite(option.amount_rub) && (
                     <p>Сумма: {money(option.amount_rub)}</p>
                   )}
@@ -297,7 +287,7 @@ export function ApplicationStatusView(p: Props) {
                     <p>Срок: {option.term_months} мес.</p>
                   )}
                   {finite(option.rate_annual_pct) && (
-                    <p>Ставка: {String(option.rate_annual_pct).replace(".", ",")}% годовых</p>
+                    <p>Ставка: {formatRate(option.rate_annual_pct)} годовых</p>
                   )}
                   {finite(option.monthly_payment_rub) && (
                     <p>Платёж: {money(option.monthly_payment_rub)}</p>
@@ -360,10 +350,7 @@ export function ApplicationStatusView(p: Props) {
                   <p>
                     Ставка{" "}
                     <b>
-                      {new Intl.NumberFormat("ru-RU", {
-                        maximumFractionDigits: 4,
-                      }).format(offer.rate * 100)}
-                      % годовых
+                      {formatRate(offer.rate * 100)} годовых
                     </b>
                   </p>
                 )}
@@ -575,7 +562,8 @@ export function ApplicationStatus() {
       {!(detail && detail.application.id === selected) && toolbar}
       {error && (
         <p role="alert" className="application-toolbar">
-          {error}
+          {error}{" "}
+          <Illustration group="empty" name="network" size={48} decorative />
         </p>
       )}
       {loading ? (
@@ -625,6 +613,7 @@ export function ApplicationStatus() {
         !error && (
           <main className="cv-card application-toolbar">
             <h1>Моя заявка</h1>
+            <Illustration group="empty" name="applications" size={64} decorative />
             <p>Заявок пока нет</p>
             <button className="button" onClick={() => w.go("/financing")}>
               Подобрать финансирование

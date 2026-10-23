@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { Badge, Button } from "./ui";
 import { money, date } from "./api";
+import { formatRate } from "./format-rate";
+import { ProductIllustration } from "./Illustration";
 import type { Selection } from "../shared/types";
 import {
   financialLabels,
@@ -88,7 +90,7 @@ export function SelectionResult({
         </span>
         <Badge>{a?.level || "Ориентировочная"}</Badge>
       </div>
-      <h2>{item.product}</h2>
+      <h2><ProductIllustration productId={a?.selectedId} size={48} decorative /> {item.product}</h2>
       <p className="funding-result-purpose">
         {item.purpose} · {item.repayFrom}
       </p>
@@ -135,7 +137,7 @@ export function SelectionResult({
         </div>
         <div>
           <small>Сценарная ставка</small>
-          <b>{c.rate}% годовых</b>
+          <b>{formatRate(c.rate)} годовых</b>
         </div>
         <div>
           <small>{a?.paymentLabel || "Платёж в месяц"}</small>
@@ -327,7 +329,7 @@ export function SelectionResult({
           <h3>Что ещё сравнить</h3>
           {a.alternatives.map((p) => (
             <div key={p.id}>
-              <b>{p.name}</b>
+              <b><ProductIllustration productId={p.id} size={32} decorative /> {p.name}</b>
               <span>{p.reason}</span>
             </div>
           ))}

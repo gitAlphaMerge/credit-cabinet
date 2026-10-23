@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Альфа: три направления кабинета</title>
+<style>
+body{margin:0;background:#edf0f4;color:#171923;font:16px/1.5 system-ui,sans-serif}main{max-width:1440px;margin:auto;padding:32px 24px}h1{font-size:32px;letter-spacing:-.03em;margin:8px 0}h2{margin:0;font-size:24px}p{max-width:75ch}button,input{font:inherit}button{cursor:pointer}nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}nav button{padding:12px 20px;border:1px solid #697383;border-radius:8px;background:#fff;color:#171923}nav button[aria-pressed="true"]{background:#171923;color:#fff}button:focus-visible,input:focus-visible{outline:3px solid var(--theme-red,#b52b20);outline-offset:4px}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.direction{margin:28px 0 48px}.direction[hidden]{display:none}.direction>p{margin:8px 0 20px}.theme{background:var(--theme-bg);color:var(--theme-ink);border:1px solid var(--theme-field-border);border-radius:16px;padding:24px;min-width:0}.mode{color:var(--theme-muted);margin:0 0 20px}.card{background:var(--theme-surface);border:1px solid var(--theme-line);border-radius:12px;padding:20px;margin-bottom:16px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.amount{font-size:32px;letter-spacing:-.03em;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;margin:12px 0}.muted,small{color:var(--theme-muted)}.icon{width:48px;height:48px;padding:6px;background:#fff;border-radius:10px;box-sizing:border-box}.badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:14px;font-weight:600}.success{color:var(--theme-green);background:var(--theme-success-soft)}.warning{color:var(--theme-warning);background:var(--theme-warning-soft)}.danger{color:var(--theme-danger);background:var(--theme-danger-soft)}.info{color:var(--theme-info);background:var(--theme-info-soft)}.badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}.controls{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.primary,.secondary{border:1px solid var(--theme-field-border);border-radius:8px;padding:12px 16px;min-height:44px}.primary{background:var(--theme-red);border-color:var(--theme-red);color:var(--theme-on-accent)}.primary:hover{background:var(--theme-accent-hover)}.secondary{background:var(--theme-surface);color:var(--theme-ink)}.secondary:hover{background:var(--theme-surface-hover)}label{display:grid;gap:8px}input{width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--theme-field-border);border-radius:8px;background:var(--theme-surface);color:var(--theme-ink)}.queue{background:var(--theme-surface-soft);border-left:3px solid var(--theme-warning);padding:16px;border-radius:6px}.queue p{margin:6px 0}.chart{width:100%;height:92px;margin-top:16px}.chart polyline{fill:none;stroke-width:3}.chart .plan{stroke:var(--theme-chart-secondary);stroke-dasharray:6 4}.chart .fact{stroke:var(--theme-chart-primary)}.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:14px}.legend span:before{content:"";display:inline-block;width:20px;border-top:3px solid var(--theme-chart-primary);margin-right:6px}.legend span+span:before{border-color:var(--theme-chart-secondary);border-top-style:dashed}.note{font-size:14px}footer{border-top:1px solid #697383;padding-top:16px}@media(max-width:800px){main{padding:20px 12px}.pair{grid-template-columns:1fr}.theme{padding:16px}h1{font-size:28px}}
+.theme[data-direction="graphite"][data-mode="light"] {
+  --theme-bg: #f4f6f8;
+  --theme-surface: #ffffff;
+  --theme-surface-soft: #f0f3f6;
+  --theme-surface-hover: #e8edf2;
+  --theme-ink: #171923;
+  --theme-muted: #4f5b6c;
+  --theme-red: #b52b20;
+  --theme-on-accent: #ffffff;
+  --theme-accent-hover: #9d231b;
+  --theme-on-ink: #ffffff;
+  --theme-green: #176245;
+  --theme-on-success: #ffffff;
+  --theme-success-soft: #e7f3ec;
+  --theme-warning: #79500b;
+  --theme-warning-soft: #fff2d7;
+  --theme-danger: #a92625;
+  --theme-danger-soft: #fff0ed;
+  --theme-info: #24549a;
+  --theme-info-soft: #eaf1fc;
+  --theme-line: #d3d9e1;
+  --theme-field-border: #707c8b;
+  --theme-chart-primary: #b52b20;
+  --theme-chart-secondary: #556b88;
+  --theme-brand: #ef3124;
+  --theme-shadow: #000000;
+}
+.theme[data-direction="graphite"][data-mode="dark"] {
+  --theme-bg: #10141b;
+  --theme-surface: #191f29;
+  --theme-surface-soft: #202733;
+  --theme-surface-hover: #293340;
+  --theme-ink: #edf1f7;
+  --theme-muted: #b4bfce;
+  --theme-red: #ff9488;
+  --theme-on-accent: #27100c;
+  --theme-accent-hover: #ffb1a8;
+  --theme-on-ink: #10141b;
+  --theme-green: #8cddb4;
+  --theme-on-success: #10251b;
+  --theme-success-soft: #1b372d;
+  --theme-warning: #f4cd81;
+  --theme-warning-soft: #3c301d;
+  --theme-danger: #ffa2a0;
+  --theme-danger-soft: #3e2426;
+  --theme-info: #bad0ff;
+  --theme-info-soft: #20344d;
+  --theme-line: #414d5d;
+  --theme-field-border: #9baac0;
+  --theme-chart-primary: #ff9488;
+  --theme-chart-secondary: #aabedb;
+  --theme-brand: #ef3124;
+  --theme-shadow: #000000;
+}
+.theme[data-direction="porcelain"][data-mode="light"] {
+  --theme-bg: #f0f3f8;
+  --theme-surface: #ffffff;
+  --theme-surface-soft: #eaf0f7;
+  --theme-surface-hover: #e1e8f1;
+  --theme-ink: #152239;
+  --theme-muted: #45566e;
+  --theme-red: #af2821;
+  --theme-on-accent: #ffffff;
+  --theme-accent-hover: #912018;
+  --theme-on-ink: #ffffff;
+  --theme-green: #125d40;
+  --theme-on-success: #ffffff;
+  --theme-success-soft: #e5f1ea;
+  --theme-warning: #704700;
+  --theme-warning-soft: #fff0d3;
+  --theme-danger: #a42324;
+  --theme-danger-soft: #ffedeb;
+  --theme-info: #214e93;
+  --theme-info-soft: #e7effc;
+  --theme-line: #cbd4e1;
+  --theme-field-border: #65748a;
+  --theme-chart-primary: #af2821;
+  --theme-chart-secondary: #4b6386;
+  --theme-brand: #ef3124;
+  --theme-shadow: #000000;
+}
+.theme[data-direction="porcelain"][data-mode="dark"] {
+  --theme-bg: #101521;
+  --theme-surface: #192131;
+  --theme-surface-soft: #212c3d;
+  --theme-surface-hover: #2a374a;
+  --theme-ink: #f0f4fc;
+  --theme-muted: #c0cce0;
+  --theme-red: #ff998f;
+  --theme-on-accent: #28100c;
+  --theme-accent-hover: #ffbab2;
+  --theme-on-ink: #101521;
+  --theme-green: #96e6bb;
+  --theme-on-success: #10251b;
+  --theme-success-soft: #1c382d;
+  --theme-warning: #ffdb91;
+  --theme-warning-soft: #3e321d;
+  --theme-danger: #ffafaa;
+  --theme-danger-soft: #41272b;
+  --theme-info: #adcfff;
+  --theme-info-soft: #203853;
+  --theme-line: #465770;
+  --theme-field-border: #a0b4d0;
+  --theme-chart-primary: #ff998f;
+  --theme-chart-secondary: #b5cbeb;
+  --theme-brand: #ef3124;
+  --theme-shadow: #000000;
+}
+.theme[data-direction="paper"][data-mode="light"] {
+  --theme-bg: #f8f5f1;
+  --theme-surface: #fffdf9;
+  --theme-surface-soft: #f2ece5;
+  --theme-surface-hover: #e9e1d7;
+  --theme-ink: #26201d;
+  --theme-muted: #60544b;
+  --theme-red: #b02a21;
+  --theme-on-accent: #ffffff;
+  --theme-accent-hover: #932119;
+  --theme-on-ink: #ffffff;
+  --theme-green: #205c3e;
+  --theme-on-success: #ffffff;
+  --theme-success-soft: #e8f0e7;
+  --theme-warning: #714800;
+  --theme-warning-soft: #fff0d3;
+  --theme-danger: #a12323;
+  --theme-danger-soft: #fcedea;
+  --theme-info: #345486;
+  --theme-info-soft: #e9eff9;
+  --theme-line: #d7cec3;
+  --theme-field-border: #7b6c60;
+  --theme-chart-primary: #b02a21;
+  --theme-chart-secondary: #6e5b4c;
+  --theme-brand: #ef3124;
+  --theme-shadow: #000000;
+}
+.theme[data-direction="paper"][data-mode="dark"] {
+  --theme-bg: #191412;
+  --theme-surface: #241e1a;
+  --theme-surface-soft: #302720;
+  --theme-surface-hover: #3a3029;
+  --theme-ink: #f8f0e8;
+  --theme-muted: #cfc0b3;
+  --theme-red: #ff9e8f;
+  --theme-on-accent: #2b120c;
+  --theme-accent-hover: #ffc0b2;
+  --theme-on-ink: #191412;
+  --theme-green: #a3dfb2;
+  --theme-on-success: #15251a;
+  --theme-success-soft: #25382a;
+  --theme-warning: #f9d494;
+  --theme-warning-soft: #42331e;
+  --theme-danger: #ffb1a8;
+  --theme-danger-soft: #42282a;
+  --theme-info: #b6d1f7;
+  --theme-info-soft: #28364b;
+  --theme-line: #5a4c40;
+  --theme-field-border: #bba591;
+  --theme-chart-primary: #ff9e8f;
+  --theme-chart-secondary: #d6b99b;
+  --theme-brand: #ef3124;
+  --theme-shadow: #000000;
+}
+</style></head><body><main>
+<p>АЛЬФА / КРЕДИТНЫЙ КАБИНЕТ / ИССЛЕДОВАНИЕ СТИЛЯ</p>
+<h1>Один банк. Три характера.</h1>
+<p>Сравните одну заявку в двух режимах. Рекомендуем «Графит»: нейтральный фон держит внимание на сумме, решении и следующем действии.</p>
+<nav aria-label="Направление оформления"><button type="button" data-pick="graphite" aria-pressed="true">01 · Графит</button><button type="button" data-pick="porcelain" aria-pressed="false">02 · Точный свет</button><button type="button" data-pick="paper" aria-pressed="false">03 · Тёплый баланс</button><button type="button" data-pick="all" aria-pressed="false">Сравнить все</button></nav>
+<section class="direction" data-section="graphite"><h2>Графит</h2><p>Рекомендуем. Нейтральные поверхности, ясные состояния, красный только там, где нужен ответ.</p><div class="pair">
+<article class="theme" data-direction="graphite" data-mode="light" aria-label="Графит, светлая">
+<p class="mode">Светлая тема · демонстрационные данные, мок</p>
+<div class="card"><div class="row"><img class="icon" src="../icons/status/offered.svg" alt="" width="48" height="48"><span class="badge success">Предложение готово</span></div><p class="muted">Заявка № 1042 · пополнение оборотных средств</p><p class="amount">2 400 000 ₽</p><p>Банк подготовил условия. Проверьте предложение перед подписанием.</p><div class="controls"><button class="primary" type="button" data-demo="Условия предложения открыты">Посмотреть условия</button><button class="secondary" type="button" data-demo="Документы заявки открыты">Документы</button></div><div class="legend"><span>Факт</span><span>План</span></div><svg class="chart" viewBox="0 0 360 92" role="img" aria-label="Пример графика: план и факт, мок"><polyline class="plan" points="0,68 60,54 120,58 180,36 240,30 300,22 360,12"/><polyline class="fact" points="0,72 60,66 120,42 180,48 240,25 300,37 360,20"/></svg></div>
+<div class="badges"><span class="badge success">Подтверждено</span><span class="badge warning">Нужен документ</span><span class="badge danger">Отказ</span><span class="badge info">Проверяем</span></div>
+<label>Запрашиваемая сумма, ₽<input inputmode="numeric" value="2 400 000" aria-label="Запрашиваемая сумма, рублей"></label>
+<h3>Очередь менеджера</h3><div class="queue"><div class="row"><strong>ООО «Маяк»</strong><span class="badge warning">У менеджера</span></div><p>1 800 000 ₽ · клиент не согласен с альтернативой</p><div class="row"><small>Красная заявка · 12 минут в очереди</small><img class="icon" src="../icons/docs/statement.svg" alt="Выписка" width="48" height="48"></div><button type="button" class="secondary" data-demo="Досье клиента открыто">Открыть досье</button></div>
+<p class="note" role="status" aria-live="polite">Кнопки показывают отклик макета. Решение принимает банк.</p></article>
+<article class="theme" data-direction="graphite" data-mode="dark" aria-label="Графит, тёмная">
+<p class="mode">Тёмная тема · демонстрационные данные, мок</p>
+<div class="card"><div class="row"><img class="icon" src="../icons/status/offered.svg" alt="" width="48" height="48"><span class="badge success">Предложение готово</span></div><p class="muted">Заявка № 1042 · пополнение оборотных средств</p><p class="amount">2 400 000 ₽</p><p>Банк подготовил условия. Проверьте предложение перед подписанием.</p><div class="controls"><button class="primary" type="button" data-demo="Условия предложения открыты">Посмотреть условия</button><button class="secondary" type="button" data-demo="Документы заявки открыты">Документы</button></div><div class="legend"><span>Факт</span><span>План</span></div><svg class="chart" viewBox="0 0 360 92" role="img" aria-label="Пример графика: план и факт, мок"><polyline class="plan" points="0,68 60,54 120,58 180,36 240,30 300,22 360,12"/><polyline class="fact" points="0,72 60,66 120,42 180,48 240,25 300,37 360,20"/></svg></div>
+<div class="badges"><span class="badge success">Подтверждено</span><span class="badge warning">Нужен документ</span><span class="badge danger">Отказ</span><span class="badge info">Проверяем</span></div>
+<label>Запрашиваемая сумма, ₽<input inputmode="numeric" value="2 400 000" aria-label="Запрашиваемая сумма, рублей"></label>
+<h3>Очередь менеджера</h3><div class="queue"><div class="row"><strong>ООО «Маяк»</strong><span class="badge warning">У менеджера</span></div><p>1 800 000 ₽ · клиент не согласен с альтернативой</p><div class="row"><small>Красная заявка · 12 минут в очереди</small><img class="icon" src="../icons/docs/statement.svg" alt="Выписка" width="48" height="48"></div><button type="button" class="secondary" data-demo="Досье клиента открыто">Открыть досье</button></div>
+<p class="note" role="status" aria-live="polite">Кнопки показывают отклик макета. Решение принимает банк.</p></article>
+</div></section>
+<section class="direction" data-section="porcelain" hidden><h2>Точный свет</h2><p>Холодные поверхности и чёткая аналитика. Сильнее в очереди менеджера, строже в диалоге с клиентом.</p><div class="pair">
+<article class="theme" data-direction="porcelain" data-mode="light" aria-label="Точный свет, светлая">
+<p class="mode">Светлая тема · демонстрационные данные, мок</p>
+<div class="card"><div class="row"><img class="icon" src="../icons/status/offered.svg" alt="" width="48" height="48"><span class="badge success">Предложение готово</span></div><p class="muted">Заявка № 1042 · пополнение оборотных средств</p><p class="amount">2 400 000 ₽</p><p>Банк подготовил условия. Проверьте предложение перед подписанием.</p><div class="controls"><button class="primary" type="button" data-demo="Условия предложения открыты">Посмотреть условия</button><button class="secondary" type="button" data-demo="Документы заявки открыты">Документы</button></div><div class="legend"><span>Факт</span><span>План</span></div><svg class="chart" viewBox="0 0 360 92" role="img" aria-label="Пример графика: план и факт, мок"><polyline class="plan" points="0,68 60,54 120,58 180,36 240,30 300,22 360,12"/><polyline class="fact" points="0,72 60,66 120,42 180,48 240,25 300,37 360,20"/></svg></div>
+<div class="badges"><span class="badge success">Подтверждено</span><span class="badge warning">Нужен документ</span><span class="badge danger">Отказ</span><span class="badge info">Проверяем</span></div>
+<label>Запрашиваемая сумма, ₽<input inputmode="numeric" value="2 400 000" aria-label="Запрашиваемая сумма, рублей"></label>
+<h3>Очередь менеджера</h3><div class="queue"><div class="row"><strong>ООО «Маяк»</strong><span class="badge warning">У менеджера</span></div><p>1 800 000 ₽ · клиент не согласен с альтернативой</p><div class="row"><small>Красная заявка · 12 минут в очереди</small><img class="icon" src="../icons/docs/statement.svg" alt="Выписка" width="48" height="48"></div><button type="button" class="secondary" data-demo="Досье клиента открыто">Открыть досье</button></div>
+<p class="note" role="status" aria-live="polite">Кнопки показывают отклик макета. Решение принимает банк.</p></article>
+<article class="theme" data-direction="porcelain" data-mode="dark" aria-label="Точный свет, тёмная">
+<p class="mode">Тёмная тема · демонстрационные данные, мок</p>
+<div class="card"><div class="row"><img class="icon" src="../icons/status/offered.svg" alt="" width="48" height="48"><span class="badge success">Предложение готово</span></div><p class="muted">Заявка № 1042 · пополнение оборотных средств</p><p class="amount">2 400 000 ₽</p><p>Банк подготовил условия. Проверьте предложение перед подписанием.</p><div class="controls"><button class="primary" type="button" data-demo="Условия предложения открыты">Посмотреть условия</button><button class="secondary" type="button" data-demo="Документы заявки открыты">Документы</button></div><div class="legend"><span>Факт</span><span>План</span></div><svg class="chart" viewBox="0 0 360 92" role="img" aria-label="Пример графика: план и факт, мок"><polyline class="plan" points="0,68 60,54 120,58 180,36 240,30 300,22 360,12"/><polyline class="fact" points="0,72 60,66 120,42 180,48 240,25 300,37 360,20"/></svg></div>
+<div class="badges"><span class="badge success">Подтверждено</span><span class="badge warning">Нужен документ</span><span class="badge danger">Отказ</span><span class="badge info">Проверяем</span></div>
+<label>Запрашиваемая сумма, ₽<input inputmode="numeric" value="2 400 000" aria-label="Запрашиваемая сумма, рублей"></label>
+<h3>Очередь менеджера</h3><div class="queue"><div class="row"><strong>ООО «Маяк»</strong><span class="badge warning">У менеджера</span></div><p>1 800 000 ₽ · клиент не согласен с альтернативой</p><div class="row"><small>Красная заявка · 12 минут в очереди</small><img class="icon" src="../icons/docs/statement.svg" alt="Выписка" width="48" height="48"></div><button type="button" class="secondary" data-demo="Досье клиента открыто">Открыть досье</button></div>
+<p class="note" role="status" aria-live="polite">Кнопки показывают отклик макета. Решение принимает банк.</p></article>
+</div></section>
+<section class="direction" data-section="paper" hidden><h2>Тёплый баланс</h2><p>Тёплые поверхности для документов и длинных объяснений. Мягче для клиента, менее привычно для банка.</p><div class="pair">
+<article class="theme" data-direction="paper" data-mode="light" aria-label="Тёплый баланс, светлая">
+<p class="mode">Светлая тема · демонстрационные данные, мок</p>
+<div class="card"><div class="row"><img class="icon" src="../icons/status/offered.svg" alt="" width="48" height="48"><span class="badge success">Предложение готово</span></div><p class="muted">Заявка № 1042 · пополнение оборотных средств</p><p class="amount">2 400 000 ₽</p><p>Банк подготовил условия. Проверьте предложение перед подписанием.</p><div class="controls"><button class="primary" type="button" data-demo="Условия предложения открыты">Посмотреть условия</button><button class="secondary" type="button" data-demo="Документы заявки открыты">Документы</button></div><div class="legend"><span>Факт</span><span>План</span></div><svg class="chart" viewBox="0 0 360 92" role="img" aria-label="Пример графика: план и факт, мок"><polyline class="plan" points="0,68 60,54 120,58 180,36 240,30 300,22 360,12"/><polyline class="fact" points="0,72 60,66 120,42 180,48 240,25 300,37 360,20"/></svg></div>
+<div class="badges"><span class="badge success">Подтверждено</span><span class="badge warning">Нужен документ</span><span class="badge danger">Отказ</span><span class="badge info">Проверяем</span></div>
+<label>Запрашиваемая сумма, ₽<input inputmode="numeric" value="2 400 000" aria-label="Запрашиваемая сумма, рублей"></label>
+<h3>Очередь менеджера</h3><div class="queue"><div class="row"><strong>ООО «Маяк»</strong><span class="badge warning">У менеджера</span></div><p>1 800 000 ₽ · клиент не согласен с альтернативой</p><div class="row"><small>Красная заявка · 12 минут в очереди</small><img class="icon" src="../icons/docs/statement.svg" alt="Выписка" width="48" height="48"></div><button type="button" class="secondary" data-demo="Досье клиента открыто">Открыть досье</button></div>
+<p class="note" role="status" aria-live="polite">Кнопки показывают отклик макета. Решение принимает банк.</p></article>
+<article class="theme" data-direction="paper" data-mode="dark" aria-label="Тёплый баланс, тёмная">
+<p class="mode">Тёмная тема · демонстрационные данные, мок</p>
+<div class="card"><div class="row"><img class="icon" src="../icons/status/offered.svg" alt="" width="48" height="48"><span class="badge success">Предложение готово</span></div><p class="muted">Заявка № 1042 · пополнение оборотных средств</p><p class="amount">2 400 000 ₽</p><p>Банк подготовил условия. Проверьте предложение перед подписанием.</p><div class="controls"><button class="primary" type="button" data-demo="Условия предложения открыты">Посмотреть условия</button><button class="secondary" type="button" data-demo="Документы заявки открыты">Документы</button></div><div class="legend"><span>Факт</span><span>План</span></div><svg class="chart" viewBox="0 0 360 92" role="img" aria-label="Пример графика: план и факт, мок"><polyline class="plan" points="0,68 60,54 120,58 180,36 240,30 300,22 360,12"/><polyline class="fact" points="0,72 60,66 120,42 180,48 240,25 300,37 360,20"/></svg></div>
+<div class="badges"><span class="badge success">Подтверждено</span><span class="badge warning">Нужен документ</span><span class="badge danger">Отказ</span><span class="badge info">Проверяем</span></div>
+<label>Запрашиваемая сумма, ₽<input inputmode="numeric" value="2 400 000" aria-label="Запрашиваемая сумма, рублей"></label>
+<h3>Очередь менеджера</h3><div class="queue"><div class="row"><strong>ООО «Маяк»</strong><span class="badge warning">У менеджера</span></div><p>1 800 000 ₽ · клиент не согласен с альтернативой</p><div class="row"><small>Красная заявка · 12 минут в очереди</small><img class="icon" src="../icons/docs/statement.svg" alt="Выписка" width="48" height="48"></div><button type="button" class="secondary" data-demo="Досье клиента открыто">Открыть досье</button></div>
+<p class="note" role="status" aria-live="polite">Кнопки показывают отклик макета. Решение принимает банк.</p></article>
+</div></section>
+<footer><p>Это доска выбора, не новый раздел продукта. Все данные синтетические. Иконки F6 показаны на белой подложке: их исходная палитра сохранена.</p><p>Основания, токены и ссылки: docs/design/brand-evolution.md. Дата исследования: 24.10.2026.</p></footer></main>
+<script>
+for(const button of document.querySelectorAll('[data-pick]'))button.addEventListener('click',()=>{const pick=button.dataset.pick;for(const item of document.querySelectorAll('[data-pick]'))item.setAttribute('aria-pressed',String(item===button));for(const section of document.querySelectorAll('[data-section]'))section.hidden=pick!=='all'&&section.dataset.section!==pick;});
+for(const button of document.querySelectorAll('[data-demo]'))button.addEventListener('click',()=>{button.closest('.theme').querySelector('[role="status"]').textContent=button.dataset.demo+' · демонстрация, мок';});
+</script></body></html>

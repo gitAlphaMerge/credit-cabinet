@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Illustration } from "./Illustration";
 import {
   ArrowRight,
   CalendarDays,
@@ -12,6 +13,7 @@ import {
 import { useWorkspace } from "./context";
 import { Button, Badge, LineChart, CalculationView, Field } from "./ui";
 import { money, date, api } from "./api";
+import { formatRate } from "./format-rate";
 import type { AppState } from "../shared/types";
 import { EfficiencyPanel } from "./Efficiency";
 export function Cabinet({ preview }: { preview?: AppState }) {
@@ -111,6 +113,7 @@ export function Cabinet({ preview }: { preview?: AppState }) {
         {!c ? (
           <div className="no-credit-note">
             <span>
+              <Illustration group="empty" name="applications" size={48} decorative />{" "}
               Кредитов пока нет. Можно начать с оценки финансирования.
             </span>
             <button className="text-button" onClick={() => w.go("/financing")}>
@@ -123,7 +126,7 @@ export function Cabinet({ preview }: { preview?: AppState }) {
               Срок <b>{c.calculation.term} мес.</b>
             </span>
             <span>
-              Ставка по модели <b>{c.calculation.rate}%</b>
+              Ставка по модели <b>{formatRate(c.calculation.rate)}</b>
             </span>
             <span>
               Платежей учтено{" "}

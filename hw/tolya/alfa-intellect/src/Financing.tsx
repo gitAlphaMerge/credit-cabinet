@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Illustration, StatusIllustration } from "./Illustration";
 import {
   ArrowRight,
   ArrowLeft,
@@ -531,7 +532,7 @@ export function Financing() {
             ))
           ) : (
             <div className="small-empty">
-              <History size={32} />
+              <Illustration group="empty" name="applications" size={64} decorative />
               <h3>История начнётся с вашей задачи</h3>
               <p>Условия, версии и обсуждения сохранятся здесь.</p>
               <Button onClick={reset}>Начать подбор</Button>
@@ -581,7 +582,7 @@ export function Financing() {
             (l) => l.selectionId === item.id && l.version === item.version,
           ) ? (
             <div className="funding-success" role="status">
-              <Check size={28} />
+              <StatusIllustration status={submission?.applicationStatus || "draft"} size={48} decorative />
               <h3>
                 {submission
                   ? "Заявление передано на проверку"
