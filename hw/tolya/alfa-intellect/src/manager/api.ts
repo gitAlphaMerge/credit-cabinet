@@ -14,6 +14,8 @@ export type Application = {
   client_name?: string;
 };
 export type Dossier = {
+  return_to_manager?: boolean;
+  core_verdict?: "underwriting" | "info_requested" | "rejected";
   limit_now_rub?: number | null;
   N?: number | null;
   M?: number | null;
@@ -50,6 +52,7 @@ export type ApplicationDetail = {
   events: JournalEvent[];
 };
 export type ManagerEvent = "request_info" | "send_to_underwriting" | "reject";
+export type ManagerPayload = Record<string, string | boolean>;
 
 const errorLabels: Record<string, string> = {
   AMOUNT_EXCEEDS_LIMIT:
@@ -147,7 +150,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail> {
 export function sendManagerEvent(
   application: Application,
   event: ManagerEvent,
-  payload: Record<string, string>,
+  payload: ManagerPayload,
 ) {
   const { reason, text, ...rest } = payload;
   return request(

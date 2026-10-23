@@ -7,6 +7,7 @@ import {
   sendManagerEvent,
   type ApplicationDetail,
   type ManagerEvent,
+  type ManagerPayload,
   type QueueItem,
 } from "./api";
 
@@ -56,6 +57,11 @@ const statuses: Record<string, string> = {
   withdrawn: "Отозвана",
 };
 const explain = (code: string) => labels[code] || `Требует уточнения: ${code}`;
+const verdicts: Record<string, string> = {
+  underwriting: "Готова к автоматическому офферу",
+  info_requested: "Нужны дополнительные сведения",
+  rejected: "Стоп проверки",
+};
 const timestamp = (value?: string | null) =>
   value && Number.isFinite(Date.parse(value))
     ? new Date(value).toLocaleString("ru-RU")
@@ -90,7 +96,7 @@ type ViewProps = {
   onSelect(id: string): void;
   onTab(tab: "queue" | "rejected"): void;
   onRetry(): void;
-  onAction(event: ManagerEvent, payload: Record<string, string>): Promise<void>;
+  onAction(event: ManagerEvent, payload: ManagerPayload): Promise<void>;
   onMemo?(): void;
 };
 export function ManagerView(p: ViewProps) {
@@ -166,11 +172,19 @@ export function ManagerView(p: ViewProps) {
                       "Имя клиента: нет данных"}
                   </strong>
                   <span className="manager-stop">
-                    {r.red_reason
+                    {r.return_to_manager
+                      ? "Возврат после досылки"
+                      : r.red_reason
                       ? explain(r.red_reason)
                       : "Причина передачи: нет данных"}
                     {r.reason ? `: ${explain(r.reason)}` : ""}
                   </span>
+                  {r.return_to_manager && (
+                    <span className="manager-missing">вы просили вернуть</span>
+                  )}
+                  {r.core_verdict && (
+                    <span>Новый вердикт: {verdicts[r.core_verdict]}</span>
+                  )}
                   <span>
                     Запрос: <b>{rub(r.application.amount)}</b>
                   </span>
@@ -206,6 +220,12 @@ export function ManagerView(p: ViewProps) {
             ) : (
               <>
                 <h2>Досье заявки</h2>
+                {d?.return_to_manager && (
+                  <p className="manager-missing">вы просили вернуть</p>
+                )}
+                {d?.core_verdict && (
+                  <p>Новый вердикт: {verdicts[d.core_verdict]}</p>
+                )}
                 <button
                   type="button"
                   className="button secondary"
@@ -380,13 +400,15 @@ export function ManagerView(p: ViewProps) {
                       })
                     )}
                     <form
+                      key={p.detail.application.id + ":" + p.detail.application.version}
                       className="manager-form"
                       onSubmit={(e) => {
                         e.preventDefault();
                         const data = new FormData(e.currentTarget);
-                        void p.onAction("request_info", {
+                        return p.onAction("request_info", {
                           hole: String(data.get("hole")),
                           text: String(data.get("text")).trim(),
+                          return_to_manager: data.get("return_to_manager") === "on",
                         });
                       }}
                     >
@@ -414,6 +436,19 @@ export function ManagerView(p: ViewProps) {
                           disabled={!actionable}
                         />
                       </label>
+                      <label className="manager-return">
+                        <input
+                          type="checkbox"
+                          name="return_to_manager"
+                          defaultChecked={false}
+                          disabled={!actionable}
+                          aria-describedby="manager-return-help"
+                        />
+                        Вернуть мне после досылки
+                      </label>
+                      <small id="manager-return-help">
+                        Без галочки зелёная заявка уйдёт клиенту сама
+                      </small>
                       <button
                         className="button secondary"
                         disabled={!actionable || !d.holes?.length}
@@ -549,9 +584,9 @@ export function ManagerWorkspace() {
       current = false;
     };
   }, [selected, loading, revision]);
-  async function action(event: ManagerEvent, payload: Record<string, string>) {
+  async function action(event: ManagerEvent, payload: ManagerPayload) {
     if (!detail || detail.application.id !== selected || lock.current) return;
-    if (Object.values(payload).some((value) => !value.trim())) {
+    if (Object.values(payload).some((value) => typeof value === "string" && !value.trim())) {
       setError("Заполните текст решения");
       return;
     }
@@ -621,7 +656,10 @@ export function ManagerWorkspace() {
         onRetry={() => setRevision((v) => v + 1)}
         onMemo={() => setMemo({})}
         onAction={async (event, payload) => {
-          if (event === "send_to_underwriting") setMemo(payload);
+          if (event === "send_to_underwriting") setMemo({
+            option_id: typeof payload.option_id === "string" ? payload.option_id : undefined,
+            memo: typeof payload.memo === "string" ? payload.memo : undefined,
+          });
           else await action(event, payload).catch(() => {});
         }}
       />

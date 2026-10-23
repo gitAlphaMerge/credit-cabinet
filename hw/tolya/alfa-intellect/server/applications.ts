@@ -67,6 +67,7 @@ export const TRANSITIONS: readonly (readonly [
   ["info_requested", "client_update", "system", "underwriting"],
   ["info_requested", "client_update", "system", "info_requested"],
   ["info_requested", "client_update", "system", "rejected"],
+  ["info_requested", "client_update", "system", "queued"],
   ...(["info_requested", "queued"] as const).flatMap(
     (from) =>
       [
@@ -74,6 +75,7 @@ export const TRANSITIONS: readonly (readonly [
         [from, "accept_alternative", "system", "underwriting"],
         [from, "accept_alternative", "system", "info_requested"],
         [from, "accept_alternative", "system", "rejected"],
+        [from, "accept_alternative", "system", "queued"],
       ] as const,
   ),
   ["info_requested", "agent_nudge", "system", "info_requested"],
@@ -349,6 +351,8 @@ export function dossierOf(db: DatabaseSync, id: string) {
     ...dossier,
     compliance: metadata.compliance as ComplianceReport | undefined,
     alternatives: (metadata.alternatives ?? []) as AlternativeOffer[],
+    core_verdict: metadata.core_verdict as ScoredDossier["target"] | undefined,
+    return_to_manager: returnedToManager(db, id),
     client_objections: objection
       ? JSON.parse(objection.payload as string).client_objections
       : null,
@@ -379,6 +383,19 @@ export function eventsOf(db: DatabaseSync, id: string) {
       "SELECT * FROM application_events WHERE application_id=? ORDER BY seq",
     )
     .all(id);
+}
+function infoRequestOf(db: DatabaseSync, id: string) {
+  return eventsOf(db, id).findLast((e) => e.event === "request_info");
+}
+function returnedToManager(db: DatabaseSync, id: string) {
+  const request = infoRequestOf(db, id);
+  const latest = eventsOf(db, id).at(-1);
+  return !!(
+    request &&
+    JSON.parse(String(request.payload)).return_to_manager === true &&
+    latest?.to_status === "queued" &&
+    Number(latest.seq) > Number(request.seq)
+  );
 }
 function userState(db: DatabaseSync, id: string): AppState {
   const user = db.prepare("SELECT state FROM users WHERE id=?").get(id) as
@@ -544,6 +561,12 @@ function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
   if (command.expectedVersion !== a.version)
     throw new ApplicationError(409, "Версия заявки изменилась");
   const p = command.payload ?? {};
+  if (Object.hasOwn(p, "return_to_manager")) {
+    if (command.actorRole !== "manager")
+      throw new ApplicationError(403, "Возврат назначает только менеджер");
+    if (command.event !== "request_info" || typeof p.return_to_manager !== "boolean")
+      throw new ApplicationError(422, "return_to_manager: нужен boolean в request_info");
+  }
   if (command.event === "submit" && p.consent !== true)
     throw new ApplicationError(
       422,
@@ -1002,7 +1025,23 @@ function persistTransition(
   }
   if (command.event === "escalate_silent") reason = "CLIENT_SILENT";
   if (command.event === "escalate_disagreed") reason = "CLIENT_DISAGREED";
-  const next = transition(a.status, command.event, actorRole, reply?.target);
+  let target: Status | undefined = reply?.target;
+  if (reply) {
+    // Preserve the pipeline verdict even when the manager requested a manual return.
+    record(reply.checks._v2).core_verdict = reply.target;
+    const request = infoRequestOf(db, a.id);
+    if (
+      request &&
+      ["client_update", "accept_alternative"].includes(command.event) &&
+      (JSON.parse(String(request.payload)).return_to_manager === true ||
+        reply.target === "info_requested")
+    ) {
+      target = "queued";
+      // This is a response to an existing review, not a new silence/disagreement.
+      reason = eventsOf(db, a.id).findLast((e) => e.to_status === "queued")?.reason as string | null ?? null;
+    }
+  }
+  const next = transition(a.status, command.event, actorRole, target);
   if (reply) {
     const latest = dossierOf(db, a.id);
     db.prepare(
@@ -1041,7 +1080,9 @@ function persistTransition(
     reason,
     JSON.stringify(
       maskEventText(
-        eventPayload(command.payload ?? {}),
+        eventPayload(command.event === "request_info"
+          ? { ...command.payload, return_to_manager: command.payload?.return_to_manager ?? false }
+          : command.payload ?? {}),
         userState(db, a.user_id).profile.name ?? "",
       ),
     ),
@@ -1318,6 +1359,8 @@ export function bankQueue(db: DatabaseSync, deps: DependencyInput) {
         red_reason: escalation?.reason ?? null,
         client_objections: dossier.client_objections,
         alternatives: dossier.alternatives,
+        return_to_manager: dossier.return_to_manager,
+        core_verdict: dossier.core_verdict,
         N,
         M,
         holes: JSON.parse(dossier.holes),
