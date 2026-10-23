@@ -119,7 +119,7 @@ services:
     volumes:
       - alfa_data:/app/var
       - ./data/catalog:/app/catalog:ro
-    mem_limit: 256m
+    mem_limit: 512m   # пик 278 MiB при 200 клиентах (docs/qa/LOAD.md), 256 под жюри мало
 
 volumes:
   journal:
