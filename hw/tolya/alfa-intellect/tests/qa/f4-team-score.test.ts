@@ -57,3 +57,43 @@ test("team score malformed JSON and upstream failure return a safe 502", async (
     assert.doesNotMatch(JSON.stringify(actual.body), /SECRET_F4/);
   }
 });
+
+test("team score accepts view-only responses and validates any supplied core", async () => {
+  const owner = await customer();
+  const payload = {
+    statement_csv: "date,amount\n2026-10-22,1",
+    need: {},
+    questionnaire: {},
+  };
+  for (const view of [{}, { title: "Расчёт" }]) {
+    globalThis.fetch = async () => Response.json({ view });
+    const response = await owner.agent
+      .post("/api/team-score")
+      .set("Cookie", owner.cookie)
+      .send(payload)
+      .expect(200);
+    assert.deepEqual(response.body, { view });
+  }
+  for (const result of [
+    {},
+    "invalid",
+    null,
+    [],
+    { view: null },
+    { view: "invalid" },
+    { view: [] },
+    { view: {}, core: null },
+    { view: {}, core: {} },
+    ...["1000000", -1].map((limit) => ({
+      view: {},
+      core: { ...healthyCore().core, limit_now_rub: limit },
+    })),
+  ]) {
+    globalThis.fetch = async () => Response.json(result);
+    await owner.agent
+      .post("/api/team-score")
+      .set("Cookie", owner.cookie)
+      .send(payload)
+      .expect(502);
+  }
+});

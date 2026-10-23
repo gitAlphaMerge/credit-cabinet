@@ -880,16 +880,27 @@ app.post("/api/team-score", async (req, res) => {
     const result = await r.json();
     if (r.ok) {
       const core = result?.core;
+      // Ответ только с представлением допустим; переданное ядро проверяется всегда.
+      const viewOnly =
+        result !== null &&
+        typeof result === "object" &&
+        !Array.isArray(result) &&
+        !("core" in result) &&
+        result.view !== null &&
+        typeof result.view === "object" &&
+        !Array.isArray(result.view);
       if (
-        !core ||
-        typeof core.limit_now_rub !== "number" ||
-        !Number.isFinite(core.limit_now_rub) ||
-        core.limit_now_rub < 0 ||
-        !Array.isArray(core.stops_fired) ||
-        !core.stops_fired.every((code: unknown) => typeof code === "string") ||
-        !Array.isArray(core.missing) ||
-        !core.missing.every((code: unknown) => typeof code === "string")
-      ) throw new Error("Invalid team score response");
+        !viewOnly &&
+        (!core ||
+          typeof core.limit_now_rub !== "number" ||
+          !Number.isFinite(core.limit_now_rub) ||
+          core.limit_now_rub < 0 ||
+          !Array.isArray(core.stops_fired) ||
+          !core.stops_fired.every((code: unknown) => typeof code === "string") ||
+          !Array.isArray(core.missing) ||
+          !core.missing.every((code: unknown) => typeof code === "string"))
+      )
+        throw new Error("Invalid team score response");
     }
     res.status(r.status).json(result);
   } catch {
