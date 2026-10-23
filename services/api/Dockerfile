@@ -1,9 +1,15 @@
-FROM golang:1.22-alpine AS build
+FROM golang:alpine AS build
+
 WORKDIR /app
-COPY go.mod main.go ./
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY main.go ./
 RUN CGO_ENABLED=0 go build -o /bin/api main.go
 
 FROM alpine:3.20
+
 COPY --from=build /bin/api /bin/api
-EXPOSE 8080
+
 ENTRYPOINT ["/bin/api"]
