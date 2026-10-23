@@ -9,7 +9,10 @@ export async function createFixtures(dir: string) {
   await mkdir(dir, { recursive: true });
   let balance = 500000;
   const rows = ["date,amount,counterparty,purpose,balance,kind"];
-  for (let m = 4; m <= 9; m++) {
+  const now = new Date();
+  // Six monthly sets with unchanged operations, ending on the generation date.
+  for (let offset = 5; offset >= 0; offset--) {
+    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1));
     for (const [d, amount, counterparty, purpose] of [
       [3, 1200000, "Synthetic Customer", "Contract income"],
       [10, -300000, "Synthetic Supplier", "Materials"],
@@ -17,8 +20,12 @@ export async function createFixtures(dir: string) {
       [22, -130000, "Synthetic Landlord", "Rent and tax"],
     ] as const) {
       balance += amount;
+      const day = offset === 0
+        ? (d === 22 ? now.getUTCDate() : Math.min(d, now.getUTCDate()))
+        : d;
+      const date = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), day)).toISOString().slice(0, 10);
       rows.push(
-        `2026-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")},${amount},${counterparty},${purpose},${balance},operating`,
+        `${date},${amount},${counterparty},${purpose},${balance},operating`,
       );
     }
   }

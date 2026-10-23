@@ -330,19 +330,38 @@ export function ManagerView(p: ViewProps) {
                             </p>
                             <p>Платёж: {rub(option.monthly_payment_rub)}</p>
                             <p>{option.reason}</p>
-                            <button
-                              className="button"
-                              data-option={option.option_id}
-                              disabled={blocked || !actionable}
-                              title={why}
-                              onClick={() =>
-                                p.onAction("send_to_underwriting", {
+                            <form
+                              data-option-form={option.option_id}
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                const memo = (
+                                  e.currentTarget.elements.namedItem("memo") as HTMLTextAreaElement
+                                ).value.trim();
+                                if (!memo || blocked || !actionable) return;
+                                return p.onAction("send_to_underwriting", {
                                   option_id: option.option_id,
-                                })
-                              }
+                                  memo,
+                                });
+                              }}
                             >
-                              Предложить вариант
-                            </button>
+                              <label className="field">
+                                <span>Записка андеррайтеру</span>
+                                <textarea
+                                  name="memo"
+                                  required
+                                  maxLength={4000}
+                                  disabled={!actionable}
+                                />
+                              </label>
+                              <button
+                                className="button"
+                                data-option={option.option_id}
+                                disabled={blocked || !actionable}
+                                title={why}
+                              >
+                                Предложить вариант
+                              </button>
+                            </form>
                             {(blocked || !actionable) && <small>{why}</small>}
                           </article>
                         );

@@ -63,7 +63,8 @@ export function resetAlternativesCatalogForTests() {
 function products(): CatalogProduct[] {
   return (catalog ??= JSON.parse(
     readFileSync(
-      new URL("../../../../data/catalog/products.json", import.meta.url),
+      process.env.PRODUCTS_CATALOG ||
+        new URL("../../../../data/catalog/products.json", import.meta.url),
       "utf8",
     ),
   ).products);

@@ -105,7 +105,7 @@ export function normalizeDossier(raw: any): Dossier | null {
   const result = parsed(raw.core_result),
     core = result?.core ?? result ?? {};
   const compliance = parsed(raw.compliance);
-  const checks = parsed(raw.checks) ?? compliance?.checks;
+  const checks = compliance?.checks ?? parsed(raw.checks);
   return {
     ...raw,
     limit_now_rub: raw.limit_now_rub ?? core.limit_now_rub,
@@ -114,12 +114,14 @@ export function normalizeDossier(raw: any): Dossier | null {
     alternatives: parsed(raw.alternatives),
     documents: parsed(raw.documents) ?? compliance?.documents,
     checks: Array.isArray(checks)
-      ? checks
+      ? checks.filter((check) => !check.key?.startsWith("_"))
       : checks &&
-        Object.entries(checks).map(([key, check]) => ({
-          key,
-          ...(check as object),
-        })),
+        Object.entries(checks)
+          .filter(([key]) => !key.startsWith("_"))
+          .map(([key, check]) => ({
+            key,
+            ...(check as object),
+          })),
   };
 }
 export async function loadQueue(
@@ -147,8 +149,18 @@ export function sendManagerEvent(
   event: ManagerEvent,
   payload: Record<string, string>,
 ) {
+  const { reason, text, ...rest } = payload;
   return request(
     "/applications/" + encodeURIComponent(application.id) + "/events",
-    { event, expectedVersion: application.version, payload },
+    {
+      event,
+      expectedVersion: application.version,
+      ...(event === "reject"
+        ? { reason }
+        : event === "request_info"
+          ? { reason: text }
+          : {}),
+      payload: event === "send_to_underwriting" ? payload : rest,
+    },
   );
 }

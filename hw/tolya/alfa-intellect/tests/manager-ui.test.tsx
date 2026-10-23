@@ -6,6 +6,7 @@ import {
   loadQueue,
   loadApplication,
   sendManagerEvent,
+  normalizeDossier,
   type QueueItem,
   type ApplicationDetail,
 } from "../src/manager/api";
@@ -174,13 +175,18 @@ test("option click sends version, option id, idempotency key; conflict has human
         }
       },
     });
-    await elements(tree)
-      .find((e) => e.props?.["data-option"] === "small")
-      .props.onClick();
+    const form = elements(tree).find((e) => e.props?.["data-option-form"] === "small");
+    assert.ok(form, "underwriting requires a memo form");
+    const memo = elements(form).find((e) => e.props?.name === "memo");
+    assert.equal(memo.props.required, true);
+    await form.props.onSubmit({
+      preventDefault() {},
+      currentTarget: { elements: { namedItem: () => ({ value: "Verified dossier" }) } },
+    });
     assert.deepEqual(body, {
       event: "send_to_underwriting",
       expectedVersion: 7,
-      payload: { option_id: "small" },
+      payload: { option_id: "small", memo: "Verified dossier" },
     });
     assert.match(message, /Сумма превышает текущий лимит/);
     assert.ok(renderToStaticMarkup(view({ error: message })).includes(message));
@@ -281,9 +287,9 @@ test("document request and rejection use contract payloads and current version",
         body: {
           event: "request_info",
           expectedVersion: 7,
+          reason: "Нужна выписка за полный период",
           payload: {
             hole: "statement",
-            text: "Нужна выписка за полный период",
           },
         },
       },
@@ -292,7 +298,8 @@ test("document request and rejection use contract payloads and current version",
         body: {
           event: "reject",
           expectedVersion: 7,
-          payload: { reason: "Причина решения" },
+          reason: "Причина решения",
+          payload: {},
         },
       },
     ]);
@@ -323,4 +330,23 @@ test("network errors are visible to the caller", async () => {
   } finally {
     globalThis.fetch = old;
   }
+});
+
+test("FIX-A4: compliance report is authoritative and service metadata is never a check", () => {
+  const check = detail.dossier!.checks![0];
+  for (const compliance of [
+    { checks: [check] },
+    JSON.stringify({ checks: [check] }),
+  ]) {
+    const dossier = normalizeDossier({
+      checks: JSON.stringify({ legacy: { status: "fail" }, _v2: { compliance: {} } }),
+      compliance,
+    });
+    assert.deepEqual(dossier!.checks, [check]);
+    const html = renderToStaticMarkup(view({ detail: { ...detail, dossier } }));
+    assert.ok(!html.includes("Не пройдено"));
+    assert.match(html, /Источник недоступен/);
+  }
+  assert.deepEqual(normalizeDossier({ checks: JSON.stringify({ fns: check, _v2: {} }) })!.checks, [check]);
+  assert.deepEqual(normalizeDossier({ compliance: { checks: [] }, checks: { _v2: {} } })!.checks, []);
 });

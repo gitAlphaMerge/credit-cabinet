@@ -8,6 +8,12 @@ import type { ComplianceReport } from "../server/compliance";
 import type { CheckResult, CreditHistory } from "../server/checks";
 import type { AlternativeOffer } from "../server/alternatives";
 import * as a from "../server/applications";
+import { sendManagerEvent } from "../src/manager/api";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createFixtures } from "../scripts/fixtures";
+import { runComplianceGate } from "../server/compliance";
 let app: Express,
   db: DatabaseSync,
   state: AppState,
@@ -244,6 +250,46 @@ test("S1: automatic system offer, signing, exact replay without second dossier",
   await post(id, "sign", { code: "0000" }).expect(200);
   assert.equal(a.applicationOf(db, id).status, "disbursed");
 });
+
+for (const [event, payload, status] of [
+  ["reject", { reason: "Manager decision" }, "rejected"],
+  ["request_info", { hole: "statement", text: "Send a statement" }, "info_requested"],
+  ["send_to_underwriting", { memo: "Verified dossier" }, "offered"],
+] as const) {
+  test(`FIX-A1/A2: manager client ${event} through real HTTP router`, async () => {
+    const id = await submit();
+    db.prepare("UPDATE applications SET status='queued',queued_at=? WHERE id=?").run(deps.clock().toISOString(), id);
+    const oldFetch = globalThis.fetch;
+    let httpStatus = 0, responseBody: unknown;
+    globalThis.fetch = async (url, init) => {
+      const response = await request(app)
+        .post(String(url))
+        .set("Cookie", manager)
+        .set("Idempotency-Key", (init!.headers as Record<string, string>)["Idempotency-Key"])
+        .send(JSON.parse(init!.body as string));
+      httpStatus = response.status;
+      responseBody = response.body;
+      return Response.json(response.body, { status: response.status });
+    };
+    try {
+      await sendManagerEvent(a.applicationOf(db, id), event, payload).catch((error) => {
+        assert.equal(httpStatus, 200, JSON.stringify(responseBody));
+        throw error;
+      });
+      assert.equal(httpStatus, 200, JSON.stringify(responseBody));
+      assert.equal(a.applicationOf(db, id).status, status);
+      const decision = a.eventsOf(db, id).findLast((e) => e.event === event)!;
+      assert.equal(decision.to_status, event === "send_to_underwriting" ? "underwriting" : status);
+      if (event === "send_to_underwriting")
+        assert.equal(JSON.parse(decision.payload as string).memo, payload.memo);
+      else assert.equal(decision.reason, "reason" in payload ? payload.reason : payload.text);
+      if (event === "request_info")
+        assert.equal(JSON.parse(decision.payload as string).hole, "statement");
+    } finally {
+      globalThis.fetch = oldFetch;
+    }
+  });
+}
 test("gate blocks core and persists report; bankruptcy rejects", async () => {
   for (const status of ["info_requested", "hard_stop"] as const) {
     calls = [];
@@ -334,16 +380,73 @@ test("red queue: nudge guard, objections, capped priority, manager cannot exceed
   assert.equal(a.dossierOf(db, other)!.client_objections, "Demo text");
   await post(id, "request_info", {}, manager).expect(422);
 });
+
+test("FIX-A3: manager selected alternative changes amount and term before limit guard", async () => {
+  amount = 900000;
+  const previousTerm = options[1].term_months;
+  options[1].term_months = 24;
+  let id: string;
+  try { id = await submit(); } finally { options[1].term_months = previousTerm; }
+  await internal(id, "escalate_disagreed", { client_objections: "Discuss terms" });
+  await post(id, "send_to_underwriting", { option_id: "option-1", memo: "Verified" }, manager).expect(200);
+  const application = a.applicationOf(db, id);
+  assert.equal(application.status, "offered");
+  assert.equal(application.amount, 200000);
+  assert.equal(application.term_months, 24);
+  const offer = JSON.parse(a.eventsOf(db, id).findLast((e) => e.event === "make_offer")!.payload as string);
+  assert.equal(offer.amount, 200000);
+  assert.equal(offer.term_months, 24);
+  assert.equal(offer.schedule.length, 24);
+});
+
+test("FIX-A3: manager rejects foreign, excessive and invalid-term alternatives without writes", async () => {
+  for (const invalid of ["foreign", "excessive", "term"]) {
+    amount = 900000;
+    const previous = structuredClone(options[0]);
+    if (invalid === "excessive") options[0].amount_rub = 500000;
+    if (invalid === "term") options[0].term_months = 121;
+    let id: string;
+    try { id = await submit(); } finally { Object.assign(options[0], previous); }
+    await internal(id, "escalate_disagreed", { client_objections: "Discuss terms" });
+    const before = a.applicationOf(db, id), events = a.eventsOf(db, id);
+    await post(id, "send_to_underwriting", {
+      option_id: invalid === "foreign" ? "foreign" : "option-0", memo: "Verified",
+    }, manager).expect(invalid === "excessive" ? 409 : 422);
+    assert.deepEqual(a.applicationOf(db, id), before);
+    assert.deepEqual(a.eventsOf(db, id), events);
+  }
+});
 test("nudge must belong to the latest info cycle; owner HTTP delegation cannot approve", async () => {
   missing = ["contract_main_customer"];
   const id = await submit();
-  await post(id, "agent_nudge", { text: "Demo text" }).expect(200);
+  await post(id, "agent_nudge", { text: "Demo text" }).expect(403);
+  await internal(id, "agent_nudge", { text: "Demo text" });
   await post(id, "client_update", {
     confirmed_fields: { unrelated: true },
   }).expect(200);
-  await post(id, "escalate_silent").expect(409);
+  await post(id, "escalate_silent").expect(403);
+  await assert.rejects(internal(id, "escalate_silent"), { status: 409 });
   await post(id, "underwriter_approve", { amount: 300000 }).expect(409);
 });
+
+for (const [event, payload] of [
+  ["agent_nudge", { text: "Nudge" }],
+  ["escalate_disagreed", { client_objections: "Discuss terms" }],
+  ["escalate_silent", {}],
+] as const) {
+  test(`FIX-A7: client ${event} is forbidden over HTTP; internal system works`, async () => {
+    missing = ["contract_main_customer"];
+    const id = await submit();
+    if (event === "escalate_silent") await internal(id, "agent_nudge", { text: "Nudge" });
+    const before = a.applicationOf(db, id), events = a.eventsOf(db, id);
+    await post(id, event, payload).expect(403);
+    assert.deepEqual(a.applicationOf(db, id), before);
+    assert.deepEqual(a.eventsOf(db, id), events);
+    await internal(id, event, payload);
+    assert.equal(a.applicationOf(db, id).status, event === "agent_nudge" ? "info_requested" : "queued");
+    assert.equal(a.eventsOf(db, id).at(-1)!.actor_role, "system");
+  });
+}
 test("race: parallel client updates commit one cascade, one 409", async () => {
   missing = ["contract_main_customer"];
   const id = await submit(),
@@ -490,4 +593,38 @@ test("unavailable BKI and compliance tails cannot be approved, even on existing 
   assert.equal(a.applicationOf(db, tail).status, "info_requested");
   assert.ok(JSON.parse(a.dossierOf(db, tail)!.holes).includes("statement"));
   assert.deepEqual(a.dossierOf(db, tail)!.compliance, gate);
+});
+
+test("FIX-A6: generated statement has six complete monthly sets and passes freshness gate", async (t) => {
+  for (const at of [new Date(), new Date("2027-01-01T00:05:00Z"), new Date("2028-03-31T23:59:00Z")]) {
+    t.mock.timers.enable({ apis: ["Date"], now: at });
+    try {
+      const dir = await mkdtemp(join(tmpdir(), "fixtures-fix-a-"));
+      await createFixtures(dir);
+      const csv = await readFile(join(dir, "statement.csv"), "utf8");
+      const [header, ...rows] = csv.trim().split("\n");
+      assert.equal(header, "date,amount,counterparty,purpose,balance,kind");
+      assert.equal(rows.length, 24);
+      const records = rows.map((row) => row.split(","));
+      const latest = records.at(-1)![0];
+      const age = at.getTime() - Date.parse(latest);
+      assert.ok(age >= 0 && age <= 2 * 86400000, `latest date ${latest} is stale at ${at.toISOString()}`);
+      const months = [...new Set(records.map((row) => row[0].slice(0, 7)))];
+      assert.equal(months.length, 6);
+      for (const month of months) {
+        const amounts = records.filter((row) => row[0].startsWith(month)).map((row) => Number(row[1]));
+        assert.deepEqual(amounts, [1200000, -300000, -350000, -130000]);
+      }
+      assert.equal(records.at(-1)![4], "3020000");
+      assert.deepEqual(records.map((r) => r[0]), records.map((r) => r[0]).sort());
+      assert.ok(records.every((r) => new Date(r[0]).toISOString().slice(0, 10) === r[0]));
+      const report = await runComplianceGate({
+        inn: "9900000001", now: at,
+        documents: [{ category: "statement", confirmed: true, documentDate: latest }],
+      });
+      assert.ok(!report.reasons.includes("COMPLIANCE_DOC_EXPIRED"));
+      assert.equal(report.documents[0].status, "fresh");
+      assert.equal(report.gate, "pass");
+    } finally { t.mock.timers.reset(); }
+  }
 });

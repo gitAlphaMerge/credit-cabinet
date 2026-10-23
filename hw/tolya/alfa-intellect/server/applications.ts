@@ -455,7 +455,7 @@ function coreInput(
 }
 
 function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
-  const a = visibleApplication(
+  let a = visibleApplication(
     db,
     command.applicationId,
     command.actorRole,
@@ -507,6 +507,10 @@ function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
       throw new ApplicationError(409, "Сначала агент должен напомнить клиенту");
   }
   if (command.event === "send_to_underwriting") {
+    if (p.option_id !== undefined) {
+      const option = alternativeOf(db, a, p);
+      a = { ...a, amount: option.amount_rub, term_months: option.term_months };
+    }
     const dossier = dossierOf(db, a.id);
     const limit =
       dossier && record(JSON.parse(dossier.core_result).core).limit_now_rub;
@@ -1065,17 +1069,18 @@ export async function executeApplicationEvent(
     command.actorRole,
     command.actorId,
   );
-  const cached = replay(db, command.actorId, key, hash);
-  if (cached) return cached;
   if (
     ["agent_nudge", "escalate_silent", "escalate_disagreed"].includes(
       command.event,
     )
   ) {
-    if (command.actorRole !== "client")
-      throw new ApplicationError(403, "Агент действует в сессии клиента");
-    command = { ...command, actorRole: "system" };
+    throw new ApplicationError(
+      403,
+      "Событие доступно только внутреннему серверному вызову",
+    );
   }
+  const cached = replay(db, command.actorId, key, hash);
+  if (cached) return cached;
   const reply = await scoreCommand(db, command, deps);
   return transaction(db, () => {
     const duplicate = replay(db, command.actorId!, key, hash);

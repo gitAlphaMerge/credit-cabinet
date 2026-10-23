@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   buildAlternatives,
+  resetAlternativesCatalogForTests,
   type AlternativesRequest,
 } from "../server/alternatives";
 
@@ -183,4 +186,27 @@ test("catalogue invariants across all 8 products and combinations", () => {
               }
             }
   assert.ok(checked > 100);
+});
+
+test("FIX-A5: PRODUCTS_CATALOG overrides the repository path and compose mounts it read-only", () => {
+  const path = join(mkdtempSync(join(tmpdir(), "catalog-fix-a-")), "products.json");
+  writeFileSync(path, JSON.stringify({ products: products.map((p: any) => ({
+    ...p, bank_product_name: `Mounted ${p.id}`,
+  })) }));
+  const previous = process.env.PRODUCTS_CATALOG;
+  process.env.PRODUCTS_CATALOG = path;
+  resetAlternativesCatalogForTests();
+  try {
+    const offers = buildAlternatives(req);
+    assert.ok(offers.length > 0);
+    assert.ok(offers.every((offer) => offer.product_name.startsWith("Mounted ")));
+    const compose = readFileSync(new URL("../../../../docker-compose.yml", import.meta.url), "utf8");
+    const cabinet = compose.split("  alfa-intellect:")[1].split("\nvolumes:")[0];
+    assert.match(cabinet, /PRODUCTS_CATALOG: \/app\/catalog\/products\.json/);
+    assert.match(cabinet, /\.\/data\/catalog:\/app\/catalog:ro/);
+  } finally {
+    if (previous === undefined) delete process.env.PRODUCTS_CATALOG;
+    else process.env.PRODUCTS_CATALOG = previous;
+    resetAlternativesCatalogForTests();
+  }
 });
