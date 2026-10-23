@@ -150,7 +150,13 @@ export function Financing() {
     [application, setApplication] = useState(false),
     [warning, setWarning] = useState(false),
     [acknowledged, setAcknowledged] = useState(false),
-    [viewVersion, setViewVersion] = useState<number | null>(null);
+    [viewVersion, setViewVersion] = useState<number | null>(null),
+    [submitted, setSubmitted] = useState<{
+      applicationId: string;
+      applicationStatus: string;
+      selectionId: string;
+      selectionVersion: number;
+    } | null>(null);
   const file = useRef<HTMLInputElement>(null),
     root = useRef<HTMLElement>(null),
     progress = useRef(0),
@@ -167,6 +173,11 @@ export function Financing() {
     shown: Selection | undefined =
       item && version ? { ...item, ...version, id: item.id } : item;
   const hasRisk = item ? fundingWarningRequired(item) : false;
+  const submission =
+    submitted?.selectionId === item?.id &&
+    submitted?.selectionVersion === item?.version
+      ? submitted
+      : null;
   useEffect(() => {
     w.cacheFinancingDraft({ tab, step, selected, request });
   }, [tab, step, selected, request]);
@@ -185,6 +196,7 @@ export function Financing() {
     setRequest(initialRequest(w.state));
     setEditing(false);
     setApplication(false);
+    setSubmitted(null);
     setViewVersion(null);
     setError("");
     progress.current = 0;
@@ -533,7 +545,10 @@ export function Financing() {
           </button>
           <Badge tone="red">Демонстрационное оформление</Badge>
           <h2>Проверьте заявление</h2>
-          <p>Сохраним выбранные условия. В банк ничего не отправляется.</p>
+          <p>
+            Проверим выбранные условия на демонстрационном стенде. Реальный
+            кредит оформляет банк.
+          </p>
           <dl>
             {[
               ["Компания", w.state.profile.name],
@@ -567,10 +582,15 @@ export function Financing() {
           ) ? (
             <div className="funding-success" role="status">
               <Check size={28} />
-              <h3>Демо-заявка создана</h3>
+              <h3>
+                {submission
+                  ? "Заявление передано на проверку"
+                  : "Демо-заявка создана"}
+              </h3>
               <p>
-                Заявление версии {item.version} сохранено. Реальной подачи в
-                банк не было.
+                {submission
+                  ? `Заявление версии ${item.version} обработано. ${submission.applicationStatus === "offered" ? "Предложение подготовлено автоматически." : submission.applicationStatus === "rejected" ? "Проверка завершена отказом. Причина сохранена в заявке." : "Для продолжения нужны дополнительные сведения. Откройте обсуждение подбора."}`
+                  : `Заявление версии ${item.version} сохранено. Реальной подачи в банк не было.`}
               </p>
               <Button secondary onClick={() => setTab("history")}>
                 К истории подборов <ArrowRight size={16} />
@@ -579,17 +599,28 @@ export function Financing() {
           ) : (
             <>
               <p className="funding-source">
-                Используем контакт из регистрации — повторно вводить телефон не
-                нужно.
+                Используем контакт из регистрации, повторно вводить телефон не
+                нужно. Нажимая «Отправить заявление», вы даёте согласие на
+                обработку данных и запрос в БКИ в рамках демонстрации.
               </p>
               <Button
                 disabled={busy}
                 onClick={async () => {
                   setBusy(true);
+                  setError("");
                   try {
-                    await w.act(`/selections/${item.id}/application`, {
-                      expectedVersion: item.version,
-                      acknowledgeRisks: acknowledged,
+                    const result = await w.act(
+                      `/selections/${item.id}/application`,
+                      {
+                        expectedVersion: item.version,
+                        acknowledgeRisks: acknowledged,
+                        consent: true,
+                      },
+                    );
+                    setSubmitted({
+                      ...result,
+                      selectionId: item.id,
+                      selectionVersion: item.version,
                     });
                   } catch (e) {
                     setError((e as Error).message);

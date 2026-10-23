@@ -28,7 +28,23 @@ import { russianValidationErrors } from "../shared/facility-validation";
 import { fundingRouter } from "./funding-routes";
 import { applicationsRouter } from "./applications-routes";
 import { checksRouter } from "./checks";
+import {
+  ApplicationError,
+  applicationOf,
+  applicationsDependencies,
+  applicationRequestHash,
+  dossierOf,
+  executeApplicationEvent,
+  visibleApplication,
+  type Application,
+} from "./applications";
+import {
+  disagreeWithApplication,
+  resumeDisagreedReview,
+  startSilenceSweep,
+} from "./application-silence";
 export const app = express();
+export const stopSilenceSweep = startSilenceSweep(db, applicationsDependencies);
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
   res.set({
@@ -493,6 +509,55 @@ app.get("/api/documents/:id/download", (req, res) => {
     .send(Buffer.from(f.data));
 });
 app.use("/api", fundingRouter);
+app.post("/api/applications/:id/disagreement", async (req, res) => {
+  const uid = res.locals.userId;
+  if (getUser(uid)?.role !== "client") {
+    res.status(403).json({ error: "Возражение отправляет клиент" });
+    return;
+  }
+  const body = z.object({
+    expectedVersion: z.number().int().positive(),
+    client_objections: z.string().trim().min(1).max(4000),
+  }).strict().parse(req.body);
+  const a = visibleApplication(db, req.params.id, "client", uid);
+  if (a.version !== body.expectedVersion)
+    throw new ApplicationError(409, "Версия заявки изменилась");
+  res.json(await disagreeWithApplication(
+    db, a, body.client_objections, applicationsDependencies(),
+  ));
+});
+app.post("/api/applications/:id/events", async (req, res, next) => {
+  if (req.body.event !== "client_update") return next();
+  const body = z.object({
+    event: z.literal("client_update"),
+    expectedVersion: z.number().int().positive(),
+    reason: z.string().max(4000).optional(),
+    payload: z.record(z.string(), z.unknown()).optional(),
+  }).strict().parse(req.body);
+  const key = z.string().trim().min(1).max(200).parse(req.get("Idempotency-Key"));
+  const uid = res.locals.userId;
+  const deps = applicationsDependencies();
+  const result = await executeApplicationEvent(db, {
+    applicationId: req.params.id,
+    event: body.event,
+    expectedVersion: body.expectedVersion,
+    actorRole: getUser(uid)!.role,
+    actorId: uid,
+    reason: body.reason,
+    payload: body.payload,
+  }, key, applicationRequestHash(req.path.replace(/^\/api/, ""), req.body), deps);
+  if (applicationOf(db, req.params.id).version === result.application.version) {
+    const reviewed = await resumeDisagreedReview(db, result.application, deps);
+    if (reviewed.application.version !== result.application.version) {
+      db.prepare(
+        "UPDATE application_idempotency SET response=? WHERE key=? AND user_id=?",
+      ).run(JSON.stringify(reviewed), key, uid);
+      res.json(reviewed);
+      return;
+    }
+  }
+  res.json(result);
+});
 app.use("/api", applicationsRouter);
 const feedbackSchema = z.object({
   kind: z.enum(["message", "conversation"]),
@@ -561,6 +626,14 @@ app.patch("/api/chats/:id", (req, res) => {
   res.json(s);
 });
 const busy = new Set<string>();
+function activeApplication(uid: string, selectionId?: string) {
+  const rows = db.prepare(
+    "SELECT * FROM applications WHERE user_id=? AND status IN ('info_requested','queued','offered') ORDER BY created_at DESC,id DESC",
+  ).all(uid) as Application[];
+  return selectionId
+    ? rows.find(a => a.selection_id === selectionId)
+    : rows.length === 1 ? rows[0] : undefined;
+}
 app.post("/api/chats/:id/messages", async (req, res) => {
   const uid = res.locals.userId;
   if (busy.has(uid)) {
@@ -597,7 +670,31 @@ app.post("/api/chats/:id/messages", async (req, res) => {
           ).run(uid, day);
         });
     // ID из авторизованной сессии, а не из профиля или тела запроса.
-    const answer = await provider.reply({ ...s, userId: uid }, chat.messages, chat.selectionId);
+    const application = activeApplication(uid, chat.selectionId);
+    const dossier = application && dossierOf(db, application.id);
+    const core = dossier ? JSON.parse(dossier.core_result).core : undefined;
+    const context = application ? {
+        application: {
+          id: application.id,
+          status: application.status,
+          n: dossier?.readiness_n ?? undefined,
+          m: dossier?.readiness_m ?? undefined,
+          holes: dossier ? JSON.parse(dossier.holes) : [],
+          reasons: core?.reasons,
+          stops_fired: core?.stops_fired,
+          limit_now_rub: core?.limit_now_rub,
+          alternatives: dossier?.alternatives,
+        },
+        ...(application.status === "info_requested" ? { mode: "objections" as const } : {}),
+      } : undefined;
+    const answer = await provider.reply({ ...s, userId: uid }, chat.messages, chat.selectionId, context);
+    // Explicit objections work without an LLM. A model response alone cannot
+    // authorize a transition or supply the customer's asserted reasons.
+    if (application?.status === "info_requested" && /не\s+соглас|не\s+подход|отказываюсь|возражаю|нуж(?:на|ен)\s+(?:вся|больш)/i.test(text)) {
+      const latest = applicationOf(db, application.id);
+      if (latest.status === "info_requested")
+        await disagreeWithApplication(db, latest, text, applicationsDependencies());
+    }
     const current = stateOf(uid),
       currentChat = current.chats.find((c) => c.id === chat.id)!;
     currentChat.messages.push({
@@ -912,6 +1009,10 @@ app.use(
         error:
           "Файл слишком большой (максимум 8 МБ) или неверный формат загрузки",
       });
+      return;
+    }
+    if (error instanceof ApplicationError) {
+      res.status(error.status).json({ error: error.message });
       return;
     }
     res.status(400).json({

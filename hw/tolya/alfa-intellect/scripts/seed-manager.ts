@@ -260,7 +260,9 @@ export async function seedManager(
       const dossier = dossierOf(database, a.id);
       const scored = dossier && JSON.parse(dossier.core_result).core;
       if (!scored || !Number.isFinite(scored.limit_now_rub))
-        throw new Error(`Q5 ${c.key}: скоринг не выполнен, проверьте локальные реестры и ядро`);
+        throw new Error(
+          `Q5 ${c.key}: скоринг не выполнен, проверьте локальные реестры и ядро`,
+        );
       if (c.key === "disagreed")
         await send("escalate_disagreed", {
           client_objections:
@@ -287,7 +289,17 @@ if (
 ) {
   // Do not load optional LLM or external-provider credentials from dotenv.
   try {
-    await seedManager();
+    if (process.argv.includes("--sweep-silent")) {
+      const { applicationsDependencies } =
+        await import("../server/applications");
+      const { sweepSilentApplications } =
+        await import("../server/application-silence");
+      console.log(
+        await sweepSilentApplications(db, applicationsDependencies()),
+      );
+    } else {
+      await seedManager();
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Q5 seed failed");
     process.exitCode = 1;

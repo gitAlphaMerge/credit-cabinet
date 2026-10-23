@@ -112,7 +112,7 @@ test("S4: inactive company rejected with understandable compliance reason before
   }
 });
 
-test("BUG: S-manager: resupplied red case returns to queue then underwriting with memo", async () => {
+test("S-manager: resupplied green case receives automatic offer without manager memo", async () => {
   const { db, api, seedManager } = await setup();
   const transport = realCoreTransport();
   const deps = { clock, core: api.httpCoreClient };
@@ -160,22 +160,87 @@ test("BUG: S-manager: resupplied red case returns to queue then underwriting wit
     });
     assert.equal(
       a.status,
-      "queued",
-      "S-manager step 3: full client update must return to manager; observed automatic offer",
+      "offered",
+      "Decision 23.10: a green rescore must receive an automatic offer",
     );
-    await send("send_to_underwriting", "manager", {
-      memo: "Документы проверены, передать андеррайтеру.",
-    });
-    assert.equal(a.status, "offered");
-    assert.ok(
-      api
-        .eventsOf(db, a.id)
-        .some(
-          (e) =>
-            e.event === "send_to_underwriting" &&
-            JSON.parse(String(e.payload)).memo,
-        ),
+    const events = api.eventsOf(db, a.id);
+    assert.deepEqual(
+      events.slice(-3).map((e) => e.event),
+      ["client_update", "underwriter_approve", "make_offer"],
     );
+    assert.ok(events.slice(-3).every((e) => e.actor_role === "system"));
+    assert.ok(!events.some((e) => e.event === "send_to_underwriting"));
+    assert.ok(!api.bankQueue(db, deps).some((q) => q.application.id === a.id));
+  } finally {
+    transport.restore();
+  }
+});
+
+test("S-manager: resupplied still-red disagreement returns to manager queue", async () => {
+  const { db, api, seedManager } = await setup();
+  const { resumeDisagreedReview } =
+    await import("../../server/application-silence");
+  const transport = realCoreTransport();
+  const deps = api.applicationsDependencies();
+  const configured = { ...deps, clock, core: api.httpCoreClient };
+  try {
+    await seedManager(db, { ...configured, log: () => {} });
+    let a = api
+      .bankQueue(db, configured)
+      .find(
+        (q) => q.application.user_id === "q5-client-disagreed",
+      )!.application;
+    // Supply a missing document while the originally rejected alternatives
+    // still cannot cover the requested amount. Actual core is used again.
+    db.prepare(
+      "UPDATE dossiers SET holes='[\"statement\"]' WHERE application_id=?",
+    ).run(a.id);
+    a = (
+      await api.executeApplicationEvent(
+        db,
+        {
+          applicationId: a.id,
+          event: "request_info",
+          expectedVersion: a.version,
+          actorRole: "manager",
+          actorId: "q5-manager",
+          reason: "Обновите выписку",
+          payload: { hole: "statement", text: "Обновите выписку" },
+        },
+        "q5-red-request",
+        "q5-red-request",
+        configured,
+      )
+    ).application;
+    a = (
+      await api.executeApplicationEvent(
+        db,
+        {
+          applicationId: a.id,
+          event: "client_update",
+          expectedVersion: a.version,
+          actorRole: "client",
+          actorId: a.user_id,
+          payload: { confirmed_fields: { statement: "Выписка подтверждена" } },
+        },
+        "q5-red-update",
+        "q5-red-update",
+        configured,
+      )
+    ).application;
+    assert.equal(
+      a.status,
+      "info_requested",
+      "real core still cannot cover the requested amount",
+    );
+    a = (await resumeDisagreedReview(db, a, configured)).application;
+    assert.equal(a.status, "queued");
+    const row = api
+      .bankQueue(db, configured)
+      .find((q) => q.application.id === a.id)!;
+    assert.equal(row.red_reason, "CLIENT_DISAGREED");
+    assert.ok(row.client_objections);
+    assert.equal(api.eventsOf(db, a.id).at(-1)!.actor_role, "system");
   } finally {
     transport.restore();
   }

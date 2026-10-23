@@ -10,6 +10,13 @@ import {
   type FundingVersion,
 } from "../shared/financing";
 import type { Selection } from "../shared/types";
+import {
+  ApplicationError,
+  applicationOf,
+  applicationsDependencies,
+  createApplication,
+  executeApplicationEvent,
+} from "./applications";
 
 db.exec(
   "CREATE TABLE IF NOT EXISTS funding_applications(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),selection_id TEXT NOT NULL,version INTEGER NOT NULL,dossier TEXT NOT NULL,UNIQUE(user_id,selection_id,version)); INSERT OR IGNORE INTO migrations VALUES(2);",
@@ -107,11 +114,13 @@ fundingRouter.get("/selections/:id/application-preview", (req, res) => {
     needsAcknowledgement: fundingNeedsAcknowledgement(item),
   });
 });
-fundingRouter.post("/selections/:id/application", (req, res) => {
-  const { expectedVersion, acknowledgeRisks } = z
+const submitting = new Set<string>();
+fundingRouter.post("/selections/:id/application", async (req, res) => {
+  const { expectedVersion, acknowledgeRisks, consent } = z
       .object({
         expectedVersion: z.number().int().positive(),
         acknowledgeRisks: z.boolean().default(false),
+        consent: z.boolean().default(false),
       })
       .strict()
       .parse(req.body),
@@ -138,58 +147,126 @@ fundingRouter.post("/selections/:id/application", (req, res) => {
   const previous = s.leads.find(
     (l) => l.selectionId === item.id && l.version === item.version,
   );
-  if (previous) {
+  if (previous && !consent) {
     res.json(previous);
     return;
   }
-  const application = customerApplication(item, s.profile.name),
-    lead = {
-      id: randomUUID(),
-      selectionId: item.id,
-      version: item.version,
-      phone: getUser(uid)!.phone,
-      createdAt: new Date().toISOString(),
-      status: "Демо-заявка создана" as const,
-      application,
-    };
-  const dossier = {
-    demo: true,
-    engine: item.assessment?.engine || "legacy-demo",
-    capturedAt: lead.createdAt,
-    application,
-    profile: s.profile,
-    input: item.input,
-    assessment: item.assessment,
-    calculation: item.calculation,
-    catalog: fundingCatalog.find((p) => p.id === item.assessment?.selectedId),
-    risks: item.risks,
-    recommendations: item.assessment?.reasons,
-    disclaimer: "В банк не отправлено. Не скоринг и не банковское решение.",
-  };
-  db.exec("BEGIN");
-  try {
-    db.prepare("INSERT INTO funding_applications VALUES(?,?,?,?,?)").run(
-      lead.id,
-      uid,
-      item.id,
-      item.version,
-      JSON.stringify(dossier),
-    );
-    s.leads.push(lead);
-    notify(
-      s,
-      "funding-application:" + lead.id,
-      "Демо-заявка создана",
-      "Сохранены условия версии " +
-        item.version +
-        ". В банк ничего не отправлено.",
-      "financing",
-    );
-    saveState(uid, s);
-    db.exec("COMMIT");
-  } catch (e) {
-    db.exec("ROLLBACK");
-    throw e;
+  const lock = `${uid}:${item.id}:${item.version}`;
+  if (submitting.has(lock)) {
+    res
+      .status(409)
+      .json({ error: "Заявление уже отправляется. Дождитесь результата." });
+    return;
   }
-  res.json(lead);
+  submitting.add(lock);
+  try {
+    const stored = db
+      .prepare(
+        "SELECT id,dossier FROM funding_applications WHERE user_id=? AND selection_id=? AND version=?",
+      )
+      .get(uid, item.id, item.version);
+    const captured = stored ? JSON.parse(String(stored.dossier)) : undefined;
+    const application = customerApplication(item, s.profile.name),
+      lead = previous || {
+        id: stored ? String(stored.id) : randomUUID(),
+        selectionId: item.id,
+        version: item.version,
+        phone: getUser(uid)!.phone,
+        createdAt: new Date().toISOString(),
+        status: "Демо-заявка создана" as const,
+        application,
+      };
+    const dossier = captured || {
+      demo: true,
+      engine: item.assessment?.engine || "legacy-demo",
+      capturedAt: lead.createdAt,
+      application,
+      profile: s.profile,
+      input: item.input,
+      assessment: item.assessment,
+      calculation: item.calculation,
+      catalog: fundingCatalog.find((p) => p.id === item.assessment?.selectedId),
+      risks: item.risks,
+      recommendations: item.assessment?.reasons,
+      disclaimer: "В банк не отправлено. Не скоринг и не банковское решение.",
+    };
+    let machine;
+    if (consent) {
+      const deps = applicationsDependencies();
+      machine = dossier.applicationId
+        ? applicationOf(db, dossier.applicationId)
+        : createApplication(
+            db,
+            uid,
+            { selectionId: item.id, selectionVersion: item.version },
+            deps,
+          ).application;
+      dossier.applicationId = machine.id;
+      // Persist the bridge before awaiting checks. A retry resumes the same draft
+      // after an outage rather than creating a second machine application.
+      db.prepare(
+        "INSERT INTO funding_applications VALUES(?,?,?,?,?) ON CONFLICT(user_id,selection_id,version) DO UPDATE SET dossier=excluded.dossier",
+      ).run(lead.id, uid, item.id, item.version, JSON.stringify(dossier));
+      if (machine.status === "draft")
+        machine = (
+          await executeApplicationEvent(
+            db,
+            {
+              applicationId: machine.id,
+              expectedVersion: machine.version,
+              event: "submit",
+              actorRole: "client",
+              actorId: uid,
+              payload: { consent: true },
+            },
+            "funding-submit:" + machine.id,
+            "funding-submit:" + machine.id,
+            deps,
+          )
+        ).application;
+      dossier.applicationStatus = machine.status;
+      dossier.disclaimer =
+        "Проверка выполнена на демонстрационном стенде. Решение о реальном кредите принимает банк.";
+    }
+    // Scoring can await other requests. Preserve state saved during that await.
+    const current = stateOf(uid);
+    db.exec("BEGIN");
+    try {
+      db.prepare(
+        "INSERT INTO funding_applications VALUES(?,?,?,?,?) ON CONFLICT(user_id,selection_id,version) DO UPDATE SET dossier=excluded.dossier",
+      ).run(lead.id, uid, item.id, item.version, JSON.stringify(dossier));
+      if (!current.leads.some((l) => l.id === lead.id))
+        current.leads.push(lead);
+      notify(
+        current,
+        "funding-application:" + lead.id,
+        consent ? "Заявление передано на проверку" : "Демо-заявка создана",
+        consent
+          ? "Условия сохранены, результат проверки доступен в заявке."
+          : "Сохранены условия версии " +
+              item.version +
+              ". В банк ничего не отправлено.",
+        "financing",
+      );
+      saveState(uid, current);
+      db.exec("COMMIT");
+    } catch (e) {
+      db.exec("ROLLBACK");
+      throw e;
+    }
+    res.json({
+      ...lead,
+      ...(machine
+        ? { applicationId: machine.id, applicationStatus: machine.status }
+        : {}),
+    });
+  } catch (error) {
+    if (error instanceof ApplicationError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    throw error;
+  } finally {
+    submitting.delete(lock);
+  }
 });
