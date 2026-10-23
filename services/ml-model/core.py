@@ -1,5 +1,5 @@
 # services/ml-model/core.py
-"""ядро ступенек 1 и 2: парсинг, скоринг, лимиты и подбор 8 продуктов Альфа-Банка"""
+"""ядро ступенек 1 и 2: парсинг, скоринг, лимиты и подбор 6 продуктов (Толя)"""
 
 import csv
 import statistics
@@ -19,16 +19,15 @@ PARAMS = {
     "pair_days": 180,
 }
 
-# 8 продуктов из таблицы Толи
+# 6 продуктов из расширенной модели Толи
 PRODUCTS_DB = {
-    "ALFA_LUMP_UNSEC": {"rate": 0.235},
-    "ALFA_LUMP_SEC": {"rate": 0.215},
-    "ALFA_RCL_UNSEC": {"rate": 0.235},
-    "ALFA_NCL_SEC": {"rate": 0.220},
-    "ALFA_OVERDRAFT": {"rate": 0.260},
-    "ALFA_START": {"rate": 1.095}, # 0.3% в день * 365
-    "ALFA_DELO": {"rate": 0.155},
-    "ALFA_REFI": {"rate": 0.140},
+    "WORKING":   {"rate": 0.235},
+    "INVEST":    {"rate": 0.220},
+    "RCL":       {"rate": 0.240},
+    "NCL":       {"rate": 0.230},
+    "OVERDRAFT": {"rate": 0.260},
+    "REFI":      {"rate": 0.225},
+    "MANUAL":    {"rate": 0.235}, # Заглушка для ручного маршрута
 }
 
 IN_LABELS = {"inflow"}
@@ -193,28 +192,27 @@ def annuity_factor(rate, term):
 def select_instrument(need, questionnaire):
     purpose = need.get("purpose", "")
     years = questionnaire.get("years", "")
-    amount = need.get("amount_rub", 0)
     
-    if years in ("меньше года", "1–3"):
-        if amount <= 1000000: return "ALFA_START"
-        return "ALFA_DELO"
-
-    if purpose == "кассовый разрыв": return "ALFA_OVERDRAFT"
-    elif purpose == "оборудование":
-        if amount > 3000000: return "ALFA_NCL_SEC" 
-        return "ALFA_LUMP_SEC"
-    elif purpose in ("сезон", "закупка под контракт"): return "ALFA_RCL_UNSEC"
-    elif purpose == "рост":
-        if amount > 3000000: return "ALFA_NCL_SEC"
-        return "ALFA_LUMP_UNSEC"
-    elif purpose == "рефинансирование": return "ALFA_REFI"
-    return "ALFA_LUMP_UNSEC"
+    # Если бизнесу меньше года -> только ручной маршрут (согласно таблице N11)
+    if years == "меньше года":
+        return "MANUAL"
+        
+    if purpose == "кассовый разрыв": return "OVERDRAFT"
+    elif purpose == "оборудование": return "INVEST"
+    elif purpose == "сезон": return "RCL"
+    elif purpose == "закупка под контракт": return "NCL"
+    elif purpose == "рост": return "INVEST" 
+    elif purpose == "рефинансирование": return "REFI"
+    
+    return "WORKING"
 
 def check_restrictions(instrument_id, need):
     purpose = need.get("purpose", "")
-    if instrument_id == "ALFA_RCL_UNSEC" and purpose in ("оборудование", "рост"):
+    # RCL (возобновляемая линия) не подходит для капвложений (T12)
+    if instrument_id == "RCL" and purpose in ("оборудование", "рост"):
         return "RESTRICTED_PURPOSE"
-    if instrument_id == "ALFA_OVERDRAFT" and purpose != "кассовый разрыв":
+    # Овердрафт только для кассового разрыва
+    if instrument_id == "OVERDRAFT" and purpose != "кассовый разрыв":
         return "RESTRICTED_PURPOSE"
     return None
 
@@ -247,6 +245,9 @@ def make_decision(score, stops, need, limit_now, limit_after, instrument, missin
     if stops:
         if "SHORT_STATEMENT" in stops:
             return "можно после шага", missing, reasons
+        return "нужен менеджер", missing, reasons
+
+    if instrument == "MANUAL":
         return "нужен менеджер", missing, reasons
 
     if need["amount_rub"] <= limit_now:
@@ -321,11 +322,17 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
     rate = PRODUCTS_DB[instrument]["rate"]
     term = need["term_months"]
     a = annuity_factor(rate, term)
+    
+    # ИСПРАВЛЕННЫЙ DSCR (баг от Толи)
+    # Считаем платеж по запрашиваемому кредиту
+    requested_payment = need["amount_rub"] / a if a > 0 else 0
+    # DSCR = Свободный поток (уже с вычетом старых кредитов) / Платеж по новому кредиту
+    dscr = round(flow / requested_payment, 2) if requested_payment > 0 else 0
 
-    max_payment = max(flow, 0.0) / p["dscr_min"]
-    dscr = round(flow / max_payment, 2) if max_payment > 0 else 0
-
-    limit_now = max_payment * a
+    # Лимит (сколько МОЖЕМ выдать безопасно при DSCR 1.25)
+    safe_payment = max(flow, 0.0) / p["dscr_min"]
+    limit_now = safe_payment * a
+    
     contract = confirmed_fields.get("contract_main_customer") or need.get("contract_with_main_customer")
     flow_after = flow
     if contract:
