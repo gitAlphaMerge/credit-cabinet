@@ -19,6 +19,8 @@ import {
 } from "./store";
 import { calculate, select, forecast, catalog } from "./finance";
 import { extract, fieldNames, readableFileName } from "./documents";
+import { confirmDocumentVersion, creditRevision, documentMetadata } from "./document-policy";
+import { createDocumentConnectorRouter } from "./document-connector";
 import { createAIProvider } from "./ai-provider";
 import { publicPreview } from "./preview";
 import { findCompany, RegistryError } from "./registry";
@@ -28,6 +30,7 @@ import { russianValidationErrors } from "../shared/facility-validation";
 import { fundingRouter } from "./funding-routes";
 import { applicationsRouter } from "./applications-routes";
 import { checksRouter } from "./checks";
+import { demoPersonasRouter } from "./demo-personas";
 import {
   ApplicationError,
   applicationOf,
@@ -67,6 +70,7 @@ app.use("/api", (req, res, next) => {
   }
   next();
 });
+app.use("/api", demoPersonasRouter);
 const limits = new Map<string, { n: number; until: number }>();
 const limit = (key: string, max: number) => {
   const x = limits.get(key);
@@ -424,6 +428,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024, files: 1 },
 });
+app.use("/api", createDocumentConnectorRouter());
 app.post("/api/documents", upload.single("file"), async (req, res) => {
   limit("uploads:" + res.locals.userId, 15);
   if (!req.file) {
@@ -438,6 +443,7 @@ app.post("/api/documents", upload.single("file"), async (req, res) => {
   const s = stateOf(res.locals.userId),
     id = createHash("sha256")
       .update(res.locals.userId)
+      .update(data.category)
       .update(req.file.buffer)
       .digest("hex");
   let doc = s.documents.find((d) => d.id === id);
@@ -450,7 +456,8 @@ app.post("/api/documents", upload.single("file"), async (req, res) => {
       confirmed: false,
       createdAt: new Date().toISOString(),
     };
-    s.documents.push(doc);
+    Object.assign(doc, documentMetadata(doc), { creditRevision: creditRevision(s) });
+    s.documents.unshift(doc);
     db.prepare("INSERT OR IGNORE INTO files VALUES(?,?,?,?,?)").run(
       id,
       res.locals.userId,
@@ -469,10 +476,7 @@ app.post("/api/documents/:id/confirm", (req, res) => {
     res.status(404).json({ error: "Документ не найден" });
     return;
   }
-  doc.confirmed = true;
-  s.documents = s.documents.filter(
-    (d) => d.id === doc.id || d.category !== doc.category || !d.confirmed,
-  );
+  confirmDocumentVersion(s, doc);
   if (doc.category === "statement")
     Object.assign(s.financials, {
       freeFlow: doc.fields.freeFlow,

@@ -1,0 +1,146 @@
+/* Scoped above the legacy mobile rules; values are audited by check-docs-readability.mjs. */
+.profile-page .documents-panel {
+  color: var(--ink);
+  background: #ffffff;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.profile-page .documents-panel .panel-title {
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.profile-page .documents-panel .panel-title p {
+  color: #465267;
+  background: #ffffff;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.profile-page .documents-panel .panel-title .badge {
+  color: var(--ink);
+  background: #f2f4f7;
+  font-size: 14px;
+}
+.profile-page .documents-panel .document-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+.profile-page .documents-panel .document-card {
+  padding: 24px;
+  min-width: 0;
+  min-height: 0;
+  gap: 12px;
+  color: var(--ink);
+  background: #ffffff;
+}
+.profile-page .documents-panel .doc-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 0;
+  background: none;
+  margin: 0;
+}
+.profile-page .documents-panel .document-card h3 {
+  color: var(--ink);
+  background: #ffffff;
+  font-size: 16px;
+  line-height: 1.45;
+  min-height: 0;
+  margin: 0;
+}
+.profile-page .documents-panel .doc-status {
+  color: #465267;
+  background: #f2f4f7;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 5px 8px;
+  border-radius: 6px;
+  margin: 0;
+}
+.profile-page .documents-panel .doc-status.fresh {
+  color: #146342;
+  background: #ecf7ef;
+}
+.profile-page .documents-panel .doc-status.stale {
+  color: #8a2417;
+  background: #fff1ed;
+}
+.profile-page .documents-panel .doc-status.pending {
+  color: #704500;
+  background: #fff5db;
+}
+.profile-page .documents-panel .document-card > small,
+.profile-page .documents-panel > .fine-print {
+  color: #465267;
+  background: #ffffff;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.profile-page .documents-panel > .fine-print {
+  margin-top: 24px;
+}
+.profile-page .documents-panel .file-name {
+  color: #465267;
+  background: #f2f4f7;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.profile-page .documents-panel .document-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding-top: 8px;
+}
+.profile-page .documents-panel .document-actions .button {
+  color: #ffffff;
+  background: #b5261c;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 10px 14px;
+  line-height: 1.5;
+  text-align: center;
+  white-space: normal;
+  border-color: #b5261c;
+}
+.profile-page .documents-panel .text-button,
+.profile-page .documents-panel .document-actions .text-button,
+.profile-page .documents-panel .template-link,
+.profile-page .documents-panel .document-history a,
+.profile-page .documents-panel .document-history summary {
+  color: #384b70;
+  background: #ffffff;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 44px;
+  padding: 10px 0;
+  margin: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.profile-page .documents-panel .document-history {
+  width: 100%;
+  color: var(--ink);
+  background: #ffffff;
+  font-size: 14px;
+}
+.profile-page .documents-panel .document-history a {
+  display: block;
+}
+.profile-page .documents-panel button:disabled {
+  color: #465267;
+  background: #e8ebf0;
+  opacity: 1;
+  cursor: wait;
+}
+.profile-page .documents-panel a:focus-visible,
+.profile-page .documents-panel button:focus-visible,
+.profile-page .documents-panel summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}

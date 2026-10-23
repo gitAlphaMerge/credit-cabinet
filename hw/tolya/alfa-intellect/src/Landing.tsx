@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Brand, Button, Badge, SectionTitle } from "./ui";
 import { useEffect, useRef } from "react";
-import { HeroFinance } from "./HeroFinance";
+import { LivePattern } from "./LivePattern";
 export function Landing({ go }: { go: (s: string) => void }) {
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -62,7 +62,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
         </Button>
       </header>
       <main>
-        <section className="hero wrap">
+        <section className="hero wrap hero-live-pattern">
           <div className="hero-copy">
             <Badge tone="red">
               <Sparkles size={13} /> Финансовый помощник вашего бизнеса
@@ -93,7 +93,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
               </span>
             </div>
           </div>
-          <HeroFinance />
+          <LivePattern />
         </section>
         <section className="benefit-strip wrap">
           {[

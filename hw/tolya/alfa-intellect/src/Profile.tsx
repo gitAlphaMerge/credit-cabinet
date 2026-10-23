@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { DocumentIllustration } from "./Illustration";
 import {
   Pencil,
   Search,
@@ -19,6 +18,14 @@ import { useWorkspace } from "./context";
 import { Button, Badge, Field, Modal } from "./ui";
 import { api, date } from "./api";
 import { documentTypes } from "../shared/types";
+import {
+  creditRevision,
+  documentMetadata,
+  documentSource,
+  documentStatus,
+  shortDocumentDate,
+  type TimedDocument,
+} from "../server/document-policy";
 export function ProfilePage() {
   const w = useWorkspace(),
     p = w.state.profile,
@@ -34,8 +41,10 @@ export function ProfilePage() {
     [lookupBusy, setLookupBusy] = useState(false),
     [lookupError, setLookupError] = useState(""),
     [category, setCategory] = useState("statement"),
-    [viewDoc, setViewDoc] = useState<string | null>(null);
+    [viewDoc, setViewDoc] = useState<string | null>(null),
+    [pulling, setPulling] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const pullLock = useRef(false);
   const age = (() => {
     if (!p.registered) return "Планирую запуск";
     if (!p.registeredAt) return p.ageBand || "Не указан";
@@ -271,119 +280,225 @@ export function ProfilePage() {
         <div className="panel-title">
           <div>
             <h2>Документы бизнеса</h2>
-            <p>Загрузите один раз — используйте во всех разделах.</p>
+            <p>
+              Проверьте период и актуальность. При обновлении предыдущая версия
+              сохраняется.
+            </p>
           </div>
           <Badge>
-            {w.state.documents.filter((d) => d.confirmed).length} из 6 загружено
+            {
+              documentTypes.filter(
+                ([c]) =>
+                  documentStatus(
+                    w.state.documents.find(
+                      (d) => d.category === c && d.confirmed,
+                    ),
+                    p.form,
+                    c,
+                    new Date(),
+                    creditRevision(w.state),
+                  ).code === "fresh",
+              ).length
+            }{" "}
+            актуальных
           </Badge>
         </div>
         <div className="document-grid">
-          {documentTypes.map(([c, title], i) => {
-            const d = w.state.documents.find(
-                (x) => x.category === c && x.confirmed,
-              ),
-              pending = w.state.documents.find(
-                (x) => x.category === c && !x.confirmed,
-              );
-            const na = p.form === "ИП" && ["balance", "pnl"].includes(c);
+          {documentTypes.map(([c, title]) => {
+            const docs = w.state.documents
+              .filter((x) => x.category === c)
+              .sort((a, b) =>
+                b.createdAt.localeCompare(a.createdAt),
+              ) as TimedDocument[];
+            const d = docs[0];
+            const status = documentStatus(
+              d,
+              p.form,
+              c,
+              new Date(),
+              creditRevision(w.state),
+            );
+            const na = status.code === "na";
+            const source = documentSource(c, p.form, p.registered);
+            const metadata = d ? documentMetadata(d) : null;
+            const history = [
+              ...new Map(
+                docs
+                  .flatMap((x) => [x, ...(x.versions || [])])
+                  .filter((x) => x.id !== d?.id)
+                  .map((x) => [x.id, x]),
+              ).values(),
+            ];
+            const busy = w.uploading || pulling !== null;
+            const upload = () => {
+              setCategory(c);
+              input.current?.click();
+            };
+            const pull = async () => {
+              if (pullLock.current) return;
+              pullLock.current = true;
+              setPulling(c);
+              try {
+                const imported = await w.act("/documents/import", {
+                  category: c,
+                });
+                w.reviewDocument(imported);
+              } catch (error) {
+                w.error((error as Error).message);
+              } finally {
+                pullLock.current = false;
+                setPulling(null);
+              }
+            };
+            const icons = {
+              statement: "statement",
+              balance: "balance",
+              pnl: "income",
+              model: "reconciliation",
+              plan: "business-plan",
+              schedule: "debt-schedule",
+            };
             return (
-              <article className="document-card" key={c}>
-                <span className={"doc-icon color-" + i}>
-                  <DocumentIllustration category={c} size={32} decorative />
+              <article
+                className="document-card"
+                key={c}
+                aria-labelledby={"document-" + c}
+              >
+                <img
+                  className="doc-icon"
+                  src={"/icons/docs/" + icons[c] + ".svg"}
+                  alt=""
+                  width="48"
+                  height="48"
+                />
+                <h3 id={"document-" + c}>{title}</h3>
+                <span className={"doc-status " + status.code}>
+                  {status.label}
                 </span>
-                <h3>{title}</h3>
-                <span className={"doc-status " + (d ? "loaded" : "")}>
-                  {d ? <Check size={14} /> : <span className="neutral-dot" />}
-                  {d ? "Загружен" : "Не загружен"}
-                </span>
-                <small>
-                  {d
-                    ? d.period
-                    : na
-                      ? "Для ИП может быть неприменим"
-                      : c === "model" || c === "plan"
-                        ? "Плановые показатели проекта"
-                        : "Подтверждение фактических данных"}
-                </small>
-                {d && (
-                  <div className="file-name">
-                    <FileText size={15} />
-                    {d.name}
-                  </div>
-                )}
-                <div className="document-actions">
-                  {d ? (
+                {!na && (
+                  <>
+                    <small>
+                      {metadata?.periodFrom && metadata.periodTo
+                        ? "Период: " +
+                          shortDocumentDate(metadata.periodFrom) +
+                          " - " +
+                          shortDocumentDate(metadata.periodTo)
+                        : d
+                          ? "Период не определён. Нужны даты в документе."
+                          : c === "model" || c === "plan"
+                            ? "Плановые показатели проекта"
+                            : "Подтверждение фактических данных"}
+                    </small>
+                    {d && (
+                      <small>
+                        Загружен: {date(d.createdAt)}
+                        {metadata?.validUntil
+                          ? " · Годен до: " +
+                            shortDocumentDate(metadata.validUntil)
+                          : " · Срок не определён"}
+                      </small>
+                    )}
+                    {d && <div className="file-name">{d.name}</div>}
+                    <small>
+                      {d?.source ||
+                        (source
+                          ? "Источник: " +
+                            source +
+                            ". Подтягивание работает на мок-данных."
+                          : "Документ предоставляет клиент.")}
+                    </small>
+                    <div className="document-actions">
+                      {status.code === "pending" ? (
+                        <Button
+                          disabled={busy}
+                          onClick={() => w.reviewDocument(d)}
+                        >
+                          Проверить данные
+                        </Button>
+                      ) : status.code === "fresh" && d ? (
+                        <a
+                          className="button"
+                          href={"/api/documents/" + d.id + "/download"}
+                        >
+                          <Download size={15} /> Открыть
+                        </a>
+                      ) : source ? (
+                        <Button disabled={busy} onClick={() => void pull()}>
+                          {pulling === c ? "Подтягиваем…" : "Подтянуть"}
+                        </Button>
+                      ) : (
+                        <Button disabled={busy} onClick={upload}>
+                          <Paperclip size={15} /> Загрузить
+                        </Button>
+                      )}
+                      {(d || source) && (
+                        <button
+                          className="text-button"
+                          disabled={busy}
+                          onClick={upload}
+                        >
+                          {d ? "Загрузить новую версию" : "Загрузить файл"}
+                        </button>
+                      )}
+                    </div>
+                    {d?.confirmed && (
+                      <button
+                        className="text-button"
+                        onClick={() => setViewDoc(d.id)}
+                      >
+                        Показать данные
+                      </button>
+                    )}
+                    {source && status.code === "fresh" && (
+                      <button
+                        className="text-button"
+                        disabled={busy}
+                        onClick={() => void pull()}
+                      >
+                        Подтянуть новую версию
+                      </button>
+                    )}
+                    {history.length > 0 && (
+                      <details className="document-history">
+                        <summary>Предыдущие версии: {history.length}</summary>
+                        {history.map((old) => (
+                          <a
+                            key={old.id}
+                            href={"/api/documents/" + old.id + "/download"}
+                          >
+                            {old.name} · {date(old.createdAt)} ·{" "}
+                            {old.confirmed ? "подтверждён" : "не подтверждён"}
+                          </a>
+                        ))}
+                      </details>
+                    )}
                     <a
-                      className="button secondary"
-                      href={"/api/documents/" + d.id + "/download"}
+                      className="template-link"
+                      href={
+                        "/fixtures/" +
+                        c +
+                        (c === "model"
+                          ? ".xlsx"
+                          : c === "plan"
+                            ? ".docx"
+                            : c === "pnl"
+                              ? ".pdf"
+                              : ".csv")
+                      }
+                      download
                     >
-                      <Download size={15} /> Открыть
+                      Скачать шаблон с примером
                     </a>
-                  ) : (
-                    <Button
-                      secondary
-                      disabled={w.uploading}
-                      onClick={() => {
-                        setCategory(c);
-                        input.current?.click();
-                      }}
-                    >
-                      <Paperclip size={15} /> Загрузить
-                    </Button>
-                  )}
-                  {d && (
-                    <button
-                      className="text-button"
-                      onClick={() => {
-                        setCategory(c);
-                        input.current?.click();
-                      }}
-                    >
-                      Заменить
-                    </button>
-                  )}
-                </div>
-                {d && (
-                  <button
-                    className="text-button"
-                    onClick={() => setViewDoc(d.id)}
-                  >
-                    Показать данные
-                  </button>
-                )}
-                {pending && (
-                  <button
-                    className="text-button pending-note"
-                    onClick={() => w.reviewDocument(pending)}
-                  >
-                    Проверить извлечённые данные
-                  </button>
-                )}
-                <a
-                  className="template-link"
-                  href={
-                    "/fixtures/" +
-                    c +
-                    (c === "model"
-                      ? ".xlsx"
-                      : c === "plan"
-                        ? ".docx"
-                        : c === "pnl"
-                          ? ".pdf"
-                          : ".csv")
-                  }
-                  download
-                >
-                  Скачать шаблон с примером
-                </a>
-                {c === "pnl" && (
-                  <a
-                    className="template-link"
-                    href="/fixtures/pnl-comparable.csv"
-                    download
-                  >
-                    Шаблон ОФР для сравнения периодов
-                  </a>
+                    {c === "pnl" && (
+                      <a
+                        className="template-link"
+                        href="/fixtures/pnl-comparable.csv"
+                        download
+                      >
+                        Шаблон ОФР для сравнения периодов
+                      </a>
+                    )}
+                  </>
                 )}
               </article>
             );
@@ -402,8 +517,9 @@ export function ProfilePage() {
         />
         <p className="fine-print">
           <Info size={14} /> До 8 МБ. PDF с текстовым слоем, XLSX, CSV, DOCX в
-          поддерживаемых шаблонах. OCR сканов не поддерживается. Зелёная галочка
-          появится после проверки и вашего подтверждения.
+          поддерживаемых шаблонах. Сканы не распознаются. Подтянутые данные
+          синтетические (мок): проверьте их перед подтверждением. Сроки
+          актуальности заданы для прототипа, решение принимает банк.
         </p>
       </section>
       {candidate && (

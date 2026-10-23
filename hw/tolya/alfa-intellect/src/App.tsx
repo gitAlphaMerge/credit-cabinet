@@ -1,9 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import {
-  Bell,
-  HelpCircle,
-  LogOut,
-  Building2,
   ArrowRight,
   Check,
   Menu,
@@ -17,7 +13,7 @@ import { Onboarding } from "./Onboarding";
 import { WorkspaceContext } from "./context";
 import { WorkspaceView } from "./WorkspaceView";
 import { Tour } from "./Tour";
-import { NotificationCenter } from "./NotificationCenter";
+import { DemoProfileTools } from "./DemoProfileMenu";
 import { DemoPage } from "./DemoPage";
 import { Chat } from "./Chat";
 import { ProfilePage } from "./Profile";
@@ -347,36 +343,17 @@ export function App() {
               Выйти из аккаунта
             </button>
           </nav>
-          <div className="header-tools">
+          <div className="header-tools g2-tools">
             <ThemeToggle />
-            <button
-              data-tour="profile"
-              className={
-                "company-button " + (page === "profile" ? "active" : "")
-              }
-              onClick={() => go("/profile")}
-            >
-              <Building2 size={17} />
-              <span>
-                {config.role === "manager"
-                  ? "Менеджер банка"
-                  : state.profile.name}
-              </span>
-              <span>⌄</span>
-            </button>
-            <NotificationCenter />
-            <IconButton
-              label="Обучение"
-              onClick={() => {
+            <DemoProfileTools
+              company={config.role === "manager" ? "Менеджер банка" : state.profile.name}
+              onProfile={() => go("/profile")}
+              onHelp={() => {
                 go("/cabinet");
                 setTour(0);
               }}
-            >
-              <HelpCircle size={20} />
-            </IconButton>
-            <IconButton label="Выйти" onClick={() => void signOut()}>
-              <LogOut size={19} />
-            </IconButton>
+              onLogout={() => void signOut()}
+            />
             <IconButton
               className="mobile-menu"
               label="Меню"
