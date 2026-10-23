@@ -235,7 +235,7 @@ export const runComplianceGate: ComplianceGate = async ({
       ? parsedTtl
       : 30;
   const freshness: DocumentFreshness[] = documents
-    .filter((d) => d.category === "statement")
+    .filter((d) => d.category === "statement" && d.confirmed)
     .map((d) => {
       const time = d.documentDate ? Date.parse(d.documentDate) : NaN;
       const age = (now.getTime() - time) / 86400000;

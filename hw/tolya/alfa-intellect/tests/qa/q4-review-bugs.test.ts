@@ -24,7 +24,7 @@ before(async () => {
 after(() => db?.close());
 
 for (const changed of ["profile", "statement"] as const) {
-  test(`BUG: #1 ${changed} changed during core cannot commit stale pass`, async () => {
+  test(`#1 ${changed} changed during core cannot commit stale pass`, async () => {
     const f = fixture(db);
     let entered!: () => void, resume!: () => void;
     const started = new Promise<void>((r) => {
@@ -61,7 +61,7 @@ for (const changed of ["profile", "statement"] as const) {
 }
 
 for (const field of ["asked_for", "rate", "repayment"] as const) {
-  test(`BUG: #4 accepted alternative preserves ${field}`, async () => {
+  test(`#4 accepted alternative preserves ${field}`, async () => {
     const f = fixture(db, 900000, "кассовый разрыв");
     await f.submit();
     const selected = a.dossierOf(db, f.id)!.alternatives![0];
@@ -84,7 +84,7 @@ for (const field of ["asked_for", "rate", "repayment"] as const) {
   });
 }
 
-test("BUG: #7 extra unconfirmed old statement cannot block confirmed fresh evidence", async () => {
+test("#7 extra unconfirmed old statement cannot block confirmed fresh evidence", async () => {
   const base = {
     inn: "9900000001",
     now: AT,
@@ -122,7 +122,7 @@ for (const [ui, canonical] of [
   ["Развитие", "рост"],
   ["Исполнение контракта", "закупка под контракт"],
 ]) {
-  test(`BUG: #9 equivalent purpose ${ui} produces same real catalogue alternatives`, async () => {
+  test(`#9 equivalent purpose ${ui} produces same real catalogue alternatives`, async () => {
     const make = async (purpose: string) => {
       const f = fixture(db, 900000, purpose);
       f.deps.alternatives = buildAlternatives;
@@ -179,7 +179,7 @@ test("BUG: #11 real chat handler must attach owned application and objections mo
   assert.equal(payload.mode, "objections");
 });
 
-test("BUG: #12 application journal must not retain private text inside objections", async () => {
+test("#12 application journal must not retain private text inside objections", async () => {
   const f = fixture(db, 900000);
   await f.submit();
   const secret =
@@ -206,7 +206,7 @@ test("BUG: #12 application journal must not retain private text inside objection
   );
 });
 
-test("BUG: #15 real live oracle accepts a member of golden instrument array", () => {
+test("#15 real live oracle accepts a member of golden instrument array", () => {
   const scenario = golden.scenarios.find((g: any) =>
     Array.isArray(g.expected.instrument),
   );
