@@ -58,5 +58,49 @@
     "activity": "Производство мебели",
     "okved": "31.09",
     "status": "ACTIVE"
+  },
+  {
+    "inn": "9900050018",
+    "name": "ООО Demo Q5 Furniture",
+    "form": "ООО",
+    "registeredAt": "2020-03-12",
+    "region": "Moscow",
+    "activity": "Furniture",
+    "okved": "31.09",
+    "status": "ACTIVE",
+    "demo_seed": "q5"
+  },
+  {
+    "inn": "990005000140",
+    "name": "ИП Demo Q5 Bakery",
+    "form": "ИП",
+    "registeredAt": "2020-03-12",
+    "region": "Moscow",
+    "activity": "Bakery",
+    "okved": "10.71",
+    "status": "ACTIVE",
+    "demo_seed": "q5"
+  },
+  {
+    "inn": "9900050025",
+    "name": "ООО Demo Q5 Textile",
+    "form": "ООО",
+    "registeredAt": "2020-03-12",
+    "region": "Moscow",
+    "activity": "Textile",
+    "okved": "14.13",
+    "status": "ACTIVE",
+    "demo_seed": "q5"
+  },
+  {
+    "inn": "990005000214",
+    "name": "ИП Demo Q5 Service",
+    "form": "ИП",
+    "registeredAt": "2020-03-12",
+    "region": "Moscow",
+    "activity": "Equipment repair",
+    "okved": "33.12",
+    "status": "ACTIVE",
+    "demo_seed": "q5"
   }
 ]

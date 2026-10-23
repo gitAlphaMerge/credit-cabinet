@@ -369,5 +369,133 @@
         "active": true
       }
     }
+  },
+  {
+    "inn": "9900050018",
+    "demo_seed": "q5",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 0,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
+    }
+  },
+  {
+    "inn": "990005000140",
+    "demo_seed": "q5",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 0,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
+    }
+  },
+  {
+    "inn": "9900050025",
+    "demo_seed": "q5",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 0,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
+    }
+  },
+  {
+    "inn": "990005000214",
+    "demo_seed": "q5",
+    "bki": {
+      "status": "ok",
+      "data": {
+        "openLoans": 0,
+        "overdue30Plus12m": 0,
+        "overdue90Plus12m": 0,
+        "debtBurdenRatio": 0
+      }
+    },
+    "aml": {
+      "status": "ok",
+      "data": {
+        "requiresReview": false
+      }
+    },
+    "fns": {
+      "status": "ok",
+      "data": {
+        "taxDebtRub": 0,
+        "unreliableDetails": false
+      }
+    },
+    "bankruptcy": {
+      "status": "ok",
+      "data": {
+        "active": false
+      }
+    }
   }
 ]
