@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { money } from "../api";
+import { ManagerMemo } from "./ManagerMemo";
 import {
   loadApplication,
   loadQueue,
@@ -90,6 +91,7 @@ type ViewProps = {
   onTab(tab: "queue" | "rejected"): void;
   onRetry(): void;
   onAction(event: ManagerEvent, payload: Record<string, string>): Promise<void>;
+  onMemo?(): void;
 };
 export function ManagerView(p: ViewProps) {
   const row = p.rows.find((r) => r.application.id === p.selected);
@@ -204,6 +206,14 @@ export function ManagerView(p: ViewProps) {
             ) : (
               <>
                 <h2>Досье заявки</h2>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={!actionable || !d}
+                  onClick={p.onMemo}
+                >
+                  Подготовить записку андеррайтеру
+                </button>
                 <p>
                   {statuses[p.detail.application.status] || "Статус неизвестен"}{" "}
                   · Лимит сейчас: {rub(limit)}
@@ -335,7 +345,9 @@ export function ManagerView(p: ViewProps) {
                               onSubmit={(e) => {
                                 e.preventDefault();
                                 const memo = (
-                                  e.currentTarget.elements.namedItem("memo") as HTMLTextAreaElement
+                                  e.currentTarget.elements.namedItem(
+                                    "memo",
+                                  ) as HTMLTextAreaElement
                                 ).value.trim();
                                 if (!memo || blocked || !actionable) return;
                                 return p.onAction("send_to_underwriting", {
@@ -474,6 +486,10 @@ export function ManagerView(p: ViewProps) {
   );
 }
 export function ManagerWorkspace() {
+  const [memo, setMemo] = useState<{
+    option_id?: string;
+    memo?: string;
+  } | null>(null);
   const [tab, setTab] = useState<"queue" | "rejected">("queue");
   const [rows, setRows] = useState<QueueItem[]>([]),
     [selected, setSelected] = useState("");
@@ -547,36 +563,68 @@ export function ManagerWorkspace() {
       setRevision((v) => v + 1);
     } catch (e) {
       setError((e as Error).message);
+      throw e;
     } finally {
       lock.current = false;
       setBusy(false);
     }
   }
   return (
-    <ManagerView
-      rows={rows}
-      selected={selected}
-      detail={detail}
-      tab={tab}
-      loading={loading}
-      detailLoading={detailLoading}
-      error={error}
-      busy={busy}
-      onSelect={(id) => {
-        setError("");
-        setDetail(null);
-        setSelected(id);
-      }}
-      onTab={(value) => {
-        if (!lock.current) {
-          setRows([]);
-          setSelected("");
+    <>
+      {memo &&
+        detail &&
+        !detailLoading &&
+        detail.application.id === selected && (
+          <ManagerMemo
+            key={
+              detail.application.id +
+              ":" +
+              detail.application.version +
+              ":" +
+              (memo.option_id || "original")
+            }
+            detail={detail}
+            optionId={memo.option_id}
+            initialComment={memo.memo}
+            busy={busy}
+            onClose={() => setMemo(null)}
+            onSend={async (payload) => {
+              await action("send_to_underwriting", payload);
+              setMemo(null);
+            }}
+          />
+        )}
+      <ManagerView
+        rows={rows}
+        selected={selected}
+        detail={detail}
+        tab={tab}
+        loading={loading}
+        detailLoading={detailLoading}
+        error={error}
+        busy={busy}
+        onSelect={(id) => {
+          setMemo(null);
+          setError("");
           setDetail(null);
-          setTab(value);
-        }
-      }}
-      onRetry={() => setRevision((v) => v + 1)}
-      onAction={action}
-    />
+          setSelected(id);
+        }}
+        onTab={(value) => {
+          setMemo(null);
+          if (!lock.current) {
+            setRows([]);
+            setSelected("");
+            setDetail(null);
+            setTab(value);
+          }
+        }}
+        onRetry={() => setRevision((v) => v + 1)}
+        onMemo={() => setMemo({})}
+        onAction={async (event, payload) => {
+          if (event === "send_to_underwriting") setMemo(payload);
+          else await action(event, payload).catch(() => {});
+        }}
+      />
+    </>
   );
 }

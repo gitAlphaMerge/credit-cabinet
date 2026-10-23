@@ -24,6 +24,8 @@ import { ProfilePage } from "./Profile";
 import { Financing } from "./Financing";
 import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
+import { ApplicationStatus } from "./ApplicationStatus";
+import "./application-status.css";
 import "./manager/manager.css";
 import type { AppState, Doc } from "../shared/types";
 import {
@@ -321,7 +323,12 @@ export function App() {
               ["cabinet", "Кредитный кабинет"],
               ["chat", "Чат"],
               ["financing", "Подбор финансирования"],
-              ...(config.role === "manager" ? [["bank", "Рабочее место менеджера"]] : []),
+              ...(config.role === "client"
+                ? [["application", "Моя заявка"]]
+                : []),
+              ...(config.role === "manager"
+                ? [["bank", "Рабочее место менеджера"]]
+                : []),
             ].map(([p, label]) => (
               <button
                 data-tour={p}
@@ -373,7 +380,11 @@ export function App() {
             </IconButton>
           </div>
         </header>
-        {page === "bank" ? <ManagerAccess role={config.role} /> : page === "profile" ? (
+        {page === "application" ? (
+          <ApplicationStatus />
+        ) : page === "bank" ? (
+          <ManagerAccess role={config.role} />
+        ) : page === "profile" ? (
           <ProfilePage />
         ) : page === "financing" ? (
           <Financing />

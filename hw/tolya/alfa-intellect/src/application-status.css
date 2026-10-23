@@ -1,0 +1,83 @@
+.application-status,
+.application-toolbar {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+.application-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+.application-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.application-stack {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.application-status h2 {
+  font-size: 20px;
+}
+.application-status p {
+  line-height: 1.6;
+}
+.application-terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+}
+.application-terms b {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+.application-status form {
+  display: grid;
+  gap: 14px;
+}
+.application-status :is(input, select, textarea) {
+  max-width: 100%;
+  min-width: 0;
+}
+.application-status .button {
+  white-space: normal;
+}
+.application-option {
+  padding-block: 16px;
+  border-bottom: 1px solid var(--cv-line);
+}
+.application-history {
+  padding-left: 20px;
+}
+.application-history li {
+  padding: 8px 0;
+}
+.application-history time {
+  display: block;
+  color: var(--muted);
+}
+.application-status :is(button, input, textarea, select, summary):focus-visible,
+.application-toolbar :is(button, select):focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .application-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .application-status,
+  .application-toolbar {
+    padding: 16px;
+  }
+  .application-status .cv-heading {
+    flex-wrap: wrap;
+  }
+}
