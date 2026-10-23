@@ -20,7 +20,7 @@ import {
   saveState,
 } from "./q1-harness";
 
-test("BUG: another SQLite writer must yield a conflict, never SQLITE_BUSY as HTTP 500", async () => {
+test("another SQLite writer must yield a conflict, never SQLITE_BUSY as HTTP 500", async () => {
   const id = create(),
     before = a.eventsOf(db, id);
   const writer = new DatabaseSync(process.env.DATABASE_PATH!);
@@ -42,7 +42,7 @@ test("BUG: another SQLite writer must yield a conflict, never SQLITE_BUSY as HTT
   assert.deepEqual(a.eventsOf(db, id), before);
 });
 
-test("BUG: accept_alternative caller is client only in frozen contract, internal system must not accept it", async () => {
+test("accept_alternative caller is client only in frozen contract, internal system must not accept it", async () => {
   setMode("limit");
   const id = create();
   await post(id, "submit", { consent: true }).expect(200);
@@ -59,7 +59,7 @@ for (const event of [
   "escalate_silent",
   "escalate_disagreed",
 ] as const)
-  test(`BUG: owned client HTTP delegation ${event} must journal system (application-states.md:156-161)`, async () => {
+  test(`owned client HTTP delegation ${event} must journal system (application-states.md:156-161)`, async () => {
     const id = await info();
     if (event === "escalate_silent")
       await internal(id, "agent_nudge", { text: "fixture" });
@@ -72,7 +72,7 @@ for (const event of [
     assert.equal(a.eventsOf(db, id).at(-1)!.actor_role, "system");
   });
 
-test("BUG: request_info accepts contracted hole/text payload without undocumented top-level reason", async () => {
+test("request_info accepts contracted hole/text payload without undocumented top-level reason", async () => {
   const id = await queued();
   await post(
     id,
@@ -87,7 +87,7 @@ test("BUG: request_info accepts contracted hole/text payload without undocumente
 });
 
 for (const change of ["profile", "document"] as const)
-  test(`BUG: changing ${change} during scoring invalidates stale underwriting before it can offer`, async () => {
+  test(`changing ${change} during scoring invalidates stale underwriting before it can offer`, async () => {
     setMode("green");
     const id = create(),
       original = structuredClone(state);

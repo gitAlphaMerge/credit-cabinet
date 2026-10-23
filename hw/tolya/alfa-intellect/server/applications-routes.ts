@@ -11,6 +11,7 @@ import {
   eventsOf,
   executeApplicationEvent,
   visibleApplication,
+  safeErrorMetadata,
   type Event,
 } from "./applications";
 
@@ -164,15 +165,13 @@ applicationsRouter.use(
     if (status === 500)
       console.error(
         "[applications] transaction failed",
-        error instanceof Error ? error.message : "Unknown error",
+        safeErrorMetadata(error),
       );
-    res
-      .status(status)
-      .json({
-        error:
-          error instanceof ApplicationError
-            ? error.message
-            : "Не удалось сохранить заявку",
-      });
+    res.status(status).json({
+      error:
+        error instanceof ApplicationError
+          ? error.message
+          : "Не удалось сохранить заявку",
+    });
   },
 );

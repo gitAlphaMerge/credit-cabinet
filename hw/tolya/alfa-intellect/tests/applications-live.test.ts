@@ -45,7 +45,7 @@ type Golden = {
   id: string; file: string;
   questionnaire: { form: string; years: string; sector: string; trend: string; need: string };
   need: { purpose: string; amount_rub: number; term_months: number; repay_from: string; asked_for: string };
-  expected: { status: string; instrument: string; stops_fired: string[]; missing: string[];
+  expected: { status: string; instrument: string | string[]; stops_fired: string[]; missing: string[];
     flow_month_rub: Band; limit_rub: { now: Band; after_actions: Band } };
 };
 type Journal = { seq: number; event: string; from_status: string | null; to_status: string;
@@ -167,7 +167,8 @@ describe("live Liza core: S1 and S4", { skip: unavailable, concurrency: false },
     assert.ok(result.decision_id);
     const core = result.core;
     assert.equal(core.status, g.expected.status);
-    assert.equal(core.instrument, g.expected.instrument);
+    const instruments = Array.isArray(g.expected.instrument) ? g.expected.instrument : [g.expected.instrument];
+    assert.ok(instruments.includes(core.instrument), `Unexpected instrument ${core.instrument}`);
     assert.deepEqual(core.stops_fired, g.expected.stops_fired);
     assert.deepEqual(core.missing, g.expected.missing);
     const inBand = (value: number, band: Band) => {

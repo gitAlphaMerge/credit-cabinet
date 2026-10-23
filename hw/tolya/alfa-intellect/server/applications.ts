@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { setTimeout as delay } from "node:timers/promises";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppState, Selection } from "../shared/types";
 import {
@@ -188,6 +190,8 @@ type ScoredDossier = CoreReply & {
   target: "underwriting" | "info_requested" | "rejected";
   reason?: string;
   application: Application;
+  evidenceHash: string;
+  acceptedAlternative?: AlternativeOffer;
 };
 export const CHECKLIST_VERSION = "mvp2-demo-v1";
 
@@ -395,20 +399,14 @@ function coreInput(
   db: DatabaseSync,
   application: Application,
   payload: Record<string, unknown>,
+  state = userState(db, application.user_id),
+  acceptedAlternative?: AlternativeOffer,
 ) {
-  const state = userState(db, application.user_id);
   const selection = selectionOf(
     state,
     application.selection_id,
     application.selection_version,
   );
-  const purpose: Record<string, string> = {
-    "Кассовый разрыв": "кассовый разрыв",
-    "Исполнение контракта": "закупка под контракт",
-    "Закупка товаров и материалов": "закупка под контракт",
-    Оборудование: "оборудование",
-    Развитие: "рост",
-  };
   const statement = state.documents.find(
     (d) => d.category === "statement" && d.confirmed,
   );
@@ -437,11 +435,11 @@ function coreInput(
   return {
     statement_csv: statementCsv,
     need: {
-      purpose: purpose[application.purpose] ?? application.purpose,
+      purpose: normalizedPurpose(application.purpose),
       amount_rub: application.amount,
       term_months: application.term_months,
       repay_from: selection.repayFrom,
-      asked_for: selection.product,
+      asked_for: acceptedAlternative?.product_id ?? selection.product,
     },
     questionnaire: {
       form: state.profile.form,
@@ -454,6 +452,83 @@ function coreInput(
   };
 }
 
+function normalizedPurpose(purpose: string) {
+  const aliases: Record<string, string> = {
+    "кассовый разрыв": "кассовый разрыв",
+    "исполнение контракта": "закупка под контракт",
+    "закупка товаров и материалов": "закупка под контракт",
+    оборудование: "оборудование",
+    развитие: "рост",
+  };
+  return aliases[purpose.trim().toLowerCase()] ?? purpose;
+}
+
+// Only scoring evidence participates: chatting or an unconfirmed upload is harmless.
+function evidenceHash(
+  db: DatabaseSync,
+  a: Application,
+  state = userState(db, a.user_id),
+) {
+  return applicationRequestHash("scoring-evidence", {
+    profile: state.profile,
+    documents: state.documents.filter((d) => d.confirmed),
+    selection: selectionOf(state, a.selection_id, a.selection_version),
+  });
+}
+
+function acceptedAlternativeOf(db: DatabaseSync, a: Application) {
+  const dossier = dossierOf(db, a.id);
+  return dossier
+    ? (record(JSON.parse(dossier.checks)._v2).acceptedAlternative as
+        AlternativeOffer | undefined)
+    : undefined;
+}
+
+function alternativeSchedule(option: AlternativeOffer): Installment[] {
+  const { products } = JSON.parse(
+    readFileSync(
+      process.env.PRODUCTS_CATALOG ||
+        new URL("../../../../data/catalog/products.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    products: {
+      id: string;
+      bank_revolving: number;
+      bank_repayment_type: string;
+    }[];
+  };
+  const product = products.find((p) => p.id === option.product_id);
+  const rate = option.rate_annual_pct / 100;
+  if (
+    !product ||
+    (product.bank_revolving !== 1 &&
+      product.bank_repayment_type.includes("annuity"))
+  )
+    return annuitySchedule(option.amount_rub, rate, option.term_months);
+  if (
+    product.bank_revolving !== 1 &&
+    product.bank_repayment_type !== "equal_principal_plus_monthly_interest"
+  )
+    throw new ApplicationError(
+      422,
+      "Для продукта не определён график платежей",
+    );
+  const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+  let balance = option.amount_rub;
+  return Array.from({ length: option.term_months }, (_, i) => {
+    const interest = round((balance * rate) / 12);
+    const principal =
+      i === option.term_months - 1
+        ? balance
+        : product.bank_revolving === 1
+          ? 0
+          : round(option.amount_rub / option.term_months);
+    balance = round(balance - principal);
+    return { principal, interest, payment: round(principal + interest) };
+  });
+}
+
 function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
   let a = visibleApplication(
     db,
@@ -462,6 +537,8 @@ function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
     command.actorId,
   );
   transition(a.status, command.event, command.actorRole);
+  if (command.event === "accept_alternative" && command.actorRole !== "client")
+    throw new ApplicationError(403, "Альтернативу принимает клиент");
   if (!Number.isInteger(command.expectedVersion) || command.expectedVersion < 1)
     throw new ApplicationError(422, "Нужна expectedVersion");
   if (command.expectedVersion !== a.version)
@@ -474,7 +551,14 @@ function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
     );
   if (
     ["request_info", "reject"].includes(command.event) &&
-    !command.reason?.trim()
+    !command.reason?.trim() &&
+    !(
+      command.event === "request_info" &&
+      typeof p.hole === "string" &&
+      p.hole.trim() &&
+      typeof p.text === "string" &&
+      p.text.trim()
+    )
   )
     throw new ApplicationError(422, "Укажите причину");
   if (
@@ -621,42 +705,58 @@ async function scoreCommand(
     !["submit", "client_update", "accept_alternative"].includes(command.event)
   )
     return;
-  if (command.event === "accept_alternative") {
-    const option = alternativeOf(db, a, command.payload ?? {});
+  const acceptedAlternative =
+    command.event === "accept_alternative"
+      ? alternativeOf(db, a, command.payload ?? {})
+      : acceptedAlternativeOf(db, a);
+  if (acceptedAlternative) {
+    const option = acceptedAlternative;
     a = { ...a, amount: option.amount_rub, term_months: option.term_months };
   }
   try {
     const state = userState(db, a.user_id);
+    const hash = evidenceHash(db, a, state);
+    const input = coreInput(
+      db,
+      a,
+      command.payload ?? {},
+      state,
+      acceptedAlternative,
+    );
     const compliance = await deps.compliance({
       inn: state.profile.inn ?? "",
       now: deps.clock(),
-      documents: state.documents.map((d) => {
-        // Upload time is not a document date. Statements use their latest operation.
-        const dates = (d.records ?? [])
-          .map((r) => String(r.date ?? ""))
-          .filter((v) => /^\d{4}-\d{2}-\d{2}$/.test(v))
-          .sort();
-        const explicit = d.fields.documentDate ?? d.fields.document_date;
-        return {
-          category: d.category,
-          confirmed: d.confirmed,
-          documentDate:
-            d.category === "statement"
-              ? (dates.at(-1) ?? null)
-              : typeof explicit === "string"
-                ? explicit
-                : null,
-        };
-      }),
+      documents: state.documents
+        .filter((d) => d.confirmed)
+        .map((d) => {
+          // Upload time is not a document date. Statements use their latest operation.
+          const dates = (d.records ?? [])
+            .map((r) => String(r.date ?? ""))
+            .filter((v) => /^\d{4}-\d{2}-\d{2}$/.test(v))
+            .sort();
+          const explicit = d.fields.documentDate ?? d.fields.document_date;
+          return {
+            category: d.category,
+            confirmed: d.confirmed,
+            documentDate:
+              d.category === "statement"
+                ? (dates.at(-1) ?? null)
+                : typeof explicit === "string"
+                  ? explicit
+                  : null,
+          };
+        }),
     });
     const checks: Record<string, unknown> = Object.fromEntries(
       compliance.checks.map((c) => [c.key, c]),
     );
-    checks._v2 = { compliance, alternatives: [] };
+    checks._v2 = { compliance, alternatives: [], acceptedAlternative };
     const base = {
       checks,
       checklist_version: CHECKLIST_VERSION,
       application: a,
+      evidenceHash: hash,
+      acceptedAlternative,
     };
     if (compliance.gate !== "pass") {
       const holes = [...new Set(compliance.holes)];
@@ -670,7 +770,6 @@ async function scoreCommand(
         reason: compliance.reasons[0],
       };
     }
-    const input = coreInput(db, a, command.payload ?? {});
     const reply = validateReply(await deps.core.score(input));
     let bki: CheckResult<CreditHistory>;
     try {
@@ -760,7 +859,7 @@ async function scoreCommand(
       const alternatives = deps.alternatives({
         amount_rub: a.amount,
         term_months: a.term_months,
-        purpose: a.purpose,
+        purpose: normalizedPurpose(a.purpose),
         form:
           state.profile.form === "ООО" || state.profile.form === "ИП"
             ? state.profile.form
@@ -771,7 +870,7 @@ async function scoreCommand(
           typeof core.instrument === "string" ? core.instrument : null,
         core_status: typeof core.status === "string" ? core.status : null,
       });
-      checks._v2 = { compliance, alternatives };
+      checks._v2 = { compliance, alternatives, acceptedAlternative };
       return {
         ...result,
         target: "info_requested",
@@ -783,7 +882,7 @@ async function scoreCommand(
     if (error instanceof ApplicationError) throw error;
     console.error(
       "[applications] scoring pipeline failed",
-      error instanceof Error ? error.message : "Unknown error",
+      safeErrorMetadata(error),
     );
     throw new ApplicationError(
       503,
@@ -793,15 +892,54 @@ async function scoreCommand(
 }
 
 function transaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
+  let began = false;
   try {
+    // A SQLite busy timeout would synchronously block every request in this process.
+    db.exec("PRAGMA busy_timeout=0");
+    db.exec("BEGIN IMMEDIATE");
+    began = true;
     const result = fn();
     db.exec("COMMIT");
     return result;
   } catch (error) {
-    db.exec("ROLLBACK");
+    if (began) db.exec("ROLLBACK");
+    if (isSqliteContention(error)) throw new WriterConflict();
     throw error;
   }
+}
+
+class WriterConflict extends ApplicationError {
+  constructor() {
+    super(409, "Заявка занята другим запросом, повторите попытку");
+  }
+}
+function isSqliteContention(error: unknown) {
+  const e = record(error);
+  return (
+    [5, 6].includes(Number(e.errcode) & 255) ||
+    (typeof e.code === "string" && /^SQLITE_(BUSY|LOCKED)(_|$)/.test(e.code))
+  );
+}
+async function transactionWithRetry<T>(db: DatabaseSync, fn: () => T) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return transaction(db, fn);
+    } catch (error) {
+      if (!(error instanceof WriterConflict) || attempt >= 2) throw error;
+      await delay(10 * (attempt + 1));
+    }
+  }
+}
+export function safeErrorMetadata(error: unknown) {
+  const kind =
+    error instanceof SyntaxError
+      ? "SyntaxError"
+      : error instanceof TypeError
+        ? "TypeError"
+        : error instanceof Error
+          ? "Error"
+          : "Unknown";
+  return `code=${isSqliteContention(error) ? "SQLITE_BUSY_LOCKED" : "OPERATION_FAILED"} class=${kind}`;
 }
 // Strip sensitive keys at any depth while preserving evidence needed by later updates.
 function eventPayload(value: unknown): unknown {
@@ -817,6 +955,26 @@ function eventPayload(value: unknown): unknown {
     );
   return value;
 }
+function maskEventText(value: unknown, privateName: string): unknown {
+  if (Array.isArray(value))
+    return value.map((item) => maskEventText(item, privateName));
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        maskEventText(item, privateName),
+      ]),
+    );
+  if (typeof value === "string") {
+    const text = privateName
+      ? value.replaceAll(privateName, "[имя скрыто]")
+      : value;
+    return text
+      .replace(/\b\d{10,}\b/g, "[реквизиты скрыты]")
+      .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, "[почта скрыта]");
+  }
+  return value;
+}
 function persistTransition(
   db: DatabaseSync,
   command: Command,
@@ -825,9 +983,18 @@ function persistTransition(
 ) {
   const a = checkCommand(db, command, deps),
     at = deps.clock().toISOString();
+  if (reply && evidenceHash(db, a) !== reply.evidenceHash)
+    throw new ApplicationError(
+      409,
+      "Данные клиента изменились, повторите расчёт",
+    );
   let actorRole = command.actorRole,
     actorId = command.actorId,
-    reason = command.reason ?? null;
+    reason =
+      command.reason?.trim() ||
+      (command.event === "request_info"
+        ? String(command.payload?.text ?? "")
+        : null);
   if (reply) {
     actorRole = "system";
     actorId = null;
@@ -872,7 +1039,12 @@ function persistTransition(
     actorRole,
     actorRole === "system" ? null : actorId,
     reason,
-    JSON.stringify(eventPayload(command.payload ?? {})),
+    JSON.stringify(
+      maskEventText(
+        eventPayload(command.payload ?? {}),
+        userState(db, a.user_id).profile.name ?? "",
+      ),
+    ),
     at,
   );
   const result = db
@@ -923,13 +1095,23 @@ function persistCascade(
   ) {
     const amount = result.application.amount;
     system("underwriter_approve", { amount });
-    const rate = applicationConfig().OFFER_RATE,
+    const option =
+      command.event === "send_to_underwriting" &&
+      command.payload?.option_id !== undefined
+        ? alternativeOf(db, result.application, command.payload)
+        : (reply?.acceptedAlternative ??
+          acceptedAlternativeOf(db, result.application));
+    const rate = option
+        ? option.rate_annual_pct / 100
+        : applicationConfig().OFFER_RATE,
       term_months = result.application.term_months;
     system("make_offer", {
       amount,
       rate,
       term_months,
-      schedule: annuitySchedule(amount, rate, term_months),
+      schedule: option
+        ? alternativeSchedule(option)
+        : annuitySchedule(amount, rate, term_months),
     });
   }
   if (command.event === "sign")
@@ -943,7 +1125,7 @@ export async function transitionApplication(
 ) {
   const deps = completeDependencies(input);
   const reply = await scoreCommand(db, command, deps);
-  return transaction(db, () =>
+  return transactionWithRetry(db, () =>
     reply
       ? persistCascade(db, command, deps, reply)
       : persistTransition(db, command, deps),
@@ -1069,26 +1251,26 @@ export async function executeApplicationEvent(
     command.actorRole,
     command.actorId,
   );
+  const userId = command.actorId;
   if (
     ["agent_nudge", "escalate_silent", "escalate_disagreed"].includes(
       command.event,
     )
   ) {
-    throw new ApplicationError(
-      403,
-      "Событие доступно только внутреннему серверному вызову",
-    );
+    if (command.actorRole !== "client")
+      throw new ApplicationError(403, "Делегирование доступно клиенту");
+    command = { ...command, actorRole: "system", actorId: null };
   }
-  const cached = replay(db, command.actorId, key, hash);
+  const cached = replay(db, userId, key, hash);
   if (cached) return cached;
   const reply = await scoreCommand(db, command, deps);
-  return transaction(db, () => {
-    const duplicate = replay(db, command.actorId!, key, hash);
+  return transactionWithRetry(db, () => {
+    const duplicate = replay(db, userId, key, hash);
     if (duplicate) return duplicate;
     const result = persistCascade(db, command, deps, reply);
     db.prepare(
       "INSERT INTO application_idempotency(key,user_id,request_hash,response) VALUES(?,?,?,?)",
-    ).run(key, command.actorId!, hash, JSON.stringify(result));
+    ).run(key, userId, hash, JSON.stringify(result));
     return result;
   });
 }
