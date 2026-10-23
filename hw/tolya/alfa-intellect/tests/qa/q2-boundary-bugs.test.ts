@@ -16,7 +16,7 @@ after(() => {
 });
 
 for (const fault of ["missing", "string-limit", "negative-limit"] as const) {
-  test(`BUG: team-score must reject ${fault} upstream payload instead of HTTP 200`, async () => {
+  test(`team-score must reject ${fault} upstream payload instead of HTTP 200`, async () => {
     const owner = await customer(),
       value: any = fault === "missing" ? {} : healthyCore();
     if (fault !== "missing")

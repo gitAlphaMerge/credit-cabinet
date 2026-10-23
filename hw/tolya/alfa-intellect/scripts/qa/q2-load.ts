@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import request from "supertest";
 import { readFileSync } from "node:fs";
+import { fork } from "node:child_process";
+import { memory as phaseMemory, heap } from "./q2-memory";
 import {
   app,
   store,
@@ -21,6 +23,53 @@ a.configureApplications({
 const sequential = Number(process.env.Q2_SEQUENTIAL ?? 200);
 const parallel = Number(process.env.Q2_PARALLEL ?? 50);
 const rounds = Number(process.env.Q2_ROUNDS ?? 3);
+const isolated = process.env.Q2_MODE === "production";
+const child = isolated
+  ? fork(new URL("./q2-server.ts", import.meta.url), [], {
+      env: { ...process.env, Q2_TEMP_DATABASE: "1" },
+      execArgv: [
+        ...process.execArgv,
+        ...(process.env.Q2_HEAP_MB
+          ? [`--max-old-space-size=${Number(process.env.Q2_HEAP_MB)}`]
+          : []),
+      ],
+      stdio: ["ignore", "inherit", "inherit", "ipc"],
+    })
+  : undefined;
+let remotePeak = 0;
+let remoteUsage: NodeJS.MemoryUsage | undefined;
+let snapshotting = false;
+const target = child
+  ? await new Promise<string>((resolve, reject) => {
+      child.once("error", reject);
+      child.once("exit", (code) =>
+        reject(new Error(`Server exited before ready: ${code}`)),
+      );
+      child.once("message", (m: any) => resolve(`http://127.0.0.1:${m.port}`));
+    })
+  : app;
+async function phase(name: string) {
+  if (!child) {
+    remoteUsage = phaseMemory(name);
+    if (process.env.Q2_SNAPSHOT === name) {
+      snapshotting = true;
+      try {
+        await heap(name);
+      } finally {
+        snapshotting = false;
+      }
+    }
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    child.once("message", (m: any) => {
+      remotePeak = Math.max(remotePeak, m.peak);
+      remoteUsage = m.usage;
+      resolve();
+    });
+    child.send({ phase: name });
+  });
+}
 for (const value of [sequential, parallel, rounds])
   assert.ok(Number.isSafeInteger(value) && value > 0);
 const compose = readFileSync(
@@ -45,13 +94,14 @@ const memory: {
 }[] = [];
 const latency: Record<string, number[]> = {};
 function sample() {
+  if (snapshotting) return;
   peak = Math.max(peak, process.memoryUsage().rss);
 }
 const sampler = setInterval(sample, 10);
 async function path(round: number, mode: string) {
   const path = ++nextId,
     started = performance.now();
-  const client = request.agent(app);
+  const client = request.agent(target);
   const ip =
     process.env.Q2_SINGLE_IP === "1"
       ? "198.18.0.1"
@@ -109,7 +159,7 @@ async function path(round: number, mode: string) {
         })
         .expect(201);
       const id = created.body.application.id;
-      await post(`/api/applications/${id}/events`)
+      const submitted = await post(`/api/applications/${id}/events`)
         .set("Idempotency-Key", `load-${path}`)
         .send({
           event: "submit",
@@ -117,9 +167,22 @@ async function path(round: number, mode: string) {
           payload: { consent: true },
         })
         .expect(200);
-      assert.equal(a.applicationOf(store.db, id).status, "offered");
+      const actual = child
+        ? (
+            await client
+              .get(`/api/applications/${id}`)
+              .set("X-Forwarded-For", ip)
+              .expect(200)
+          ).body
+        : {
+            application: a.applicationOf(store.db, id),
+            events: a.eventsOf(store.db, id),
+          };
+      assert.equal(submitted.body.application.status, "offered");
+      assert.equal(actual.application.status, "offered");
       assert.equal(
-        a.eventsOf(store.db, id).filter((e) => e.event === "make_offer").length,
+        actual.events.filter((e: { event: string }) => e.event === "make_offer")
+          .length,
         1,
       );
     });
@@ -135,18 +198,28 @@ async function path(round: number, mode: string) {
     (latency[mode + ":total"] ??= []).push(performance.now() - started);
   }
 }
-const started = performance.now(),
-  rssBefore = process.memoryUsage().rss;
+const started = performance.now();
+let rssBefore = process.memoryUsage().rss;
 try {
+  await phase("before-load");
+  rssBefore = remoteUsage?.rss ?? rssBefore;
   for (let round = 1; round <= rounds; round++) {
-    const before = process.memoryUsage().rss;
+    const before = remoteUsage?.rss ?? process.memoryUsage().rss;
     for (let i = 0; i < sequential; i++) await path(round, "sequential");
+    await phase(`round-${round}:sequential`);
     await Promise.all(
       Array.from({ length: parallel }, () => path(round, "parallel")),
     );
     sample();
-    const after = process.memoryUsage().rss;
-    memory.push({ round, before, after, growth: after - before, peak });
+    await phase(`round-${round}:parallel`);
+    const after = remoteUsage?.rss ?? process.memoryUsage().rss;
+    memory.push({
+      round,
+      before,
+      after,
+      growth: after - before,
+      peak: child ? remotePeak : peak,
+    });
     console.log("Q2_ROUND", JSON.stringify(memory.at(-1)));
   }
   function stats(values: number[]) {
@@ -167,7 +240,14 @@ try {
       seed,
       core: "deterministic in-process fake",
       llm: "disabled",
-      database: ":memory:",
+      database: child ? "SQLite disk-backed temporary file" : ":memory:",
+      mode: child
+        ? "isolated production API analogue, native TS loader"
+        : "original in-process harness",
+      oldSpaceLimitMiB:
+        child && process.env.Q2_HEAP_MB
+          ? Number(process.env.Q2_HEAP_MB)
+          : "default",
       clients:
         process.env.Q2_SINGLE_IP === "1"
           ? "single IP"
@@ -183,17 +263,22 @@ try {
       ),
       elapsed_ms: Math.round(performance.now() - started),
       rssBefore,
-      rssAfter: process.memoryUsage().rss,
-      peak,
+      rssAfter: remoteUsage?.rss ?? process.memoryUsage().rss,
+      peak: child ? remotePeak : peak,
       memory,
       limitMiB,
-      peakMiB: peak / 1024 ** 2,
-      exceedsComposeLimit: peak > limitMiB * 1024 ** 2,
-      note: "RSS includes harness and in-memory SQLite retained users/files/events. Growth alone does not prove a leak; container not measured.",
+      peakMiB: (child ? remotePeak : peak) / 1024 ** 2,
+      exceedsComposeLimit: (child ? remotePeak : peak) > limitMiB * 1024 ** 2,
+      note: child
+        ? "RSS measures isolated server only, temporary disk SQLite; native TS fallback instead of tsx. Docker/cgroup not measured."
+        : "RSS includes harness and in-memory SQLite retained users/files/events. Growth alone does not prove a leak; container not measured.",
     }),
   );
   if (errors.length) process.exitCode = 1;
+  if (child && !process.env.Q2_SNAPSHOT && remotePeak > 220 * 1024 ** 2)
+    process.exitCode = 1;
 } finally {
   clearInterval(sampler);
+  child?.send({ stop: true });
   store.db.close();
 }
