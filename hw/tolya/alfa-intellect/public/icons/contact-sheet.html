@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Иконки кредитного кабинета</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:40px;max-width:1440px;color:#171923;background:#f6f7f9;font:16px/1.5 "Segoe UI",sans-serif}
+header{border-bottom:2px solid #171923;padding-bottom:24px;margin-bottom:32px}
+h1{font-size:32px;line-height:1.15;margin:8px 0 16px;letter-spacing:-.7px}
+p{max-width:790px;margin:8px 0}
+.kicker{font-size:13px;text-transform:uppercase;letter-spacing:1px}
+label{display:inline-block;margin:12px 0 0 8px;cursor:pointer}
+input{accent-color:#EF3124}
+h2{display:flex;gap:14px;align-items:baseline;font-size:23px;margin:28px 0 12px}
+h2 span{font-size:14px;color:#545967}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:#d5d9df;border:1px solid #d5d9df}
+figure{margin:0;min-width:0;background:#FFFFFF;padding:18px}
+.samples{display:flex;justify-content:space-evenly;gap:12px;align-items:end;min-height:126px;margin-bottom:18px}
+.samples div{display:flex;align-items:center;flex-direction:column;gap:8px}
+img{display:block}
+small{font-size:12px;color:#545967}
+figcaption{font-weight:600;line-height:1.3;font-size:14px;min-height:62px}
+code{display:block;font:11px/1.4 Consolas,monospace;color:#545967;overflow-wrap:anywhere;margin-top:6px}
+#mono:checked~main img{filter:grayscale(1)}
+footer{font-size:13px;margin-top:24px;color:#545967}
+@media(max-width:1000px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){body{padding:20px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="kicker">Кредитный кабинет / иллюстративный набор</div><h1>38 предметов. Одна сетка.</h1><p>Мастер: «Выписка». Обводка 2.5, поле 64 × 64, один красный акцент. Каждый предмет показан в двух рабочих размерах.</p></header>
+<input type="checkbox" id="mono"><label for="mono">Оттенки серого: сравнить формы</label>
+<main>
+<section><h2>Продукты<span>8</span></h2><div class="grid"><figure><div class="samples"><div><img src="products/ALFA_LUMP_UNSEC.svg" width="48" height="48" alt="Кредит одной суммой без залога"><small>48 px</small></div><div><img src="products/ALFA_LUMP_UNSEC.svg" width="96" height="96" alt="Кредит одной суммой без залога"><small>96 px</small></div></div><figcaption>Кредит одной суммой без залога<code>products/ALFA_LUMP_UNSEC.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="products/ALFA_LUMP_SEC.svg" width="48" height="48" alt="Кредит одной суммой с залогом"><small>48 px</small></div><div><img src="products/ALFA_LUMP_SEC.svg" width="96" height="96" alt="Кредит одной суммой с залогом"><small>96 px</small></div></div><figcaption>Кредит одной суммой с залогом<code>products/ALFA_LUMP_SEC.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="products/ALFA_RCL_UNSEC.svg" width="48" height="48" alt="Возобновляемая кредитная линия без залога"><small>48 px</small></div><div><img src="products/ALFA_RCL_UNSEC.svg" width="96" height="96" alt="Возобновляемая кредитная линия без залога"><small>96 px</small></div></div><figcaption>Возобновляемая кредитная линия без залога<code>products/ALFA_RCL_UNSEC.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="products/ALFA_NCL_SEC.svg" width="48" height="48" alt="Невозобновляемая линия с залогом"><small>48 px</small></div><div><img src="products/ALFA_NCL_SEC.svg" width="96" height="96" alt="Невозобновляемая линия с залогом"><small>96 px</small></div></div><figcaption>Невозобновляемая линия с залогом<code>products/ALFA_NCL_SEC.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="products/ALFA_OVERDRAFT.svg" width="48" height="48" alt="Овердрафт"><small>48 px</small></div><div><img src="products/ALFA_OVERDRAFT.svg" width="96" height="96" alt="Овердрафт"><small>96 px</small></div></div><figcaption>Овердрафт<code>products/ALFA_OVERDRAFT.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="products/ALFA_START.svg" width="48" height="48" alt="Альфа-Старт"><small>48 px</small></div><div><img src="products/ALFA_START.svg" width="96" height="96" alt="Альфа-Старт"><small>96 px</small></div></div><figcaption>Альфа-Старт<code>products/ALFA_START.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="products/ALFA_DELO.svg" width="48" height="48" alt="Деньги на дело"><small>48 px</small></div><div><img src="products/ALFA_DELO.svg" width="96" height="96" alt="Деньги на дело"><small>96 px</small></div></div><figcaption>Деньги на дело<code>products/ALFA_DELO.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="products/ALFA_REFI.svg" width="48" height="48" alt="Рефинансирование"><small>48 px</small></div><div><img src="products/ALFA_REFI.svg" width="96" height="96" alt="Рефинансирование"><small>96 px</small></div></div><figcaption>Рефинансирование<code>products/ALFA_REFI.svg</code></figcaption></figure></div></section>
+<section><h2>Путь заявки<span>12</span></h2><div class="grid"><figure><div class="samples"><div><img src="status/queued-sent.svg" width="48" height="48" alt="Отправлена"><small>48 px</small></div><div><img src="status/queued-sent.svg" width="96" height="96" alt="Отправлена"><small>96 px</small></div></div><figcaption>Отправлена<code>status/queued-sent.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/underwriting-checks.svg" width="48" height="48" alt="Проверяем"><small>48 px</small></div><div><img src="status/underwriting-checks.svg" width="96" height="96" alt="Проверяем"><small>96 px</small></div></div><figcaption>Проверяем<code>status/underwriting-checks.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/info_requested.svg" width="48" height="48" alt="Нужен документ"><small>48 px</small></div><div><img src="status/info_requested.svg" width="96" height="96" alt="Нужен документ"><small>96 px</small></div></div><figcaption>Нужен документ<code>status/info_requested.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/queued-manager.svg" width="48" height="48" alt="У менеджера"><small>48 px</small></div><div><img src="status/queued-manager.svg" width="96" height="96" alt="У менеджера"><small>96 px</small></div></div><figcaption>У менеджера<code>status/queued-manager.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/underwriting.svg" width="48" height="48" alt="У андеррайтера"><small>48 px</small></div><div><img src="status/underwriting.svg" width="96" height="96" alt="У андеррайтера"><small>96 px</small></div></div><figcaption>У андеррайтера<code>status/underwriting.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/approved.svg" width="48" height="48" alt="Одобрено"><small>48 px</small></div><div><img src="status/approved.svg" width="96" height="96" alt="Одобрено"><small>96 px</small></div></div><figcaption>Одобрено<code>status/approved.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/offered.svg" width="48" height="48" alt="Предложение"><small>48 px</small></div><div><img src="status/offered.svg" width="96" height="96" alt="Предложение"><small>96 px</small></div></div><figcaption>Предложение<code>status/offered.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/signed.svg" width="48" height="48" alt="Подписано"><small>48 px</small></div><div><img src="status/signed.svg" width="96" height="96" alt="Подписано"><small>96 px</small></div></div><figcaption>Подписано<code>status/signed.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/disbursed.svg" width="48" height="48" alt="Деньги на счёте"><small>48 px</small></div><div><img src="status/disbursed.svg" width="96" height="96" alt="Деньги на счёте"><small>96 px</small></div></div><figcaption>Деньги на счёте<code>status/disbursed.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/rejected.svg" width="48" height="48" alt="Отказ"><small>48 px</small></div><div><img src="status/rejected.svg" width="96" height="96" alt="Отказ"><small>96 px</small></div></div><figcaption>Отказ<code>status/rejected.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/withdrawn.svg" width="48" height="48" alt="Отозвана"><small>48 px</small></div><div><img src="status/withdrawn.svg" width="96" height="96" alt="Отозвана"><small>96 px</small></div></div><figcaption>Отозвана<code>status/withdrawn.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="status/expired.svg" width="48" height="48" alt="Истекла"><small>48 px</small></div><div><img src="status/expired.svg" width="96" height="96" alt="Истекла"><small>96 px</small></div></div><figcaption>Истекла<code>status/expired.svg</code></figcaption></figure></div></section>
+<section><h2>Документы<span>8</span></h2><div class="grid"><figure><div class="samples"><div><img src="docs/statement.svg" width="48" height="48" alt="Выписка"><small>48 px</small></div><div><img src="docs/statement.svg" width="96" height="96" alt="Выписка"><small>96 px</small></div></div><figcaption>Выписка<code>docs/statement.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="docs/questionnaire.svg" width="48" height="48" alt="Анкета"><small>48 px</small></div><div><img src="docs/questionnaire.svg" width="96" height="96" alt="Анкета"><small>96 px</small></div></div><figcaption>Анкета<code>docs/questionnaire.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="docs/customer-contract.svg" width="48" height="48" alt="Договор с заказчиком"><small>48 px</small></div><div><img src="docs/customer-contract.svg" width="96" height="96" alt="Договор с заказчиком"><small>96 px</small></div></div><figcaption>Договор с заказчиком<code>docs/customer-contract.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="docs/reconciliation.svg" width="48" height="48" alt="Акт сверки"><small>48 px</small></div><div><img src="docs/reconciliation.svg" width="96" height="96" alt="Акт сверки"><small>96 px</small></div></div><figcaption>Акт сверки<code>docs/reconciliation.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="docs/balance.svg" width="48" height="48" alt="Баланс"><small>48 px</small></div><div><img src="docs/balance.svg" width="96" height="96" alt="Баланс"><small>96 px</small></div></div><figcaption>Баланс<code>docs/balance.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="docs/income.svg" width="48" height="48" alt="Отчёт о прибылях"><small>48 px</small></div><div><img src="docs/income.svg" width="96" height="96" alt="Отчёт о прибылях"><small>96 px</small></div></div><figcaption>Отчёт о прибылях<code>docs/income.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="docs/debt-schedule.svg" width="48" height="48" alt="График долга"><small>48 px</small></div><div><img src="docs/debt-schedule.svg" width="96" height="96" alt="График долга"><small>96 px</small></div></div><figcaption>График долга<code>docs/debt-schedule.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="docs/business-plan.svg" width="48" height="48" alt="Бизнес-план"><small>48 px</small></div><div><img src="docs/business-plan.svg" width="96" height="96" alt="Бизнес-план"><small>96 px</small></div></div><figcaption>Бизнес-план<code>docs/business-plan.svg</code></figcaption></figure></div></section>
+<section><h2>Проверки<span>5</span></h2><div class="grid"><figure><div class="samples"><div><img src="checks/egrul.svg" width="48" height="48" alt="ЕГРЮЛ"><small>48 px</small></div><div><img src="checks/egrul.svg" width="96" height="96" alt="ЕГРЮЛ"><small>96 px</small></div></div><figcaption>ЕГРЮЛ<code>checks/egrul.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="checks/fns.svg" width="48" height="48" alt="ФНС"><small>48 px</small></div><div><img src="checks/fns.svg" width="96" height="96" alt="ФНС"><small>96 px</small></div></div><figcaption>ФНС<code>checks/fns.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="checks/bankruptcy.svg" width="48" height="48" alt="Банкротство"><small>48 px</small></div><div><img src="checks/bankruptcy.svg" width="96" height="96" alt="Банкротство"><small>96 px</small></div></div><figcaption>Банкротство<code>checks/bankruptcy.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="checks/aml.svg" width="48" height="48" alt="115-ФЗ"><small>48 px</small></div><div><img src="checks/aml.svg" width="96" height="96" alt="115-ФЗ"><small>96 px</small></div></div><figcaption>115-ФЗ<code>checks/aml.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="checks/credit-history.svg" width="48" height="48" alt="Кредитная история"><small>48 px</small></div><div><img src="checks/credit-history.svg" width="96" height="96" alt="Кредитная история"><small>96 px</small></div></div><figcaption>Кредитная история<code>checks/credit-history.svg</code></figcaption></figure></div></section>
+<section><h2>Пустые состояния<span>5</span></h2><div class="grid"><figure><div class="samples"><div><img src="empty/applications.svg" width="48" height="48" alt="Нет заявок"><small>48 px</small></div><div><img src="empty/applications.svg" width="96" height="96" alt="Нет заявок"><small>96 px</small></div></div><figcaption>Нет заявок<code>empty/applications.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="empty/notifications.svg" width="48" height="48" alt="Нет уведомлений"><small>48 px</small></div><div><img src="empty/notifications.svg" width="96" height="96" alt="Нет уведомлений"><small>96 px</small></div></div><figcaption>Нет уведомлений<code>empty/notifications.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="empty/upload.svg" width="48" height="48" alt="Загрузка файла"><small>48 px</small></div><div><img src="empty/upload.svg" width="96" height="96" alt="Загрузка файла"><small>96 px</small></div></div><figcaption>Загрузка файла<code>empty/upload.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="empty/network.svg" width="48" height="48" alt="Ошибка сети"><small>48 px</small></div><div><img src="empty/network.svg" width="96" height="96" alt="Ошибка сети"><small>96 px</small></div></div><figcaption>Ошибка сети<code>empty/network.svg</code></figcaption></figure>
+<figure><div class="samples"><div><img src="empty/ready.svg" width="48" height="48" alt="Всё готово"><small>48 px</small></div><div><img src="empty/ready.svg" width="96" height="96" alt="Всё готово"><small>96 px</small></div></div><figcaption>Всё готово<code>empty/ready.svg</code></figcaption></figure></div></section>
+</main>
+<footer>8 продуктов · 12 вариантов статусов · 8 документов · 5 проверок · 5 пустых состояний. SVG доступны локально, интернет не требуется. Правила и соответствие статусам: <a href="README.md">README.md</a>.</footer>
+</body>
+</html>
