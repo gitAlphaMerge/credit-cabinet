@@ -9,6 +9,7 @@ import {
   createUser,
   session,
   sessionUser,
+  getUser,
   logout,
   stateOf,
   saveState,
@@ -98,8 +99,12 @@ app.get("/api/config", (req, res) => {
   res.json({
     authenticated: !!user,
     workspaceId: user?.user_id ?? null,
-    aiConnected: !!process.env.OPENAI_API_KEY,
-    model: process.env.AI_MODEL || "gpt-5.4-mini",
+    role: user ? getUser(user.user_id)?.role ?? "client" : null,
+    aiConnected: process.env.AI_PROVIDER === "openai"
+      ? !!process.env.OPENAI_API_KEY : !!process.env.TEAM_AGENT_URL,
+    model: process.env.AI_PROVIDER === "openai"
+      ? process.env.AI_MODEL || "gpt-5.4-mini"
+      : process.env.AGENT_LLM_MODEL || "qwen3:8b",
     fieldNames,
     catalog,
   });

@@ -1,28 +1,53 @@
 # Архитектура по коду
 
-Срез 19.10.2026. Сервисы и ограничения: `docker-compose.yml`. Агентная часть следует [архитектуре автора](../context/agent-architecture.md), без изменения принятого workflow.
+Срез 23.10.2026, v2: банковская сторона. Сервисы и ограничения: `docker-compose.yml`. Контракт v2: [v2-contract.md](v2-contract.md), состояния заявки: [application-states.md](application-states.md). Агентная часть следует [архитектуре автора](../context/agent-architecture.md), без изменения принятого workflow.
 
 ```mermaid
 flowchart TB
-    B["Браузер клиента"] --> F["frontend: nginx, статические экраны"]
-    B --> T["alfa-intellect: Express + React"]
-    F -->|"/api/*: убрать префикс"| A["api: Go, 8080"]
-    T -->|"TEAM_API_URL: /score"| A
-    T -->|"TEAM_AGENT_URL: /turn"| G["agent: Python, 8090"]
-    G --> I["Приёмщик: intake_rules + LLM при ключе"]
-    I --> R["Роутер: dialog.next_slot"]
-    R -->|"Если все слоты и CSV собраны"| H["core_http"]
-    H --> A
-    A --> M["ml-model: security → guards → core → translate"]
+    B["Браузер: клиент"] --> T
+    BM["Браузер: менеджер банка"] -->|"роль manager из /api/config"| T
+    B --> F["frontend: nginx, статические экраны"]
+    F -->|"/api/*: убрать префикс"| A
+
+    subgraph CAB["alfa-intellect: Express + React"]
+        T["Кабинет клиента и экран менеджера"]
+        W["Машина состояний заявки: applications.ts"]
+        C["Комплаенс-шлагбаум: compliance.ts"]
+        AL["Альтернативы: alternatives.ts"]
+        T --> W
+        W -->|"1. до ядра"| C
+        W -->|"3. сверх лимита"| AL
+    end
+
+    C --> K["Моки: ЕГРЮЛ, ФНС, банкротство, 115-ФЗ"]
+    W -->|"2. pass: TEAM_API_URL /score"| A["api: Go, 8080"]
+    W --> BK["БКИ: локальный мок"]
+    W --> D[("alfa_data: SQLite, заявки, журнал событий")]
+    A --> M["ml-model: security, guards, core.py, translate"]
     M --> J["journal: JSONL с цепочкой SHA-256"]
-    R --> E["Объяснялка: LLM или шаблон"]
-    E --> Q["Страж: guard, откат к шаблону"]
+
+    T -->|"TEAM_AGENT_URL /turn"| G["agent: Python, 8090"]
     G --> S["agent_state: JSON сессий"]
-    T --> D[("alfa_data: SQLite и BLOB файлов")]
-    T --> L["Локальный transparent-mvp-2: сценарный подбор"]
-    T --> K["ЕГРЮЛ/ЕГРИП: локальный мок"]
-    I -.-> V["Необязательный DeepSeek API"]
-    E -.-> V
+    G -.->|"без модели: шаблон"| O["Qwen qwen3:8b в Ollama на хосте"]
+```
+
+Путь заявки в v2. Зелёную решает система без менеджера, менеджеру уходит только красная.
+
+```mermaid
+flowchart LR
+    S["Клиент подал заявку"] --> C{"Комплаенс"}
+    C -->|"ликвидирована, банкрот"| R["Отказ"]
+    C -->|"налоги, 115-ФЗ, старая выписка"| I["Дозапрос клиенту"]
+    C -->|"pass"| K{"Ядро и БКИ"}
+    K -->|"стоп или БКИ 90+"| R
+    K -->|"короткая выписка, пробелы"| I
+    K -->|"сверх лимита"| AL["Альтернативы: меньше сумма, другой продукт, дольше срок"]
+    K -->|"зелёная"| U["Андеррайтинг, одобрено, оффер"]
+    AL -->|"клиент принял"| U
+    I -->|"клиент дослал"| C
+    I -->|"молчит, не согласен"| Q["Очередь менеджера"]
+    Q -->|"в андеррайтинг"| U
+    Q -->|"отказ"| R
 ```
 
 API не оркестрирует агента, а проксирует `/score`. Кабинет вызывает агента сам. Внешние порты: frontend, Go и кабинет; ml-model привязан к loopback, agent доступен только внутри Compose. TLS стенда не настраивается этим compose. Три именованных volume разделяют SQLite, журнал и сессии. Суммарные `mem_limit`: 864M; пересмотр у Артёма.

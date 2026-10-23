@@ -77,6 +77,10 @@ test("Сквозной API: сессия, изоляция, документ, ч
   const owner = (await a.get("/api/config")).body.workspaceId;
   assert.equal(typeof owner, "string");
   assert.notEqual(owner, (await b.get("/api/config")).body.workspaceId);
+  assert.equal((await a.get("/api/config")).body.role, "client");
+  db.prepare("UPDATE users SET role='manager' WHERE id=?").run(owner);
+  assert.equal((await a.get("/api/config")).body.role, "manager");
+  db.prepare("UPDATE users SET role='client' WHERE id=?").run(owner);
   const row = db
     .prepare("SELECT password FROM users WHERE phone=?")
     .get("79001112233") as any;
