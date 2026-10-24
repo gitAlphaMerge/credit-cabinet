@@ -334,6 +334,7 @@ class Handler(BaseHTTPRequestHandler):
             llm_name = _llm_name()
             if state.get("trace"):
                 fallback = fallback or bool(state["trace"][-1].get("violations"))
+            source = "llm" if use_llm and application is None and mode is None and not fallback else "template"
             with _TURN_LOCK:
                 global TURNS
                 TURNS += 1
@@ -342,11 +343,11 @@ class Handler(BaseHTTPRequestHandler):
                 status = application.get("status", status)
             _log({"event": "agent_turn", "ts": datetime.now(timezone.utc).isoformat(),
                   "session_id": session_id, "status": status, "llm": llm_name,
-                  "ms": elapsed_ms, "stage_ms": stage_ms,
+                  "ms": elapsed_ms, "stage_ms": stage_ms, "source": source,
                   **({"fallback": True} if fallback else {}), **_usage()})
             self._json(200, {
                 "text": reply, "mode": "team-agent",
-                "status": status, "llm": llm_name,
+                "status": status, "llm": llm_name, "source": source,
                 "view": view,
                 **({"objections_summary": state.get("objections_summary", "")} if mode == "objections" else {}),
             })
