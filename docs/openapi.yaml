@@ -2446,6 +2446,10 @@ components:
     TurnResponse:
       type: object
       properties:
+        source:
+          type: string
+          enum: [llm, template]
+          description: llm при успешном ходе модели без отката, иначе template
         text:
           type: string
         mode:
@@ -2470,6 +2474,7 @@ components:
       - status
       - llm
       - view
+      - source
     ProfileInput:
       type: object
       properties:

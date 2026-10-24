@@ -35,9 +35,9 @@ def test_custom_endpoint_model_and_optional_key(monkeypatch, key):
 def test_defaults_and_disabled_url(monkeypatch):
     monkeypatch.delenv("AGENT_LLM_URL", raising=False)
     monkeypatch.delenv("AGENT_LLM_MODEL", raising=False)
-    assert llm.URL == "http://127.0.0.1:11434/v1/chat/completions"
+    assert llm.URL == ""
     assert llm.MODEL == "qwen3:8b"
-    assert llm.available()
+    assert not llm.available()
     monkeypatch.setenv("AGENT_LLM_URL", "")
     monkeypatch.setattr(llm, "_opener", lambda: pytest.fail("network attempted"))
     assert not llm.available()
