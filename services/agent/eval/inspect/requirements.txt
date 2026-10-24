@@ -1,0 +1,4 @@
+inspect-ai==0.3.283
+openai==3.37.0
+PyYAML==6.0.3
+pytest==9.1.1

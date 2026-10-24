@@ -1,0 +1,1358 @@
+[
+  {
+    "id": "loop01",
+    "text": "хочу купить кофемашину",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "хочу купить кофемашину",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop02",
+    "text": "ремонт помещения",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "ремонт помещения",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop03",
+    "text": "аренда склада",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "аренда склада",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop04",
+    "text": "на товар для маркетплейса",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "на товар для маркетплейса",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop05",
+    "text": "кофемашина нужна в кофейню, старая умерла",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "кофемашина нужна в кофейню, старая умерла",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop06",
+    "text": "печь хочу в пекарню новую",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {
+      "purpose": "оборудование"
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "печь хочу в пекарню новую",
+        "attachment": [],
+        "fields": {
+          "purpose": "оборудование"
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop07",
+    "text": "нам бы холодильную камеру купить",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "нам бы холодильную камеру купить",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop08",
+    "text": "берём лазерный резак в мастерскую",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "берём лазерный резак в мастерскую",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop09",
+    "text": "надо грузовой подъёмник поставить в цех",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "надо грузовой подъёмник поставить в цех",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop10",
+    "text": "на покупку витрины с охлаждением",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "на покупку витрины с охлаждением",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop11",
+    "text": "кофемошыну новую хочу",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "кофемошыну новую хочу",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop12",
+    "text": "надо принтер для этикетак на производство",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "надо принтер для этикетак на производство",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop13",
+    "text": "ну это, кофейную машину взять, в кафе",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "ну это, кофейную машину взять, в кафе",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop14",
+    "text": "деньги на этот как его тесто мес, для пекарни",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "деньги на этот как его тесто мес, для пекарни",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop15",
+    "text": "открываем вторую кофейню, на ремонт и вывеску",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "открываем вторую кофейню, на ремонт и вывеску",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop16",
+    "text": "новая точка у метро, надо оплатить отделку",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "новая точка у метро, надо оплатить отделку",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop17",
+    "text": "на запуск ещё одного магазина",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "на запуск ещё одного магазина",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop18",
+    "text": "хотим снять склад побольше для новых заказов",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "хотим снять склад побольше для новых заказов",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop19",
+    "text": "сайт и реклама, выходим в другой город",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "сайт и реклама, выходим в другой город",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop20",
+    "text": "открывам второй салон, на отделку",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "открывам второй салон, на отделку",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop21",
+    "text": "сезон скоро, надо заранее забить склад мороженым",
+    "expected": {
+      "purpose": "сезон"
+    },
+    "actual": {
+      "purpose": "сезон"
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "сезон скоро, надо заранее забить склад мороженым",
+        "attachment": [],
+        "fields": {
+          "purpose": "сезон"
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop22",
+    "text": "летом наплыв туристов, готовимся к сезону",
+    "expected": {
+      "purpose": "сезон"
+    },
+    "actual": {
+      "purpose": "сезон"
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "летом наплыв туристов, готовимся к сезону",
+        "attachment": [],
+        "fields": {
+          "purpose": "сезон"
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop23",
+    "text": "к новому году закупаем ёлки, это наш сезон",
+    "expected": {
+      "purpose": "сезон"
+    },
+    "actual": {
+      "purpose": "закупка под контракт",
+      "term_months": 12
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "к новому году закупаем ёлки, это наш сезон",
+        "attachment": [],
+        "fields": {
+          "purpose": "закупка под контракт",
+          "term_months": 12
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Срок записал. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop24",
+    "text": "закасчик подпесал договор, надо материал под него купить",
+    "expected": {
+      "purpose": "закупка под контракт"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "закасчик подпесал договор, надо материал под него купить",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop25",
+    "text": "есть подписанный договор на форму, ткань надо оплатить",
+    "expected": {
+      "purpose": "закупка под контракт"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "есть подписанный договор на форму, ткань надо оплатить",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop26",
+    "text": "материалы под уже подписанный заказ нужны",
+    "expected": {
+      "purpose": "закупка под контракт"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "материалы под уже подписанный заказ нужны",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop27",
+    "text": "зарплата завтра, покупатель заплатит только через неделю",
+    "expected": {
+      "purpose": "кассовый разрыв"
+    },
+    "actual": {
+      "purpose": "кассовый разрыв"
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "зарплата завтра, покупатель заплатит только через неделю",
+        "attachment": [],
+        "fields": {
+          "purpose": "кассовый разрыв"
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop28",
+    "text": "поставщику платить сегодня, а деньги от клиента ещё в пути",
+    "expected": {
+      "purpose": "кассовый разрыв"
+    },
+    "actual": {
+      "term_months": 12
+    },
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "поставщику платить сегодня, а деньги от клиента ещё в пути",
+        "attachment": [],
+        "fields": {
+          "term_months": 12
+        },
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Срок записал. Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop29",
+    "text": "до оплаты от заказчика надо пережить, налоги горят",
+    "expected": {
+      "purpose": "кассовый разрыв"
+    },
+    "actual": {
+      "purpose": "кассовый разрыв"
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "до оплаты от заказчика надо пережить, налоги горят",
+        "attachment": [],
+        "fields": {
+          "purpose": "кассовый разрыв"
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop30",
+    "text": "ну короче нам должны, но позже, а аренду уже завтра платить",
+    "expected": {
+      "purpose": "кассовый разрыв"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "ну короче нам должны, но позже, а аренду уже завтра платить",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop31",
+    "text": "клиент задержал перевод, хочу людям зп выдать вовремя",
+    "expected": {
+      "purpose": "кассовый разрыв"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "клиент задержал перевод, хочу людям зп выдать вовремя",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop32",
+    "text": "на покупку станка чпу",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {
+      "purpose": "оборудование"
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "на покупку станка чпу",
+        "attachment": [],
+        "fields": {
+          "purpose": "оборудование"
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop33",
+    "text": "нужен ещё один фургон для доставки наших заказов",
+    "expected": {
+      "purpose": "оборудование"
+    },
+    "actual": {
+      "purpose": "оборудование"
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "нужен ещё один фургон для доставки наших заказов",
+        "attachment": [],
+        "fields": {
+          "purpose": "оборудование"
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop34",
+    "text": "ремонтируем зал для открытия второго ресторана",
+    "expected": {
+      "purpose": "рост"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "ремонтируем зал для открытия второго ресторана",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop35",
+    "text": "на товар под договор, покупатель уже подписал",
+    "expected": {
+      "purpose": "закупка под контракт"
+    },
+    "actual": {},
+    "loops": {
+      "purpose": 2
+    },
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "на товар под договор, покупатель уже подписал",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "Это нужно закрыть кассовый разрыв, купить оборудование, сделать закупку под заказ или подготовиться к сезону?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      }
+    ]
+  },
+  {
+    "id": "loop36",
+    "text": "нам бы к ски сезону подготовиться, прокат пополнить",
+    "expected": {
+      "purpose": "сезон"
+    },
+    "actual": {
+      "purpose": "сезон"
+    },
+    "loops": {},
+    "trace": [
+      {
+        "user": "",
+        "attachment": [],
+        "fields": {},
+        "slot": "purpose",
+        "kind": "question",
+        "reply": "На что нужны деньги?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:purpose",
+        "intent": "answer_slot"
+      },
+      {
+        "user": "нам бы к ски сезону подготовиться, прокат пополнить",
+        "attachment": [],
+        "fields": {
+          "purpose": "сезон"
+        },
+        "slot": "amount",
+        "kind": "question",
+        "reply": "Цель понял. Сколько нужно, хотя бы примерно?",
+        "violations": [],
+        "status": null,
+        "goal": "ask:amount",
+        "intent": "answer_slot"
+      }
+    ]
+  }
+]

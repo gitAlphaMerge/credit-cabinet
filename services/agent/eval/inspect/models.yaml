@@ -1,0 +1,65 @@
+version: 1
+checked_at: '2026-10-24'
+models:
+  - name: templates
+    family: rules
+    mode: templates
+    parameters_b: 0
+    license: project
+  - name: qwen14
+    family: qwen
+    mode: remote
+    model: qwen/qwen3-14b
+    base_url: https://openrouter.ai/api/v1
+    key_env: OPENROUTER_API_KEY
+    hf: https://huggingface.co/Qwen/Qwen3-14B
+    parameters_b: 14.8
+    license: Apache-2.0
+    released: '2025-04-29'
+    ollama: qwen3:14b
+  - name: qwen30
+    family: qwen
+    mode: remote
+    model: qwen/qwen3-30b-a3b-instruct-2507
+    base_url: https://openrouter.ai/api/v1
+    key_env: OPENROUTER_API_KEY
+    hf: https://huggingface.co/Qwen/Qwen3-30B-A3B-Instruct-2507
+    parameters_b: 30.5
+    active_parameters_b: 3.3
+    license: Apache-2.0
+    released: '2025-07-30'
+  - name: mistral24
+    family: mistralai
+    mode: remote
+    model: mistralai/mistral-small-3.2-24b-instruct
+    base_url: https://openrouter.ai/api/v1
+    key_env: OPENROUTER_API_KEY
+    hf: https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506
+    parameters_b: 24
+    license: Apache-2.0
+    released: '2025-06-20'
+  - name: llama70
+    family: meta-llama
+    mode: remote
+    model: meta-llama/llama-3.3-70b-instruct
+    base_url: https://openrouter.ai/api/v1
+    key_env: OPENROUTER_API_KEY
+    hf: https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct
+    parameters_b: 70
+    license: Llama-3.3-Community
+    released: '2024-12-06'
+  - name: qwen3:8b
+    family: qwen
+    mode: local
+    model: qwen3:8b
+    base_url: http://localhost:11434/v1
+    key_env: OLLAMA_API_KEY
+    hf: https://huggingface.co/Qwen/Qwen3-8B
+    parameters_b: 8.2
+    license: Apache-2.0
+    released: '2025-04-29'
+    ollama: qwen3:8b
+roles:
+  qwen_client: qwen30
+  mistral_client: mistral24
+  llama_grader: llama70
