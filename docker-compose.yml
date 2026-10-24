@@ -23,8 +23,6 @@ services:
       context: .
       dockerfile: services/ml-model/Dockerfile
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:5000:5000"   # только с этой машины: снаружи кухня закрыта
     environment:
       - CORE_ID=liza
     healthcheck:
@@ -60,7 +58,7 @@ services:
       AGENT_PORT: 8090
       AGENT_CORE_URL: http://api:8080
       AGENT_STATE_DIR: /app/var
-      AGENT_LLM_URL: ${AGENT_LLM_URL-http://host.docker.internal:11434/v1/chat/completions}
+      AGENT_LLM_URL: ${AGENT_LLM_URL:-}
       AGENT_LLM_MODEL: ${AGENT_LLM_MODEL:-qwen3:8b}
       AGENT_LLM_API_KEY: ${AGENT_LLM_API_KEY:-}
       AGENT_MEMORY: ${AGENT_MEMORY:-0}        # память клиента: +1 LLM-вызов на ход, пока выключена

@@ -47,7 +47,7 @@ def main():
         print('FAIL: некорректный JSON-ответ агента, проверьте версию сервиса')
         return 1
 
-    if args.expect_template:
+    if args.expect_template or health['llm'] == 'templates':
         if all(source == 'template' for source in sources):
             print('OK: все ответы source=template')
             return 0

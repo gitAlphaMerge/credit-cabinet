@@ -10,7 +10,7 @@ import intake_rules
 # в репо это корень проекта, в контейнере файлы лежат в /app и глубже некуда
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parents[1] if len(_HERE.parents) > 1 else _HERE
-URL = "http://127.0.0.1:11434/v1/chat/completions"
+URL = ""
 MODEL = "qwen3:8b"
 AGENT_VOICE = (Path(__file__).resolve().parent / "AGENT.md").read_text(encoding="utf-8")
 PERMISSIONS = (_HERE / "PERMISSIONS.md").read_text(encoding="utf-8")
@@ -20,13 +20,21 @@ def _env(name: str) -> str | None:
     return os.getenv(name) or None
 
 
+def base_url() -> str:
+    """Resolve the optional base URL, accepting a full chat endpoint too."""
+    url = os.getenv("AGENT_LLM_URL", URL).strip().rstrip("/")
+    if not url or url.endswith("/chat/completions"):
+        return url
+    return url + "/chat/completions"
+
+
 def _key() -> str | None:
     if "AGENT_LLM_API_KEY" in os.environ:
         return _env("AGENT_LLM_API_KEY")
     # OpenRouter: ключ OPENROUTER_API_KEY; на сервере ключ OpenRouter лежит в секрете DEEPSEEK_API_KEY (так его кладёт deploy.yml)
-    if "api.deepseek.com" in os.getenv("AGENT_LLM_URL", URL):
+    if "api.deepseek.com" in base_url():
         return _env("DEEPSEEK_API_KEY")
-    if "openrouter.ai" in os.getenv("AGENT_LLM_URL", URL):
+    if "openrouter.ai" in base_url():
         return _env("OPENROUTER_API_KEY") or _env("DEEPSEEK_API_KEY")
     return None
 
@@ -38,7 +46,7 @@ def _opener():
 
 
 def available() -> bool:
-    return bool(os.getenv("AGENT_LLM_URL", URL).strip())
+    return bool(base_url())
 
 
 USAGE: list = []  # usage вызовов хода, server.py пишет в лог и чистит
@@ -46,12 +54,12 @@ USAGE: list = []  # usage вызовов хода, server.py пишет в ло�
 
 def chat(system: str, user: str, model: str | None = None, as_json: bool = False, temperature: float = 0.0,
          max_tokens: int = 600) -> str:
-    url = os.getenv("AGENT_LLM_URL", URL).strip()
+    url = base_url()
     if not url:
         raise RuntimeError("LLM disabled")
     body = {"model": model or os.getenv("AGENT_LLM_MODEL", MODEL), "temperature": temperature, "max_tokens": max_tokens,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-    if "openrouter.ai" in os.getenv("AGENT_LLM_URL", URL):
+    if "openrouter.ai" in base_url():
         # рассуждения модели оплачиваются как выход и ответу в 2-3 фразы не нужны
         body["reasoning"] = {"enabled": os.getenv("AGENT_LLM_REASONING", "0") == "1"}
         if os.getenv("AGENT_LLM_PROVIDER"):
