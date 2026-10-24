@@ -38,7 +38,9 @@ GOV_MARKERS = ("уфк", "фнс", "фед", "казначейств", "нало
 BANK_MARKERS = ("банк", "сбер", "втб", "альфа", "т-банк", "тинькофф", "открытие", "райффайзен", "росбанк", "газпромбанк", "псб", "совкомбанк")
 AGGREGATED_MARKERS = ("эквайринг", "сбп", "торговый эквайринг", "ozon", "ozon банк", "wildberries", "яндекс", "яндекс.маркет")
 OWNER_MARKERS = ("дивиденд", "распределение прибыли", "на личную карту", "собственные средства ип", "выплата участнику", "выплата собственнику", "доход участника")
-CASH_MARKERS = ("снятие наличн", "выдача наличн", "под отчёт", "подотчёт", "банкомат", "выдача под", "на хозяйственные нужды")
+# context/stop-rules.md: CASH_OUT counts operations classified as cash.
+# data/realistic/from_spec.py special_events labels explicit person transfers in cash_out/transit as cash.
+CASH_MARKERS = ("снятие наличн", "выдача наличн", "под отчёт", "подотчёт", "банкомат", "выдача под", "на хозяйственные нужды", "перевод физическому лицу")
 SELF_TRANSFER_MARKERS = ("собственных средств", "между своими", "между счетами", "на свой счёт", "на счёт в другом", "своего счёта", "в другой банк")
 LOAN_MARKERS = ("займ", "заём", "loan", "финансовая помощь")
 ENFORCE_MARKERS = ("инкассов", "исполнительн", "взыскан", "арест")
@@ -75,7 +77,7 @@ def classify(amount, counterparty, purpose, client_inn=None, cp_inn=None):
 
 def read_csv(path):
     content = None
-    for enc in ("utf-8", "cp1251"):
+    for enc in ("utf-8-sig", "cp1251"):
         try:
             with open(path, encoding=enc) as f: content = f.read()
             break
@@ -83,7 +85,7 @@ def read_csv(path):
     if content is None: raise ValueError(f"не смог прочитать {path}")
     lines = content.splitlines()
     if not lines: return []
-    if lines[0].strip().startswith("1CClientBankExchange"): return _read_1c(lines)
+    if next((line.strip() for line in lines if line.strip()), "").startswith("1CClientBankExchange"): return _read_1c(lines)
 
     header_idx = 0
     for i, line in enumerate(lines[:20]):
@@ -132,18 +134,68 @@ def read_csv(path):
     return rows
 
 def _read_1c(lines):
+    # 1CClientBankExchange 1.03: document fields span lines, while account sections
+    # identify the customer's settlement accounts and document accounts set direction.
     rows = []
+    accounts = set()
+    section = None
+    documents = []
+    fields = None
     for line in lines:
         line = line.strip()
-        if not line or "=" not in line or line.startswith("1CClientBankExchange"): continue
-        fields = {}
-        for part in line.split("|"):
-            if "=" in part: k, v = part.split("=", 1); fields[k.strip()] = v.strip()
-        if "Дата" not in fields or "Сумма" not in fields: continue
-        date_iso = _parse_date(fields.get("Дата", ""))
-        amt = _parse_amount(fields.get("Сумма", ""))
+        if not line: continue
+        if line.startswith("СекцияДокумент=") and "|" in line:
+            # The older single-line exporter stores signed amounts and uses | fields.
+            legacy = {}
+            for part in line.split("|"):
+                if "=" in part:
+                    key, value = part.split("=", 1)
+                    legacy[key.strip()] = value.strip()
+            date_iso = _parse_date(legacy.get("Дата", ""))
+            amt = _parse_amount(legacy.get("Сумма", ""))
+            if date_iso is not None and amt is not None:
+                rows.append({"date": date_iso, "amount": amt, "counterparty": legacy.get("Контрагент", ""), "purpose": legacy.get("Назначение", ""), "inn": None, "inn_client": None})
+            continue
+        if line.startswith("СекцияДокумент="):
+            fields = {}
+            section = "document"
+            continue
+        if line == "КонецДокумента":
+            if fields is not None: documents.append(fields)
+            fields = None
+            section = None
+            continue
+        if line == "СекцияРасчСчет":
+            section = "account"
+            continue
+        if line == "КонецРасчСчет":
+            section = None
+            continue
+        if "=" not in line: continue
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip()
+        if section == "document" and fields is not None:
+            fields[key] = value
+        elif key == "РасчСчет":
+            accounts.add(value)
+
+    for doc in documents:
+        payer_account = doc.get("ПлательщикСчет", "")
+        payee_account = doc.get("ПолучательСчет", "")
+        outgoing = payer_account in accounts
+        incoming = payee_account in accounts
+        if not outgoing and not incoming: continue
+        if outgoing and incoming:
+            # Both accounts belong to the customer; date fields disambiguate postings.
+            outgoing = bool(doc.get("ДатаСписано"))
+            incoming = not outgoing and bool(doc.get("ДатаПоступило"))
+            if not outgoing and not incoming: continue
+        date_field = "ДатаСписано" if outgoing else "ДатаПоступило"
+        date_iso = _parse_date(doc.get(date_field) or doc.get("Дата", ""))
+        amt = _parse_amount(doc.get("Сумма", ""))
         if date_iso is None or amt is None: continue
-        rows.append({"date": date_iso, "amount": amt, "counterparty": fields.get("Контрагент", "").strip(), "purpose": fields.get("Назначение", "").strip(), "inn": None, "inn_client": None})
+        counterparty = (doc.get("Получатель") or doc.get("Получатель1") or "") if outgoing else (doc.get("Плательщик") or doc.get("Плательщик1") or "")
+        rows.append({"date": date_iso, "amount": -abs(amt) if outgoing else abs(amt), "counterparty": counterparty, "purpose": doc.get("НазначениеПлатежа") or doc.get("Назначение", ""), "inn": None, "inn_client": None})
     return rows
 
 def _detect_delimiter(header):
@@ -171,18 +223,24 @@ def resolve_financing_pairs(rows, params=None):
     for r in rows:
         if r["label"] in ("inflow", "operating"): by_cp[r["counterparty"]].append(r)
     for cp, ops in by_cp.items():
-        if not (len(str(ops[0].get("inn") or "")) == 12 or _is_individual(cp.lower())): continue
-        ins = [o for o in ops if o["amount"] > 0]; outs = [o for o in ops if o["amount"] < 0]; used = set()
+        if not (any(len(str(op.get("inn") or "")) == 12 for op in ops) or _is_individual(cp.lower())): continue
+        ins = [o for o in ops if o["amount"] > 0]
+        outs = [o for o in ops if o["amount"] < 0]
+        candidates = []
         for i in ins:
-            d_i = datetime.fromisoformat(i["date"])
             for j in outs:
-                if id(j) in used: continue
-                d_j = datetime.fromisoformat(j["date"])
-                if abs((d_j - d_i).days) > days: continue
+                day_gap = abs((datetime.fromisoformat(i["date"]) - datetime.fromisoformat(j["date"])).days)
+                amount_gap = abs(i["amount"] + j["amount"])
                 big = max(abs(i["amount"]), abs(j["amount"]))
-                if big == 0: continue
-                if abs(abs(i["amount"]) - abs(j["amount"])) / big <= tol:
-                    i["label"] = "financing"; j["label"] = "financing"; used.add(id(j)); break
+                if day_gap <= days and big and amount_gap / big <= tol:
+                    candidates.append((day_gap, amount_gap, i["date"], j["date"], i["amount"], j["amount"], i, j))
+        # Stable edge order makes the one-to-one match independent of statement order.
+        candidates.sort(key=lambda edge: edge[:6])
+        used_in, used_out = set(), set()
+        for *_, i, j in candidates:
+            if id(i) in used_in or id(j) in used_out: continue
+            i["label"] = j["label"] = "financing"
+            used_in.add(id(i)); used_out.add(id(j))
 
 def annuity_factor(rate, term):
     i = rate / 12
