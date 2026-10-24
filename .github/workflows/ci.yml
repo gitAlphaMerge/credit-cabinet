@@ -1,0 +1,43 @@
+# Тесты на каждый PR и пуш в main. В тг не пишет: старпом слушает только tg-commits.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cabinet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hw/tolya/alfa-intellect
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: hw/tolya/alfa-intellect/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q pytest
+      - name: ml-model
+        working-directory: services/ml-model
+        run: python -m unittest discover -s tests -v
+      - name: агент без живой модели
+        run: python -m pytest services/agent/tests -q --ignore=services/agent/tests/test_live_dialog.py

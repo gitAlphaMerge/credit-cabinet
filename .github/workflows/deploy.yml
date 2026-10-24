@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   deploy:
+    # стенд выкатывает только капитан: чужой пуш в main стенд не трогает (защита веток на бесплатном плане закрыта)
+    if: github.actor == 'alexregrets'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
