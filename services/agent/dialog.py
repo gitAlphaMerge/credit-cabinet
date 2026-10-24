@@ -99,7 +99,7 @@ def _acknowledge(fields: dict, old_need: dict, attachment: dict) -> str:
         facts.append("Договор получил.")
     changed = {key for key, value in fields.items() if old_need.get(key) != value}
     if "purpose" in changed:
-        facts.append("Цель понял.")
+        facts.append("Цель записал.")
     if {"amount_rub", "term_months"} <= changed:
         facts.append("Сумму и срок записал.")
     else:
@@ -218,6 +218,9 @@ def turn(state: dict, text: str, attachment: dict | None = None,
         fields = intake_rules.parse(privacy.redact(text, state["questionnaire"]), state["asking"])
     if fields and intent == "smalltalk":
         intent = "answer_slot"
+    if (state["asking"] == "purpose" and intent == "answer_slot"
+            and not fields and any(char.isalpha() for char in text)):
+        fields = {"purpose": "другое", "purpose_text": text[:200]}
     slot = next_slot(state)
     special = intent in {"identity", "manager_request", "pii", "side_question", "smalltalk"}
     # A greeting must not postpone a calculation when all its inputs are ready.

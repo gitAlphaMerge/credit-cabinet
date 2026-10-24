@@ -1,4 +1,4 @@
-"""A deliberately red regression against unchanged production rules."""
+"""Check purpose loops and rule classification, with the historical red gate."""
 import argparse
 import json
 from pathlib import Path
@@ -30,11 +30,10 @@ def main():
     args = ap.parse_args()
     rows = run()
     count = sum(bool(row['loops']) for row in rows)
-    output = HERE.parent / 'reports/loop-regression.json'
-    output.parent.mkdir(exist_ok=True)
-    output.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print(f'LOOP REGRESSION: {count}/{len(rows)} dialogs repeat the purpose slot (RED)')
-    print('evidence:', output.as_posix())
+    matched = sum(row['actual'].get('purpose') == row['expected'].get('purpose')
+                  and row['actual'].get('purpose') != 'другое' for row in rows)
+    print(f'петли {count}/{len(rows)}')
+    print(f'категория угадана правилами {matched}/{len(rows)}')
     return (0 if count > 0 and len(rows) >= 30 else 1) if args.expect_red else (1 if count else 0)
 
 
