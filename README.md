@@ -68,7 +68,15 @@ docker stats --no-stream
 
 ## Конфигурация
 
-Ниже только имена ключей, без значений. Корневого `.env.example` нет. Список основан на `docker-compose.yml` и [примере Толи](hw/tolya/alfa-intellect/.env.example). Необязательный корневой `.env` читает сервис agent; файл Толи предназначен для его отдельного запуска и автоматически в Compose не подключается.
+Все параметры меняются в файле `.env`, код править не нужно. Шаблон со всеми параметрами: [`.env.example`](.env.example) (адрес провайдера, имя модели, пустое поле ключа, таймаут, порты).
+
+1. Скопируйте шаблон: `cp .env.example .env` (Windows PowerShell: `Copy-Item .env.example .env`).
+2. Заполните модель агента: `AGENT_LLM_URL` (полный адрес OpenAI-совместимого `/v1/chat/completions`), `AGENT_LLM_MODEL`, при необходимости `AGENT_LLM_API_KEY`. Для режима без модели оставьте `AGENT_LLM_URL=` пустым.
+3. Запустите `docker compose up --build`. После правки `.env` перезапуск: `docker compose up -d --build`.
+
+`.env` исключён из git. Настоящий API-ключ в репозиторий не добавляется, в шаблоне поле ключа пустое. Без `.env` Compose берёт значения по умолчанию из `docker-compose.yml`: локальная Ollama и `qwen3:8b`. Compose подставляет значения `.env` в `docker-compose.yml`, а сервис agent ещё и получает весь файл как окружение, поэтому необязательные `AGENT_LLM_TIMEOUT` и `AGENT_LLM_PROXY` тоже работают из `.env`. Файл [примера Толи](hw/tolya/alfa-intellect/.env.example) нужен только для отдельного запуска кабинета без Compose.
+
+Полный список ключей:
 
 | Ключи | Где используются и зачем |
 |---|---|
