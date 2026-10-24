@@ -2,9 +2,11 @@
 """ядро ступенек 1 и 2: парсинг, скоринг, лимиты и подбор 6 продуктов (Толя)"""
 
 import csv
+import json
 import statistics
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
 PARAMS = {
     "dscr_min": 1.25,
@@ -19,16 +21,14 @@ PARAMS = {
     "pair_days": 180,
 }
 
-# 6 продуктов из расширенной модели Толи
-PRODUCTS_DB = {
-    "WORKING":   {"rate": 0.235},
-    "INVEST":    {"rate": 0.220},
-    "RCL":       {"rate": 0.240},
-    "NCL":       {"rate": 0.230},
-    "OVERDRAFT": {"rate": 0.260},
-    "REFI":      {"rate": 0.225},
-    "MANUAL":    {"rate": 0.235}, # Заглушка для ручного маршрута
-}
+# data/catalog/products.json is the source for product limits and public base rates.
+_CATALOG = json.loads((Path(__file__).resolve().parents[2] / "data/catalog/products.json").read_text(encoding="utf-8"))["products"]
+PRODUCTS_DB = {p["id"]: {**p, "rate": (p["bank_base_rate_from_pct"] / 100
+                                     if p["bank_base_rate_from_pct"] is not None else None)}
+               for p in _CATALOG}
+# MANUAL still passes through the legacy payment calculator. This proxy is the
+# catalogue ALFA_LUMP_UNSEC public base rate, never a bank offer for MANUAL.
+PRODUCTS_DB["MANUAL"] = {"rate": PRODUCTS_DB["ALFA_LUMP_UNSEC"]["rate"]}
 
 IN_LABELS = {"inflow"}
 OUT_LABELS = {"mandatory", "loan", "operating", "cash", "enforcement"}
@@ -189,34 +189,162 @@ def annuity_factor(rate, term):
     if i == 0: return term
     return (1 - (1 + i) ** -term) / i
 
-def select_instrument(need, questionnaire):
-    purpose = need.get("purpose", "")
-    years = questionnaire.get("years", "")
-    
-    if years == "меньше года":
-        return "MANUAL"
-        
-    if purpose == "кассовый разрыв": return "OVERDRAFT"
-    elif purpose == "оборудование": return "INVEST"
-    elif purpose == "сезон": return "RCL"
-    
-    # ИСПРАВЛЕНО: разовая закупка под контракт - это WORKING, а не NCL
-    elif purpose == "закупка под контракт": return "WORKING" 
-    
-    elif purpose == "рост": return "INVEST" 
-    elif purpose == "рефинансирование": return "REFI"
-    
-    return "WORKING"
+def _purpose_facts(need, purpose_code=None):
+    """Map stated use to catalogue goal/fit columns without reading client identity."""
+    code = str(purpose_code or need.get("purpose_code") or "").strip().lower()
+    purpose = str(need.get("purpose") or "").strip().lower()
+    if code.startswith("do_") or "рефинанс" in purpose:
+        return "debt_optimization", code or "do_refinance", "refinance_existing_business_loans"
+    if code.startswith("cg_") or "разрыв" in purpose:
+        return "cash_gap", code or "cg_customer_delay", "short_term_working_capital"
+    if code.startswith("ap_") or "оборудован" in purpose:
+        return "asset_purchase", code or "ap_machinery", "business_development"
+    if code.startswith("ct_") or "контракт" in purpose:
+        return "contract_financing", code or "ct_materials", "working_capital"
+    if code.startswith("wc_") or "сезон" in purpose or "закуп" in purpose:
+        return "working_capital", code or "wc_seasonal_stock", "working_capital"
+    if code.startswith("ex_") or "рост" in purpose:
+        return "business_expansion", code or "ex_capacity", "business_development"
+    return "unknown", code, "unknown"
 
-def check_restrictions(instrument_id, need):
-    purpose = need.get("purpose", "")
-    # RCL (возобновляемая линия) не подходит для капвложений (T12)
-    if instrument_id == "RCL" and purpose in ("оборудование", "рост"):
+
+def check_restrictions(instrument_id, need, purpose_code=None):
+    """Check bank_restricted_uses and bank_allowed_purposes in products.json."""
+    goal, code, use = _purpose_facts(need, purpose_code)
+    if code in {"dividends", "securities", "equity_contributions", "personal_withdrawals"}:
         return "RESTRICTED_PURPOSE"
-    # Овердрафт только для кассового разрыва
-    if instrument_id == "OVERDRAFT" and purpose != "кассовый разрыв":
+    if instrument_id == "MANUAL":
+        return None
+    product = PRODUCTS_DB[instrument_id]
+    allowed = {x.strip() for x in product["bank_allowed_purposes"].split(";")}
+    forbidden = {x.strip() for x in product["bank_restricted_uses"].split(";")}
+    # products.json: refinancing_as_per_offer is conditional, not a public
+    # permission to refinance with a general-purpose lump-sum loan.
+    if use == "refinance_existing_business_loans" and "refinancing_as_per_offer" in allowed and not need.get("personal_offer_confirmed"):
+        return "RESTRICTED_PURPOSE"
+    if code in forbidden or (use == "business_development" and "fixed_asset_investments" in forbidden):
+        return "RESTRICTED_PURPOSE"
+    # products.json: ALFA_LUMP_* allows refinancing_as_per_offer. A generic
+    # request has no documented personal offer, so eligibility is unproven.
+    if use == "refinance_existing_business_loans" and "refinancing_as_per_offer" in allowed:
+        return "RESTRICTED_PURPOSE"
+    compatible = {
+        "short_term_working_capital": {"short_term_working_capital", "working_capital", "working_capital_only",
+                                       "business_purchase_of_goods_equipment_services"},
+        "working_capital": {"working_capital", "working_capital_only", "short_term_working_capital",
+                            "business_purchase_of_goods_equipment_services"},
+        "business_development": {"business_development", "business_purchase_of_goods_equipment_services"},
+        "refinance_existing_business_loans": {"refinance_existing_business_loans", "refinancing_as_per_offer"},
+    }
+    if goal == "unknown" or not allowed.intersection(compatible.get(use, set()) | {"registered_business_general_purpose_per_contract"}):
         return "RESTRICTED_PURPOSE"
     return None
+
+
+def select_instrument(need, questionnaire, purpose_code=None, product_match=None):
+    """Filter catalogue restrictions, then rank explicit fit before broad goal fit."""
+    goal, code, use = _purpose_facts(need, purpose_code)
+    amount, term = need.get("amount_rub"), need.get("term_months")
+    years = questionnaire.get("years")
+    # questionnaire.years gives a range. Under one year cannot prove the 9-month
+    # minimum, so only zero-minimum products pass without a precise age.
+    age = (None if years in (None, "не указан", "") else 0 if years == "меньше года"
+           else 12 if years == "1–3" else 37 if years == "больше 3" else
+           round(float(years) * 12) if isinstance(years, (int, float)) else None)
+    collateral = questionnaire.get("collateral")
+    if isinstance(collateral, dict):
+        collateral = bool(collateral.get("type"))
+    rejected, candidates = {}, []
+    for product in _CATALOG:
+        pid = product["id"]
+        failures = []
+        if check_restrictions(pid, need, code): failures.append("purpose")
+        if amount is not None and not product["bank_min_amount_rub"] <= amount <= product["bank_max_amount_rub"]:
+            failures.append("amount_rub")
+        if term is not None and ((product["bank_min_term_months"] is not None and term < product["bank_min_term_months"])
+                                 or (product["bank_max_term_months"] is not None and term > product["bank_max_term_months"])):
+            failures.append("term_months")
+        if age is not None and age < product["bank_min_business_age_months"]:
+            failures.append("business_age_months")
+        if collateral is False and product["bank_collateral"] == "required":
+            failures.append("collateral")
+        if product["bank_base_rate_from_pct"] is None:
+            failures.append("public_base_rate_missing")
+        # products.json: ALFA_START bank_rate_unit=daily_pct. The existing
+        # annuity calculator accepts annual rates, so it cannot price Start.
+        if product["bank_rate_unit"] != "annual_pct":
+            failures.append("rate_unit_not_annual")
+        if failures:
+            rejected[pid] = failures
+            continue
+        fit = product.get("fit_" + code, 0)
+        goal_fit = product.get("goal_" + goal + "_score", 0)
+        # Priority: exact catalogue fit, then goal score, no obligatory pledge
+        # when pledge is unknown, then lower public base rate and stable id.
+        candidates.append(((-fit, -goal_fit, age is not None and age >= 9 and product["bank_min_business_age_months"] == 0,
+                            product["bank_collateral"] == "required" and collateral is None,
+                            product["bank_base_rate_from_pct"], pid), pid))
+    candidates.sort()
+    chosen = candidates[0][1] if candidates else "MANUAL"
+    if product_match is not None:
+        product_match.update({"goal": goal, "purpose_code": code, "use": use,
+                              "selected": chosen, "rejected": rejected,
+                              "eligible": [pid for _, pid in candidates]})
+    return chosen
+
+
+# A 20% annual-revenue gap is material enough to request reconciliation, while
+# normal collection timing and other-bank receipts can explain smaller gaps.
+# Compare only an overlapping 12-month statement and report, never metadata's
+# consistent flag. Source fields: from_spec.py lines.2110 and revenue_rub.
+DOSSIER_REVENUE_MISMATCH = 0.20
+
+
+def _inspect_dossier(statement_csv, inflow_total):
+    """Read only existing sibling documents; an isolated live CSV adds no findings."""
+    folder = Path(statement_csv).parent
+    names = ("balance_sheet", "income_statement", "financial_model", "business_plan")
+    docs = {}
+    for name in names:
+        path = folder / (name + ".json")
+        if path.is_file():
+            try:
+                docs[name] = json.loads(path.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                docs[name] = {"unreadable": True}
+    schedule = folder / "existing_debt_schedule.csv"
+    if not docs and not schedule.is_file():
+        return {"reasons": [], "missing": [], "evidence": {}, "business_plan": {}}
+    reasons, missing, evidence = [], [], {}
+    for name, doc in docs.items():
+        period = str(doc.get("period", ""))
+        as_of = str(doc.get("as_of", ""))
+        stale = bool(doc.get("stale"))
+        # Annual reporting older than the preceding complete year is stale.
+        # A year shift must work even if stale metadata was not recomputed.
+        if period.isdigit() and len(period) == 4 and as_of[:4].isdigit():
+            stale = stale or int(period) < int(as_of[:4]) - 1
+        evidence[name] = {"period": period, "stale": stale}
+        if stale:
+            reasons.append("STALE_DOC")
+            if "fresh_financials" not in missing: missing.append("fresh_financials")
+    if "financial_model" not in docs:
+        missing.append("financial_model")
+    income = docs.get("income_statement", {})
+    revenue = income.get("lines", {}).get("2110")
+    if isinstance(revenue, (int, float)) and inflow_total > 0:
+        gap = abs(revenue - inflow_total) / inflow_total
+        evidence["income_statement"].update({"revenue_2110_rub": revenue,
+                                              "statement_inflow_rub": round(inflow_total, 2),
+                                              "difference_pct": round(gap * 100, 2)})
+        if gap > DOSSIER_REVENUE_MISMATCH:
+            reasons.append("DOCS_MISMATCH")
+    plan = docs.get("business_plan", {})
+    if str(plan.get("purpose_code", "")).startswith("do_") and not schedule.is_file():
+        reasons.append("MISSING_SCHEDULE")
+        missing.append("debt_schedule")
+    return {"reasons": list(dict.fromkeys(reasons)), "missing": missing,
+            "evidence": evidence, "business_plan": plan}
 
 def calculate_scorecard(dscr, cv, debt_load, top_share, cash_gaps_count):
     score = 0
@@ -316,9 +444,14 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
     if "SHORT_STATEMENT" in stops:
         missing.insert(0, "statement_12m")
 
+    dossier = _inspect_dossier(statement_csv, inflow_total)
     # Выбор продукта
-    instrument = select_instrument(need, questionnaire)
-    restriction = check_restrictions(instrument, need)
+    reasons.extend(dossier["reasons"])
+    missing.extend(dossier["missing"])
+    purpose_code = dossier["business_plan"].get("purpose_code")
+    product_match = {}
+    instrument = select_instrument(need, questionnaire, purpose_code, product_match)
+    restriction = check_restrictions(instrument, need, purpose_code)
     if restriction:
         stops.append(restriction)
 
@@ -371,5 +504,7 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
             "months": n,
             "operations": len(rows),
             "flow_by_month": {m: round(v) for m, v in m_flow.items()},
+            "dossier": dossier["evidence"],
+            "product_match": product_match,
         },
     }
