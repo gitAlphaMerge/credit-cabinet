@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createFixtures } from "../scripts/fixtures";
 import { runComplianceGate } from "../server/compliance";
+import { sweepSilentApplications } from "../server/application-silence";
 let app: Express,
   db: DatabaseSync,
   state: AppState,
@@ -169,6 +170,160 @@ beforeEach(() => {
   a.configureApplications(deps);
 });
 after(() => db.close());
+
+function offerDeadline() {
+  return deps.clock().getTime() + a.applicationConfig().OFFER_TTL_DAYS * 86_400_000;
+}
+test("audit #8: HTTP signing expires an old offer without signing or disbursing", async () => {
+  const id = await submit();
+  a.configureApplications({ ...deps, clock: () => new Date(offerDeadline() + 1) });
+  const response = await post(id, "sign", { code: "0000" }).expect(409);
+  assert.match(response.body.error, /срок|ист[её]к/i);
+  assert.equal(a.applicationOf(db, id).status, "expired");
+  assert.equal(a.eventsOf(db, id).at(-1)!.event, "expire");
+  assert.ok(!a.eventsOf(db, id).some((e) => ["sign", "disburse"].includes(String(e.event))));
+});
+test("audit #8: internal signing also expires an old offer", async () => {
+  const id = await submit();
+  await assert.rejects(a.transitionApplication(db, {
+    applicationId: id, expectedVersion: a.applicationOf(db, id).version,
+    event: "sign", actorRole: "client", actorId: "v2-owner", payload: { code: "0000" },
+  }, { ...deps, clock: () => new Date(offerDeadline() + 1) }), { status: 409 });
+  assert.equal(a.applicationOf(db, id).status, "expired");
+});
+test("audit #8: disbursement rechecks TTL after a timely internal signature", async () => {
+  const id = await submit();
+  await a.transitionApplication(db, {
+    applicationId: id, expectedVersion: a.applicationOf(db, id).version,
+    event: "sign", actorRole: "client", actorId: "v2-owner", payload: { code: "0000" },
+  }, deps);
+  await assert.rejects(a.transitionApplication(db, {
+    applicationId: id, expectedVersion: a.applicationOf(db, id).version,
+    event: "disburse", actorRole: "system", actorId: null,
+  }, { ...deps, clock: () => new Date(offerDeadline() + 1) }), { status: 409 });
+  // The frozen table has no signed -> expired transition.
+  assert.equal(a.applicationOf(db, id).status, "signed");
+  assert.ok(!a.eventsOf(db, id).some((e) => e.event === "disburse"));
+});
+test("audit #8: exact TTL boundary remains valid and successful replay stays exact", async () => {
+  const id = await submit();
+  a.configureApplications({ ...deps, clock: () => new Date(offerDeadline()) });
+  const version = a.applicationOf(db, id).version, key = crypto.randomUUID();
+  const result = await post(id, "sign", { code: "0000" }, cookie, version, key).expect(200);
+  assert.equal(result.body.application.status, "disbursed");
+  a.configureApplications({ ...deps, clock: () => new Date(offerDeadline() + 1) });
+  const replay = await post(id, "sign", { code: "0000" }, cookie, version, key).expect(200);
+  assert.deepEqual(replay.body, result.body);
+});
+test("audit #8: TTL crossed during the HTTP cascade rolls back signing and expires offer", async () => {
+  const id = await submit();
+  let reads = 0;
+  a.configureApplications({ ...deps, clock: () => new Date(offerDeadline() + (++reads > 3 ? 1 : 0)) });
+  await post(id, "sign", { code: "0000" }).expect(409);
+  assert.equal(a.applicationOf(db, id).status, "expired");
+  assert.ok(!a.eventsOf(db, id).some((e) => ["sign", "disburse"].includes(String(e.event))));
+  assert.equal(a.eventsOf(db, id).filter((e) => e.event === "expire").length, 1);
+});
+test("audit #8: system sweep expires old offers exactly once and preserves live offers", async () => {
+  const old = await submit(), live = await submit();
+  const sweepDeps = { ...deps, clock: () => new Date(offerDeadline() + 1) };
+  db.prepare("UPDATE application_events SET at=? WHERE application_id=? AND event='make_offer'")
+    .run(sweepDeps.clock().toISOString(), live);
+  await sweepSilentApplications(db, sweepDeps);
+  await sweepSilentApplications(db, sweepDeps);
+  assert.equal(a.applicationOf(db, old).status, "expired");
+  assert.equal(a.applicationOf(db, live).status, "offered");
+  assert.equal(a.eventsOf(db, old).filter((e) => e.event === "expire").length, 1);
+});
+
+async function queuedForAudit() {
+  const id = await submit();
+  db.prepare("UPDATE applications SET status='queued',queued_at=? WHERE id=?")
+    .run(deps.clock().toISOString(), id);
+  return id;
+}
+test("audit #11: manager cannot offer against a stale statement and lower fresh limit", async () => {
+  const id = await queuedForAudit(), before = a.applicationOf(db, id);
+  const current = a.userState(db, "v2-owner");
+  current.documents[0].records = [{ date: "2026-10-23", amount: 10 }];
+  db.prepare("UPDATE users SET state=? WHERE id='v2-owner'").run(JSON.stringify(current));
+  let scored = 0;
+  a.configureApplications({ ...deps, compliance: async () => structuredClone(gate), core: {
+    async score(input: any) {
+      scored++;
+      assert.match(input.statement_csv, /"2026-10-23","10"/);
+      return { core_result: { core: { stops_fired: [], missing: [], limit_now_rub: 100 } } };
+    },
+  } });
+  const response = await post(id, "send_to_underwriting", { memo: "Checked" }, manager).expect(409);
+  assert.equal(response.body.error, "AMOUNT_EXCEEDS_LIMIT");
+  assert.equal(scored, 1);
+  assert.deepEqual(a.applicationOf(db, id), before);
+  assert.equal(a.dossierOf(db, id)!.version, 1);
+});
+test("audit #11: fresh successful manager decision stores new dossier and exact replay", async () => {
+  const id = await queuedForAudit();
+  const current = a.userState(db, "v2-owner");
+  current.profile.sector = "New sector";
+  db.prepare("UPDATE users SET state=? WHERE id='v2-owner'").run(JSON.stringify(current));
+  let scored = 0;
+  a.configureApplications({ ...deps, core: { async score(input: any) {
+    scored++;
+    assert.equal(input.questionnaire.sector, "New sector");
+    return { core_result: { core: { stops_fired: [], missing: [], limit_now_rub: 350000 } } };
+  } } });
+  const version = a.applicationOf(db, id).version, key = crypto.randomUUID();
+  const result = await post(id, "send_to_underwriting", { memo: "Checked" }, manager, version, key).expect(200);
+  assert.equal(result.body.application.status, "offered");
+  const dossier = a.dossierOf(db, id)!;
+  assert.equal(dossier.version, 2);
+  assert.equal(JSON.parse(dossier.core_result).core.limit_now_rub, 350000);
+  const decision = a.eventsOf(db, id).findLast((e) => e.event === "send_to_underwriting")!;
+  assert.equal(decision.actor_role, "manager");
+  assert.equal(decision.actor_id, "v2-manager");
+  const replay = await post(id, "send_to_underwriting", { memo: "Checked" }, manager, version, key).expect(200);
+  assert.deepEqual(replay.body, result.body);
+  assert.equal(scored, 1);
+});
+test("audit #11: manager alternative is rescored with selected amount, term and product", async () => {
+  amount = 900000;
+  const id = await submit();
+  await internal(id, "escalate_disagreed", { client_objections: "Discuss terms" });
+  let scored = 0;
+  a.configureApplications({ ...deps, core: { async score(input: any) {
+    scored++;
+    assert.equal(input.need.amount_rub, 200000);
+    assert.equal(input.need.term_months, 12);
+    assert.equal(input.need.asked_for, "fixture");
+    return { core_result: { core: { stops_fired: [], missing: [], limit_now_rub: 100000 } } };
+  } } });
+  await post(id, "send_to_underwriting", { memo: "Checked", option_id: "option-1" }, manager).expect(409);
+  assert.equal(scored, 1);
+  assert.equal(a.applicationOf(db, id).status, "queued");
+  assert.equal(a.applicationOf(db, id).amount, 900000);
+});
+test("audit #11: evidence changed during manager scoring cannot commit an offer or dossier", async () => {
+  const id = await queuedForAudit(), before = a.applicationOf(db, id);
+  a.configureApplications({ ...deps, core: { async score() {
+    const current = a.userState(db, "v2-owner");
+    current.profile.sector = "Changed during scoring";
+    db.prepare("UPDATE users SET state=? WHERE id='v2-owner'").run(JSON.stringify(current));
+    return { core_result: { core: { stops_fired: [], missing: [], limit_now_rub: 400000 } } };
+  } } });
+  const response = await post(id, "send_to_underwriting", { memo: "Checked" }, manager).expect(409);
+  assert.match(response.body.error, /Данные клиента изменились/);
+  assert.deepEqual(a.applicationOf(db, id), before);
+  assert.equal(a.dossierOf(db, id)!.version, 1);
+});
+test("audit #11: manager cannot bypass fresh missing evidence with payload confirmations", async () => {
+  const id = await queuedForAudit();
+  missing = ["contract_main_customer"];
+  await post(id, "send_to_underwriting", {
+    memo: "Checked", confirmed_fields: { contract_main_customer: true },
+  }, manager).expect(409);
+  assert.equal(a.applicationOf(db, id).status, "queued");
+  assert.equal(a.dossierOf(db, id)!.version, 1);
+});
 function create() {
   state.selections[0].calculation.amount = amount;
   db.prepare("UPDATE users SET state=? WHERE id='v2-owner'").run(
@@ -388,6 +543,7 @@ test("FIX-A3: manager selected alternative changes amount and term before limit 
   let id: string;
   try { id = await submit(); } finally { options[1].term_months = previousTerm; }
   await internal(id, "escalate_disagreed", { client_objections: "Discuss terms" });
+  amount = 200000;
   await post(id, "send_to_underwriting", { option_id: "option-1", memo: "Verified" }, manager).expect(200);
   const application = a.applicationOf(db, id);
   assert.equal(application.status, "offered");
@@ -408,6 +564,7 @@ test("FIX-A3: manager rejects foreign, excessive and invalid-term alternatives w
     let id: string;
     try { id = await submit(); } finally { Object.assign(options[0], previous); }
     await internal(id, "escalate_disagreed", { client_objections: "Discuss terms" });
+    if (invalid === "excessive") amount = 500000;
     const before = a.applicationOf(db, id), events = a.eventsOf(db, id);
     await post(id, "send_to_underwriting", {
       option_id: invalid === "foreign" ? "foreign" : "option-0", memo: "Verified",

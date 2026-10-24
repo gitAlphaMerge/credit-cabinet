@@ -5,6 +5,7 @@ import {
   ApplicationError,
   applicationOf,
   eventsOf,
+  offerExpired,
   transitionApplication,
   type Application,
   type Dependencies,
@@ -131,7 +132,7 @@ export async function sweepSilentApplications(
     throw new Error("Некорректный порог молчания");
   const rows = database
     .prepare(
-      "SELECT * FROM applications WHERE status='info_requested' ORDER BY id",
+      "SELECT * FROM applications WHERE status IN ('info_requested','offered') ORDER BY id",
     )
     .all() as Application[];
   let nudged = 0,
@@ -139,6 +140,26 @@ export async function sweepSilentApplications(
   for (const [index, row] of rows.entries()) {
     if (index % 25 === 0) await yieldTurn();
     const a = applicationOf(database, row.id);
+    if (a.status === "offered") {
+      if (offerExpired(database, a.id, deps)) {
+        try {
+          await transitionApplication(
+            database,
+            {
+              applicationId: a.id,
+              expectedVersion: a.version,
+              event: "expire",
+              actorRole: "system",
+              actorId: null,
+            },
+            deps,
+          );
+        } catch (error) {
+          if (applicationOf(database, a.id).version === a.version) throw error;
+        }
+      }
+      continue;
+    }
     if (a.status !== "info_requested") continue;
     const events = eventsOf(database, a.id);
     const entry = events.findLast(
