@@ -1,4 +1,5 @@
 export type Profile = {
+  mvp2Answers?: import("./mvp2").OnboardingAnswers;
   onboardedAt?: string;
   name: string;
   form: string;
@@ -89,6 +90,7 @@ export type Message = {
   proposal?: { field: string; value: number };
 };
 export type Chat = {
+  mvp2Context?: { applicationId:string; section:number };
   cabinetContext?: {
     capturedAt: string;
     snapshot: import("./cabinet").CabinetSnapshot;

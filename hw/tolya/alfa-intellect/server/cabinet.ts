@@ -15,7 +15,7 @@ import { facilityErrors } from "../shared/facility-validation";
 
 const date = z.string().refine(validDate, "Некорректная календарная дата"),
   money = z.number().finite().min(0).max(1e12);
-const dateMonth = (first: string, i: number) => {
+export const dateMonth = (first: string, i: number) => {
   const d = new Date(first + "T00:00:00Z"),
     m = d.getUTCMonth() + i;
   const target = new Date(Date.UTC(d.getUTCFullYear(), m + 1, 0));
@@ -115,6 +115,12 @@ export function syncCabinetNotices(s: AppState, today = day()) {
   return snapshot;
 }
 export const cabinetRouter = Router();
+cabinetRouter.post("/select", (req,res) => {
+  const s=stateOf(res.locals.userId),id=z.string().parse(req.body.id);
+  const f=s.cabinet?.facilities?.find(f=>f.id===id);
+  if(!f){res.status(404).json({error:"Кредит не найден"});return;}
+  s.cabinet!.facility=f;saveState(res.locals.userId,s);res.json(s);
+});
 cabinetRouter.post("/payment", (req, res) => {
   const p = z
       .object({
@@ -158,6 +164,7 @@ cabinetRouter.post("/payment", (req, res) => {
   c.source +=
     "; исполнение со слов пользователя: " + p.source + " на " + p.recordedDate;
   s.cabinet = { ...s.cabinet, facility: c };
+  if(s.cabinet.facilities) s.cabinet.facilities=s.cabinet.facilities.map(f=>f.id===c.id?c:f);
   syncCabinetNotices(s);
   saveState(res.locals.userId, s);
   res.json(s);

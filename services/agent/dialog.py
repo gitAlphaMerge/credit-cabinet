@@ -35,7 +35,12 @@ def new_state(questionnaire: dict) -> dict:
             "confirmed_fields": {}, "view": None, "asking": None, "attempts": {}, "trace": [], "history": []}
 
 
-def application_turn(state: dict, text: str, application: dict, mode: str | None) -> str:
+class ApplicationAgentUnavailable(RuntimeError):
+    """A required contextual model response was unavailable or unsafe."""
+
+
+def application_turn(state: dict, text: str, application: dict, mode: str | None,
+                     speak=None, require_llm: bool = False, need: dict | None = None) -> str:
     """Process facts are authoritative; these replies never invoke intake or scoring."""
     if state.get("objection_application_id") != application.get("id"):
         state["objection_lines"] = []
@@ -54,6 +59,24 @@ def application_turn(state: dict, text: str, application: dict, mode: str | None
         reply = "Посмотрите данные в карточке заявки. Менеджер поможет уточнить дальнейшие шаги."
     if intake_rules.intent(text, None) == "pii":
         reply = PII
+    elif require_llm:
+        if speak is None:
+            raise ApplicationAgentUnavailable("application model is not configured")
+        # The language layer sees only the cabinet's allowlisted snapshot and
+        # sanitized conversation. It never invokes intake, scoring or mutations.
+        view["application"] = application
+        try:
+            reply = speak("answer", {
+                "text": text, "history": state.get("history", [])[-8:],
+                "view": view, "need": need or {}, "intent": "side_question",
+                "return_slot": None, "memory": [], "documents_received": [],
+            })
+        except Exception as error:
+            raise ApplicationAgentUnavailable("application model failed") from error
+        violations = guard.check(reply, view, need or {}, client_text=text)
+        if violations:
+            logging.getLogger(__name__).warning("application model rejected: %s", violations)
+            raise ApplicationAgentUnavailable("unsafe application response")
     elif mode == "objections":
         # Verbatim client lines, never inferred motivations or the agent's own offer.
         lines = state.setdefault("objection_lines", [])
@@ -66,7 +89,8 @@ def application_turn(state: dict, text: str, application: dict, mode: str | None
     history.extend([{"role": "user", "text": text}, {"role": "assistant", "text": reply}])
     history[:] = history[-8:]
     state["trace"].append({"user": text, "kind": "application", "goal": mode or "application",
-                           "reply": reply, "violations": violations, "status": application.get("status")})
+                           "reply": reply, "violations": violations, "status": application.get("status"),
+                           "source": "llm" if require_llm and reply != PII else "template"})
     return reply
 
 

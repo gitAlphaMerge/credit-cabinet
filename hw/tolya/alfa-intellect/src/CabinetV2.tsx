@@ -48,6 +48,7 @@ const statusText = (p: PaymentEvent, today: string) =>
         : "Плановый платёж";
 export function DebtChart({ facility }: { facility: Facility | null }) {
   const [hover, setHover] = useState<number | null>(null);
+  if(facility?.origin==="mvp2"&&facility.kind!=="loan"&&!facility.events.length)return <div className="cv-chart-empty"><TrendingDown size={28}/><h3>Лимит открыт</h3><p>Задолженность и график появятся после фактической выборки. До неё фиксированных платежей нет.</p></div>;
   if (!facility || !facility.events.length)
     return (
       <div className="cv-chart-empty">
@@ -906,6 +907,8 @@ export function CabinetV2({
           <div className="cv-card-head">
             <h2>{c ? "Кредит бизнеса" : "Ваше финансирование"}</h2>
           </div>
+          {(s.cabinet?.facilities?.length??0)>1 && <label className="field"><span>Активный договор</span><select value={c?.id} onChange={e=>void w.act("/cabinet/select",{id:e.target.value})}>{s.cabinet!.facilities!.map(f=><option key={f.id} value={f.id}>{f.name} · {money(f.amount)}</option>)}</select></label>}
+          {c?.origin === "mvp2" && <div className="mvp-cabinet-documents"><h3>{c.name}</h3><p>Синтетическое финансирование · {c.kind === "loan" ? "выдача оформлена" : "лимит открыт; до выборки долг равен нулю"}</p><h4>Документы</h4><p><a href={`/api/mvp2/applications/${c.applicationId}/documents/contract`} target="_blank" rel="noreferrer">Подписанный договор PDF</a> · <a href={`/api/mvp2/applications/${c.applicationId}/documents/schedule`} target="_blank" rel="noreferrer">График / условия лимита PDF</a></p></div>}
           <div className="cv-summary-grid">
             <div>
               <small>
@@ -1039,7 +1042,7 @@ export function CabinetV2({
               <CalendarDays size={20} />
             </button>
           </div>
-          <small>{p ? date(p.date) : "График не определён"}</small>
+          <small>{p ? date(p.date) : c?.origin==="mvp2"&&c.kind!=="loan" ? "После выборки средств" : "График не определён"}</small>
           <div className="cv-payment-number">{value(p ? total(p) : null)}</div>
           {p ? (
             <>
@@ -1063,7 +1066,7 @@ export function CabinetV2({
               </div>
             </>
           ) : (
-            <p>Даты и суммы появятся из подтверждённого графика.</p>
+            <p>{c?.origin==="mvp2"&&c.kind!=="loan" ? "Сейчас задолженность отсутствует. Условия использования лимита доступны в документах договора." : "Даты и суммы появятся из подтверждённого графика."}</p>
           )}
           {v.unresolved.length > 0 && (
             <p className="cv-note">

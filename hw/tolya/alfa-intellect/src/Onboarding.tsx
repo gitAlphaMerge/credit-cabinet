@@ -16,6 +16,7 @@ import type { Profile } from "../shared/types";
 import { PhoneInput, normalizePhone } from "./phone";
 import { Preparation } from "./Preparation";
 import { PREPARATION_KEY, readPreparation } from "./preparation-state";
+import { MvpOnboarding } from "./Mvp2";
 export const sectors = [
   "Оптовая торговля",
   "Розничная торговля и маркетплейсы",
@@ -328,6 +329,11 @@ export function Onboarding({
       setBusy(false);
     }
   }
+  if (!login && !auth && !preparing)
+    return <MvpOnboarding initial={p.mvp2Answers} go={go} onDone={answers => {
+      setP({...base, stage:"operating", sector:answers.industry, ageBand:answers.age, intent:"Подобрать финансирование", result:"Не указан", debt:"Не уверен", mvp2Answers:answers});
+      setAuth(true);
+    }} />;
   if (preparing)
     return (
       <Preparation

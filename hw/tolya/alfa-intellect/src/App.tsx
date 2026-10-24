@@ -18,6 +18,7 @@ import { DemoPage } from "./DemoPage";
 import { Chat } from "./Chat";
 import { ProfilePage } from "./Profile";
 import { Financing } from "./Financing";
+import { Mvp2, MvpManager } from "./Mvp2";
 import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
 import { ApplicationStatus } from "./ApplicationStatus";
@@ -143,7 +144,7 @@ export function App() {
     setHistoryOpen(false);
     setChatVisible(false);
     await refresh();
-    go("/cabinet");
+    go("/financing");
   }
   async function signOut() {
     try {
@@ -364,12 +365,16 @@ export function App() {
           </div>
         </header>
         {page === "application" ? (
+          <Mvp2 applicationOnly />
+        ) : page === "legacy-application" ? (
           <ApplicationStatus />
         ) : page === "bank" ? (
-          <ManagerAccess role={config.role} />
+          <><ManagerAccess role={config.role} />{config.role === "manager" && <MvpManager />}</>
         ) : page === "profile" ? (
           <ProfilePage />
         ) : page === "financing" ? (
+          <Mvp2 />
+        ) : page === "calculations" ? (
           <Financing />
         ) : page === "chat" ? (
           <div className="full-chat">

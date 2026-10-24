@@ -29,6 +29,8 @@ import type { Profile, AppState } from "../shared/types";
 import { russianValidationErrors } from "../shared/facility-validation";
 import { fundingRouter } from "./funding-routes";
 import { applicationsRouter } from "./applications-routes";
+import { mvp2Router } from "./mvp2-routes";
+import { onboardingSchema } from "../shared/mvp2";
 import { checksRouter } from "./checks";
 import { demoPersonasRouter } from "./demo-personas";
 import {
@@ -86,6 +88,7 @@ const phoneSchema = z
   .transform((v) => v.replace(/\D/g, ""))
   .refine((v) => /^7\d{10}$/.test(v), "Телефон в формате +7 и 10 цифр");
 const profileSchema = z.object({
+  mvp2Answers: onboardingSchema.optional(),
   name: z.string().max(160).default("Мой бизнес"),
   form: z.enum(["ИП", "ООО", "АО", "Другое", "Не зарегистрирован"]),
   stage: z.enum(["operating", "planning"]),
@@ -563,6 +566,7 @@ app.post("/api/applications/:id/events", async (req, res, next) => {
   res.json(result);
 });
 app.use("/api", applicationsRouter);
+app.use("/api/mvp2", mvp2Router);
 const feedbackSchema = z.object({
   kind: z.enum(["message", "conversation"]),
   message_id: z.string().min(1).max(200).nullable().optional(),

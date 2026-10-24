@@ -10,7 +10,9 @@ const production =
 app.use("/fixtures", express.static(resolve("fixtures")));
 if (production) {
   app.use(express.static(resolve("dist")));
-  app.use((_req, res) => res.sendFile(resolve("dist/index.html")));
+  // Managed worktrees live below .codex; allow that ancestor only for this fixed
+  // public SPA file, never for user-controlled paths or uploads.
+  app.use((_req, res) => res.sendFile(resolve("dist/index.html"), { dotfiles: "allow" }));
 } else {
   const { createServer } = await import("vite");
   const vite = await createServer({

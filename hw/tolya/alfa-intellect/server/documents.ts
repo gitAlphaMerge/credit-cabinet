@@ -12,7 +12,7 @@ function calendarDate(value: string) {
   );
 }
 
-function csvRows(buffer: Buffer): string[][] {
+export function csvRows(buffer: Buffer): string[][] {
   // Validate the whole payload: bank exports often have entirely ASCII headers.
   let source: string;
   try {
