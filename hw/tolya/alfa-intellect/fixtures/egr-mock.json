@@ -102,5 +102,16 @@
     "okved": "33.12",
     "status": "ACTIVE",
     "demo_seed": "q5"
+  },
+  {
+    "inn": "9900050032",
+    "name": "ООО «Молодая мастерская»",
+    "form": "ООО",
+    "registeredAt": "2026-06-01",
+    "region": "г. Москва",
+    "activity": "Производство мебели",
+    "okved": "31.09",
+    "status": "ACTIVE",
+    "demo_seed": "g2"
   }
 ]

@@ -75,7 +75,7 @@ test("G4 auditor reads nested CSS, ignores comments, resolves tokens and counts 
 test("G4 all stylesheet and inline sizes resolve to the shared seven-step scale", async () => {
   const check = await import(checkerUrl.href);
   const result = check.audit();
-  assert.equal(result.files, 8);
+  assert.equal(result.files, 9);
   assert.equal(result.small.length, 0);
   assert.ok(result.sizes.length >= 824);
   const scale = new Set([12, 13, 15, 18, 24, 32, 48]);

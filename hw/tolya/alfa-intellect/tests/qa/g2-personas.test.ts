@@ -334,7 +334,7 @@ test(
       await agent
         .post(`/api/applications/${green.id}/events`)
         .set("Idempotency-Key", "g2-sign")
-        .send({ event: "sign", expectedVersion: green.version, payload: {} })
+        .send({ event: "sign", expectedVersion: green.version, payload: { code: "0000" } })
         .expect(200);
       assert.ok(eventsOf(db, green.id).some((e) => e.event === "disburse"));
       const beforeFailure = snapshot();

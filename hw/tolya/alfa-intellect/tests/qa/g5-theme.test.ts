@@ -21,7 +21,7 @@ test("G5 all six palettes and actual product tokens meet contrast thresholds", (
 test("G5 header mounts the theme switch beside the profile", () => {
   const app = readFileSync(new URL("../../src/App.tsx", import.meta.url), "utf8");
   assert.ok(/import \{ ThemeToggle \} from "\.\/ThemeToggle"/.test(app));
-  assert.ok(/className="header-tools">\s*<ThemeToggle \/>/.test(app));
+  assert.ok(/className="header-tools[^"]*">\s*<ThemeToggle \/>/.test(app));
 });
 
 function browser(

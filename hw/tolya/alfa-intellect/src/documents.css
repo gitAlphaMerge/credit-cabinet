@@ -1,8 +1,8 @@
 /* Scoped above the legacy mobile rules; values are audited by check-docs-readability.mjs. */
 .profile-page .documents-panel {
   color: var(--ink);
-  background: #ffffff;
-  font-size: 14px;
+  background: var(--theme-surface);
+  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
 }
 .profile-page .documents-panel .panel-title {
@@ -10,15 +10,15 @@
   gap: 16px;
 }
 .profile-page .documents-panel .panel-title p {
-  color: #465267;
-  background: #ffffff;
-  font-size: 14px;
+  color: var(--theme-muted);
+  background: var(--theme-surface);
+  font-size: var(--text-base);
   line-height: 1.6;
 }
 .profile-page .documents-panel .panel-title .badge {
   color: var(--ink);
-  background: #f2f4f7;
-  font-size: 14px;
+  background: var(--theme-surface-soft);
+  font-size: var(--text-base);
 }
 .profile-page .documents-panel .document-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
@@ -30,7 +30,7 @@
   min-height: 0;
   gap: 12px;
   color: var(--ink);
-  background: #ffffff;
+  background: var(--theme-surface);
 }
 .profile-page .documents-panel .doc-icon {
   width: 48px;
@@ -41,37 +41,37 @@
 }
 .profile-page .documents-panel .document-card h3 {
   color: var(--ink);
-  background: #ffffff;
-  font-size: 16px;
+  background: var(--theme-surface);
+  font-size: var(--text-base);
   line-height: 1.45;
   min-height: 0;
   margin: 0;
 }
 .profile-page .documents-panel .doc-status {
-  color: #465267;
-  background: #f2f4f7;
-  font-size: 14px;
+  color: var(--theme-muted);
+  background: var(--theme-surface-soft);
+  font-size: var(--text-base);
   line-height: 1.5;
   padding: 5px 8px;
   border-radius: 6px;
   margin: 0;
 }
 .profile-page .documents-panel .doc-status.fresh {
-  color: #146342;
-  background: #ecf7ef;
+  color: var(--theme-green);
+  background: var(--theme-success-soft);
 }
 .profile-page .documents-panel .doc-status.stale {
-  color: #8a2417;
-  background: #fff1ed;
+  color: var(--theme-danger);
+  background: var(--theme-danger-soft);
 }
 .profile-page .documents-panel .doc-status.pending {
-  color: #704500;
-  background: #fff5db;
+  color: var(--theme-warning);
+  background: var(--theme-warning-soft);
 }
 .profile-page .documents-panel .document-card > small,
 .profile-page .documents-panel > .fine-print {
-  color: #465267;
-  background: #ffffff;
+  color: var(--theme-muted);
+  background: var(--theme-surface);
   font-size: 13px;
   line-height: 1.6;
   margin: 0;
@@ -81,8 +81,8 @@
   margin-top: 24px;
 }
 .profile-page .documents-panel .file-name {
-  color: #465267;
-  background: #f2f4f7;
+  color: var(--theme-muted);
+  background: var(--theme-surface-soft);
   font-size: 13px;
   line-height: 1.6;
   white-space: normal;
@@ -96,24 +96,24 @@
   padding-top: 8px;
 }
 .profile-page .documents-panel .document-actions .button {
-  color: #ffffff;
-  background: #b5261c;
-  font-size: 14px;
+  color: var(--theme-on-accent);
+  background: var(--theme-red);
+  font-size: var(--text-base);
   min-height: 44px;
   padding: 10px 14px;
   line-height: 1.5;
   text-align: center;
   white-space: normal;
-  border-color: #b5261c;
+  border-color: var(--theme-red);
 }
 .profile-page .documents-panel .text-button,
 .profile-page .documents-panel .document-actions .text-button,
 .profile-page .documents-panel .template-link,
 .profile-page .documents-panel .document-history a,
 .profile-page .documents-panel .document-history summary {
-  color: #384b70;
-  background: #ffffff;
-  font-size: 14px;
+  color: var(--theme-ink);
+  background: var(--theme-surface);
+  font-size: var(--text-base);
   line-height: 1.5;
   min-height: 44px;
   padding: 10px 0;
@@ -126,15 +126,15 @@
 .profile-page .documents-panel .document-history {
   width: 100%;
   color: var(--ink);
-  background: #ffffff;
-  font-size: 14px;
+  background: var(--theme-surface);
+  font-size: var(--text-base);
 }
 .profile-page .documents-panel .document-history a {
   display: block;
 }
 .profile-page .documents-panel button:disabled {
-  color: #465267;
-  background: #e8ebf0;
+  color: var(--theme-muted);
+  background: var(--theme-line);
   opacity: 1;
   cursor: wait;
 }

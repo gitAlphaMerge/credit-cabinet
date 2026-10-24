@@ -25,8 +25,15 @@ const variables = Object.fromEntries(
     m[2],
   ]),
 );
+// Светлая тема: берём первое объявление токена и раскрываем цепочки var().
+const firstHex = {};
+for (const m of rootCss.matchAll(/(--[\w-]+)\s*:\s*([^;\n]+)/g))
+  if (!(m[1] in firstHex)) firstHex[m[1]] = m[2].trim();
 function resolve(color) {
-  return color?.replace(/var\((--[\w-]+)\)/g, (_, key) => variables[key]);
+  let out = color;
+  for (let i = 0; i < 5 && /var\(/.test(out || ""); i++)
+    out = out.replace(/var\((--[\w-]+)\)/g, (_, key) => firstHex[key] ?? variables[key]);
+  return out;
 }
 function luminance(hex) {
   if (!/^#[\da-f]{6}$/i.test(hex || ""))

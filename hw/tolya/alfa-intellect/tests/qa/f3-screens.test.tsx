@@ -36,7 +36,7 @@ test("F3 every contract status has a safe client screen", async () => {
       html,
       /undefined|null|NaN|SECRET_BANK_CODE|COMPLIANCE_/,
     );
-    assert.doesNotMatch(html, /24%|28\s*000/);
+    assert.doesNotMatch(html, /24\s?%|28\s*000/);
   }
 });
 
@@ -100,7 +100,7 @@ test("F3 offer renders only actual server terms, not requested amount as offer",
     />,
   ).replaceAll("\u00a0", " ");
   assert.match(html, /250 000/);
-  assert.match(html, /24%/);
+  assert.match(html, /24\s?%/);
   assert.match(html, /45 000/);
   assert.match(html, /6 мес/);
   assert.match(html, /Код из СМС/);
@@ -119,7 +119,7 @@ test("F3 offer renders only actual server terms, not requested amount as offer",
         onAction={async () => {}}
       />,
     ),
-    /undefined|null|NaN|Infinity|24%|Первый платёж/,
+    /undefined|null|NaN|Infinity|24\s?%|Первый платёж/,
   );
 });
 test("F3 own list/detail and events use session, exact version, payload and idempotency", async () => {

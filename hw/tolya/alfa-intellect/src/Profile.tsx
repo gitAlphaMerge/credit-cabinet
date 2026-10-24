@@ -354,7 +354,7 @@ export function ProfilePage() {
               statement: "statement",
               balance: "balance",
               pnl: "income",
-              model: "reconciliation",
+              model: "questionnaire",
               plan: "business-plan",
               schedule: "debt-schedule",
             };
