@@ -300,7 +300,7 @@ export function ProfilePage() {
                   ).code === "fresh",
               ).length
             }{" "}
-            актуальных
+            из 6 актуальны
           </Badge>
         </div>
         <div className="document-grid">

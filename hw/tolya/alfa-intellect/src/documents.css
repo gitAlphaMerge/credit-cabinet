@@ -144,3 +144,22 @@
   outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
+/* Действия прижаты к низу карточки: кнопки соседних карточек стоят на одной линии. */
+.profile-page .documents-panel .document-card {
+  display: flex;
+  flex-direction: column;
+}
+.profile-page .documents-panel .document-actions {
+  margin-top: auto;
+}
+/* Ссылки после действий поднимаем выше, чтобы блок действий был последним и стоял по одной линии. */
+.profile-page .documents-panel .document-card > .document-actions {
+  order: 2;
+}
+.profile-page .documents-panel .document-card > .document-actions ~ * {
+  order: 1;
+}
+.profile-page .documents-panel .document-card > .document-actions {
+  min-height: 104px;
+  justify-content: flex-start;
+}
