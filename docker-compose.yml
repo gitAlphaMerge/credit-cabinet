@@ -2,8 +2,7 @@ services:
   api:
     restart: unless-stopped
     build: ./services/api
-    ports:
-      - "8080:8080"
+    # Доступен сервисам по api:8080; наружу только allowlist nginx.
     environment:
       - ML_URL=http://ml-model:5000   # провод Тёмы: /score уходит в окошко
       - PORT=8080
