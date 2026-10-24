@@ -193,14 +193,16 @@ def select_instrument(need, questionnaire):
     purpose = need.get("purpose", "")
     years = questionnaire.get("years", "")
     
-    # Если бизнесу меньше года -> только ручной маршрут (согласно таблице N11)
     if years == "меньше года":
         return "MANUAL"
         
     if purpose == "кассовый разрыв": return "OVERDRAFT"
     elif purpose == "оборудование": return "INVEST"
     elif purpose == "сезон": return "RCL"
-    elif purpose == "закупка под контракт": return "NCL"
+    
+    # ИСПРАВЛЕНО: разовая закупка под контракт - это WORKING, а не NCL
+    elif purpose == "закупка под контракт": return "WORKING" 
+    
     elif purpose == "рост": return "INVEST" 
     elif purpose == "рефинансирование": return "REFI"
     
@@ -242,12 +244,13 @@ def calculate_scorecard(dscr, cv, debt_load, top_share, cash_gaps_count):
     return score, reasons
 
 def make_decision(score, stops, need, limit_now, limit_after, instrument, missing, reasons):
+    # ручной маршрут - сразу к менеджеру (перебивает любые стопы)
+    if instrument == "MANUAL":
+        return "нужен менеджер", missing, reasons
+
     if stops:
         if "SHORT_STATEMENT" in stops:
             return "можно после шага", missing, reasons
-        return "нужен менеджер", missing, reasons
-
-    if instrument == "MANUAL":
         return "нужен менеджер", missing, reasons
 
     if need["amount_rub"] <= limit_now:
