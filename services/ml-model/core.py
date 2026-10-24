@@ -430,20 +430,31 @@ def calculate_scorecard(dscr, cv, debt_load, top_share, cash_gaps_count):
     return score, reasons
 
 def make_decision(score, stops, need, limit_now, limit_after, instrument, missing, reasons):
-    # ручной маршрут - сразу к менеджеру (перебивает любые стопы)
+    # context/stop-rules.md: поведенческий стоп имеет приоритет над документным.
+    behavioral = {"ENFORCEMENT", "CASH_OUT", "NOT_BUSINESS", "NO_FREE_CASHFLOW", "OVERDUE_DEBT"}
+    if behavioral.intersection(stops):
+        return "нужен менеджер", missing, reasons
+    # context/stop-rules.md: неподходящая цель или возраст ведут к другому продукту.
+    if "RESTRICTED_PURPOSE" in stops or "TOO_YOUNG" in stops:
+        return "лучше другой инструмент", missing, reasons
     if instrument == "MANUAL":
+        if not stops and not reasons:
+            reasons.append("MANUAL_REVIEW")
         return "нужен менеджер", missing, reasons
-
-    if stops:
-        if "SHORT_STATEMENT" in stops:
-            return "можно после шага", missing, reasons
-        return "нужен менеджер", missing, reasons
-
+    # context/stop-rules.md: короткая выписка и недостающие документы требуют шага.
+    if "SHORT_STATEMENT" in stops or missing:
+        if not stops and not reasons:
+            reasons.append("MISSING_DOCUMENTS")
+        return "можно после шага", missing, reasons
     if need["amount_rub"] <= limit_now:
         return "можно подавать", missing, reasons
     if need["amount_rub"] <= limit_after:
+        if not reasons:
+            reasons.append("LIMIT_AFTER_STEP")
         return "можно после шага", missing, reasons
-
+    # context/stop-rules.md, «Статус, если стопов нет»: выше обоих лимитов нужен менеджер.
+    if not reasons:
+        reasons.append("AMOUNT_EXCEEDS_LIMIT")
     return "нужен менеджер", missing, reasons
 
 def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None):
@@ -471,12 +482,15 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
     # Стопы
     stops = []
     if questionnaire.get("form") not in ("ИП", "ООО"): stops.append("NOT_BUSINESS")
-    if questionnaire.get("years") == "меньше года" or n < p["min_months"]: stops.append("TOO_YOUNG")
+    # context/stop-rules.md: возраст бизнеса берём из анкеты, длину выписки отмечаем отдельно.
+    if questionnaire.get("years") == "меньше года": stops.append("TOO_YOUNG")
     if n < p["full_months"] or len(rows) < p["min_ops"]: stops.append("SHORT_STATEMENT")
     if flow <= 0: stops.append("NO_FREE_CASHFLOW")
     if any(r["label"] == "enforcement" for r in rows): stops.append("ENFORCEMENT")
     cash_total = -sum(r["amount"] for r in rows if r["label"] == "cash")
-    if inflow_total > 0 and cash_total / inflow_total > p["cash_share"]: stops.append("CASH_OUT")
+    # context/stop-rules.md: CASH_OUT считаем независимо от свободного потока.
+    cash_share = cash_total / inflow_total if inflow_total > 0 else 0.0
+    if cash_share > p["cash_share"]: stops.append("CASH_OUT")
 
     # Причины
     reasons = []
@@ -521,7 +535,8 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
     # Считаем платеж по запрашиваемому кредиту
     requested_payment = need["amount_rub"] / a if a > 0 else 0
     # DSCR = Свободный поток (уже с вычетом старых кредитов) / Платеж по новому кредиту
-    dscr = round(flow / requested_payment, 2) if requested_payment > 0 else 0
+    # context/core.md: порог 1.25 применяется до округления показателя для экрана.
+    dscr = flow / requested_payment if requested_payment > 0 else 0
 
     # Лимит (сколько МОЖЕМ выдать безопасно при DSCR 1.25)
     safe_payment = max(flow, 0.0) / p["dscr_min"]
@@ -564,5 +579,10 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
             "flow_by_month": {m: round(v) for m, v in m_flow.items()},
             "dossier": dossier["evidence"],
             "product_match": product_match,
+            "cash_share": cash_share,
+            "dscr": dscr,
+            "top_share": top_share,
+            "limit_now_rub": round(limit_now),
+            "limit_after_rub": round(limit_after),
         },
     }
