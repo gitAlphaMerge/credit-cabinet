@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Sparkles,
   ArrowUpRight,
@@ -42,7 +42,7 @@ export const heroScenes = [
     hint: "Сравнивайте нагрузку до решения",
   },
 ];
-export function HeroFinance() {
+export function HeroFinance({ pattern }: { pattern?: ReactNode } = {}) {
   const root = useRef<HTMLDivElement>(null),
     reduced = useReducedMotion();
   const [scene, setScene] = useState(0),
@@ -77,41 +77,50 @@ export function HeroFinance() {
   return (
     <div
       ref={root}
-      className="hero-visual finance-theatre"
+      className={
+        "hero-visual finance-theatre" + (pattern ? " with-pattern" : "")
+      }
       data-playing={playing}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       aria-label="Анимированный пример возможностей кабинета"
     >
-      <div className="finance-aura" aria-hidden="true" />
-      <div className="finance-orbits" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <span className="orbit-satellite">
-          <FileCheck2 size={19} />
-        </span>
-        <span className="orbit-satellite second">
-          <WalletCards size={19} />
-        </span>
-      </div>
-      <div className="finance-core" aria-hidden="true">
-        <span />
-        <Sparkles size={42} strokeWidth={1.5} />
-        <i />
-      </div>
-      <div className="finance-signal" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="finance-live-label">
-        <span className="motion-status-dot" /> Данные. Расчёт. Следующий шаг.
-      </div>
+      {pattern ? (
+        <div className="finance-pattern">{pattern}</div>
+      ) : (
+        <>
+          <div className="finance-aura" aria-hidden="true" />
+          <div className="finance-orbits" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <span className="orbit-satellite">
+              <FileCheck2 size={19} />
+            </span>
+            <span className="orbit-satellite second">
+              <WalletCards size={19} />
+            </span>
+          </div>
+          <div className="finance-core" aria-hidden="true">
+            <span />
+            <Sparkles size={42} strokeWidth={1.5} />
+            <i />
+          </div>
+          <div className="finance-signal" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="finance-live-label">
+            <span className="motion-status-dot" /> Данные. Расчёт. Следующий
+            шаг.
+          </div>
+        </>
+      )}
       <div
         className="finance-scene-card"
         key={scene}

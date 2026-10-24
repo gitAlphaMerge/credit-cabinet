@@ -57,3 +57,13 @@ test("Подготовка: доступный прогресс, переход 
   assert.match(html, /Перейти сразу/);
   assert.ok(!preparationStages.some((s) => /обучаем|инфраструктуру/i.test(s)));
 });
+test("Хиро главной: узор внутри сцены, карточки расчёта и управление на месте", () => {
+  const html = renderToStaticMarkup(
+    <HeroFinance pattern={<div className="live-pattern" />} />,
+  );
+  assert.match(html, /finance-theatre with-pattern/);
+  assert.match(html, /class="finance-pattern"><div class="live-pattern"/);
+  assert.match(html, /finance-scene-card/);
+  assert.match(html, /Приостановить анимацию/);
+  assert.doesNotMatch(html, /finance-orbits/);
+});

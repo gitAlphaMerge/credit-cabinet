@@ -894,3 +894,44 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* Главная: живой узор внутри сцены Толи, карточки расчёта поверх угла узора. */
+.hero-visual.finance-theatre.with-pattern {
+  min-height: 580px;
+}
+.finance-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64%;
+}
+.with-pattern .finance-scene-card {
+  top: 24%;
+  width: 54%;
+  padding: 20px 22px 14px;
+}
+.with-pattern .finance-scene-card strong {
+  font-size: clamp(28px, 3vw, 38px);
+}
+.with-pattern .finance-insight {
+  left: 0;
+  bottom: 12%;
+  width: 44%;
+}
+@media (max-width: 760px) {
+  .hero-visual.finance-theatre.with-pattern {
+    min-height: 0;
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .with-pattern > .finance-pattern,
+  .with-pattern > .finance-scene-card,
+  .with-pattern > .finance-insight,
+  .with-pattern > .finance-controls {
+    position: relative;
+    inset: auto;
+    width: 100%;
+  }
+}

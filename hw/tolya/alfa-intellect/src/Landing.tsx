@@ -16,6 +16,7 @@ import {
 import { Brand, Button, Badge, SectionTitle } from "./ui";
 import { useEffect, useRef } from "react";
 import { LivePattern } from "./LivePattern";
+import { HeroFinance } from "./HeroFinance";
 export function Landing({ go }: { go: (s: string) => void }) {
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -93,7 +94,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
               </span>
             </div>
           </div>
-          <LivePattern />
+          <HeroFinance pattern={<LivePattern />} />
         </section>
         <section className="benefit-strip wrap">
           {[

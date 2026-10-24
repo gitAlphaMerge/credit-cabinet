@@ -328,7 +328,7 @@ test("G3: hero подключён, сетка резервирует квадр�
     landing.indexOf('<section className="benefit-strip'),
   );
   assert.match(hero, /<LivePattern \/>/);
-  assert.doesNotMatch(hero, /HeroFinance/);
+  assert.match(hero, /<HeroFinance pattern=\{<LivePattern \/>\} \/>/);
   assert.ok(
     hero.indexOf("<LivePattern") > hero.indexOf('className="hero-copy"'),
   );
