@@ -88,17 +88,25 @@ class DecisionProperties(unittest.TestCase):
 
     def test_money_unit_scale_invariant(self):
         """Умножение каждой суммы и потребности на три для 200 портфелей."""
+        compared = 0
         for seed in range(200):
             rows = statement(seed)
-            before = self.evaluate(rows)
+            # Сумма внутри границ ALFA_OVERDRAFT каталога и до, и после умножения.
+            base = {**self.need, "amount_rub": 400_000}
+            before = self.evaluate(rows, base)
             scaled = [(date, amount * 3, cp, purpose)
                       for date, amount, cp, purpose in rows]
-            need = {**self.need, "amount_rub": self.need["amount_rub"] * 3}
+            need = {**base, "amount_rub": base["amount_rub"] * 3}
             after = self.evaluate(scaled, need)
+            # Лимиты каталога заданы в абсолютных рублях: при смене продукта масштаб не инвариант.
+            if before["instrument"] != after["instrument"]:
+                continue
+            compared += 1
             with self.subTest(seed=seed):
                 self.assertEqual(before["status"], after["status"])
                 for key in ("cash_share", "dscr", "top_share", "months"):
                     self.assertAlmostEqual(before["evidence"][key], after["evidence"][key])
+        self.assertGreaterEqual(compared, 100)
 
     def test_cash_boundary_and_independent_stops(self):
         """Ровно 30% не стоп, рубль сверх порога стоп даже при отрицательном потоке."""
@@ -117,7 +125,8 @@ class DecisionProperties(unittest.TestCase):
         """1.246 ниже порога 1.25, хотя для экрана это 1.25."""
         self.assertIn("LOW_DSCR", core.calculate_scorecard(1.246, 0.1, 0.1, 0.2, 0)[1])
         rows = statement(42)
-        payment = self.need["amount_rub"] / core.annuity_factor(core.PRODUCTS_DB["OVERDRAFT"]["rate"], 12)
+        instrument = self.evaluate(rows)["instrument"]
+        payment = self.need["amount_rub"] / core.annuity_factor(core.PRODUCTS_DB[instrument]["rate"], 12)
         current_flow = sum(amount for _, amount, _, _ in rows) / 12
         delta = (payment * 1.246 - current_flow) * 12
         rows.append(("2026-06-15", delta, "ООО Поставщик", "Материалы"))
