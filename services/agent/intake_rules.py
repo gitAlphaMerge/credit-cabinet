@@ -4,6 +4,7 @@ LLM-приёмщик обязан обыграть его на тех же фр�
 Разбор знает, о чём агент спросил (`asking`): «12 месяцев» в ответе про срок не станет суммой.
 """
 import re
+from difflib import SequenceMatcher
 
 INTENTS = {"answer_slot", "side_question", "identity", "manager_request", "pii", "smalltalk"}
 PII_DIGITS = re.compile(r"(?<!\d)(?:\d[ \u00a0-]*){10,19}(?!\d)")
@@ -36,12 +37,30 @@ def intent(text: str, asking: str | None = None) -> str:
     return "answer_slot"
 
 PURPOSES = {
-    "оборудование": ("оборудован", "станок", "станк", "техник", "печь", "грузовик", "фургон"),
-    "закупка под контракт": ("под контракт", "под заказ", "госконтракт", "тендер", "закуп", "под объект"),
-    "сезон": ("сезон", "весн", "к лету", "новому году", "к зиме"),
-    "рост": ("развит", "рост", "расшир", "открыть", "найм", "нанять", "маркетинг"),
-    "кассовый разрыв": ("разрыв", "зарплат", "до оплаты", "платит позже", "платит через", "оборотк", "налог"),
+    # Timing and committed purchases outrank generic assets or expansion.
+    "кассовый разрыв": (r"разрыв", r"зарплат", r"\bзп\b", r"\bдо\s+оплат", r"оборотк", r"налог",
+                        r"(?:за)?плат\w*\s+(?:только\s+)?(?:позже|через)",
+                        r"задерж\w*\s+(?:оплат|перевод)",
+                        r"деньг\w*[^.!?]*в пути", r"должны[^.!?]*позже",
+                        r"аренд\w*[^.!?]*до\s+(?:поступлен|получен|оплат)"),
+    "закупка под контракт": (r"под\s+(?:контракт|заказ|договор|объект)", r"госконтракт", r"тендер"),
+    "сезон": (r"сезон", r"весн", r"к лету", r"новому году", r"к зиме", r"праздник", r"наплыв"),
+    "рост": (r"развит", r"\bрост", r"расшир", r"откр", r"найм", r"нанять", r"маркетинг",
+             r"ремонт", r"отделк", r"магазин", r"филиал", r"реклам", r"\bсайт",
+             r"(?:втор\w*|нов\w*)\s+точк", r"аренд\w*\s+(?:помещен|склад)",
+             r"снять\s+(?:помещен|склад)", r"выход\w*[^.!?]*город", r"маркетплейс"),
+    "оборудование": (r"оборудован", r"станок", r"станк", r"техник", r"печ[ьи]", r"грузовик", r"фургон",
+                     r"\bмашин[ауые]\b", r"аппарат", r"камер", r"резак", r"принтер", r"витрин",
+                     r"под[ъь]емник", r"холодильн", r"морозильн", r"\bплит[ауы]\b", r"\bлини[яию]",
+                     r"\bтесто", r"\bкофе[а-я]*маш"),
 }
+
+
+def _fuzzy_stem(text: str, stem: str) -> bool:
+    """Compare long prefixes only: tolerate typos without fuzzing short words."""
+    return any(len(word) >= len(stem) and
+               SequenceMatcher(None, word[:len(stem)], stem).ratio() >= 0.8
+               for word in re.findall(r"[а-я]+", text))
 
 _NUM = r"(\d+(?:[  ]\d{3})*(?:[.,]\d+)?)"
 _UNIT = r"\s*(млн|миллион\w*|лям\w*|тыс\w*|т\.р\.|к)?(?![а-яё])"
@@ -89,10 +108,21 @@ def term_months(text: str) -> int | None:
 
 
 def purpose(text: str) -> str | None:
-    low = text.lower()
+    low = text.lower().replace("ё", "е")
     for name, keys in PURPOSES.items():
-        if any(k in low for k in keys):
+        if name == "закупка под контракт" and (
+            re.search(r"договор|\bзаказ\b|заказ[ауом]+\b", low)
+            and ("подпис" in low or _fuzzy_stem(low, "подпис"))
+            and re.search(r"материал|сырь|ткан|товар|закуп|куп|оплат", low)
+        ):
             return name
+        if any(re.search(k, low) for k in keys):
+            return name
+    if _fuzzy_stem(low, "кофемаш"):
+        return "оборудование"
+    # Preserve the legacy generic procurement interpretation, after specific goals.
+    if "закуп" in low:
+        return "закупка под контракт"
     return None
 
 

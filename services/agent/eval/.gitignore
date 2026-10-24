@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.pytest_cache/
+inspect/logs/
+inspect/.runtime/
+reports/*-console.txt

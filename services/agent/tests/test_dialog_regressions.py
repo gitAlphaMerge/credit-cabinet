@@ -12,8 +12,9 @@ class DialogRegressions(unittest.TestCase):
     def test_repeated_slot_changes_question_then_offers_manager(self):
         state = dialog.new_state({"form": "ИП"})
         first = dialog.turn(state, "")
-        second = dialog.turn(state, "на бизнес")
-        third = dialog.turn(state, "для дела")
+        # Other slots do not answer the purpose question, so retries still apply.
+        second = dialog.turn(state, "2 млн")
+        third = dialog.turn(state, "12 месяцев")
         self.assertNotEqual(first, second)
         self.assertIn("кассов", second.lower())
         self.assertIn("менеджер", third.lower())

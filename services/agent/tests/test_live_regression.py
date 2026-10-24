@@ -49,7 +49,7 @@ def test_fields_apply_for_every_intent(intent):
     assert state["need"]["purpose"] == "оборудование"
     assert state["trace"][-1]["fields"]["amount_rub"] == 1000000
     assert state["asking"] == "repay"
-    assert "Цель понял." in state["trace"][-1]["reply"]
+    assert "Цель записал." in state["trace"][-1]["reply"]
     if intent == "smalltalk":
         assert state["trace"][-1]["intent"] == "answer_slot"
 

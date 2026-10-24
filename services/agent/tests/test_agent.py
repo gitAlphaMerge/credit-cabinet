@@ -92,7 +92,7 @@ def test_router_asks_purpose_first_then_repay():
     state = dialog.new_state({"form": "ООО", "years": "больше 3"})
     assert dialog.turn(state, "") in dialog.QUESTIONS["purpose"]
     reply = dialog.turn(state, "Нужно 1,5 млн, заказчик платит позже")
-    assert reply.startswith("Цель понял. Сумму записал.")
+    assert reply.startswith("Цель записал. Сумму записал.")
     assert any(reply.endswith(question) for question in dialog.QUESTIONS["repay"])
 
 
