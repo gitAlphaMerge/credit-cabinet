@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageSquare, ArrowUp } from "lucide-react";
+import { MessageSquare, ArrowUp, RotateCw } from "lucide-react";
 import { api } from "./api";
 import { MarkdownText } from "./MarkdownText";
 import type { Chat } from "../shared/types";
@@ -23,7 +23,8 @@ export function ApplicationAgent({
   const [chat, setChat] = useState<Chat>(),
     [draft, setDraft] = useState(""),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [retry, setRetry] = useState<{ text: string; id?: string } | null>(null);
   const lock = useRef(false),
     messages = useRef<HTMLDivElement>(null),
     path = `/mvp2/applications/${application.id}/chat`;
@@ -34,7 +35,10 @@ export function ApplicationAgent({
         if (current) setChat(c);
       })
       .catch((e) => {
-        if (current) setError(e.message);
+        if (current)
+          setError(
+            "Не удалось загрузить переписку. Анкету можно продолжить заполнять.",
+          );
       });
     return () => {
       current = false;
@@ -46,22 +50,40 @@ export function ApplicationAgent({
       behavior: "instant",
     });
   }, [chat?.messages.length, busy]);
-  async function send() {
-    if (lock.current || !draft.trim()) return;
+  async function send(previous?: { text: string; id?: string }) {
+    const text = previous?.text ?? draft.trim();
+    if (lock.current || !text) return;
     lock.current = true;
     setBusy(true);
     setError("");
-    const text = draft.trim();
-    setDraft("");
+    if (!previous) setDraft("");
+    setRetry(null);
     try {
       await api(path, { section });
-      setChat(await api(path, { text }));
+      setChat(
+        await api(
+          path,
+          previous?.id ? { retryMessageId: previous.id } : { text },
+        ),
+      );
     } catch (e) {
-      setError((e as Error).message);
+      setError(
+        "Сейчас помощник не может ответить. Вы можете продолжить заполнение анкеты.",
+      );
       try {
-        setChat(await api(path, { section }));
-      } catch {}
-      setDraft(text);
+        const saved = await api<Chat>(path, { section });
+        setChat(saved);
+        const last = saved.messages.at(-1);
+        if (last?.role === "user" && last.text === text) {
+          setRetry({ text, id: last.id });
+          setError(
+            "Вопрос сохранён. Помощник сейчас недоступен — попробуйте ещё раз позже.",
+          );
+        } else if (last?.role === "assistant") setError("");
+        else setRetry({ text });
+      } catch {
+        setRetry({ text });
+      }
     } finally {
       lock.current = false;
       setBusy(false);
@@ -79,7 +101,13 @@ export function ApplicationAgent({
           <small>
             {application.decision
               ? "Обсуждение решения"
-              : "В контексте текущего раздела"}
+              : [
+                  "Компания",
+                  "Финансы",
+                  "Обязательства",
+                  "Особенности",
+                  "Финансирование",
+                ][section]}
           </small>
         </div>
       </header>
@@ -97,9 +125,8 @@ export function ApplicationAgent({
         aria-live="polite"
       >
         {!chat?.messages.length && (
-          <p className="muted">
-            Спросите о заполнении анкеты, документах или условиях. История
-            останется в этой заявке.
+          <p className="application-agent-empty">
+            Задайте вопрос — помогу разобраться с анкетой и условиями.
           </p>
         )}
         {chat?.messages.map((m) => (
@@ -108,12 +135,36 @@ export function ApplicationAgent({
             <MarkdownText text={m.text} />
           </article>
         ))}
-        {busy && <p role="status">Готовим ответ…</p>}
+        {busy && (
+          <p className="agent-typing" role="status">
+            <i />
+            <i />
+            <i />
+            <span className="visually-hidden">Готовим ответ…</span>
+          </p>
+        )}
       </div>
       {error && (
-        <p className="mvp-error" role="alert">
-          {error}
-        </p>
+        <div className="agent-unavailable" role="status">
+          <small>{error}</small>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              retry
+                ? void send(retry)
+                : void api<Chat>(path, { section })
+                    .then((c) => {
+                      setChat(c);
+                      setError("");
+                    })
+                    .catch(() => {})
+            }
+          >
+            <RotateCw size={13} />
+            Повторить
+          </button>
+        </div>
       )}
       <div className="application-agent-prompts">
         {["Что указать в этом разделе?", "Как подготовить выписку CSV?"].map(

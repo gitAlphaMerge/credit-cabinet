@@ -10,7 +10,7 @@ import {
   stateOf,
   saveState,
 } from "./store";
-import { onboardingSchema, questionnaireSchema } from "../shared/mvp2";
+import { onboardingSchema, questionnaireInputSchema } from "../shared/mvp2";
 import { createMvp } from "./mvp2";
 
 db.exec(`CREATE TABLE IF NOT EXISTS mvp2_guests(user_id TEXT PRIMARY KEY REFERENCES users(id));
@@ -41,7 +41,7 @@ export function readDraft(req: Request, res: Response) {
     row && row.version === a.version ? JSON.parse(row.data as string) : null,
   );
 }
-const draftQuestionnaire = questionnaireSchema.extend({
+const draftQuestionnaire = questionnaireInputSchema.extend({
   inn: z.string().regex(/^\d{0,12}$/),
   amount: z.number().min(0).max(1e12).nullable(),
   term: z.number().int().min(0).max(120).nullable(),
@@ -52,7 +52,9 @@ export function saveDraft(req: Request, res: Response) {
       applicationId: z.string().uuid(),
       version: z.number().int().positive(),
       questionnaire: draftQuestionnaire,
+      onboarding: onboardingDraft.optional(),
       section: z.number().int().min(0).max(4),
+      sequence: z.number().int().nonnegative().optional(),
     })
     .strict()
     .parse(req.body);
@@ -67,6 +69,21 @@ export function saveDraft(req: Request, res: Response) {
     !(a.lifecycle === "DRAFT" || a.decision === "ADDITIONAL_DATA_REQUIRED")
   ) {
     res.status(409).json({ error: "Черновик уже изменился" });
+    return;
+  }
+  const previous = db
+    .prepare(
+      "SELECT version,data FROM mvp2_draft_buffers WHERE application_id=?",
+    )
+    .get(a.id);
+  if (
+    value.sequence !== undefined &&
+    previous?.version === value.version &&
+    (JSON.parse(previous.data as string).sequence ?? 0) > value.sequence
+  ) {
+    res
+      .status(409)
+      .json({ error: "Сохранён более новый черновик. Обновите данные." });
     return;
   }
   db.prepare(
@@ -167,32 +184,68 @@ export function bootstrapJourney(req: Request, res: Response) {
 const draftShape = Object.fromEntries(
   Object.entries(onboardingSchema.shape).map(([k, v]) => [
     k,
-    k === "term" ? v : v.or(z.literal("")),
+    k === "term"
+      ? v
+      : k === "amount"
+        ? z.number().int().min(0).max(1e12).nullable().optional()
+        : v.or(z.literal("")),
   ]),
 );
 const onboardingDraft = z.object(draftShape);
 export function saveOnboarding(req: Request, res: Response) {
   const value = z
-    .object({ answers: onboardingDraft, step: z.number().int().min(0).max(2) })
+    .object({
+      answers: onboardingDraft,
+      step: z.number().int().min(0).max(2),
+      sequence: z.number().int().nonnegative().optional(),
+    })
     .strict()
     .parse(req.body);
   const uid = res.locals.userId;
+  if (
+    value.sequence !== undefined &&
+    (readJourney(uid).onboardingSequence ?? 0) > value.sequence
+  ) {
+    res
+      .status(409)
+      .json({ error: "Сохранены более новые ответы. Обновите страницу." });
+    return;
+  }
   writeJourney(uid, {
     ...readJourney(uid),
     onboarding: value.answers,
     onboardingStep: value.step,
+    ...(value.sequence !== undefined
+      ? { onboardingSequence: value.sequence }
+      : {}),
   });
   res.json({ ok: true });
 }
 export function completeOnboarding(req: Request, res: Response) {
   const answers = onboardingSchema.parse(req.body.answers),
     uid = res.locals.userId;
+  const existing = readJourney(uid).applicationId;
+  if (existing) {
+    const saved = db
+      .prepare(
+        "SELECT d.data FROM mvp2_dossiers d JOIN applications a ON a.id=d.application_id WHERE a.id=? AND a.user_id=?",
+      )
+      .get(existing, uid);
+    if (saved && JSON.parse(saved.data as string).lifecycle !== "DRAFT") {
+      res.status(409).json({
+        error:
+          "У вас уже есть отправленная заявка. Продолжите её рассмотрение.",
+        next: "/apply",
+      });
+      return;
+    }
+  }
   const a = createMvp(db, uid, answers),
     s = stateOf(uid);
-  s.profile.mvp2Answers = answers;
+  s.profile.mvp2Answers = a.onboarding;
   saveState(uid, s);
   writeJourney(uid, {
-    onboarding: answers,
+    onboarding: a.onboarding,
     onboardingStep: 2,
     applicationId: a.id,
     view: "recommendation",
@@ -224,14 +277,33 @@ export function saveJourneyPosition(req: Request, res: Response) {
     })
     .strict()
     .parse(req.body);
-  if (
-    !db
-      .prepare("SELECT id FROM applications WHERE id=? AND user_id=?")
-      .get(data.applicationId, res.locals.userId)
-  ) {
+  const application = db
+    .prepare("SELECT id FROM applications WHERE id=? AND user_id=?")
+    .get(data.applicationId, res.locals.userId);
+  if (!application) {
     res.status(404).json({ error: "Заявка не найдена" });
     return;
   }
+  const dossier = db
+    .prepare("SELECT data FROM mvp2_dossiers WHERE application_id=?")
+    .get(data.applicationId);
+  const a = dossier ? JSON.parse(dossier.data as string) : null;
+  if (a && ["SUBMITTED", "PROCESSING"].includes(a.lifecycle))
+    data.view = "processing";
+  else if (
+    a &&
+    (a.error ||
+      (a.decision &&
+        [
+          "recommendation",
+          "catalog",
+          "intro",
+          "questionnaire",
+          "dossier",
+          "processing",
+        ].includes(data.view)))
+  )
+    data.view = "decision";
   writeJourney(res.locals.userId, {
     ...readJourney(res.locals.userId),
     ...data,

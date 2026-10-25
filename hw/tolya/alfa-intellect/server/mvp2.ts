@@ -7,6 +7,9 @@ import {
   recommend,
   initialQuestionnaire,
   questionnaireSchema,
+  questionnaireErrors,
+  normalizeQuestionnaire,
+  amountBand,
   onboardingSchema,
   type MvpApplication,
   type Questionnaire,
@@ -23,6 +26,9 @@ import {
   type CoreClient,
 } from "./applications";
 import { findCompany } from "./registry";
+import { innError } from "../shared/inn";
+import { industryFromOkved } from "../shared/company";
+import { migrateDraftAmounts } from "./mvp2-migration";
 import {
   checkCreditHistory,
   checkAml,
@@ -32,6 +38,7 @@ import {
 import { aggregateStatements, type Statement } from "./mvp2-statements";
 
 export function migrateMvp2(db: DatabaseSync) {
+  migrateDraftAmounts(db);
   db.exec(`CREATE TABLE IF NOT EXISTS mvp2_dossiers(application_id TEXT PRIMARY KEY REFERENCES applications(id),data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS mvp2_revisions(application_id TEXT NOT NULL REFERENCES applications(id),version INTEGER NOT NULL,snapshot TEXT NOT NULL,core_result TEXT,PRIMARY KEY(application_id,version));
     CREATE TABLE IF NOT EXISTS mvp2_checks(application_id TEXT NOT NULL REFERENCES applications(id),version INTEGER NOT NULL,data TEXT NOT NULL,at TEXT NOT NULL,PRIMARY KEY(application_id,version));
@@ -112,6 +119,28 @@ function save(
     JSON.stringify(a),
     a.id,
   );
+  if (
+    ["mvp2_submit", "mvp2_decision", "mvp2_processing_error"].includes(event) &&
+    db.prepare("SELECT name FROM sqlite_master WHERE name='mvp2_journey'").get()
+  ) {
+    const saved = db
+      .prepare("SELECT data FROM mvp2_journey WHERE user_id=?")
+      .get(old.user_id);
+    const journey = saved ? JSON.parse(saved.data as string) : {};
+    db.prepare(
+      "INSERT INTO mvp2_journey VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data",
+    ).run(
+      old.user_id,
+      JSON.stringify({
+        ...journey,
+        applicationId: a.id,
+        onboarding: a.onboarding,
+        view: ["SUBMITTED", "PROCESSING"].includes(a.lifecycle)
+          ? "processing"
+          : "decision",
+      }),
+    );
+  }
   db.prepare(
     "UPDATE applications SET status=?,amount=?,term_months=?,purpose=?,version=?,updated_at=? WHERE id=?",
   ).run(
@@ -157,16 +186,20 @@ function requireVersion(a: MvpApplication, version: number) {
     );
 }
 export function createMvp(db: DatabaseSync, uid: string, raw: unknown) {
+  const onboarding = onboardingSchema.parse(raw);
+  if (onboarding.amount !== undefined)
+    onboarding.amountRange = amountBand(onboarding.amount);
   const existing = db
     .prepare(
       "SELECT d.data FROM mvp2_dossiers d JOIN applications a ON a.id=d.application_id WHERE a.user_id=? ORDER BY a.created_at DESC",
     )
     .all(uid)
     .map((r) => JSON.parse(r.data as string) as MvpApplication)
-    .find((a) => a.lifecycle === "DRAFT" && hash(a.onboarding) === hash(raw));
+    .find(
+      (a) => a.lifecycle === "DRAFT" && hash(a.onboarding) === hash(onboarding),
+    );
   if (existing) return existing;
-  const onboarding = onboardingSchema.parse(raw),
-    q = initialQuestionnaire(onboarding),
+  const q = initialQuestionnaire(onboarding),
     id = randomUUID(),
     now = new Date().toISOString();
   const a: MvpApplication = {
@@ -296,21 +329,30 @@ export async function registryMvp(
   uid: string,
   id: string,
   version: number,
+  inn?: string,
 ) {
   const a = mvpGet(db, id, uid);
   requireVersion(a, version);
   if (a.lifecycle !== "DRAFT" && a.decision !== "ADDITIONAL_DATA_REQUIRED")
     throw new ApplicationError(409, "Заявка уже рассматривается");
-  if (!a.questionnaire.consents.registry)
-    throw new ApplicationError(
-      422,
-      "Нужно отдельное согласие на проверку компании.",
-    );
-  const company = await findCompany(a.questionnaire.inn, {
+  const requestedInn = inn ?? a.questionnaire.inn;
+  if (innError(requestedInn))
+    throw new ApplicationError(422, innError(requestedInn));
+  // Public registration details only. BKI/AML remain consent-gated in processMvp.
+  const company = await findCompany(requestedInn, {
     EGR_PROVIDER: "mock",
   });
   const fresh = mvpGet(db, id, uid);
   requireVersion(fresh, version);
+  if (fresh.questionnaire.inn !== requestedInn) {
+    fresh.questionnaire.inn = requestedInn;
+    fresh.questionnaire.authorized = false;
+    fresh.questionnaire.consents = {
+      registry: false,
+      financial: false,
+      bki: false,
+    };
+  }
   fresh.company = company;
   fresh.questionnaire.companyConfirmed = false;
   if (fresh.decision === "ADDITIONAL_DATA_REQUIRED")
@@ -403,29 +445,12 @@ export function attachStatement(
   });
   return a;
 }
-export function industryFromOkved(code = "") {
-  const n = Number(code.split(".")[0]);
-  return n <= 3
-    ? "Сельское хозяйство"
-    : n >= 10 && n <= 33
-      ? "Производство"
-      : n >= 41 && n <= 43
-        ? "Строительство"
-        : n >= 45 && n <= 47
-          ? "Торговля и маркетплейсы"
-          : n >= 49 && n <= 53
-            ? "Логистика и транспорт"
-            : n === 56
-              ? "Общепит"
-              : n >= 62 && n <= 63
-                ? "IT"
-                : "Услуги";
-}
+export { industryFromOkved } from "../shared/company";
 export function missingFor(
   a: MvpApplication,
   statements: Statement[],
 ): MissingField[] {
-  const q = a.questionnaire,
+  const q = normalizeQuestionnaire(a.questionnaire),
     missing: MissingField[] = [];
   const add = (key: string, label: string, section: number) =>
     missing.push({ key, label, section });
@@ -438,9 +463,14 @@ export function missingFor(
     );
   if (!q.authorized) add("authorized", "Подтвердите полномочия заявителя", 0);
   if (Object.values(q.consents).some((v) => !v))
-    add("consents", "Предоставьте отдельные согласия на проверки", 0);
+    add(
+      "consents",
+      "Подтвердите согласие на обработку данных и дополнительные проверки",
+      0,
+    );
   if (
     a.company &&
+    a.company.okved &&
     industryFromOkved(a.company.okved) !== a.onboarding.industry &&
     !q.actualIndustry
   )
@@ -499,8 +529,13 @@ export function missingFor(
   }
   if (q.leasing === "yes" && q.monthlyLeasing === null)
     add("monthlyLeasing", "Укажите платёж по лизингу", 2);
-  if (q.balloon && !q.balloonPeriod)
-    add("balloonPeriod", "Укажите период крупного погашения", 2);
+  if (q.leasing === "unknown")
+    add("leasing", "Уточните наличие действующего лизинга", 2);
+  if (q.loans === "yes" && q.balloonExpected === "yes") {
+    if (!q.balloon) add("balloon", "Укажите сумму разового погашения", 2);
+    if (!q.balloonPeriod)
+      add("balloonPeriod", "Выберите дату разового погашения", 2);
+  }
   if (q.future !== "none" && q.future !== "unknown") {
     if (["income", "both"].includes(q.future) && q.futureIn === null)
       add("futureIn", "Укажите будущее поступление", 3);
@@ -550,6 +585,9 @@ export function missingFor(
         2,
       );
   }
+  for (let section = 0; section < 5; section++)
+    for (const [key, label] of Object.entries(questionnaireErrors(q, section)))
+      add(key, label, section);
   return missing.filter(
     (m, i) => missing.findIndex((x) => x.key === m.key) === i,
   );
@@ -597,9 +635,9 @@ function unresolvedCoreFields(
 const stageLabels = [
   "Регистрация заявки",
   "Комплаенс, антифрод и БКИ",
-  "Анализ выписок",
-  "Финансовая оценка ядра",
-  "Проверка условий",
+  "Финансовый анализ CSV",
+  "Скоринг",
+  "Андеррайтинг",
   "Маршрутизация решения",
 ];
 const running = new Map<string, Promise<void>>();
@@ -615,6 +653,13 @@ export function submitMvp(
     resumeMvp(db, uid, id, core);
     return a;
   }
+  if (
+    a.lifecycle !== "DRAFT" &&
+    a.decision !== "ADDITIONAL_DATA_REQUIRED" &&
+    !a.error &&
+    version <= a.version
+  )
+    return a;
   requireVersion(a, version);
   if (
     a.lifecycle !== "DRAFT" &&
@@ -622,6 +667,21 @@ export function submitMvp(
     !a.error
   )
     throw new ApplicationError(409, "Заявка уже подана");
+  a.questionnaire = questionnaireSchema.parse(a.questionnaire);
+  const issues = questionnaireErrors(a.questionnaire, 4);
+  if (
+    a.questionnaire.loans === "yes" &&
+    a.questionnaire.balloonExpected === "yes" &&
+    a.questionnaire.balloonPeriod
+  ) {
+    const dateError = questionnaireErrors(a.questionnaire, 2).balloonPeriod;
+    if (dateError) issues.balloonPeriod = dateError;
+  }
+  if (Object.keys(issues).length)
+    throw Object.assign(
+      new ApplicationError(422, Object.values(issues).join(" ")),
+      { fields: issues },
+    );
   a.lifecycle = "SUBMITTED";
   a.decision = undefined;
   a.error = undefined;
@@ -673,7 +733,8 @@ async function processMvp(
   client: CoreClient,
 ) {
   const a = mvpGet(db, id, uid),
-    q = a.questionnaire;
+    q = normalizeQuestionnaire(a.questionnaire);
+  a.questionnaire = q;
   const stage = (i: number, done = false) => {
     a.lifecycle = "PROCESSING";
     a.stages[i].status = done ? "done" : "running";
@@ -681,6 +742,15 @@ async function processMvp(
     save(db, a, "mvp2_stage");
   };
   const finish = (decision: Decision, reasons: string[]) => {
+    if (
+      decision === "ADDITIONAL_DATA_REQUIRED" &&
+      !a.stages.some((s) => s.status === "waiting-data")
+    ) {
+      const waiting =
+        a.stages.find((s) => s.status === "running") ??
+        a.stages.find((s) => s.status === "pending");
+      if (waiting) waiting.status = "waiting-data";
+    }
     a.decision = decision;
     a.reasons = reasons;
     a.lifecycle =
@@ -700,7 +770,12 @@ async function processMvp(
     a.missing = missingFor(a, statements);
     stage(0, true);
     stage(1);
-    if (!a.company || Object.values(q.consents).some((v) => !v)) {
+    if (
+      !a.company ||
+      !q.companyConfirmed ||
+      !q.authorized ||
+      Object.values(q.consents).some((v) => !v)
+    ) {
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Для проверок нужны сведения компании и отдельные согласия.",
       ]);
@@ -745,13 +820,13 @@ async function processMvp(
     stage(1, true);
     stage(2);
     const aggregate = aggregateStatements(statements);
-    stage(2, true);
     if (a.missing.length) {
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Дополните указанные сведения. Остальная анкета сохранена.",
       ]);
       return;
     }
+    stage(2, true);
     const claimed =
       (q.loans === "yes" ? (q.monthlyDebt ?? 0) : 0) +
       (q.leasing === "yes" ? (q.monthlyLeasing ?? 0) : 0);
@@ -762,16 +837,24 @@ async function processMvp(
           label: `В CSV найдено ${aggregate.debt.toLocaleString("ru-RU")} ₽ платежей в месяц; вы указали ${claimed.toLocaleString("ru-RU")} ₽. Подтвердите итоговую нагрузку.`,
           section: 2,
         },
-        {
-          key: "monthlyDebt",
-          label: "Уточните платёж по кредитам при необходимости",
-          section: 2,
-        },
-        {
-          key: "monthlyLeasing",
-          label: "Уточните платёж по лизингу при необходимости",
-          section: 2,
-        },
+        ...(q.loans === "yes"
+          ? [
+              {
+                key: "monthlyDebt",
+                label: "Уточните платёж по кредитам при необходимости",
+                section: 2,
+              },
+            ]
+          : []),
+        ...(q.leasing === "yes"
+          ? [
+              {
+                key: "monthlyLeasing",
+                label: "Уточните платёж по лизингу при необходимости",
+                section: 2,
+              },
+            ]
+          : []),
       ];
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Сверьте долговые платежи с выписками.",

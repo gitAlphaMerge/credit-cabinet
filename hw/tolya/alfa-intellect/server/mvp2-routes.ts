@@ -25,6 +25,7 @@ import {
   recalculateMvp,
 } from "./mvp2";
 import { parseStatement } from "./mvp2-statements";
+import { RegistryError } from "./registry";
 import { prepareContract, signMvp } from "./mvp2-contracts";
 
 migrateMvp2(db);
@@ -89,6 +90,11 @@ mvp2Router.post("/applications/:id/registry", async (req, res) =>
       res.locals.userId,
       id(req),
       version.parse(req.body.version),
+      z
+        .string()
+        .regex(/^(\d{10}|\d{12})$/)
+        .optional()
+        .parse(req.body.inn),
     ),
   ),
 );
@@ -297,7 +303,8 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
   const uid = res.locals.userId,
     a = mvpGet(db, id(req), uid),
     s = stateFor(db, uid);
-  if (req.body.text) {
+  const replying = !!(req.body.text || req.body.retryMessageId);
+  if (replying) {
     if (chatBusy.has(uid))
       throw new ApplicationError(409, "Дождитесь ответа на предыдущий вопрос");
     chatBusy.add(uid);
@@ -318,7 +325,7 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
     s.chats.unshift(chat);
     saveState(uid, s);
   }
-  if (!req.body.text) {
+  if (!replying) {
     chat.mvp2Context = {
       applicationId: a.id,
       section: z
@@ -332,14 +339,32 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
     res.json(chat);
     return;
   }
-  const text = z.string().trim().min(1).max(1500).parse(req.body.text);
-  chat.messages.push({
-    id: randomUUID(),
-    role: "user",
-    text,
-    createdAt: new Date().toISOString(),
-  });
-  saveState(uid, s);
+  if (req.body.retryMessageId) {
+    const retryId = z.string().uuid().parse(req.body.retryMessageId);
+    const index = chat.messages.findIndex(
+      (m) => m.id === retryId && m.role === "user",
+    );
+    if (index < 0)
+      throw new ApplicationError(404, "Сохранённый вопрос не найден.");
+    if (chat.messages.slice(index + 1).some((m) => m.role === "assistant")) {
+      res.json(chat);
+      return;
+    }
+    if (index !== chat.messages.length - 1)
+      throw new ApplicationError(
+        409,
+        "Отправьте новый вопрос по текущему разделу.",
+      );
+  } else {
+    const text = z.string().trim().min(1).max(1500).parse(req.body.text);
+    chat.messages.push({
+      id: randomUUID(),
+      role: "user",
+      text,
+      createdAt: new Date().toISOString(),
+    });
+    saveState(uid, s);
+  }
   if (!process.env.TEAM_AGENT_URL && !process.env.OPENAI_API_KEY)
     throw new ApplicationError(
       503,
@@ -487,26 +512,57 @@ mvp2Router.use(
     _next: import("express").NextFunction,
   ) => {
     if (err instanceof z.ZodError) {
+      const labels: Record<string, string> = {
+        inn: "ИНН",
+        amount: "Сумма финансирования",
+        term: "Срок финансирования",
+        purpose: "Назначение средств",
+        usage: "Способ использования",
+        repayment: "Источник погашения",
+        neededAt: "Когда нужны средства",
+        neededDate: "Дата получения средств",
+        consents: "Согласие на обработку данных",
+        accounts: "Расчётные счета",
+        cycleDays: "Длительность использования",
+        balloonPeriod: "Дата разового погашения",
+        projectCost: "Стоимость проекта",
+        monthlyDebt: "Платёж по кредитам",
+        monthlyLeasing: "Лизинговый платёж",
+        oldRate: "Ставка прежнего кредита",
+      };
+      const fields = Object.fromEntries(
+        err.issues.map((issue) => {
+          const key = String(issue.path[0] ?? "");
+          const message =
+            issue.code === "invalid_value"
+              ? "выберите значение из списка."
+              : issue.code === "invalid_type"
+                ? "укажите значение в правильном формате."
+                : "проверьте формат и допустимый диапазон.";
+          return [
+            issue.path.join("."),
+            `${labels[key] ?? "Поле анкеты"}: ${message}`,
+          ];
+        }),
+      );
       res.status(422).json({
-        error: "Проверьте заполнение полей.",
-        fields: Object.fromEntries(
-          err.issues.map((i) => [
-            i.path.join("."),
-            "Проверьте формат и допустимое значение.",
-          ]),
-        ),
+        error: Object.values(fields)[0],
+        fields,
       });
       return;
     }
     res
       .status(
-        err instanceof ApplicationError
+        err instanceof ApplicationError || err instanceof RegistryError
           ? err.status
           : err instanceof multer.MulterError
             ? 413
             : 422,
       )
       .json({
+        ...(err instanceof ApplicationError && "fields" in err
+          ? { fields: err.fields }
+          : {}),
         error:
           err instanceof Error &&
           /[А-Яа-яЁё]/.test(err.message) &&

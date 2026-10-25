@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -12,6 +12,13 @@ import { Button, Brand } from "./ui";
 import { NumericInput } from "./NumericInput";
 import { OnboardingAmount } from "./OnboardingAmount";
 import { DataConsent } from "./DataConsent";
+import { DateInput } from "./DateInput";
+import { CompanyCard } from "./CompanyCard";
+import { ClientDossier } from "./ClientDossier";
+import { StatementUpload } from "./StatementUpload";
+import { innError } from "../shared/inn";
+import { industryFromOkved } from "../shared/company";
+import { day, addDays } from "../shared/cabinet";
 import { ApplicationAgent } from "./ApplicationAgent";
 import { useWorkspace, WorkspaceContext } from "./context";
 import { Chat } from "./Chat";
@@ -27,6 +34,10 @@ import {
   recommend,
   productIssues,
   questionnaireErrors,
+  normalizeQuestionnaire,
+  neededOptions,
+  amountBand,
+  catalogAmount,
   type OnboardingAnswers,
   type MvpApplication,
   type Product,
@@ -40,6 +51,7 @@ const defaults: OnboardingAnswers = {
   age: "",
   purpose: "",
   amountRange: "",
+  amount: null,
   term: 12,
   usage: "",
   repayment: "",
@@ -66,7 +78,9 @@ function Choice({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">Выберите</option>
+        <option value="" disabled hidden>
+          Выберите...
+        </option>
         {options.map((x) => (
           <option key={x}>{x}</option>
         ))}
@@ -97,7 +111,7 @@ export function OnboardingFields({
     />
   );
   return (
-    <div className="mvp-fields">
+    <div className={"mvp-fields" + (group === 1 ? " mvp-onboarding-task" : "")}>
       {(group === undefined || group === 0) && (
         <>
           {field("industry", "В какой сфере работает бизнес?", industries)}
@@ -108,8 +122,19 @@ export function OnboardingFields({
         <>
           {field("purpose", "Для чего нужны деньги?", purposes)}
           <OnboardingAmount
-            value={value.amountRange}
-            onChange={(amountRange) => onChange({ ...value, amountRange })}
+            value={value.amount ?? null}
+            unknown={value.amountRange === "Не знаю"}
+            onChange={(amount, unknown) =>
+              onChange({
+                ...value,
+                amount,
+                amountRange: unknown
+                  ? "Не знаю"
+                  : amount === null
+                    ? ""
+                    : amountBand(amount),
+              })
+            }
           />
           <label className="field mvp-span">
             <span>
@@ -119,6 +144,12 @@ export function OnboardingFields({
             <input
               aria-label="Срок финансирования"
               type="range"
+              className="mvp-range"
+              style={
+                {
+                  "--mvp-range-progress": `${((value.term - 1) / 59) * 100}%`,
+                } as React.CSSProperties
+              }
               min={1}
               max={60}
               value={value.term}
@@ -134,8 +165,12 @@ export function OnboardingFields({
       )}
       {(group === undefined || group === 2) && (
         <>
-          {field("usage", "Как будете использовать деньги?", uses)}
-          {field("repayment", "За счёт чего будете возвращать?", repayments)}
+          {field("usage", "Как планируете использовать финансирование?", uses)}
+          {field(
+            "repayment",
+            "За счёт каких поступлений будете возвращать деньги?",
+            repayments,
+          )}
         </>
       )}
     </div>
@@ -164,6 +199,9 @@ export function MvpOnboarding({
       }
     }),
     [step, setStep] = useState(initialStep);
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
   function move(next: number) {
     setStep(next);
     onProgress?.(answers, next);
@@ -176,10 +214,14 @@ export function MvpOnboarding({
     step === 0
       ? !!answers.industry && !!answers.age
       : step === 1
-        ? !!answers.purpose && !!answers.amountRange
+        ? !!answers.purpose &&
+          (answers.amountRange === "Не знаю" ||
+            (typeof answers.amount === "number" &&
+              answers.amount >= catalogAmount.min &&
+              answers.amount <= catalogAmount.max))
         : !!answers.usage && !!answers.repayment;
   return (
-    <div className="onboarding">
+    <div className="onboarding journey-onboarding">
       <header className="public-header">
         <button className="unstyled" onClick={() => go("/")}>
           <Brand />
@@ -199,10 +241,16 @@ export function MvpOnboarding({
               [
                 "Расскажите о бизнесе",
                 "Ваша задача",
-                "Как устроить финансирование?",
+                "Как вы планируете использовать деньги?",
               ][step]
             }
           </h1>
+          {step === 2 && (
+            <p className="lead">
+              Расскажите, как хотите получать и возвращать средства. Это поможет
+              подобрать подходящий кредитный инструмент.
+            </p>
+          )}
           <OnboardingFields value={answers} onChange={update} group={step} />
           <div className="mvp-actions">
             <Button
@@ -253,7 +301,7 @@ function Summary({ a, products }: { a: MvpApplication; products: Product[] }) {
       </div>
       <div>
         <dt>{a.decision === "APPROVED" ? "Одобрено" : "Запрошено"}</dt>
-        <dd>{money(q.amount)}</dd>
+        <dd>{q.amount > 0 ? money(q.amount) : "Уточните сумму в анкете"}</dd>
       </div>
       <div>
         <dt>Срок</dt>
@@ -278,6 +326,10 @@ function QuestionnaireFields({
   busy,
   errors,
   catalog,
+  registryStatus,
+  uploadErrors,
+  catalogIndustry,
+  onInnPaste,
 }: {
   q: Questionnaire;
   setQ: (q: Questionnaire) => void;
@@ -290,8 +342,31 @@ function QuestionnaireFields({
   busy: boolean;
   errors: Record<string, string>;
   catalog: Product[];
+  registryStatus: { status: string; message: string };
+  uploadErrors: Record<string, string>;
+  catalogIndustry: string;
+  onInnPaste: () => void;
 }) {
   const patch = (k: keyof Questionnaire, v: unknown) => setQ({ ...q, [k]: v });
+  const calendar = (
+    key: "balloonPeriod" | "neededDate",
+    label: string,
+    s: number,
+  ) =>
+    show(key, s)
+      ? wrap(
+          key,
+          label,
+          <DateInput
+            aria-label={label}
+            value={q[key]}
+            min={day()}
+            max={addDays(day(), 3650)}
+            aria-invalid={!!errors[key]}
+            onValueChange={(value) => patch(key, value)}
+          />,
+        )
+      : null;
   const show = (k: string, s: number) =>
     missing ? missing.some((m) => m.key === k) : section === s;
   const wrap = (
@@ -341,13 +416,15 @@ function QuestionnaireFields({
             min={0}
             max={max}
             unit={unit}
-            decimals={unit === "мес." || unit === "дн." ? 0 : 2}
+            decimals={
+              k === "amount" || unit === "мес." || unit === "дн." ? 0 : 2
+            }
             aria-invalid={!!errors[k]}
           />,
         )
       : null;
   const tri = (
-    k: "loans" | "complete" | "seasonality",
+    k: "loans" | "complete" | "seasonality" | "balloonExpected",
     label: string,
     s: number,
   ) =>
@@ -381,19 +458,42 @@ function QuestionnaireFields({
     <div className="mvp-fields">
       {show("inn", 0) && (
         <div className="mvp-span">
-          {text("inn", "ИНН компании", 0)}
+          <label className="field field-inn">
+            <span>ИНН компании</span>
+            <input
+              aria-label="ИНН компании"
+              inputMode="numeric"
+              autoComplete="off"
+              value={q.inn}
+              maxLength={12}
+              aria-invalid={
+                !!errors.inn ||
+                ["invalid", "not-found"].includes(registryStatus.status)
+              }
+              onPaste={onInnPaste}
+              onChange={(e) =>
+                patch("inn", e.target.value.replace(/\D/g, "").slice(0, 12))
+              }
+            />
+          </label>
+          <p
+            className={"registry-status " + registryStatus.status}
+            role={
+              ["invalid", "error", "not-found"].includes(registryStatus.status)
+                ? "alert"
+                : "status"
+            }
+          >
+            {registryStatus.message}
+          </p>
           <Button
             secondary
             type="button"
-            disabled={busy || !q.consents.registry}
+            disabled={busy || !!innError(q.inn)}
             onClick={registry}
           >
-            Найти компанию
+            Повторить поиск
           </Button>
-          <small>
-            Для учебной проверки можно использовать ИНН 9900000001. Источник —
-            синтетический реестр.
-          </small>
         </div>
       )}
       {company &&
@@ -402,46 +502,55 @@ function QuestionnaireFields({
             ["inn", "companyConfirmed", "actualIndustry"].includes(m.key),
           )) && (
           <div className="mvp-span mvp-company">
-            <h3>{company.name}</h3>
-            <p>
-              ИНН {company.inn} · {company.form} · ОКВЭД {company.okved} ·{" "}
-              {company.registeredAt} ·{" "}
-              {company.status === "ACTIVE"
-                ? "Действует"
-                : "Статус требует проверки"}
-            </p>
-            <small>Источник: {company.source}</small>
+            <CompanyCard company={company} />
           </div>
         )}
-      {check("companyConfirmed", "Сведения компании верны", 0)}
-      {text(
-        "registryError",
-        "Сообщить об ошибке в найденных сведениях (если есть)",
-        0,
+      {company && check("companyConfirmed", "Сведения верны", 0)}
+      {company && show("registryError", 0) && (
+        <details className="mvp-span">
+          <summary>Сообщить об ошибке</summary>
+          {text(
+            "registryError",
+            "Сообщить об ошибке в найденных сведениях (если есть)",
+            0,
+          )}
+        </details>
       )}
-      {check(
-        "authorized",
-        "Я уполномочен оформлять заявку от имени компании",
-        0,
-      )}
-      {show("consents", 0) && (
+      {company &&
+        check(
+          "authorized",
+          "Я уполномочен оформлять заявку от имени компании",
+          0,
+        )}
+      {company && show("consents", 0) && (
         <DataConsent
           value={q.consents}
           onChange={(consents) => setQ({ ...q, consents })}
+          error={errors.consents}
         />
       )}
-      {text(
-        "actualIndustry",
-        "Фактическая деятельность (если отличается от ОКВЭД)",
-        0,
-      )}
+      {company &&
+        company.okved &&
+        industryFromOkved(company.okved) !== catalogIndustry && (
+          <p className="mvp-span mvp-notice">
+            В онбординге вы указали «{catalogIndustry}», в реестре — «
+            {company.activity || industryFromOkved(company.okved)}». Уточните
+            фактическую деятельность ниже.
+          </p>
+        )}
+      {company &&
+        text(
+          "actualIndustry",
+          "Фактическая деятельность (если отличается от ОКВЭД)",
+          0,
+        )}
       {show("accounts", 1) && (
         <div className="mvp-span">
           <h3>Расчётные счета · {q.accounts.length}</h3>
           <p>
-            Загрузите CSV-выписки за последние 12 месяцев по всем расчётным
-            счетам. Если полной истории пока нет, начните с выписок за 6
-            месяцев.
+            Загрузите выписки по расчётным счетам. Желательно за последние 12
+            полных месяцев; для базовой оценки требуется достаточная история
+            операций.
           </p>
           {q.accounts.map((account, i) => (
             <section key={account.id} className="mvp-account">
@@ -451,6 +560,7 @@ function QuestionnaireFields({
                   <span>Банк</span>
                   <input
                     value={account.bank}
+                    aria-invalid={!!errors.accounts && !account.bank.trim()}
                     maxLength={160}
                     onChange={(e) =>
                       patch(
@@ -464,47 +574,15 @@ function QuestionnaireFields({
                     }
                   />
                 </label>
-                <label className="field">
-                  <span>Идентификатор счёта</span>
-                  <input
-                    value={account.number}
-                    maxLength={40}
-                    onChange={(e) =>
-                      patch(
-                        "accounts",
-                        q.accounts.map((x) =>
-                          x.id === account.id
-                            ? { ...x, number: e.target.value }
-                            : x,
-                        ),
-                      )
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>CSV-выписка счёта {i + 1}</span>
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    disabled={busy || !q.consents.financial}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) upload(f, account.id);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-                {statements
-                  .filter((s) => s.accountId === account.id)
-                  .map((s) => (
-                    <p key={s.id}>
-                      {s.name}
-                      <br />
-                      <small>
-                        {s.period} · {s.operations} операций · проверено
-                      </small>
-                    </p>
-                  ))}
+                <StatementUpload
+                  label={`CSV-выписка счёта ${i + 1}`}
+                  statement={statements.find(
+                    (s) => s.id === account.documentId,
+                  )}
+                  disabled={busy || !q.consents.financial}
+                  error={uploadErrors[account.id]}
+                  onUpload={(file) => upload(file, account.id)}
+                />
               </div>
               {q.accounts.length > 1 && (
                 <button
@@ -540,6 +618,20 @@ function QuestionnaireFields({
           >
             <Plus size={16} /> Добавить счёт
           </Button>
+          {!q.accounts.every((account) => !!account.documentId) && (
+            <p className="mvp-notice" role="status">
+              Вы пока не загрузили выписки по всем счетам. Без них система не
+              сможет завершить финансовую оценку. Можно продолжить заполнение и
+              подать неполную заявку — после отправки мы укажем, какие выписки
+              нужно добавить.
+            </p>
+          )}
+          {!q.consents.financial && (
+            <p className="mvp-notice">
+              Чтобы загрузить выписки, подтвердите согласие на обработку данных
+              в разделе «Компания».
+            </p>
+          )}
         </div>
       )}
       {tri(
@@ -563,28 +655,38 @@ function QuestionnaireFields({
           )}
         </>
       )}
-      {tri("loans", "Есть действующие кредиты или линии?", 2)}
-      {(q.loans === "yes" ||
-        missing?.some((m) => ["debt", "monthlyDebt"].includes(m.key))) && (
+      {tri(
+        "loans",
+        "Есть ли у бизнеса действующие кредиты или кредитные линии?",
+        2,
+      )}
+      {q.loans === "yes" && (
         <>
           {number("debt", "Остаток долга", 2)}
           {number("monthlyDebt", "Регулярный платёж по кредитам в месяц", 2)}
-          {number("balloon", "Крупное разовое погашение (если предстоит)", 2)}
-          {q.balloon
-            ? text("balloonPeriod", "Когда нужно крупное погашение?", 2)
-            : null}
+          {tri(
+            "balloonExpected",
+            "Предстоит ли крупное разовое погашение по действующим кредитам в ближайшие месяцы?",
+            2,
+          )}
+          {q.balloonExpected === "yes" && (
+            <>
+              {number("balloon", "Сумма погашения, ₽", 2)}
+              {calendar("balloonPeriod", "Планируемая дата погашения", 2)}
+            </>
+          )}
         </>
       )}
       {show("leasing", 2) && (
         <Choice
-          label="Есть действующий лизинг?"
-          value={q.leasing === "yes" ? "Да" : "Нет"}
+          label="Есть ли у бизнеса действующий лизинг?"
+          value={q.leasing === "yes" ? "Да" : q.leasing === "no" ? "Нет" : ""}
+          invalid={!!errors.leasing}
           options={["Да", "Нет"]}
           onChange={(v) => patch("leasing", v === "Да" ? "yes" : "no")}
         />
       )}
-      {(q.leasing === "yes" ||
-        missing?.some((m) => m.key === "monthlyLeasing")) &&
+      {q.leasing === "yes" &&
         number("monthlyLeasing", "Платёж по лизингу в месяц", 2)}
       {missing?.some((m) => m.key === "debtReconciled") &&
         check(
@@ -628,7 +730,7 @@ function QuestionnaireFields({
       {(["expense", "both"].includes(q.future) ||
         missing?.some((m) => m.key === "futureOut")) &&
         number("futureOut", "Будущие расходы", 3)}
-      {q.future !== "none" &&
+      {!["none", "unknown"].includes(q.future) &&
         text("futurePeriod", "Период будущих операций", 3)}
       {section === 3 && (
         <small className="mvp-span">
@@ -636,7 +738,17 @@ function QuestionnaireFields({
           увеличивают подтверждённую платёжеспособность без расчёта ядра.
         </small>
       )}
-      {text("purpose", "Конкретное назначение средств", 4)}
+      {show("purpose", 4) && (
+        <Choice
+          label="Конкретное назначение средств"
+          value={q.purpose}
+          options={purposes}
+          onChange={(v) => patch("purpose", v)}
+          invalid={!!errors.purpose}
+        />
+      )}
+      {q.purpose === "Не определился" &&
+        text("purposeDetails", "Уточните назначение финансирования", 4)}
       {missing && (
         <>
           {number(
@@ -665,7 +777,17 @@ function QuestionnaireFields({
       )}
       {number("amount", "Точная сумма", 4)}
       {number("term", "Точный срок", 4, "мес.", 120)}
-      {text("neededAt", "Когда нужны средства?", 4)}
+      {show("neededAt", 4) && (
+        <Choice
+          label="Когда нужны средства?"
+          value={q.neededAt}
+          options={neededOptions}
+          onChange={(v) => patch("neededAt", v)}
+          invalid={!!errors.neededAt}
+        />
+      )}
+      {q.neededAt === "Выбрать дату" &&
+        calendar("neededDate", "Дата получения средств", 4)}
       {show("productId", 4) && (
         <label className="field">
           <span>Выбранный продукт</span>
@@ -701,7 +823,20 @@ function QuestionnaireFields({
       {q.productId === "INVEST" && (
         <>
           {number("projectCost", "Стоимость проекта", 4)}
-          {number("economicEffect", "Ожидаемый доход или экономия в месяц", 4)}
+          {number(
+            "economicEffect",
+            "Какой дополнительный денежный результат вы ожидаете от проекта?",
+            4,
+          )}
+          {(section === 4 ||
+            missing?.some((m) => m.key === "economicEffect")) && (
+            <small className="mvp-span">
+              Например, дополнительная выручка или снижение расходов после
+              покупки оборудования. Если пока не можете оценить, оставьте поле
+              пустым. Это ваша оценка, она не увеличивает подтверждённый
+              свободный поток для скоринга.
+            </small>
+          )}
         </>
       )}
       {["RCL", "OVERDRAFT"].includes(q.productId) &&
@@ -741,6 +876,11 @@ export function Mvp2({
     [section, setSection] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
+    [registryStatus, setRegistryStatus] = useState({
+      status: "empty",
+      message: "Введите ИНН — сведения о компании появятся автоматически.",
+    }),
+    [uploadErrors, setUploadErrors] = useState<Record<string, string>>({}),
     [errors, setErrors] = useState<Record<string, string>>({}),
     [statements, setStatements] = useState<any[]>([]),
     [slots, setSlots] = useState<any[]>([]),
@@ -751,12 +891,67 @@ export function Mvp2({
     [editAnswers, setEditAnswers] = useState(false);
   const lock = useRef(false),
     aRef = useRef(a),
-    dirty = useRef(false);
+    dirty = useRef(false),
+    qRef = useRef(q),
+    answersRef = useRef(answers),
+    lookupPaste = useRef(false),
+    lookupInn = useRef(""),
+    catalogReturn = useRef("recommendation"),
+    draftSequence = useRef(0),
+    sectionRef = useRef(section),
+    draftQueue = useRef(Promise.resolve()),
+    positionQueue = useRef(Promise.resolve()),
+    formPanel = useRef<HTMLElement>(null),
+    mainPanel = useRef<HTMLElement>(null),
+    loaded = useRef(false);
   aRef.current = a;
+  useLayoutEffect(() => {
+    formPanel.current?.scrollTo({ top: 0, behavior: "instant" });
+    mainPanel.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [view, section]);
+  qRef.current = q;
+  answersRef.current = answers;
+  sectionRef.current = section;
+  useEffect(() => {
+    const preserve = () => {
+      const current = aRef.current,
+        value = qRef.current;
+      if (
+        !dirty.current ||
+        !current ||
+        !value ||
+        (current.lifecycle !== "DRAFT" &&
+          current.decision !== "ADDITIONAL_DATA_REQUIRED")
+      )
+        return;
+      void fetch("/api/journey/draft", {
+        method: "PUT",
+        credentials: "same-origin",
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: current.id,
+          version: current.version,
+          questionnaire: value,
+          ...(current.lifecycle === "DRAFT"
+            ? { onboarding: answersRef.current }
+            : {}),
+          section: sectionRef.current,
+          sequence: ++draftSequence.current,
+        }),
+      }).catch(() => {});
+    };
+    addEventListener("pagehide", preserve);
+    return () => removeEventListener("pagehide", preserve);
+  }, []);
   const adopt = (next: MvpApplication) => {
     aRef.current = next;
     setA(next);
-    setQ(structuredClone(next.questionnaire));
+    const canonical = normalizeQuestionnaire(
+      structuredClone(next.questionnaire),
+    );
+    setQ(canonical);
+    qRef.current = canonical;
     setAnswers(next.onboarding);
     dirty.current = false;
     return next;
@@ -805,6 +1000,7 @@ export function Mvp2({
       setSection(position.section ?? 0);
       if (
         next.lifecycle === "DRAFT" &&
+        !next.error &&
         [
           "recommendation",
           "catalog",
@@ -824,13 +1020,22 @@ export function Mvp2({
     const serverBuffer = await api(`/journey/draft/${next.id}`);
     if (
       serverBuffer &&
+      !next.error &&
       (next.lifecycle === "DRAFT" ||
         next.decision === "ADDITIONAL_DATA_REQUIRED")
     ) {
-      setQ(serverBuffer.questionnaire);
+      setQ(normalizeQuestionnaire(serverBuffer.questionnaire));
+      if (serverBuffer.onboarding && next.lifecycle === "DRAFT")
+        setAnswers(serverBuffer.onboarding);
+      draftSequence.current = Math.max(
+        draftSequence.current,
+        serverBuffer.sequence ?? 0,
+      );
       setSection(serverBuffer.section);
       dirty.current = true;
-      setView(next.decision ? "supplement" : "questionnaire");
+      if (next.decision) {
+        if (position.view === "supplement") setView("supplement");
+      } else if (position.applicationId !== next.id) setView("questionnaire");
     }
     try {
       const buffer = JSON.parse(
@@ -862,44 +1067,111 @@ export function Mvp2({
       }
     } catch {}
     await loadStatements(next.id);
+    loaded.current = true;
   }
   function draftQ(value: Questionnaire) {
+    if (q && value.inn !== q.inn) {
+      value = {
+        ...value,
+        companyConfirmed: false,
+        authorized: false,
+        consents: { registry: false, financial: false, bki: false },
+        registryError: "",
+      };
+      setA((current) =>
+        current ? { ...current, company: undefined } : current,
+      );
+      lookupInn.current = "";
+    }
+    value = normalizeQuestionnaire(value);
+    qRef.current = value;
     dirty.current = true;
     setQ(value);
+    setError("");
+    setErrors((previous) =>
+      Object.keys(previous).length
+        ? { ...questionnaireErrors(value, section) }
+        : {},
+    );
+  }
+  async function flushDraft(value = qRef.current, targetSection = section) {
+    const current = aRef.current;
+    if (
+      !current ||
+      !value ||
+      !dirty.current ||
+      !["DRAFT", "DECIDED", "MEETING_SCHEDULED"].includes(current.lifecycle)
+    )
+      return;
+    const payload = {
+      applicationId: current.id,
+      version: current.version,
+      questionnaire: value,
+      ...(current.lifecycle === "DRAFT"
+        ? { onboarding: answersRef.current }
+        : {}),
+      section: targetSection,
+      sequence: ++draftSequence.current,
+    };
+    draftQueue.current = draftQueue.current
+      .catch(() => {})
+      .then(() => api("/journey/draft", payload, "PUT"))
+      .then(() => {});
+    await draftQueue.current;
+  }
+  async function transition(nextView: string, targetSection = section) {
+    const current = aRef.current;
+    if (!current) throw new Error("Заявка ещё не создана.");
+    await positionQueue.current.catch(() => {});
+    await api(
+      "/journey/position",
+      { applicationId: current.id, view: nextView, section: targetSection },
+      "PUT",
+    );
+    setSection(targetSection);
+    setView(nextView);
   }
   useEffect(() => {
     if (!a || !q || !dirty.current || busy) return;
     const timer = setTimeout(() => {
-      void api(
-        "/journey/draft",
-        { applicationId: a.id, version: a.version, questionnaire: q, section },
-        "PUT",
-      ).catch((e) => setError("Не удалось сохранить черновик: " + e.message));
+      void flushDraft(q, section).catch((e) =>
+        setError("Не удалось сохранить черновик: " + e.message),
+      );
     }, 300);
     return () => clearTimeout(timer);
-  }, [q, section, busy, a?.version]);
+  }, [q, answers, section, busy, a?.version]);
   useEffect(() => {
-    if (!a || busy || ["loading", "start"].includes(view)) return;
+    if (!a || !loaded.current || busy || ["loading", "start"].includes(view))
+      return;
     const timer = setTimeout(() => {
-      void api(
-        "/journey/position",
-        { applicationId: a.id, view, section },
-        "PUT",
-      ).catch((e) => setError(e.message));
+      positionQueue.current = positionQueue.current
+        .catch(() => {})
+        .then(() =>
+          api(
+            "/journey/position",
+            { applicationId: a.id, view, section },
+            "PUT",
+          ),
+        )
+        .then(() => {});
+      void positionQueue.current.catch((e) => setError(e.message));
     }, 150);
     return () => clearTimeout(timer);
   }, [a?.id, view, section, busy]);
   useEffect(() => {
     void run(async () => {
-      const [catalog, list] = await Promise.all([
+      const [catalog, list, position] = await Promise.all([
         api("/mvp2/catalog"),
         api<MvpApplication[]>("/mvp2/applications"),
+        api("/journey"),
       ]);
       setProducts(catalog.products);
       setItems(list);
-      if (list.length)
-        await open(await api(`/mvp2/applications/${list[0].id}`));
-      else if (w.state.profile.mvp2Answers) {
+      if (list.length) {
+        const current =
+          list.find((item) => item.id === position.applicationId) ?? list[0];
+        await open(await api(`/mvp2/applications/${current.id}`));
+      } else if (w.state.profile.mvp2Answers) {
         const next = await api<MvpApplication>("/mvp2/applications", {
           onboarding: w.state.profile.mvp2Answers,
         });
@@ -933,11 +1205,16 @@ export function Mvp2({
   }, [view, a?.id, a?.lifecycle]);
   async function save() {
     if (!a || !q) throw new Error("Заявка ещё не создана");
+    await draftQueue.current.catch(() => {});
     const next = await api<MvpApplication>(
       `/mvp2/applications/${a.id}`,
       {
         version: a.version,
-        questionnaire: q,
+        questionnaire: normalizeQuestionnaire({
+          ...q,
+          amount: q.amount ?? 0,
+          term: q.term ?? 0,
+        }),
         ...(a.lifecycle === "DRAFT" ? { onboarding: answers } : {}),
       },
       "PUT",
@@ -960,33 +1237,120 @@ export function Mvp2({
   }
   const submit = () =>
     run(async () => {
-      const current = view === "supplement" ? await save() : a!;
+      const current = dirty.current ? await save() : aRef.current!;
       const next = await api<MvpApplication>(
         `/mvp2/applications/${current.id}/submit`,
         { version: current.version },
       );
       adopt(next);
-      setView("processing");
+      setView(derivedView(next));
     });
   const upload = (file: File, accountId: string) =>
     void run(async () => {
+      setUploadErrors((previous) => ({ ...previous, [accountId]: "" }));
       const saved = await save(),
         body = new FormData();
       body.append("version", String(saved.version));
       body.append("accountId", accountId);
       body.append("file", file);
-      adopt(await api(`/mvp2/applications/${saved.id}/statements`, body));
+      try {
+        adopt(await api(`/mvp2/applications/${saved.id}/statements`, body));
+      } catch (e) {
+        setUploadErrors((previous) => ({
+          ...previous,
+          [accountId]: (e as Error).message,
+        }));
+        throw e;
+      }
       await loadStatements(saved.id);
     });
-  const registry = () =>
-    void run(async () => {
-      const saved = await save();
-      adopt(
-        await api(`/mvp2/applications/${saved.id}/registry`, {
-          version: saved.version,
-        }),
-      );
+  const registry = () => void lookupCompany();
+  async function lookupCompany() {
+    const current = aRef.current,
+      value = qRef.current;
+    if (!current || !value || lock.current || innError(value.inn)) return;
+    const inn = value.inn;
+    lookupInn.current = inn;
+    lock.current = true;
+    setBusy(true);
+    setRegistryStatus({
+      status: "loading",
+      message: "Ищем сведения о компании…",
     });
+    try {
+      await draftQueue.current.catch(() => {});
+      const next = await api<MvpApplication>(
+        `/mvp2/applications/${current.id}/registry`,
+        { version: current.version, inn },
+      );
+      aRef.current = next;
+      setA({
+        ...next,
+        company: qRef.current?.inn === inn ? next.company : undefined,
+      });
+      if (qRef.current?.inn === inn) {
+        const merged = { ...qRef.current, companyConfirmed: false };
+        qRef.current = merged;
+        setQ(merged);
+        dirty.current = true;
+        setRegistryStatus({
+          status: "found",
+          message: "Компания найдена. Проверьте сведения и подтвердите их.",
+        });
+      }
+    } catch (e) {
+      if (qRef.current?.inn === inn)
+        setRegistryStatus({
+          status:
+            e instanceof ApiError && e.status === 404 ? "not-found" : "error",
+          message: (e as Error).message,
+        });
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  useEffect(() => {
+    if (
+      !a ||
+      !q ||
+      busy ||
+      !["questionnaire", "supplement"].includes(view) ||
+      (view === "questionnaire" && section !== 0)
+    )
+      return;
+    if (a.company?.inn === q.inn) {
+      setRegistryStatus({
+        status: "found",
+        message: "Компания найдена. Проверьте сведения и подтвердите их.",
+      });
+      return;
+    }
+    if (!q.inn) {
+      setRegistryStatus({
+        status: "empty",
+        message: "Введите ИНН — сведения о компании появятся автоматически.",
+      });
+      return;
+    }
+    const problem = innError(q.inn);
+    if (problem) {
+      setRegistryStatus({
+        status:
+          q.inn.length === 10 || q.inn.length === 12 ? "invalid" : "format",
+        message: problem,
+      });
+      return;
+    }
+    if (lookupInn.current === q.inn) return;
+    setRegistryStatus({ status: "format", message: "Проверяем формат ИНН…" });
+    const timeout = setTimeout(
+      () => void lookupCompany(),
+      lookupPaste.current ? 0 : 450,
+    );
+    lookupPaste.current = false;
+    return () => clearTimeout(timeout);
+  }, [q?.inn, a?.id, a?.company?.inn, view, section, busy]);
   const openDiscussion = async () => {
     if (!a) return;
     setView("chat");
@@ -1013,7 +1377,15 @@ export function Mvp2({
   const p = q && products.find((p) => p.id === q.productId),
     path = a ? `/mvp2/applications/${a.id}` : "";
   return (
-    <main className="financing-page page-wrap funding-mvp mvp2">
+    <main
+      ref={mainPanel}
+      className={
+        "financing-page page-wrap funding-mvp mvp2" +
+        (["intro", "questionnaire", "dossier", "supplement"].includes(view)
+          ? " mvp-workspace"
+          : "")
+      }
+    >
       <header className="journey-stage">
         <h1>
           {{
@@ -1108,7 +1480,13 @@ export function Mvp2({
               <Button secondary onClick={() => setEditAnswers(!editAnswers)}>
                 Изменить условия
               </Button>{" "}
-              <Button secondary onClick={() => setView("catalog")}>
+              <Button
+                secondary
+                onClick={() => {
+                  catalogReturn.current = "recommendation";
+                  void run(() => transition("catalog"));
+                }}
+              >
                 Посмотреть все продукты
               </Button>
             </div>
@@ -1117,7 +1495,7 @@ export function Mvp2({
               onClick={() =>
                 void run(async () => {
                   await save();
-                  setView("intro");
+                  await transition("intro");
                 })
               }
             >
@@ -1184,17 +1562,25 @@ export function Mvp2({
                   disabled={busy}
                   onClick={() =>
                     void run(async () => {
+                      const draft = { ...q, productId: product.id };
+                      const currentAnswers = answers;
                       adopt(
                         await api(
                           path,
                           {
                             version: a.version,
-                            questionnaire: { ...q, productId: product.id },
+                            questionnaire: {
+                              ...a.questionnaire,
+                              productId: product.id,
+                            },
                           },
                           "PUT",
                         ),
                       );
-                      setView("recommendation");
+                      setAnswers(currentAnswers);
+                      draftQ(draft);
+                      await flushDraft(draft, section);
+                      await transition(catalogReturn.current);
                     })
                   }
                 >
@@ -1203,7 +1589,10 @@ export function Mvp2({
               </article>
             ))}
           </div>
-          <Button secondary onClick={() => setView("recommendation")}>
+          <Button
+            secondary
+            onClick={() => void run(() => transition(catalogReturn.current))}
+          >
             Вернуться
           </Button>
         </section>
@@ -1212,7 +1601,7 @@ export function Mvp2({
         q &&
         ["intro", "questionnaire", "dossier", "supplement"].includes(view) && (
           <div className="mvp-layout">
-            <section className="funding-surface">
+            <section ref={formPanel} className="funding-surface mvp-form-panel">
               {view === "intro" ? (
                 <>
                   <h2>Проверим доступность финансирования</h2>
@@ -1227,10 +1616,10 @@ export function Mvp2({
                     после проверок.
                   </p>
                   <Button
-                    onClick={() => {
-                      setSection(0);
-                      setView("questionnaire");
-                    }}
+                    disabled={busy}
+                    onClick={() =>
+                      void run(() => transition("questionnaire", 0))
+                    }
                   >
                     Начать заполнение
                   </Button>
@@ -1238,106 +1627,15 @@ export function Mvp2({
               ) : view === "dossier" ? (
                 <>
                   <h2>Проверьте вашу заявку</h2>
-                  <Summary a={a} products={products} />
-                  <h3>Компания</h3>
-                  <p>
-                    {a.company?.name || "Компания не найдена"} · ИНН {q.inn} ·{" "}
-                    {a.company?.form} · {answers.industry} / ОКВЭД{" "}
-                    {a.company?.okved}
-                  </p>
-                  <h3>Ключевые ответы</h3>
-                  <p>
-                    {q.purpose}; {q.usage}; возврат: {q.repayment}. Счетов:{" "}
-                    {q.accounts.length}. Кредиты: {triValue(q.loans)}; лизинг:{" "}
-                    {q.leasing === "yes" ? "Да" : "Нет"}.
-                  </p>
-                  <h3>Документы</h3>
-                  {q.accounts.map((account) => (
-                    <p key={account.id}>
-                      {account.bank || "Банк не указан"} ·{" "}
-                      {statements.find((s) => s.id === account.documentId)
-                        ?.period || "CSV не загружен"}
-                    </p>
-                  ))}
-                  <details>
-                    <summary>Посмотреть все сведения</summary>
-                    <p>
-                      Долг: {money(q.debt)}; платёж по кредитам:{" "}
-                      {money(q.monthlyDebt)}; лизинг: {money(q.monthlyLeasing)}.
-                      Сезонность: {triValue(q.seasonality)}.
-                    </p>
-                    <p>
-                      Когда нужны средства: {q.neededAt}. Неподтверждённые
-                      операции: {q.outsideType || "не указаны"}. Будущие
-                      операции: {q.futurePeriod || "не указаны"}.
-                    </p>
-                    <p>
-                      Отрасль: {answers.industry}. Возраст: {answers.age}.
-                      Использование: {q.usage}; источник погашения:{" "}
-                      {q.repayment}.
-                    </p>
-                    <dl className="mvp-summary">
-                      {[
-                        [
-                          "Фактическая деятельность",
-                          q.actualIndustry || "Не уточнялась",
-                        ],
-                        ["Полнота выписок", triValue(q.complete)],
-                        ["Поступления вне выписок", money(q.outsideIn)],
-                        ["Расходы вне выписок", money(q.outsideOut)],
-                        ["Крупное погашение долга", money(q.balloon)],
-                        ["Когда погашение", q.balloonPeriod || "Не указано"],
-                        ["Будущие поступления", money(q.futureIn)],
-                        ["Будущие расходы", money(q.futureOut)],
-                        ["Стоимость проекта", money(q.projectCost)],
-                        ["Эффект в месяц", money(q.economicEffect)],
-                        [
-                          "Цикл использования",
-                          q.cycleDays === null
-                            ? "Не указан"
-                            : `${q.cycleDays} дн.`,
-                        ],
-                        ["План траншей", q.tranches || "Не указан"],
-                        [
-                          "Остаток рефинансируемого кредита",
-                          money(q.oldBalance),
-                        ],
-                        [
-                          "Текущая ставка",
-                          q.oldRate === null ? "Не указана" : `${q.oldRate}%`,
-                        ],
-                        ["Текущий платёж", money(q.oldPayment)],
-                        [
-                          "Договор с заказчиком",
-                          money(q.customerContractAmount),
-                        ],
-                        [
-                          "Срок договора с заказчиком",
-                          q.customerContractMonths === null
-                            ? "Не указан"
-                            : `${q.customerContractMonths} мес.`,
-                        ],
-                        [
-                          "Акт сверки",
-                          q.reconciliationReference || "Не запрашивался",
-                        ],
-                      ].map(([label, value]) => (
-                        <div key={label}>
-                          <dt>{label}</dt>
-                          <dd>{value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <p>
-                      Полномочия представителя:{" "}
-                      {q.authorized ? "подтверждены" : "не подтверждены"}.
-                      Согласия на реестр, финансовый анализ и кредитную историю:{" "}
-                      {Object.values(q.consents).every(Boolean)
-                        ? "получены"
-                        : "не все получены"}
-                      .
-                    </p>
-                  </details>
+                  <ClientDossier
+                    application={{ ...a, questionnaire: q }}
+                    products={products}
+                    statements={statements}
+                    editable={a.lifecycle === "DRAFT"}
+                    onEdit={(target) =>
+                      void run(() => transition("questionnaire", target))
+                    }
+                  />
                   <div className="mvp-actions">
                     {a.lifecycle !== "DRAFT" ? (
                       <Button secondary onClick={() => setView("decision")}>
@@ -1347,7 +1645,9 @@ export function Mvp2({
                       <>
                         <Button
                           secondary
-                          onClick={() => setView("questionnaire")}
+                          onClick={() =>
+                            void run(() => transition("questionnaire"))
+                          }
                         >
                           Изменить сведения
                         </Button>
@@ -1373,8 +1673,10 @@ export function Mvp2({
                           key={title}
                           onClick={() =>
                             void run(async () => {
-                              await save();
-                              setSection(i);
+                              await flushDraft(q, i);
+                              setErrors({});
+                              setError("");
+                              await transition("questionnaire", i);
                             })
                           }
                         >
@@ -1391,9 +1693,25 @@ export function Mvp2({
                       e.preventDefault();
                       if (view !== "supplement") {
                         const problems = questionnaireErrors(q, section);
+                        if (
+                          section === 0 &&
+                          a.company?.okved &&
+                          industryFromOkved(a.company.okved) !==
+                            answers.industry &&
+                          !q.actualIndustry.trim()
+                        )
+                          problems.actualIndustry =
+                            "Уточните фактическую деятельность: она отличается от сведений реестра.";
                         if (Object.keys(problems).length) {
                           setErrors(problems);
-                          setError("Проверьте выделенные поля.");
+                          setError(Object.values(problems)[0]);
+                          requestAnimationFrame(() =>
+                            document
+                              .querySelector<HTMLElement>(
+                                '.mvp2 [aria-invalid="true"]',
+                              )
+                              ?.focus(),
+                          );
                           return;
                         }
                       }
@@ -1407,8 +1725,9 @@ export function Mvp2({
                             }),
                           );
                           setView("processing");
-                        } else if (section < 4) setSection(section + 1);
-                        else setView("dossier");
+                        } else if (section < 4)
+                          await transition("questionnaire", section + 1);
+                        else await transition("dossier");
                       });
                     }}
                   >
@@ -1427,7 +1746,11 @@ export function Mvp2({
                         <summary>Сфера и возраст бизнеса из онбординга</summary>
                         <OnboardingFields
                           value={answers}
-                          onChange={setAnswers}
+                          onChange={(value) => {
+                            answersRef.current = value;
+                            dirty.current = true;
+                            setAnswers(value);
+                          }}
                           group={0}
                         />
                       </details>
@@ -1440,8 +1763,14 @@ export function Mvp2({
                       missing={view === "supplement" ? a.missing : undefined}
                       upload={upload}
                       registry={registry}
+                      registryStatus={registryStatus}
+                      uploadErrors={uploadErrors}
+                      catalogIndustry={answers.industry}
+                      onInnPaste={() => {
+                        lookupPaste.current = true;
+                      }}
                       statements={statements}
-                      company={a.company}
+                      company={a.company?.inn === q.inn ? a.company : undefined}
                       busy={busy}
                       errors={errors}
                     />
@@ -1451,6 +1780,21 @@ export function Mvp2({
                           {issue}
                         </p>
                       ))}
+                    {section === 4 && productIssues(q).length > 0 && (
+                      <Button
+                        secondary
+                        type="button"
+                        onClick={() =>
+                          void run(async () => {
+                            await flushDraft();
+                            catalogReturn.current = "questionnaire";
+                            await transition("catalog");
+                          })
+                        }
+                      >
+                        Выбрать другой продукт
+                      </Button>
+                    )}
                     <div className="mvp-actions">
                       <Button
                         type="button"
@@ -1458,9 +1802,11 @@ export function Mvp2({
                         disabled={busy}
                         onClick={() =>
                           void run(async () => {
-                            await save();
-                            if (section > 0) setSection(section - 1);
-                            else setView("intro");
+                            await flushDraft(q, Math.max(0, section - 1));
+                            setErrors({});
+                            if (section > 0)
+                              await transition("questionnaire", section - 1);
+                            else await transition("intro");
                           })
                         }
                       >
@@ -1542,6 +1888,7 @@ export function Mvp2({
                     running: "выполняется",
                     done: "готово",
                     error: "ошибка",
+                    "waiting-data": "нужны дополнительные сведения",
                   }[s.status]
                 }
               </li>

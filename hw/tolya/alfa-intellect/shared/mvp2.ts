@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { day, validDate } from "./cabinet";
+import { innError } from "./inn";
 export const productIds = [
   "WORKING",
   "INVEST",
@@ -150,6 +152,26 @@ export const repayments = [
   "Другое",
   "Не знаю",
 ];
+export const neededOptions = ["Срочно", "До месяца", "Позже", "Выбрать дату"];
+export const catalogAmount = { min: 300000, max: 7000000, step: 50000 };
+export function amountBand(amount: number | null): string {
+  if (amount === null) return "Не знаю";
+  return ranges[
+    amount < 300000
+      ? 0
+      : amount < 500000
+        ? 1
+        : amount < 1000000
+          ? 2
+          : amount <= 3000000
+            ? 3
+            : amount <= 5000000
+              ? 4
+              : amount <= 7000000
+                ? 5
+                : 6
+  ];
+}
 const text = z.string().trim().max(500);
 const rub = z.number().finite().min(0).max(1e12);
 const tri = z.enum(["yes", "no", "unknown"]);
@@ -159,18 +181,28 @@ export const onboardingSchema = z
     age: z.enum(ages as [string, ...string[]]),
     purpose: z.enum(purposes as [string, ...string[]]),
     amountRange: z.enum(ranges as [string, ...string[]]),
+    amount: z
+      .number()
+      .int()
+      .min(catalogAmount.min)
+      .max(catalogAmount.max)
+      .nullable()
+      .optional(),
     term: z.number().int().min(1).max(60),
     usage: z.enum(uses as [string, ...string[]]),
     repayment: z.enum(repayments as [string, ...string[]]),
   })
   .strict();
 export type OnboardingAnswers = z.infer<typeof onboardingSchema>;
-export const questionnaireSchema = z
+export const questionnaireInputSchema = z
   .object({
     inn: z
       .string()
       .regex(/^(\d{10}|\d{12})$/)
-      .or(z.literal("")),
+      .or(z.literal(""))
+      .refine((value) => !value || !innError(value), {
+        message: "Проверьте ИНН: контрольные цифры не совпадают.",
+      }),
     companyConfirmed: z.boolean(),
     registryError: text,
     authorized: z.boolean(),
@@ -203,8 +235,9 @@ export const questionnaireSchema = z
     debt: rub.nullable(),
     monthlyDebt: rub.nullable(),
     balloon: rub.nullable(),
+    balloonExpected: tri.default("unknown"),
     balloonPeriod: text,
-    leasing: z.enum(["yes", "no"]),
+    leasing: z.enum(["yes", "no", "unknown"]),
     monthlyLeasing: rub.nullable(),
     debtReconciled: z.boolean(),
     seasonality: tri,
@@ -212,13 +245,15 @@ export const questionnaireSchema = z
     futureIn: rub.nullable(),
     futureOut: rub.nullable(),
     futurePeriod: text,
-    purpose: text,
-    amount: z.number().int().positive().max(1e12),
-    term: z.number().int().min(1).max(120),
-    neededAt: text,
+    purpose: z.enum(["", ...purposes]),
+    purposeDetails: text.default(""),
+    amount: z.number().int().min(0).max(1e12),
+    term: z.number().int().min(0).max(120),
+    neededAt: z.enum(["", ...neededOptions]),
+    neededDate: text.default(""),
     productId: z.enum(productIds),
-    usage: text,
-    repayment: text,
+    usage: z.enum(["", ...uses]),
+    repayment: z.enum(["", ...repayments]),
     projectCost: rub.nullable(),
     economicEffect: rub.nullable(),
     cycleDays: z.number().int().min(1).max(365).nullable(),
@@ -247,7 +282,51 @@ export const questionnaireSchema = z
     reconciliationReference: z.string().trim().max(160).default(""),
   })
   .strict();
-export type Questionnaire = z.infer<typeof questionnaireSchema>;
+export type Questionnaire = z.infer<typeof questionnaireInputSchema>;
+/** Inactive answers are neither required nor financially active, even for direct API calls. */
+export function normalizeQuestionnaire<T extends Record<string, any>>(
+  value: T,
+): T {
+  const q: Record<string, any> = { ...value };
+  q.neededDate ??= "";
+  q.purposeDetails ??= "";
+  if (q.loans !== "yes") {
+    Object.assign(q, {
+      debt: null,
+      monthlyDebt: null,
+      balloon: null,
+      balloonPeriod: "",
+      balloonExpected: "no",
+    });
+  } else {
+    if (q.balloonExpected === undefined)
+      q.balloonExpected = q.balloon ? "yes" : "unknown";
+    if (q.balloonExpected !== "yes")
+      Object.assign(q, { balloon: null, balloonPeriod: "" });
+  }
+  if (q.leasing !== "yes") q.monthlyLeasing = null;
+  if (q.complete !== "no")
+    Object.assign(q, { outsideType: "", outsideIn: null, outsideOut: null });
+  if (!["income", "both"].includes(q.future)) q.futureIn = null;
+  if (!["expense", "both"].includes(q.future)) q.futureOut = null;
+  if (["none", "unknown"].includes(q.future)) q.futurePeriod = "";
+  if (q.productId !== "INVEST")
+    Object.assign(q, { projectCost: null, economicEffect: null });
+  if (!["RCL", "OVERDRAFT"].includes(q.productId)) q.cycleDays = null;
+  if (q.productId !== "NCL") q.tranches = "";
+  if (q.productId !== "REFI")
+    Object.assign(q, { oldRate: null, oldPayment: null, oldBalance: null });
+  if (q.neededAt !== "Выбрать дату") q.neededDate = "";
+  if (q.purpose !== "Не определился") q.purposeDetails = "";
+  return q as T;
+}
+export const questionnaireSchema = z.preprocess(
+  (value) =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? normalizeQuestionnaire(value as Record<string, unknown>)
+      : value,
+  questionnaireInputSchema,
+);
 export function questionnaireErrors(
   q: Questionnaire,
   section: number,
@@ -256,36 +335,67 @@ export function questionnaireErrors(
   const required = (key: keyof Questionnaire, label: string) => {
     if (q[key] === null || q[key] === "") errors[key] = label;
   };
+  const numeric = (
+    key: keyof Questionnaire,
+    label: string,
+    max = 1e12,
+    min = 0,
+    integer = false,
+  ) => {
+    const value = q[key];
+    if (value === null || value === undefined || value === "") return;
+    if (
+      typeof value !== "number" ||
+      !Number.isFinite(value) ||
+      value < min ||
+      value > max ||
+      (integer && !Number.isInteger(value))
+    )
+      errors[key] =
+        `${label}: укажите ${integer ? "целое число" : "число"} от ${min.toLocaleString("ru-RU")} до ${max.toLocaleString("ru-RU")}.`;
+  };
   if (section === 0) {
-    if (!/^(\d{10}|\d{12})$/.test(q.inn))
-      errors.inn = "Введите ИНН: 10 или 12 цифр.";
+    if (innError(q.inn)) errors.inn = innError(q.inn);
     if (!q.companyConfirmed)
       errors.companyConfirmed = "Подтвердите найденную компанию.";
     if (!q.authorized)
       errors.authorized = "Для подачи нужны полномочия представителя.";
     if (Object.values(q.consents).some((v) => !v))
-      errors.consents = "Для продолжения нужны отдельные согласия на проверки.";
+      errors.consents =
+        "Подтвердите согласие на обработку данных и дополнительные проверки.";
   }
   if (section === 1) {
-    if (q.complete === "unknown") errors.complete = "Уточните полноту выписок.";
-    if (q.accounts.some((a) => !a.bank))
-      errors.accounts = "Укажите банк для каждого расчётного счёта.";
+    if (q.accounts.some((a) => a.documentId && !a.bank.trim()))
+      errors.accounts = "Укажите банк для каждого загруженного счёта.";
     if (q.complete === "no") {
       required("outsideType", "Укажите операции вне CSV.");
       required("outsideIn", "Укажите поступления вне CSV.");
       required("outsideOut", "Укажите расходы вне CSV.");
+      numeric("outsideIn", "Поступления вне выписок");
+      numeric("outsideOut", "Расходы вне выписок");
     }
   }
   if (section === 2) {
     if (q.loans === "unknown") errors.loans = "Уточните наличие кредитов.";
+    if (q.leasing === "unknown") errors.leasing = "Уточните наличие лизинга.";
     if (q.loans === "yes") {
       required("debt", "Укажите остаток долга.");
       required("monthlyDebt", "Укажите месячный платёж.");
+      numeric("debt", "Остаток долга");
+      numeric("monthlyDebt", "Ежемесячный платёж");
     }
-    if (q.leasing === "yes")
+    if (q.leasing === "yes") {
       required("monthlyLeasing", "Укажите платёж по лизингу.");
-    if (q.balloon)
-      required("balloonPeriod", "Укажите период крупного погашения.");
+      numeric("monthlyLeasing", "Платёж по лизингу");
+    }
+    if (q.loans === "yes" && q.balloonExpected === "yes") {
+      numeric("balloon", "Разовое погашение");
+      if (!q.balloon || q.balloon <= 0)
+        errors.balloon = "Укажите положительную сумму погашения.";
+      if (!validDate(q.balloonPeriod) || q.balloonPeriod < day())
+        errors.balloonPeriod =
+          "Выберите действительную дату погашения, не ранее сегодняшнего дня.";
+    }
   }
   if (section === 3) {
     if (["income", "both"].includes(q.future))
@@ -294,24 +404,64 @@ export function questionnaireErrors(
       required("futureOut", "Укажите будущий расход.");
     if (!["none", "unknown"].includes(q.future))
       required("futurePeriod", "Укажите период будущих операций.");
+    if (["income", "both"].includes(q.future))
+      numeric("futureIn", "Будущие поступления");
+    if (["expense", "both"].includes(q.future))
+      numeric("futureOut", "Будущие расходы");
   }
   if (section === 4) {
     required("purpose", "Уточните назначение средств.");
     required("neededAt", "Укажите, когда нужны средства.");
+    if (!purposes.includes(q.purpose))
+      errors.purpose = "Выберите назначение финансирования из списка.";
+    if (!uses.includes(q.usage))
+      errors.usage = "Выберите способ использования средств.";
+    if (!repayments.includes(q.repayment))
+      errors.repayment = "Выберите источник погашения.";
+    if (!neededOptions.includes(q.neededAt))
+      errors.neededAt = "Выберите, когда нужны средства.";
+    if (
+      q.neededAt === "Выбрать дату" &&
+      (!validDate(q.neededDate) || q.neededDate < day())
+    )
+      errors.neededDate =
+        "Выберите действительную дату, не ранее сегодняшнего дня.";
+    if (q.purpose === "Не определился")
+      required("purposeDetails", "Уточните назначение финансирования.");
     if (!Number.isSafeInteger(q.amount) || q.amount <= 0 || q.amount > 1e12)
       errors.amount = "Введите положительную сумму в рублях.";
     if (!Number.isInteger(q.term) || q.term < 1 || q.term > 120)
       errors.term = "Укажите срок от 1 до 120 месяцев.";
+    const product = products.find((p) => p.id === q.productId);
+    if (product && (q.amount < product.min || q.amount > product.max))
+      errors.amount = `Для этого продукта доступно от ${product.min.toLocaleString("ru-RU")} до ${product.max.toLocaleString("ru-RU")} ₽. Измените сумму или продукт.`;
+    if (product && (q.term < product.minTerm || q.term > product.maxTerm))
+      errors.term = `Выберите срок от ${product.minTerm} до ${product.maxTerm} месяцев.`;
     if (q.productId === "INVEST")
       required("projectCost", "Укажите стоимость проекта.");
+    if (q.productId === "INVEST") {
+      numeric("projectCost", "Стоимость проекта");
+      numeric("economicEffect", "Дополнительный денежный результат");
+    }
     if (["RCL", "OVERDRAFT"].includes(q.productId))
       required("cycleDays", "Укажите длительность использования.");
+    if (["RCL", "OVERDRAFT"].includes(q.productId))
+      numeric(
+        "cycleDays",
+        "Цикл использования",
+        q.productId === "OVERDRAFT" ? 60 : 365,
+        1,
+        true,
+      );
     if (q.productId === "NCL")
       required("tranches", "Укажите суммы и сроки траншей.");
     if (q.productId === "REFI") {
       required("oldBalance", "Укажите остаток старого кредита.");
       required("oldRate", "Укажите ставку старого кредита.");
       required("oldPayment", "Укажите платёж старого кредита.");
+      numeric("oldBalance", "Остаток прежнего кредита");
+      numeric("oldRate", "Ставка прежнего кредита", 100);
+      numeric("oldPayment", "Платёж прежнего кредита");
     }
   }
   return errors;
@@ -342,8 +492,9 @@ export function initialQuestionnaire(a: OnboardingAnswers): Questionnaire {
     debt: null,
     monthlyDebt: null,
     balloon: null,
+    balloonExpected: "unknown",
     balloonPeriod: "",
-    leasing: "no",
+    leasing: "unknown",
     monthlyLeasing: null,
     debtReconciled: false,
     seasonality: "unknown",
@@ -352,11 +503,16 @@ export function initialQuestionnaire(a: OnboardingAnswers): Questionnaire {
     futureOut: null,
     futurePeriod: "",
     purpose: a.purpose,
-    amount: [
-      250000, 400000, 750000, 2000000, 4000000, 6000000, 7500000, 1000000,
-    ][ranges.indexOf(a.amountRange)],
+    purposeDetails: "",
+    amount:
+      a.amount !== undefined
+        ? (a.amount ?? 0)
+        : ([250000, 400000, 750000, 2000000, 4000000, 6000000, 7500000, 0][
+            ranges.indexOf(a.amountRange)
+          ] ?? 0),
     term: a.term,
     neededAt: "До месяца",
+    neededDate: "",
     productId: recommend(a),
     usage: a.usage,
     repayment: a.repayment,
@@ -379,9 +535,10 @@ export function initialQuestionnaire(a: OnboardingAnswers): Questionnaire {
 export function productIssues(
   q: Pick<Questionnaire, "productId" | "amount" | "term">,
 ): string[] {
-  const p = products.find((p) => p.id === q.productId)!;
+  const p = products.find((p) => p.id === q.productId);
+  if (!p) return ["Выберите продукт из каталога."];
   return [
-    q.amount < p.min || q.amount > p.max
+    !Number.isSafeInteger(q.amount) || q.amount < p.min || q.amount > p.max
       ? `Сумма продукта: от ${p.min.toLocaleString("ru-RU")} до ${p.max.toLocaleString("ru-RU")} ₽.`
       : "",
     q.term < p.minTerm || q.term > p.maxTerm
@@ -433,11 +590,12 @@ export type Company = {
   activity?: string;
   status: string;
   source: string;
+  region?: string;
 };
 export type Stage = {
   id: string;
   label: string;
-  status: "pending" | "running" | "done" | "error";
+  status: "pending" | "running" | "done" | "error" | "waiting-data";
   at?: string;
 };
 export type Alternative = {
