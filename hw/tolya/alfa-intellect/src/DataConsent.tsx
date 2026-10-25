@@ -10,7 +10,7 @@ export function DataConsent({
   error?: string;
 }) {
   return (
-    <fieldset className="mvp-span">
+    <fieldset className="mvp-span" data-field="consents">
       <legend>Согласие на обработку данных</legend>
       <label className="mvp-check">
         <input
@@ -25,6 +25,15 @@ export function DataConsent({
         Даю согласие на обработку данных, проверку компании и кредитной истории,
         а также анализ выписок.
       </label>
+      <details className="consent-scope">
+        <summary>Какие проверки входят?</summary>
+        <p>
+          Проверка компании, обработка и анализ выписок, проверка кредитной
+          истории (БКИ). Дополнительные проверки выполняются после вашего
+          согласия. Вы можете ознакомиться с найденными общедоступными
+          сведениями о компании до подтверждения.
+        </p>
+      </details>
       {error && (
         <small className="mvp-error" role="alert">
           {error}

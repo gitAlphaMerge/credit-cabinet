@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useId } from "react";
 import {
   ArrowRight,
   Check,
@@ -21,6 +21,11 @@ import { innError } from "../shared/inn";
 import { industryFromOkved } from "../shared/company";
 import { day, addDays } from "../shared/cabinet";
 import { ApplicationAgent } from "./ApplicationAgent";
+import {
+  ApplicationWorkspace,
+  sectionDescriptions,
+} from "./ApplicationWorkspace";
+import { JourneyProgress } from "./JourneyProgress";
 import { useWorkspace, WorkspaceContext } from "./context";
 import { Chat } from "./Chat";
 import { Illustration } from "./Illustration";
@@ -63,15 +68,61 @@ function Choice({
   options,
   onChange,
   invalid = false,
+  fieldKey,
+  error,
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (v: string) => void;
   invalid?: boolean;
+  fieldKey?: string;
+  error?: string;
 }) {
+  const id = useId();
+  const labelFor = (value: string) =>
+    (
+      ({
+        "Всё сразу": "Всю сумму сразу",
+        Частями: "Несколькими частями",
+        "Многократная выборка и возврат":
+          "Брать и возвращать по мере необходимости",
+        "Не уверен": "Не знаю",
+      }) as Record<string, string>
+    )[value] ?? value;
+  if (options.every((x) => ["Да", "Нет", "Не знаю", "Не уверен"].includes(x)))
+    return (
+      <fieldset
+        className="segmented-choice"
+        data-field={fieldKey}
+        aria-invalid={invalid}
+        role="group"
+        aria-label={label}
+      >
+        <legend>{label}</legend>
+        <div>
+          {options.map((option) => (
+            <label key={option}>
+              <input
+                type="radio"
+                name={id}
+                value={option}
+                checked={value === option}
+                onChange={() => onChange(option)}
+              />
+              <span>{labelFor(option)}</span>
+            </label>
+          ))}
+        </div>
+        {error && (
+          <small className="mvp-error" role="alert">
+            {error}
+          </small>
+        )}
+      </fieldset>
+    );
   return (
-    <label className="field">
+    <label className="field" data-field={fieldKey}>
       <span>{label}</span>
       <select
         aria-label={label}
@@ -83,9 +134,16 @@ function Choice({
           Выберите...
         </option>
         {options.map((x) => (
-          <option key={x}>{x}</option>
+          <option key={x} value={x}>
+            {labelFor(x)}
+          </option>
         ))}
       </select>
+      {error && (
+        <small className="mvp-error" role="alert">
+          {error}
+        </small>
+      )}
     </label>
   );
 }
@@ -230,8 +288,9 @@ export function MvpOnboarding({
         <RestartJourney />
       </header>
       <main className="onboard-grid">
+        <JourneyProgress current={0} />
         <section className="onboard-main">
-          <small>Знакомство · {step + 1} из 3</small>
+          <small>Вопросы о задаче · {step + 1} из 3</small>
           <progress
             className="journey-onboarding-progress"
             max={3}
@@ -332,6 +391,10 @@ function QuestionnaireFields({
   uploadErrors,
   catalogIndustry,
   onInnPaste,
+  removeStatement,
+  uploadingAccount,
+  onConsent,
+  onDiscrepancy,
 }: {
   q: Questionnaire;
   setQ: (q: Questionnaire) => void;
@@ -348,7 +411,24 @@ function QuestionnaireFields({
   uploadErrors: Record<string, string>;
   catalogIndustry: string;
   onInnPaste: () => void;
+  removeStatement: (id: string) => void;
+  uploadingAccount: string;
+  onConsent: () => void;
+  onDiscrepancy: () => void;
 }) {
+  const [editingRequest, setEditingRequest] = useState(false);
+  const requestKeys = [
+    "purpose",
+    "amount",
+    "term",
+    "productId",
+    "usage",
+    "repayment",
+  ];
+  useLayoutEffect(() => {
+    if (section === 4 && requestKeys.some((key) => errors[key]))
+      setEditingRequest(true);
+  }, [section, errors]);
   const patch = (k: keyof Questionnaire, v: unknown) => setQ({ ...q, [k]: v });
   const calendar = (
     key: "balloonPeriod" | "neededDate",
@@ -370,13 +450,16 @@ function QuestionnaireFields({
         )
       : null;
   const show = (k: string, s: number) =>
-    missing ? missing.some((m) => m.key === k) : section === s;
+    missing
+      ? missing.some((m) => m.key === k)
+      : section === s &&
+        !(section === 4 && !editingRequest && requestKeys.includes(k));
   const wrap = (
     key: keyof Questionnaire,
     label: string,
     node: React.ReactNode,
   ) => (
-    <label className="field" key={key}>
+    <label className="field" key={key} data-field={key}>
       <span>{label}</span>
       {node}
       {errors[key] && (
@@ -434,6 +517,8 @@ function QuestionnaireFields({
       <Choice
         key={k}
         label={label}
+        fieldKey={k}
+        error={errors[k]}
         invalid={!!errors[k]}
         value={triValue(q[k])}
         options={yesNo}
@@ -446,7 +531,7 @@ function QuestionnaireFields({
     s: number,
   ) =>
     show(k, s) ? (
-      <label className="mvp-check" key={k}>
+      <label className="mvp-check" key={k} data-field={k}>
         <input
           type="checkbox"
           aria-invalid={!!errors[k]}
@@ -457,10 +542,10 @@ function QuestionnaireFields({
       </label>
     ) : null;
   return (
-    <div className="mvp-fields">
+    <div className={"mvp-fields mvp-fields-section-" + section}>
       {show("inn", 0) && (
         <div className="mvp-span">
-          <label className="field field-inn">
+          <label className="field field-inn" data-field="inn">
             <span>ИНН компании</span>
             <input
               aria-label="ИНН компании"
@@ -488,14 +573,16 @@ function QuestionnaireFields({
           >
             {registryStatus.message}
           </p>
-          <Button
-            secondary
-            type="button"
-            disabled={busy || !!innError(q.inn)}
-            onClick={registry}
-          >
-            Повторить поиск
-          </Button>
+          {["error", "not-found"].includes(registryStatus.status) && (
+            <Button
+              secondary
+              type="button"
+              disabled={busy || !!innError(q.inn)}
+              onClick={registry}
+            >
+              Повторить поиск
+            </Button>
+          )}
         </div>
       )}
       {company &&
@@ -507,10 +594,10 @@ function QuestionnaireFields({
             <CompanyCard company={company} />
           </div>
         )}
-      {company && check("companyConfirmed", "Сведения верны", 0)}
+      {company && check("companyConfirmed", "Это моя компания", 0)}
       {company && show("registryError", 0) && (
         <details className="mvp-span">
-          <summary>Сообщить об ошибке</summary>
+          <summary>Сведения неверны</summary>
           {text(
             "registryError",
             "Сообщить об ошибке в найденных сведениях (если есть)",
@@ -535,25 +622,43 @@ function QuestionnaireFields({
         company.okved &&
         industryFromOkved(company.okved) !== catalogIndustry && (
           <p className="mvp-span mvp-notice">
-            В онбординге вы указали «{catalogIndustry}», в реестре — «
+            Вы указали сферу «{catalogIndustry}», в реестре — «
             {company.activity || industryFromOkved(company.okved)}». Уточните
             фактическую деятельность ниже.
           </p>
         )}
       {company &&
+        (q.actualIndustry ||
+          (company.okved &&
+            industryFromOkved(company.okved) !== catalogIndustry)) &&
         text(
           "actualIndustry",
           "Фактическая деятельность (если отличается от ОКВЭД)",
           0,
         )}
       {show("accounts", 1) && (
-        <div className="mvp-span">
-          <h3>Расчётные счета · {q.accounts.length}</h3>
+        <div className="mvp-span" data-field="accounts">
+          <h2 className="credit-block-title">
+            Добавьте выписки по счетам бизнеса
+          </h2>
           <p>
-            Загрузите выписки по расчётным счетам. Желательно за последние 12
-            полных месяцев; для базовой оценки требуется достаточная история
-            операций.
+            Рекомендуем последние 12 полных месяцев. Поддерживается CSV; при
+            недостатке истории можно продолжить и добавить данные позже.
           </p>
+          <div className="csv-format-help">
+            <a href="/fixtures/mvp2-cashflow.csv" download>
+              Скачать образец CSV
+            </a>
+            <details>
+              <summary>Как выгрузить выписку?</summary>
+              <p>
+                В интернет-банке выберите расчётный счёт, период и экспорт CSV.
+                Нужны дата, сумма, контрагент и назначение платежа. Поступления
+                со знаком плюс, расходы — минус. PDF не подходит для
+                автоматического анализа.
+              </p>
+            </details>
+          </div>
           {q.accounts.map((account, i) => (
             <section key={account.id} className="mvp-account">
               <h4>Счёт {i + 1}</h4>
@@ -582,6 +687,10 @@ function QuestionnaireFields({
                     (s) => s.id === account.documentId,
                   )}
                   disabled={busy || !q.consents.financial}
+                  uploading={uploadingAccount === account.id}
+                  removingDisabled={busy}
+                  onRemove={() => removeStatement(account.documentId)}
+                  onDiscrepancy={onDiscrepancy}
                   error={uploadErrors[account.id]}
                   onUpload={(file) => upload(file, account.id)}
                 />
@@ -632,6 +741,9 @@ function QuestionnaireFields({
             <p className="mvp-notice">
               Чтобы загрузить выписки, подтвердите согласие на обработку данных
               в разделе «Компания».
+              <button className="text-button" type="button" onClick={onConsent}>
+                Перейти к согласию
+              </button>
             </p>
           )}
         </div>
@@ -684,8 +796,15 @@ function QuestionnaireFields({
           label="Есть ли у бизнеса действующий лизинг?"
           value={q.leasing === "yes" ? "Да" : q.leasing === "no" ? "Нет" : ""}
           invalid={!!errors.leasing}
-          options={["Да", "Нет"]}
-          onChange={(v) => patch("leasing", v === "Да" ? "yes" : "no")}
+          fieldKey="leasing"
+          error={errors.leasing}
+          options={["Да", "Нет", "Не знаю"]}
+          onChange={(v) =>
+            patch(
+              "leasing",
+              v === "Да" ? "yes" : v === "Нет" ? "no" : "unknown",
+            )
+          }
         />
       )}
       {q.leasing === "yes" &&
@@ -728,21 +847,68 @@ function QuestionnaireFields({
       )}
       {(["income", "both"].includes(q.future) ||
         missing?.some((m) => m.key === "futureIn")) &&
-        number("futureIn", "Будущие поступления", 3)}
+        number("futureIn", "Будущие поступления за указанный период, ₽", 3)}
       {(["expense", "both"].includes(q.future) ||
         missing?.some((m) => m.key === "futureOut")) &&
-        number("futureOut", "Будущие расходы", 3)}
+        number("futureOut", "Будущие расходы за указанный период, ₽", 3)}
       {!["none", "unknown"].includes(q.future) &&
         text("futurePeriod", "Период будущих операций", 3)}
       {section === 3 && (
         <small className="mvp-span">
-          Будущие операции сохраняются как дополнительные сведения. Они не
-          увеличивают подтверждённую платёжеспособность без расчёта ядра.
+          Будущие операции — ваша неподтверждённая оценка. Они сохраняются
+          отдельно от выписок и сами по себе не увеличивают доступную сумму
+          кредита.
         </small>
+      )}
+      {section === 4 && !missing && (
+        <section className="request-summary mvp-span">
+          <header>
+            <h2>Ваш запрос</h2>
+            <button
+              className="text-button"
+              type="button"
+              aria-expanded={editingRequest}
+              onClick={() => setEditingRequest(!editingRequest)}
+            >
+              {editingRequest ? "Свернуть параметры" : "Изменить"}
+            </button>
+          </header>
+          <strong>{catalog.find((p) => p.id === q.productId)?.name}</strong>
+          <dl>
+            <div>
+              <dt>Сумма</dt>
+              <dd>{q.amount > 0 ? money(q.amount) : "Нужно уточнить"}</dd>
+            </div>
+            <div>
+              <dt>Срок</dt>
+              <dd>{q.term} мес.</dd>
+            </div>
+            <div>
+              <dt>Цель</dt>
+              <dd>{q.purpose}</dd>
+            </div>
+            <div>
+              <dt>Получение</dt>
+              <dd>{q.usage}</dd>
+            </div>
+            <div>
+              <dt>Возврат</dt>
+              <dd>{q.repayment}</dd>
+            </div>
+          </dl>
+          <small>
+            Для выбранного продукта:{" "}
+            {money(catalog.find((p) => p.id === q.productId)?.min)}–
+            {money(catalog.find((p) => p.id === q.productId)?.max)}. Это
+            диапазон продукта, не одобренная сумма.
+          </small>
+        </section>
       )}
       {show("purpose", 4) && (
         <Choice
           label="Конкретное назначение средств"
+          fieldKey="purpose"
+          error={errors.purpose}
           value={q.purpose}
           options={purposes}
           onChange={(v) => patch("purpose", v)}
@@ -782,6 +948,8 @@ function QuestionnaireFields({
       {show("neededAt", 4) && (
         <Choice
           label="Когда нужны средства?"
+          fieldKey="neededAt"
+          error={errors.neededAt}
           value={q.neededAt}
           options={neededOptions}
           onChange={(v) => patch("neededAt", v)}
@@ -809,6 +977,8 @@ function QuestionnaireFields({
       {show("usage", 4) && (
         <Choice
           label="Способ использования"
+          fieldKey="usage"
+          error={errors.usage}
           value={q.usage}
           options={uses}
           onChange={(v) => patch("usage", v)}
@@ -817,6 +987,8 @@ function QuestionnaireFields({
       {show("repayment", 4) && (
         <Choice
           label="Источник погашения"
+          fieldKey="repayment"
+          error={errors.repayment}
           value={q.repayment}
           options={repayments}
           onChange={(v) => patch("repayment", v)}
@@ -827,7 +999,7 @@ function QuestionnaireFields({
           {number("projectCost", "Стоимость проекта", 4)}
           {number(
             "economicEffect",
-            "Какой дополнительный денежный результат вы ожидаете от проекта?",
+            "Дополнительный денежный результат проекта в месяц, ₽",
             4,
           )}
           {(section === 4 ||
@@ -836,7 +1008,7 @@ function QuestionnaireFields({
               Например, дополнительная выручка или снижение расходов после
               покупки оборудования. Если пока не можете оценить, оставьте поле
               пустым. Это ваша оценка, она не увеличивает подтверждённый
-              свободный поток для скоринга.
+              свободный денежный поток. Укажите оценку за один месяц.
             </small>
           )}
         </>
@@ -883,6 +1055,9 @@ export function Mvp2({
       message: "Введите ИНН — сведения о компании появятся автоматически.",
     }),
     [uploadErrors, setUploadErrors] = useState<Record<string, string>>({}),
+    [uploadingAccount, setUploadingAccount] = useState(""),
+    [draftStatus, setDraftStatus] = useState("saved"),
+    [activeField, setActiveField] = useState(""),
     [errors, setErrors] = useState<Record<string, string>>({}),
     [statements, setStatements] = useState<any[]>([]),
     [slots, setSlots] = useState<any[]>([]),
@@ -1088,6 +1263,7 @@ export function Mvp2({
     value = normalizeQuestionnaire(value);
     qRef.current = value;
     dirty.current = true;
+    setDraftStatus("changed");
     setQ(value);
     setError("");
     setErrors((previous) =>
@@ -1119,7 +1295,14 @@ export function Mvp2({
       .catch(() => {})
       .then(() => api("/journey/draft", payload, "PUT"))
       .then(() => {});
-    await draftQueue.current;
+    setDraftStatus("saving");
+    try {
+      await draftQueue.current;
+      if (qRef.current === value) setDraftStatus("saved");
+    } catch (e) {
+      setDraftStatus("error");
+      throw e;
+    }
   }
   async function transition(nextView: string, targetSection = section) {
     const current = aRef.current;
@@ -1249,21 +1432,38 @@ export function Mvp2({
     });
   const upload = (file: File, accountId: string) =>
     void run(async () => {
+      setUploadingAccount(accountId);
       setUploadErrors((previous) => ({ ...previous, [accountId]: "" }));
-      const saved = await save(),
-        body = new FormData();
-      body.append("version", String(saved.version));
-      body.append("accountId", accountId);
-      body.append("file", file);
       try {
-        adopt(await api(`/mvp2/applications/${saved.id}/statements`, body));
-      } catch (e) {
-        setUploadErrors((previous) => ({
-          ...previous,
-          [accountId]: (e as Error).message,
-        }));
-        throw e;
+        const saved = await save(),
+          body = new FormData();
+        body.append("version", String(saved.version));
+        body.append("accountId", accountId);
+        body.append("file", file);
+        try {
+          adopt(await api(`/mvp2/applications/${saved.id}/statements`, body));
+        } catch (e) {
+          setUploadErrors((previous) => ({
+            ...previous,
+            [accountId]: (e as Error).message,
+          }));
+          throw e;
+        }
+        await loadStatements(saved.id);
+      } finally {
+        setUploadingAccount("");
       }
+    });
+  const removeFile = (id: string) =>
+    void run(async () => {
+      const saved = await save();
+      adopt(
+        await api(
+          `/mvp2/applications/${saved.id}/statements/${id}`,
+          { version: saved.version },
+          "DELETE",
+        ),
+      );
       await loadStatements(saved.id);
     });
   const registry = () => void lookupCompany();
@@ -1388,41 +1588,63 @@ export function Mvp2({
           : "")
       }
     >
-      <header className="journey-stage">
-        <h1>
-          {{
-            recommendation: "Предварительный подбор",
-            catalog: "Каталог продуктов",
-            intro: "Перед заполнением анкеты",
-            questionnaire: sectionTitles[section],
-            dossier: "Кредитное досье",
-            processing: "Рассмотрение заявки",
-            decision: "Кредитное решение",
-            supplement: "Дополнение сведений",
-            meeting: "Встреча с менеджером",
-            details: "Данные для договора",
-            contract: "Кредитный договор",
-            receive: "Получение финансирования",
-            scenario: "Новые условия",
-          }[view] || "Оформление финансирования"}
-        </h1>
-      </header>
-      {error && (
-        <div className="mvp-error" role="alert">
-          {error}
-          <Button
-            secondary
-            onClick={() =>
-              void run(async () => {
-                if (a) await open(await api(path));
-                else location.reload();
-              })
-            }
-          >
-            Обновить данные
-          </Button>
-        </div>
+      <JourneyProgress
+        current={
+          ["processing"].includes(view)
+            ? 2
+            : [
+                  "decision",
+                  "meeting",
+                  "details",
+                  "contract",
+                  "receive",
+                ].includes(view)
+              ? 3
+              : ["recommendation", "catalog", "start", "loading"].includes(view)
+                ? 0
+                : 1
+        }
+      />
+      {!["intro", "questionnaire", "dossier", "supplement"].includes(view) && (
+        <header className="journey-stage">
+          <h1>
+            {{
+              recommendation: "Предварительный подбор",
+              catalog: "Каталог продуктов",
+              intro: "Перед заполнением анкеты",
+              questionnaire: sectionTitles[section],
+              dossier: "Кредитное досье",
+              processing: "Рассмотрение заявки",
+              decision: "Кредитное решение",
+              supplement: "Дополнение сведений",
+              meeting: "Встреча с менеджером",
+              details: "Данные для договора",
+              contract: "Кредитный договор",
+              receive: "Получение финансирования",
+              scenario: "Новые условия",
+            }[view] || "Оформление финансирования"}
+          </h1>
+        </header>
       )}
+      {error &&
+        Object.keys(errors).length === 0 &&
+        !Object.values(uploadErrors).includes(error) && (
+          <div className="mvp-error" role="alert">
+            {error}
+            <Button
+              secondary
+              onClick={() =>
+                void run(async () => {
+                  if (a && dirty.current && q) await flushDraft();
+                  else if (a) await open(await api(path));
+                  else location.reload();
+                })
+              }
+            >
+              Повторить действие
+            </Button>
+          </div>
+        )}
       {view === "loading" && (
         <section className="funding-surface" role="status">
           Загружаем сохранённую заявку…
@@ -1602,279 +1824,373 @@ export function Mvp2({
       {a &&
         q &&
         ["intro", "questionnaire", "dossier", "supplement"].includes(view) && (
-          <div className="mvp-layout">
-            <section ref={formPanel} className="funding-surface mvp-form-panel">
-              {view === "intro" ? (
-                <>
-                  <h2>Проверим доступность финансирования</h2>
-                  <p>
-                    Подтвердите компанию по ИНН, добавьте CSV по расчётным
-                    счетам и уточните обязательства. Ответы знакомства уже
-                    сохранены.
-                  </p>
-                  <p>
-                    Автоматический анализ поддерживает CSV банковских выписок.
-                    ИИ объясняет поля и расчёты, но решение формирует сервер
-                    после проверок.
-                  </p>
-                  <Button
-                    disabled={busy}
-                    onClick={() =>
-                      void run(() => transition("questionnaire", 0))
-                    }
-                  >
-                    Начать заполнение
-                  </Button>
-                </>
-              ) : view === "dossier" ? (
-                <>
-                  <h2>Проверьте вашу заявку</h2>
-                  <ClientDossier
-                    application={{ ...a, questionnaire: q }}
-                    products={products}
-                    statements={statements}
-                    editable={a.lifecycle === "DRAFT"}
-                    onEdit={(target) =>
-                      void run(() => transition("questionnaire", target))
-                    }
-                  />
-                  <div className="mvp-actions">
-                    {a.lifecycle !== "DRAFT" ? (
-                      <Button secondary onClick={() => setView("decision")}>
-                        Вернуться к решению
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          secondary
-                          onClick={() =>
-                            void run(() => transition("questionnaire"))
-                          }
-                        >
-                          Изменить сведения
-                        </Button>
-                        <Button disabled={busy} onClick={() => void submit()}>
-                          Подать заявку на рассмотрение
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="mvp-stepnav">
-                    {view === "supplement" ? (
-                      <h2>Только недостающие сведения</h2>
-                    ) : (
-                      sectionTitles.map((title, i) => (
-                        <button
-                          type="button"
-                          aria-current={i === section ? "step" : undefined}
-                          className={i === section ? "active" : ""}
-                          disabled={busy}
-                          key={title}
-                          onClick={() =>
-                            void run(async () => {
-                              await flushDraft(q, i);
-                              setErrors({});
-                              setError("");
-                              await transition("questionnaire", i);
-                            })
-                          }
-                        >
-                          {i + 1}. {title}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                  {view === "supplement" &&
-                    a.missing.map((m) => <p key={m.key}>{m.label}</p>)}
-                  <form
-                    noValidate
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (view !== "supplement") {
-                        const problems = questionnaireErrors(q, section);
-                        if (
-                          section === 0 &&
-                          a.company?.okved &&
-                          industryFromOkved(a.company.okved) !==
-                            answers.industry &&
-                          !q.actualIndustry.trim()
-                        )
-                          problems.actualIndustry =
-                            "Уточните фактическую деятельность: она отличается от сведений реестра.";
-                        if (Object.keys(problems).length) {
-                          setErrors(problems);
-                          setError(Object.values(problems)[0]);
-                          requestAnimationFrame(() =>
-                            document
-                              .querySelector<HTMLElement>(
-                                '.mvp2 [aria-invalid="true"]',
-                              )
-                              ?.focus(),
-                          );
-                          return;
-                        }
+          <ApplicationWorkspace
+            screenKey={view + section}
+            scrollRef={formPanel}
+            title={
+              view === "intro"
+                ? "Подготовим заявку"
+                : view === "dossier"
+                  ? "Проверьте вашу заявку"
+                  : view === "supplement"
+                    ? "Дополните заявку"
+                    : sectionTitles[section]
+            }
+            description={
+              view === "intro"
+                ? "Ответы о вашей задаче сохранены. Осталось добавить сведения, необходимые для проверки."
+                : view === "dossier"
+                  ? "Проверьте сведения перед отправкой. Любой раздел можно изменить."
+                  : view === "supplement"
+                    ? "Нужны только перечисленные сведения — остальные ответы уже сохранены."
+                    : sectionDescriptions[section]
+            }
+            navigation={
+              view === "questionnaire"
+                ? sectionTitles.map((title, i) => (
+                    <button
+                      type="button"
+                      aria-label={i + 1 + ". " + title}
+                      aria-current={i === section ? "step" : undefined}
+                      disabled={busy}
+                      key={title}
+                      onClick={() =>
+                        void run(async () => {
+                          await flushDraft(q, i);
+                          setErrors({});
+                          setError("");
+                          await transition("questionnaire", i);
+                        })
                       }
-                      void run(async () => {
-                        await save();
-                        if (view === "supplement") {
-                          const current = aRef.current!;
-                          adopt(
-                            await api(path + "/submit", {
-                              version: current.version,
-                            }),
-                          );
-                          setView("processing");
-                        } else if (section < 4)
-                          await transition("questionnaire", section + 1);
-                        else await transition("dossier");
-                      });
-                    }}
-                  >
-                    <h2>
+                    >
+                      <span className="section-number" aria-hidden="true">
+                        {i + 1}.
+                      </span>
+                      <span className="section-name">{title}</span>
+                      <span className="section-short" aria-hidden="true">
+                        {
+                          [
+                            "Компания",
+                            "Финансы",
+                            "Платежи",
+                            "Бизнес",
+                            "Условия",
+                          ][i]
+                        }
+                      </span>
+                    </button>
+                  ))
+                : undefined
+            }
+            agent={
+              <ApplicationAgent
+                application={a}
+                section={section}
+                validationFields={Object.keys(errors)}
+                activeField={activeField}
+              />
+            }
+            footer={
+              <div className="mvp-actions">
+                {view === "intro" ? (
+                  <>
+                    <span>5 разделов · можно возвращаться к ответам</span>
+                    <Button
+                      disabled={busy}
+                      onClick={() =>
+                        void run(() => transition("questionnaire", 0))
+                      }
+                    >
+                      Начать заполнение <ArrowRight size={16} />
+                    </Button>
+                  </>
+                ) : view === "dossier" ? (
+                  <>
+                    <Button
+                      secondary
+                      onClick={() =>
+                        void run(() =>
+                          transition(
+                            a.lifecycle === "DRAFT"
+                              ? "questionnaire"
+                              : "decision",
+                          ),
+                        )
+                      }
+                    >
+                      {a.lifecycle === "DRAFT"
+                        ? "Изменить сведения"
+                        : "Вернуться к решению"}
+                    </Button>
+                    {a.lifecycle === "DRAFT" && (
+                      <Button disabled={busy} onClick={() => void submit()}>
+                        Подать заявку на рассмотрение
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      secondary
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          await flushDraft(q, Math.max(0, section - 1));
+                          setErrors({});
+                          if (section > 0)
+                            await transition("questionnaire", section - 1);
+                          else await transition("intro");
+                        })
+                      }
+                    >
+                      Назад
+                    </Button>
+                    <small className="credit-save-status" role="status">
+                      {
+                        {
+                          changed: "Есть изменения",
+                          saving: "Сохраняем…",
+                          saved: "Ответы сохранены",
+                          error: "Не удалось сохранить",
+                        }[draftStatus]
+                      }
+                    </small>
+                    <Button
+                      disabled={busy}
+                      type="submit"
+                      form={"mvp-questionnaire-" + a.id}
+                    >
                       {view === "supplement"
-                        ? "Дополните заявку"
-                        : sectionTitles[section]}
-                    </h2>
-                    {Object.values(errors).map((message, i) => (
-                      <p key={i} className="mvp-error" role="alert">
-                        {message}
-                      </p>
-                    ))}
-                    {section === 0 && view !== "supplement" && (
-                      <details>
-                        <summary>Сфера и возраст бизнеса из онбординга</summary>
-                        <OnboardingFields
-                          value={answers}
-                          onChange={(value) => {
-                            answersRef.current = value;
-                            dirty.current = true;
-                            setAnswers(value);
-                          }}
-                          group={0}
-                        />
-                      </details>
-                    )}
-                    <QuestionnaireFields
-                      catalog={products}
-                      q={q}
-                      setQ={draftQ}
-                      section={section}
-                      missing={view === "supplement" ? a.missing : undefined}
-                      upload={upload}
-                      registry={registry}
-                      registryStatus={registryStatus}
-                      uploadErrors={uploadErrors}
-                      catalogIndustry={answers.industry}
-                      onInnPaste={() => {
-                        lookupPaste.current = true;
-                      }}
-                      statements={statements}
-                      company={a.company?.inn === q.inn ? a.company : undefined}
-                      busy={busy}
-                      errors={errors}
-                    />
-                    {section === 4 &&
-                      productIssues(q).map((issue) => (
-                        <p className="mvp-error" key={issue}>
-                          {issue}
-                        </p>
-                      ))}
-                    {section === 4 && productIssues(q).length > 0 && (
-                      <Button
-                        secondary
-                        type="button"
-                        onClick={() =>
-                          void run(async () => {
-                            await flushDraft();
-                            catalogReturn.current = "questionnaire";
-                            await transition("catalog");
-                          })
-                        }
-                      >
-                        Выбрать другой продукт
-                      </Button>
-                    )}
-                    <div className="mvp-actions">
-                      <Button
-                        type="button"
-                        secondary
-                        disabled={busy}
-                        onClick={() =>
-                          void run(async () => {
-                            await flushDraft(q, Math.max(0, section - 1));
-                            setErrors({});
-                            if (section > 0)
-                              await transition("questionnaire", section - 1);
-                            else await transition("intro");
-                          })
-                        }
-                      >
-                        Назад
-                      </Button>
-                      <Button disabled={busy} type="submit">
-                        {view === "supplement"
-                          ? "Отправить на повторную проверку"
-                          : section === 4
-                            ? "Проверить заявку"
+                        ? "Отправить на повторную проверку"
+                        : section === 4
+                          ? "Проверить заявку"
+                          : section === 1 &&
+                              q.accounts.some((account) => !account.documentId)
+                            ? "Продолжить без выписок"
                             : "Сохранить и продолжить"}{" "}
-                        <ArrowRight size={16} />
-                      </Button>
+                      <ArrowRight size={16} />
+                    </Button>
+                  </>
+                )}
+              </div>
+            }
+          >
+            {view === "intro" ? (
+              <div className="credit-intro">
+                <ol>
+                  <li>
+                    <span>01</span>
+                    <div>
+                      <h2>Подтвердите компанию</h2>
+                      <p>
+                        Найдём общедоступные сведения по ИНН. Проверьте их и
+                        подтвердите полномочия и согласия.
+                      </p>
                     </div>
-                  </form>
-                </>
-              )}
-            </section>
-            <aside className="mvp-context">
-              <ApplicationAgent application={a} section={section} />
-            </aside>
-          </div>
+                  </li>
+                  <li>
+                    <span>02</span>
+                    <div>
+                      <h2>Добавьте выписки</h2>
+                      <p>
+                        CSV по каждому расчётному счёту. Они помогут оценить
+                        доходы, расходы и действующие платежи.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <span>03</span>
+                    <div>
+                      <h2>Уточните обязательства</h2>
+                      <p>
+                        Кредиты, лизинг и ожидаемые разовые операции.
+                        Понадобятся только сведения о вашем бизнесе.
+                      </p>
+                    </div>
+                  </li>
+                </ol>
+                <p className="mvp-notice">
+                  Помощник объяснит вопросы и формат выписок. После проверки
+                  покажем решение — сейчас никаких дополнительных банковских
+                  проверок не выполняется.
+                </p>
+              </div>
+            ) : view === "dossier" ? (
+              <ClientDossier
+                application={{ ...a, questionnaire: q }}
+                products={products}
+                statements={statements}
+                editable={a.lifecycle === "DRAFT"}
+                onEdit={(target) =>
+                  void run(() => transition("questionnaire", target))
+                }
+              />
+            ) : (
+              <form
+                id={"mvp-questionnaire-" + a.id}
+                onFocusCapture={(e) =>
+                  setActiveField(
+                    (e.target as HTMLElement).closest<HTMLElement>(
+                      "[data-field]",
+                    )?.dataset.field ?? "",
+                  )
+                }
+                noValidate
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (view !== "supplement") {
+                    const problems = questionnaireErrors(q, section);
+                    if (
+                      section === 0 &&
+                      a.company?.okved &&
+                      industryFromOkved(a.company.okved) !== answers.industry &&
+                      !q.actualIndustry.trim()
+                    )
+                      problems.actualIndustry =
+                        "Уточните фактическую деятельность: она отличается от сведений реестра.";
+                    if (Object.keys(problems).length) {
+                      setErrors(problems);
+                      requestAnimationFrame(() =>
+                        formPanel.current
+                          ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+                          ?.focus(),
+                      );
+                      return;
+                    }
+                  }
+                  void run(async () => {
+                    await save();
+                    if (view === "supplement") {
+                      const current = aRef.current!;
+                      adopt(
+                        await api(path + "/submit", {
+                          version: current.version,
+                        }),
+                      );
+                      setView("processing");
+                    } else if (section < 4)
+                      await transition("questionnaire", section + 1);
+                    else await transition("dossier");
+                  });
+                }}
+              >
+                {Object.keys(errors).length > 0 && (
+                  <div className="credit-error-summary" role="alert">
+                    <strong>Уточните сведения</strong>
+                    <ul>
+                      {Object.entries(errors).map(([key, message]) => (
+                        <li key={key}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const group =
+                                formPanel.current?.querySelector<HTMLElement>(
+                                  '[data-field="' + key + '"]',
+                                );
+                              const target =
+                                group?.querySelector<HTMLElement>(
+                                  "input,select,button",
+                                ) ??
+                                formPanel.current?.querySelector<HTMLElement>(
+                                  '[aria-invalid="true"]',
+                                );
+                              target?.focus();
+                              target?.scrollIntoView({ block: "center" });
+                            }}
+                          >
+                            {message}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {view === "supplement" &&
+                  a.missing.map((m) => (
+                    <p className="mvp-notice" key={m.key}>
+                      {m.label}
+                    </p>
+                  ))}
+                <QuestionnaireFields
+                  catalog={products}
+                  q={q}
+                  setQ={draftQ}
+                  section={section}
+                  missing={view === "supplement" ? a.missing : undefined}
+                  upload={upload}
+                  uploadingAccount={uploadingAccount}
+                  removeStatement={removeFile}
+                  onConsent={() =>
+                    void run(async () => {
+                      await flushDraft();
+                      await transition("questionnaire", 0);
+                      requestAnimationFrame(() =>
+                        formPanel.current
+                          ?.querySelector<HTMLElement>(
+                            '[data-field="consents"] input',
+                          )
+                          ?.focus(),
+                      );
+                    })
+                  }
+                  onDiscrepancy={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("application-reference-question", {
+                        detail: {
+                          applicationId: a.id,
+                          promptId: "discrepancy",
+                        },
+                      }),
+                    )
+                  }
+                  registry={registry}
+                  registryStatus={registryStatus}
+                  uploadErrors={uploadErrors}
+                  catalogIndustry={answers.industry}
+                  onInnPaste={() => {
+                    lookupPaste.current = true;
+                  }}
+                  statements={statements}
+                  company={a.company?.inn === q.inn ? a.company : undefined}
+                  busy={busy}
+                  errors={errors}
+                />
+                {section === 4 &&
+                  productIssues(q).map((issue) => (
+                    <p className="mvp-error" key={issue}>
+                      {issue}
+                    </p>
+                  ))}
+                {section === 4 && productIssues(q).length > 0 && (
+                  <Button
+                    secondary
+                    type="button"
+                    onClick={() =>
+                      void run(async () => {
+                        await flushDraft();
+                        catalogReturn.current = "questionnaire";
+                        await transition("catalog");
+                      })
+                    }
+                  >
+                    Выбрать другой продукт
+                  </Button>
+                )}
+              </form>
+            )}
+          </ApplicationWorkspace>
         )}
       {a && view === "processing" && (
         <section className="funding-surface mvp-processing" aria-live="polite">
-          <div
-            className="preparation-sphere journey-sphere"
-            role="progressbar"
-            aria-label="Рассмотрение заявки"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(
-              (a.stages.filter((s) => s.status === "done").length /
-                Math.max(a.stages.length, 1)) *
-                100,
-            )}
-            style={
-              {
-                "--progress": `${(a.stages.filter((s) => s.status === "done").length / Math.max(a.stages.length, 1)) * 100}%`,
-              } as React.CSSProperties
-            }
-          >
-            <div className="sphere-liquid">
-              <i />
-              <i />
-            </div>
-            <div className="sphere-number">
-              <strong>
-                {Math.round(
-                  (a.stages.filter((s) => s.status === "done").length /
-                    Math.max(a.stages.length, 1)) *
-                    100,
-                )}
-                <small>%</small>
-              </strong>
-            </div>
+          <div className="credit-processing-mark" aria-hidden="true">
+            <span className="mvp-spinner" />
           </div>
           <h2>Рассматриваем заявку</h2>
           <p>
-            Этапы выполняются на сервере. Можно обновить страницу — результат
-            сохранится.
+            Заявка и документы сохранены. Проверяем сведения и готовим решение.
+            Можно обновить страницу и вернуться к результату.
           </p>
-          <progress
-            max={a.stages.length || 1}
-            value={a.stages.filter((s) => s.status === "done").length}
-          />
           <ol>
             {a.stages.map((s) => (
               <li key={s.id} className={s.status}>
@@ -1882,20 +2198,48 @@ export function Mvp2({
                   <Check size={16} />
                 ) : s.status === "running" ? (
                   <span className="mvp-spinner" />
-                ) : null}
-                {s.label} ·{" "}
-                {
-                  {
-                    pending: "ожидает",
-                    running: "выполняется",
-                    done: "готово",
-                    error: "ошибка",
-                    "waiting-data": "нужны дополнительные сведения",
-                  }[s.status]
-                }
+                ) : (
+                  <span className="stage-dot" />
+                )}
+                <div>
+                  <strong>
+                    {{
+                      Скоринг: "Финансовая оценка",
+                      "Комплаенс, антифрод и БКИ":
+                        "Проверка компании и кредитной истории",
+                      "Финансовый анализ CSV": "Анализ выписок",
+                      Андеррайтинг: "Проверка условий",
+                      "Маршрутизация решения": "Подготовка результата",
+                    }[s.label] ?? s.label}
+                  </strong>
+                  <small>
+                    {
+                      {
+                        pending: "Ожидает",
+                        running: "Выполняется",
+                        done: "Готово",
+                        error: "Не удалось завершить",
+                        "waiting-data": "Нужны дополнительные сведения",
+                      }[s.status]
+                    }
+                  </small>
+                </div>
               </li>
             ))}
           </ol>
+          <Button
+            secondary
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                const current = await api<MvpApplication>(path);
+                adopt(current);
+                setView(derivedView(current));
+              })
+            }
+          >
+            Обновить статус
+          </Button>
         </section>
       )}
       {a && q && view === "decision" && (
@@ -1909,17 +2253,46 @@ export function Mvp2({
                 : "Рассмотрение не завершено"}
           </h2>
           <Summary a={a} products={products} />
-          {a.reasons.map((r) => (
+          {a.reasons.slice(0, 3).map((r) => (
             <p key={r}>{r}</p>
           ))}
+          {a.reasons.length > 3 && (
+            <details className="decision-details">
+              <summary>Подробнее о результате</summary>
+              {a.reasons.slice(3).map((r) => (
+                <p key={r}>{r}</p>
+              ))}
+            </details>
+          )}
           {a.error && <p className="mvp-error">{a.error}</p>}
           {a.financial && (
-            <p>
-              Расчётный платёж: {money(a.financial.payment)} в месяц.{" "}
-              {p?.kind !== "loan"
-                ? "Для лимита это оценка нагрузки, не фиксированный график выборки."
-                : "Точный график будет в договоре."}
-            </p>
+            <div className="decision-financial">
+              <dl>
+                <div>
+                  <dt>Рассчитанная доступная сумма</dt>
+                  <dd>{money(a.financial.limit)}</dd>
+                </div>
+                <div>
+                  <dt>Расчётный платёж в месяц</dt>
+                  <dd>{money(a.financial.payment)}</dd>
+                </div>
+              </dl>
+              <p>
+                {p?.kind !== "loan"
+                  ? "Для лимита это оценка нагрузки, не фиксированный график выборки."
+                  : "Точный график будет в договоре."}
+              </p>
+              <details>
+                <summary>На чём основан расчёт?</summary>
+                <p>
+                  Данные из выписок за {a.financial.months} мес. и действующие
+                  обязательства. Расчётный свободный поток:{" "}
+                  {money(a.financial.flow)} в месяц. Коэффициент покрытия
+                  платежа: {a.financial.dscr.toFixed(2)}. Это сохранённый
+                  результат проверки, не прогноз помощника.
+                </p>
+              </details>
+            </div>
           )}
           {a.meeting && (
             <p role="status">
@@ -2051,8 +2424,8 @@ export function Mvp2({
         <section className="funding-surface">
           <h2>Проверить другие условия</h2>
           <p>
-            Новый запрос пройдёт финансовый расчёт и проверки на сервере. Старое
-            решение не переносится автоматически.
+            Новые условия потребуют повторной проверки. Старое решение не
+            переносится автоматически.
           </p>
           <form
             noValidate
@@ -2125,7 +2498,7 @@ export function Mvp2({
                 Отмена
               </Button>
               <Button type="submit" disabled={busy}>
-                Пересчитать на сервере
+                Проверить новые условия
               </Button>
             </div>
           </form>
@@ -2202,18 +2575,28 @@ export function Mvp2({
               Договор
             </Button>
             <Button secondary onClick={() => setTab("schedule")}>
-              График платежей
+              {p?.kind === "loan"
+                ? "График платежей"
+                : "Условия использования лимита"}
             </Button>
             <a href={`/api${path}/documents/contract?download=1`}>
               Скачать договор PDF
             </a>
             <a href={`/api${path}/documents/schedule?download=1`}>
-              Скачать график PDF
+              {p?.kind === "loan"
+                ? "Скачать график PDF"
+                : "Скачать условия лимита PDF"}
             </a>
           </div>
           <iframe
             className="mvp-document"
-            title={tab === "contract" ? "Кредитный договор" : "График платежей"}
+            title={
+              tab === "contract"
+                ? "Кредитный договор"
+                : p?.kind === "loan"
+                  ? "График платежей"
+                  : "Условия использования лимита"
+            }
             src={`/api${path}/documents/${tab}${a.signature ? "?signed=1" : ""}`}
           />
           <p>
@@ -2256,8 +2639,8 @@ export function Mvp2({
           <Check size={48} />
           <h2>Кредитный договор подписан</h2>
           <p>
-            Демонстрационная подпись сохранена на сервере. Юридических
-            обязательств и реального перевода денег не возникает.
+            Демонстрационная подпись сохранена. Юридических обязательств и
+            реального перевода денег не возникает.
           </p>
           <Summary a={a} products={products} />
           <p>
@@ -2280,7 +2663,8 @@ export function Mvp2({
                 })
               }
             >
-              Получить деньги <ArrowRight size={16} />
+              {p?.kind === "loan" ? "Получить деньги" : "Открыть лимит"}{" "}
+              <ArrowRight size={16} />
             </Button>
           </div>
         </section>

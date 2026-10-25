@@ -367,10 +367,23 @@ export async function registryMvp(
   return fresh;
 }
 export function statementsOf(db: DatabaseSync, id: string): Statement[] {
+  const row = db
+    .prepare("SELECT data FROM mvp2_dossiers WHERE application_id=?")
+    .get(id);
+  const active = new Set<string>(
+    row
+      ? JSON.parse(String(row.data))
+          .questionnaire.accounts.map(
+            (x: { documentId: string }) => x.documentId,
+          )
+          .filter(Boolean)
+      : [],
+  );
   return db
     .prepare("SELECT data FROM mvp2_statements WHERE application_id=?")
     .all(id)
-    .map((r) => JSON.parse(r.data as string));
+    .map((r) => JSON.parse(r.data as string))
+    .filter((s: Statement) => active.has(s.id));
 }
 export function attachStatement(
   db: DatabaseSync,
@@ -446,6 +459,35 @@ export function attachStatement(
   return a;
 }
 export { industryFromOkved } from "../shared/company";
+export function removeStatement(
+  db: DatabaseSync,
+  uid: string,
+  id: string,
+  version: number,
+  statementId: string,
+) {
+  const a = mvpGet(db, id, uid);
+  requireVersion(a, version);
+  if (a.lifecycle !== "DRAFT" && a.decision !== "ADDITIONAL_DATA_REQUIRED")
+    throw new ApplicationError(409, "Нельзя изменить зафиксированную выписку");
+  const existing = db
+    .prepare("SELECT id FROM mvp2_statements WHERE application_id=? AND id=?")
+    .get(id, statementId);
+  if (!existing) throw new ApplicationError(404, "Выписка не найдена");
+  for (const account of a.questionnaire.accounts)
+    if (account.documentId === statementId) account.documentId = "";
+  a.version++;
+  transaction(db, () => {
+    db.prepare(
+      "DELETE FROM mvp2_statements WHERE application_id=? AND id=?",
+    ).run(id, statementId);
+    const s = stateFor(db, uid);
+    s.documents = s.documents.filter((d) => d.id !== statementId);
+    saveState(db, uid, s);
+    save(db, a, "mvp2_remove_csv", "client");
+  });
+  return a;
+}
 export function missingFor(
   a: MvpApplication,
   statements: Statement[],

@@ -49,7 +49,9 @@ export function CompanyCard({ company }: { company: Company }) {
             <dt>Основной ОКВЭД</dt>
             <dd>
               {company.okved}
-              {company.activity && ` · ${company.activity}`}
+              {company.activity
+                ? ` · ${company.activity}`
+                : " · Расшифровка в справочнике отсутствует"}
             </dd>
           </div>
         )}

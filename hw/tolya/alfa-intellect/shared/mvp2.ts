@@ -376,8 +376,7 @@ export function questionnaireErrors(
     }
   }
   if (section === 2) {
-    if (q.loans === "unknown") errors.loans = "Уточните наличие кредитов.";
-    if (q.leasing === "unknown") errors.leasing = "Уточните наличие лизинга.";
+    // Unknown is valid incomplete input; missingFor requests it after submission, not a format error.
     if (q.loans === "yes") {
       required("debt", "Укажите остаток долга.");
       required("monthlyDebt", "Укажите месячный платёж.");

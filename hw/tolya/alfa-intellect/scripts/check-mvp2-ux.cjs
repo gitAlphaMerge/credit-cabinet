@@ -2,6 +2,7 @@
 // Network latency is introduced only in this test to observe the request-bound preparation screen.
 // prettier-ignore
 async (page) => {
+  const select = async (label,value) => {await page.getByLabel(label,{exact:true}).waitFor();const group=page.getByRole("group",{name:label,exact:true});if(await group.count())await group.getByText(value==="Не уверен"?"Не знаю":value,{exact:true}).click();else await page.getByLabel(label,{exact:true}).selectOption(value);};
   const base = "http://localhost:4175",
     checks = [],
     errors = [];
@@ -25,10 +26,10 @@ async (page) => {
   await page.context().clearCookies();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(base + "/onboarding");
-  await field("В какой сфере работает бизнес?").selectOption("Производство");
-  await field("Как давно работает бизнес?").selectOption("Более 3 лет");
+  await select("В какой сфере работает бизнес?","Производство");
+  await select("Как давно работает бизнес?","Более 3 лет");
   await button("Продолжить").click();
-  await field("Для чего нужны деньги?").selectOption("Текущие расходы");
+  await select("Для чего нужны деньги?","Текущие расходы");
   await field("Какая сумма необходима?").fill("3478123");
   ok(
     (await field("Какая сумма необходима?").inputValue()).replaceAll(
@@ -77,12 +78,8 @@ async (page) => {
       exact: true,
     })
     .waitFor();
-  await field("Как планируете использовать финансирование?").selectOption(
-    "Всё сразу",
-  );
-  await field(
-    "За счёт каких поступлений будете возвращать деньги?",
-  ).selectOption("Регулярная выручка");
+  await select("Как планируете использовать финансирование?","Всё сразу");
+  await select("За счёт каких поступлений будете возвращать деньги?","Регулярная выручка");
   await page.route("**/api/journey/complete",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Временная ошибка сервиса"})}));
   await button("Продолжить").click();await page.getByRole("alert").filter({hasText:"Временная ошибка сервиса"}).waitFor();
   ok(await field("Как планируете использовать финансирование?").inputValue()==="Всё сразу","Answers reset after recommendation request failure");
@@ -155,7 +152,7 @@ async (page) => {
   );
   await field("ИНН компании").fill("9900000001");
   await page.locator(".company-card").waitFor();
-  await field("Сведения верны").check();
+  await field("Это моя компания").check();
   await field("Я уполномочен оформлять заявку от имени компании").check();
   await field(consent).check();
   await page.screenshot({
@@ -184,41 +181,34 @@ async (page) => {
     }),
     "Native English file picker is visible",
   );
-  await button("Сохранить и продолжить").click();
+  await button("Продолжить без выписок").click();
   await field(
     "Есть ли у бизнеса действующие кредиты или кредитные линии?",
   ).waitFor();
-  await field(
-    "Есть ли у бизнеса действующие кредиты или кредитные линии?",
-  ).selectOption("Да");
+  await select("Есть ли у бизнеса действующие кредиты или кредитные линии?","Да");
   await field("Остаток долга").fill("200000");
-  await field(
-    "Предстоит ли крупное разовое погашение по действующим кредитам в ближайшие месяцы?",
-  ).selectOption("Да");
+  await select("Предстоит ли крупное разовое погашение по действующим кредитам в ближайшие месяцы?","Да");
   await field("Сумма погашения, ₽").fill("50000");
   await field("Планируемая дата погашения").fill("30.02.2027");
-  await field("Есть ли у бизнеса действующий лизинг?").selectOption("Да");
+  await select("Есть ли у бизнеса действующий лизинг?","Да");
   await button("Сохранить и продолжить").click();
   ok(
     (await page.getByRole("alert").count()) > 0,
     "Conditional missing values accepted",
   );
-  await field(
-    "Есть ли у бизнеса действующие кредиты или кредитные линии?",
-  ).selectOption("Нет");
-  await field("Есть ли у бизнеса действующий лизинг?").selectOption("Нет");
+  await select("Есть ли у бизнеса действующие кредиты или кредитные линии?","Нет");
+  await select("Есть ли у бизнеса действующий лизинг?","Нет");
   ok(
     (await field("Планируемая дата погашения").count()) === 0,
     "Balloon date remains in No branch",
   );
   await button("Сохранить и продолжить").click();
   await field("Есть выраженная сезонность?").waitFor();
-  await field("Ожидаются крупные нестандартные операции?").selectOption(
-    "Поступления",
-  );
-  await field("Будущие поступления").fill("50000");
-  await field("Ожидаются крупные нестандартные операции?").selectOption("Нет");
+  await select("Ожидаются крупные нестандартные операции?","Поступления");
+  await field("Будущие поступления за указанный период, ₽").fill("50000");
+  await select("Ожидаются крупные нестандартные операции?","Нет");
   await button("Сохранить и продолжить").click();
+  await page.locator(".request-summary").getByRole("button",{name:"Изменить",exact:true}).click();
   await field("Точная сумма").waitFor();
   await field("Точная сумма").fill("6000000");
   await button("Проверить заявку").click();
@@ -226,15 +216,15 @@ async (page) => {
     (await field("Точная сумма").getAttribute("aria-invalid")) === "true",
     "Product amount limit not highlighted",
   );
-  await field("Выбранный продукт").selectOption("INVEST");
+  await select("Выбранный продукт","INVEST");
   await field("Стоимость проекта").fill("7000000");
   ok(
     (await field(
-      "Какой дополнительный денежный результат вы ожидаете от проекта?",
+      "Дополнительный денежный результат проекта в месяц, ₽",
     ).count()) === 1,
     "Investment explanation absent",
   );
-  await field("Выбранный продукт").selectOption("WORKING");
+  await select("Выбранный продукт","WORKING");
   await field("Точная сумма").fill("3478123");
   await button("Проверить заявку").click();
   await page.locator(".client-dossier").waitFor();
@@ -302,9 +292,7 @@ async (page) => {
     "fixtures/mvp2-cashflow.csv",
   );
   await page.getByText(/60 операций · проверено/).waitFor();
-  await field(
-    "Все основные поступления и расходы есть в выписках?",
-  ).selectOption("Да");
+  await select("Все основные поступления и расходы есть в выписках?","Да");
   await button("Отправить на повторную проверку").click();
   await page
     .getByRole("heading", {

@@ -821,44 +821,6 @@
   color: #fff;
   mix-blend-mode: normal;
 }
-@media (min-width: 1100px) {
-  .origination > .mvp2.mvp-workspace {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .mvp-workspace .journey-stage {
-    flex-shrink: 0;
-    margin: 0 0 18px;
-  }
-  .mvp-workspace .journey-stage h1 {
-    font-size: 32px;
-  }
-  .mvp-workspace > .mvp-layout {
-    flex: 1;
-    min-height: 0;
-    align-items: stretch;
-  }
-  .mvp-workspace .mvp-form-panel {
-    overflow: auto;
-    min-height: 0;
-    margin-bottom: 0;
-    overscroll-behavior: contain;
-  }
-  .mvp-workspace .mvp-context {
-    position: static;
-    height: 100%;
-    min-height: 0;
-  }
-  .mvp-workspace .application-agent {
-    height: 100%;
-    min-height: 0;
-    max-height: none;
-  }
-  .mvp-form-panel .mvp-fields {
-    grid-template-columns: repeat(2, minmax(0, 480px));
-  }
-}
 @media (max-width: 1300px) {
   .dossier-cards {
     grid-template-columns: 1fr;

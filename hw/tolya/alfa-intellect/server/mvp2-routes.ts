@@ -14,6 +14,7 @@ import {
   registryMvp,
   statementsOf,
   attachStatement,
+  removeStatement,
   submitMvp,
   resumeMvp,
   seedSlots,
@@ -26,6 +27,7 @@ import {
 } from "./mvp2";
 import { parseStatement } from "./mvp2-statements";
 import { RegistryError } from "./registry";
+import { applicationHelp, referenceAnswer } from "../shared/application-help";
 import { prepareContract, signMvp } from "./mvp2-contracts";
 
 migrateMvp2(db);
@@ -104,6 +106,15 @@ mvp2Router.get("/applications/:id/statements", (req, res) => {
     statementsOf(db, id(req)).map(({ records, ...metadata }) => ({
       ...metadata,
       operations: records.length,
+      extracted: {
+        inflow: records
+          .filter((r) => r.amount > 0)
+          .reduce((n, r) => n + r.amount, 0),
+        outflow: -records
+          .filter((r) => r.amount < 0)
+          .reduce((n, r) => n + r.amount, 0),
+        source: "CSV: суммы операций за указанный период",
+      },
     })),
   );
 });
@@ -127,6 +138,17 @@ mvp2Router.post(
       ),
     );
   },
+);
+mvp2Router.delete("/applications/:id/statements/:statementId", (req, res) =>
+  res.json(
+    removeStatement(
+      db,
+      res.locals.userId,
+      id(req),
+      version.parse(req.body.version),
+      z.string().uuid().parse(req.params.statementId),
+    ),
+  ),
 );
 mvp2Router.post("/applications/:id/submit", (req, res) =>
   res
@@ -304,6 +326,20 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
     a = mvpGet(db, id(req), uid),
     s = stateFor(db, uid);
   const replying = !!(req.body.text || req.body.retryMessageId);
+  const promptId = req.body.promptId
+    ? z
+        .enum(applicationHelp.map((x) => x.id) as [string, ...string[]])
+        .parse(req.body.promptId)
+    : undefined;
+  if (
+    promptId &&
+    req.body.text &&
+    req.body.text !== applicationHelp.find((x) => x.id === promptId)!.question
+  )
+    throw new ApplicationError(
+      422,
+      "Вопрос не совпадает с выбранной подсказкой.",
+    );
   if (replying) {
     if (chatBusy.has(uid))
       throw new ApplicationError(409, "Дождитесь ответа на предыдущий вопрос");
@@ -334,6 +370,20 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
         .min(0)
         .max(4)
         .parse(req.body.section ?? 0),
+      activeField: z
+        .string()
+        .max(80)
+        .regex(/^[a-zA-Z0-9_.-]*$/)
+        .parse(req.body.activeField ?? ""),
+      validationFields: z
+        .array(
+          z
+            .string()
+            .max(80)
+            .regex(/^[a-zA-Z0-9_.-]+$/),
+        )
+        .max(40)
+        .parse(req.body.validationFields ?? []),
     };
     saveState(uid, s);
     res.json(chat);
@@ -364,6 +414,43 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
       createdAt: new Date().toISOString(),
     });
     saveState(uid, s);
+  }
+  if (req.body.section !== undefined) {
+    chat.mvp2Context = {
+      applicationId: a.id,
+      section: z.number().int().min(0).max(4).parse(req.body.section),
+      activeField: z
+        .string()
+        .max(80)
+        .regex(/^[a-zA-Z0-9_.-]*$/)
+        .parse(req.body.activeField ?? ""),
+      validationFields: z
+        .array(
+          z
+            .string()
+            .max(80)
+            .regex(/^[a-zA-Z0-9_.-]+$/),
+        )
+        .max(40)
+        .parse(req.body.validationFields ?? []),
+    };
+  }
+  if (promptId) {
+    const prompt = applicationHelp.find((x) => x.id === promptId)!;
+    const last = chat.messages.at(-1);
+    const answer = referenceAnswer(promptId, a, chat.mvp2Context?.section ?? 0);
+    if (!answer || last?.role !== "user" || last.text !== prompt.question)
+      throw new ApplicationError(422, "Выберите подсказку текущего раздела.");
+    chat.messages.push({
+      id: randomUUID(),
+      role: "assistant",
+      text: answer,
+      createdAt: new Date().toISOString(),
+      mode: "application-reference",
+    });
+    saveState(uid, s);
+    res.json(chat);
+    return;
   }
   if (!process.env.TEAM_AGENT_URL && !process.env.OPENAI_API_KEY)
     throw new ApplicationError(
@@ -454,6 +541,8 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
       "Финансирование",
     ][chat.mvp2Context?.section ?? 0],
     product: a.questionnaire.productId,
+    activeField: chat.mvp2Context?.activeField,
+    validationFields: chat.mvp2Context?.validationFields,
     rate: products.find((p) => p.id === a.questionnaire.productId)!.rate,
     financial: a.financial,
     decision: a.decision,

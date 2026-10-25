@@ -155,7 +155,7 @@ export function ClientDossier({
               ...(q.economicEffect !== null
                 ? [
                     [
-                      "Ожидаемый эффект — со слов заявителя",
+                      "Дополнительный результат в месяц — оценка заявителя",
                       money(q.economicEffect),
                     ],
                   ]
@@ -196,6 +196,20 @@ export function ClientDossier({
   ];
   return (
     <div className="client-dossier">
+      {editable && q.accounts.some((account) => !account.documentId) && (
+        <section className="dossier-incomplete" role="status">
+          <div>
+            <strong>Выписки пока не полные</strong>
+            <p>
+              Можно подать заявку сейчас. После отправки попросим добавить
+              недостающие выписки; это не отказ по кредиту.
+            </p>
+          </div>
+          <Button type="button" secondary onClick={() => onEdit(1)}>
+            Добавить выписки
+          </Button>
+        </section>
+      )}
       <div className="dossier-cards">
         {card(
           "Компания",

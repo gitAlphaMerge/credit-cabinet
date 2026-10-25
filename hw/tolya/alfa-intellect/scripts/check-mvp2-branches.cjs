@@ -153,7 +153,7 @@ async (page) => {
     .waitFor({ timeout: 45000 });
   await closed();
   checks.push("missing CSV only; supplemented and re-evaluated");
-  a = await prepare(3000000, "9900000001", true, true);
+  a = await prepare(5000000, "9900000001", true, true);
   check(
     a.decision === "DECLINED" && a.alternatives.length > 0,
     "Expected verified alternative: " + JSON.stringify(a),
@@ -168,7 +168,7 @@ async (page) => {
   );
   await closed();
   checks.push(
-    "financial decline with verified alternative and fresh evaluation",
+    "negative 5m request is declined, not positive manager routing; verified alternative and fresh evaluation",
   );
   a = await prepare(3000000, "9900000002");
   check(

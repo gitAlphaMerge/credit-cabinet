@@ -8,6 +8,7 @@ import "./motion.css";
 import "./chat.css";
 import "./cabinet.css";
 import "./financing.css";
+import "./journey-workspace.css";
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>

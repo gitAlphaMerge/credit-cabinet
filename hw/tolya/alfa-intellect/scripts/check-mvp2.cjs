@@ -2,6 +2,7 @@
 // No real customer data, external LLM, signature or bank transfer.
 // prettier-ignore
 async page => {
+  const select = async (label,value) => {await page.getByLabel(label,{exact:true}).waitFor();const group=page.getByRole("group",{name:label,exact:true});if(await group.count())await group.getByText(value==="Не уверен"?"Не знаю":value,{exact:true}).click();else await page.getByLabel(label,{exact:true}).selectOption(value);};
   const base="http://localhost:4175";
   const check=(value,message)=>{if(!value)throw new Error(message);};
   const button=name=>page.getByRole("button",{name,exact:true}),field=name=>page.getByLabel(name,{exact:true});
@@ -15,17 +16,17 @@ async page => {
   await page.screenshot({path:"output/playwright/mvp2-landing-corrected.png",fullPage:true});
   await page.goto(base+"/onboarding");
   await noCabinet();check(await page.getByText("От задачи к понятным условиям",{exact:true}).count()===0,"Onboarding decoration remains");
-  await field("В какой сфере работает бизнес?").selectOption("Производство");
-  await field("Как давно работает бизнес?").selectOption("Более 3 лет");
+  await select("В какой сфере работает бизнес?","Производство");
+  await select("Как давно работает бизнес?","Более 3 лет");
   const savedStep=page.waitForResponse(r=>r.url().endsWith("/api/journey/onboarding")&&r.request().postDataJSON()?.step===1&&r.status()===200);
   await button("Продолжить").click();await savedStep;
   await page.reload();await field("Для чего нужны деньги?").waitFor();
-  await field("Для чего нужны деньги?").selectOption("Текущие расходы");
+  await select("Для чего нужны деньги?","Текущие расходы");
   check(await page.getByText(/Предварительно подберём инструмент/).count()===0,"Removed onboarding copy is visible");
   await field("Какая сумма необходима?").fill("3000000");
   await button("Продолжить").click();
-  await field("Как планируете использовать финансирование?").selectOption("Всё сразу");
-  await field("За счёт каких поступлений будете возвращать деньги?").selectOption("Регулярная выручка");
+  await select("Как планируете использовать финансирование?","Всё сразу");
+  await select("За счёт каких поступлений будете возвращать деньги?","Регулярная выручка");
   await button("Продолжить").click();
   await page.getByRole("heading",{name:"Оборотный кредит",exact:true}).waitFor({timeout:20000});
   await noCabinet();check(await field("Номер телефона").count()===0,"Registration is still mandatory");
@@ -54,17 +55,18 @@ async page => {
   savedConsent=consentSaved(false);await consent.uncheck();await savedConsent;
   savedConsent=consentSaved(true);await consent.check();await savedConsent;
   await page.reload();await consent.waitFor();check(await consent.isChecked(),"Combined consent not restored after reload");
-  await field("Сведения верны").check();await field("Я уполномочен оформлять заявку от имени компании").check();await button("Сохранить и продолжить").click();
+  await field("Это моя компания").check();await field("Я уполномочен оформлять заявку от имени компании").check();await button("Сохранить и продолжить").click();
   await field("Банк").fill("Учебный банк");
-  check(await page.getByText(/Загрузите выписки по расчётным счетам/).count()===1,"Client-facing statement hint missing");
+  check(await page.getByText(/Рекомендуем последние 12 полных месяцев/).count()===1,"Client-facing statement hint missing");
   await field("CSV-выписка счёта 1").setInputFiles("fixtures/mvp2-cashflow.csv");
   await page.getByText(/60 операций · проверено/).waitFor();
-  await field("Все основные поступления и расходы есть в выписках?").selectOption("Да");await button("Сохранить и продолжить").click();
-  await field("Есть ли у бизнеса действующие кредиты или кредитные линии?").selectOption("Нет");await field("Есть ли у бизнеса действующий лизинг?").selectOption("Нет");await button("Сохранить и продолжить").click();await button("Сохранить и продолжить").click();
+  await select("Все основные поступления и расходы есть в выписках?","Да");await button("Сохранить и продолжить").click();
+  await select("Есть ли у бизнеса действующие кредиты или кредитные линии?","Нет");await select("Есть ли у бизнеса действующий лизинг?","Нет");await button("Сохранить и продолжить").click();await button("Сохранить и продолжить").click();
+  await page.locator(".request-summary").getByRole("button",{name:"Изменить",exact:true}).click();
   await field("Точная сумма").fill("3000000");await field("Точный срок").fill("12");await button("Проверить заявку").click();
   await page.locator(".client-dossier").waitFor();
   await page.screenshot({path:"output/playwright/mvp2-dossier.png",fullPage:true});
-  await button("Подать заявку на рассмотрение").click();await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor({timeout:45000});
+  await button("Подать заявку на рассмотрение").click();await page.getByRole("heading",{name:"Рассматриваем заявку",exact:true}).waitFor();await page.screenshot({path:"output/playwright/ui3-processing.png",fullPage:true});await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor({timeout:45000});
   await noCabinet();check((await (await page.request.get(base+"/api/config")).json()).cabinetAvailable===false,"Approval alone opened cabinet");
   const a=(await (await page.request.get(base+"/api/mvp2/applications")).json())[0];
   check(a.decision==="APPROVED"&&a.questionnaire.amount===3000000,"Wrong decision at boundary");
@@ -77,7 +79,7 @@ async page => {
   await page.getByTitle("Кредитный договор",{exact:true}).waitFor();check((await page.request.get(base+`/api/mvp2/applications/${a.id}/documents/contract`)).headers()["x-frame-options"]==="SAMEORIGIN","PDF frame blocked");
   await page.screenshot({path:"output/playwright/mvp2-contract.png",fullPage:true});
   await field("Ознакомился с договором и условиями обслуживания").check();await button("Подписать электронной подписью").click();await page.getByRole("heading",{name:"Кредитный договор подписан",exact:true}).waitFor();
-  await noCabinet();check((await (await page.request.get(base+"/api/config")).json()).cabinetAvailable===false,"Signature alone opened cabinet");
+  await noCabinet();check((await (await page.request.get(base+"/api/config")).json()).cabinetAvailable===false,"Signature alone opened cabinet");await page.screenshot({path:"output/playwright/ui3-receive.png",fullPage:true});
   await button("Получить деньги").click();await page.waitForURL(base+"/cabinet");await page.getByRole("heading",{name:"Документы",exact:true}).count();await page.getByRole("link",{name:"Подписанный договор PDF",exact:true}).waitFor();
   check((await (await page.request.get(base+"/api/state")).json()).cabinet.facility.applicationId===a.id,"Active facility not integrated");
   await page.screenshot({path:"output/playwright/mvp2-cabinet.png",fullPage:true});

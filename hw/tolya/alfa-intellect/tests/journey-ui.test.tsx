@@ -88,7 +88,7 @@ test("Origination copy omits the requested redundant headings and explains state
   ])
     assert.ok(!form.includes(removed), removed);
   assert.ok(!app.includes("<span>Оформление финансирования</span>"));
-  assert.match(form, /Загрузите выписки по расчётным счетам/);
+  assert.match(form, /Рекомендуем последние 12 полных месяцев/);
   assert.match(form.replace(/\s+/g, " "), /последние 12 полных месяцев/);
   assert.match(form, /<DataConsent/);
 });

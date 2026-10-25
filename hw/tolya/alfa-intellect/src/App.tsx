@@ -321,10 +321,6 @@ export function App() {
             </div>
           </header>
           <Mvp2 />
-          <footer className="workspace-footer">
-            <span>Альфа-Интеллект</span>
-            <span>Прогресс сохраняется в этой сессии</span>
-          </footer>
         </div>
       ) : (
         <div className={"workspace app-shell page-" + page}>

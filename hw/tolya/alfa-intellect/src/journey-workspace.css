@@ -1,0 +1,858 @@
+/* UI3: a workspace is not a centered page or a scrolling card containing its own footer. */
+.journey-onboarding.onboarding {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+.journey-onboarding.onboarding > .public-header {
+  width: 100%;
+  flex-shrink: 0;
+}
+.journey-onboarding.onboarding > .onboard-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+.journey-onboarding .onboard-main {
+  flex-shrink: 0;
+}
+.credit-form-scroll .statement-upload input[type="file"].visually-hidden {
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  max-height: 1px;
+}
+.credit-form-scroll .segmented-choice input {
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  min-width: 0;
+}
+.application-agent form {
+  position: relative;
+}
+.dossier-incomplete {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  background: var(--theme-bg);
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+.dossier-incomplete strong {
+  font-size: 14px;
+}
+.dossier-incomplete p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--theme-muted);
+  margin: 8px 0 0;
+}
+.dossier-incomplete .button {
+  flex-shrink: 0;
+}
+@media (max-width: 700px) {
+  .dossier-incomplete {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+.statement-upload {
+  position: relative;
+}
+.application-agent-messages > * {
+  flex-shrink: 0;
+}
+.credit-section-nav .section-short {
+  display: none;
+}
+.credit-form-scroll .mvp-check {
+  min-height: 44px;
+  align-items: center;
+}
+.client-dossier .dossier-card .button {
+  min-height: 44px;
+}
+.agent-unavailable button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.decision-financial {
+  padding: 20px 0;
+  border-block: 1px solid var(--theme-line);
+  margin: 24px 0;
+}
+.decision-financial dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+}
+.decision-financial dt {
+  font-size: 13px;
+  color: var(--theme-muted);
+  margin-bottom: 8px;
+}
+.decision-financial dd {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+}
+.decision-financial p,
+.decision-financial summary {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--theme-muted);
+}
+.decision-financial summary {
+  min-height: 44px;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .credit-section-nav .section-name {
+    display: none;
+  }
+  .credit-section-nav .section-short {
+    display: block;
+  }
+  .credit-section-nav button {
+    overflow: hidden;
+    min-width: 0;
+    white-space: normal;
+  }
+  .decision-financial dl {
+    grid-template-columns: 1fr;
+  }
+}
+.credit-form-scroll .field > span {
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.5;
+  color: var(--theme-muted);
+}
+.credit-form-scroll input:not([type="checkbox"]):not([type="radio"]),
+.credit-form-scroll select {
+  font-size: 15px;
+  min-height: 48px;
+}
+.credit-form-scroll .registry-status {
+  font-size: 12px;
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+.credit-form-scroll .mvp-fields-section-0 .company-card {
+  margin: 8px 0;
+}
+.credit-form-scroll .mvp-fields-section-0 .mvp-check {
+  padding: 4px 0;
+}
+.credit-form-scroll .consent-scope summary {
+  font-size: 12px;
+  min-height: 44px;
+}
+.credit-form-scroll .consent-scope p {
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 60ch;
+}
+.credit-processing-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--theme-danger-soft);
+  margin: 0 auto 24px;
+}
+.credit-processing-mark .mvp-spinner {
+  width: 28px;
+  height: 28px;
+}
+.mvp-processing h2 {
+  font-size: 28px;
+}
+.mvp-processing li strong {
+  font-weight: 550;
+  font-size: 14px;
+}
+.mvp-processing li small {
+  display: block;
+  color: var(--theme-muted);
+  margin-top: 4px;
+  font-size: 12px;
+}
+.stage-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--theme-line);
+  margin: 4px;
+}
+.mvp2 .mvp-processing {
+  max-width: 700px !important;
+}
+.credit-form-actions .button {
+  min-height: 48px;
+}
+.credit-intro ol {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 24px;
+  display: grid;
+  gap: 28px;
+}
+.credit-intro li {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.credit-intro li > span {
+  color: var(--red);
+  font-size: 13px;
+  padding-top: 4px;
+}
+.credit-intro h2 {
+  font-size: 19px;
+  margin: 0 0 8px;
+}
+.credit-intro p {
+  max-width: 60ch;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--theme-muted);
+  margin: 0;
+}
+.credit-error-summary {
+  background: var(--theme-danger-soft);
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.credit-error-summary ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.credit-error-summary button {
+  background: none;
+  border: 0;
+  color: var(--theme-ink);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 32px;
+  padding: 4px 0;
+}
+.credit-save-status {
+  font-size: 12px;
+  color: var(--theme-muted);
+}
+.credit-form-scroll .mvp-fields-section-0 {
+  gap: 16px;
+}
+.credit-form-scroll .mvp-fields-section-2,
+.credit-form-scroll .mvp-fields-section-3 {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 720px;
+}
+.credit-form-scroll .mvp-fields-section-2 > .field,
+.credit-form-scroll .mvp-fields-section-3 > .field {
+  max-width: 440px;
+}
+.credit-form-scroll fieldset.segmented-choice {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+  grid-column: 1/-1;
+}
+.segmented-choice legend {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.segmented-choice > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.segmented-choice label {
+  position: relative;
+  cursor: pointer;
+}
+.segmented-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  opacity: 0;
+}
+.segmented-choice label span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--theme-line);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--theme-muted);
+}
+.segmented-choice input:checked + span {
+  color: var(--theme-ink);
+  border-color: var(--red);
+  background: var(--theme-danger-soft);
+}
+.segmented-choice input:focus-visible + span {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+.request-summary {
+  padding: 20px 0 24px;
+  border-bottom: 1px solid var(--theme-line);
+}
+.request-summary > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.request-summary h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.request-summary > strong {
+  font-size: 21px;
+}
+.request-summary dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+  margin: 24px 0;
+}
+.request-summary dt {
+  color: var(--theme-muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.request-summary dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.request-summary small {
+  color: var(--theme-muted);
+  line-height: 1.6;
+}
+.credit-form-scroll .credit-block-title {
+  font-size: 19px;
+  margin: 8px 0 12px;
+}
+.csv-format-help {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  margin: 20px 0;
+}
+.csv-format-help > a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.csv-format-help p {
+  max-width: 60ch;
+  line-height: 1.6;
+}
+.credit-form-scroll .mvp-account {
+  padding: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--theme-line);
+  border-radius: 0;
+  margin: 0;
+}
+.credit-form-scroll .mvp-account h4 {
+  margin: 0 0 20px;
+  font-size: 16px;
+}
+.credit-form-scroll .mvp-account .field {
+  max-width: 440px;
+}
+.statement-extracted {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--theme-bg);
+  font-size: 12px;
+  max-width: 640px;
+}
+.statement-extracted > span {
+  color: var(--theme-muted);
+}
+.statement-extracted dl {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.statement-extracted dt {
+  color: var(--theme-muted);
+  font-size: 12px;
+}
+.statement-extracted dd {
+  margin: 6px 0 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+.statement-extracted small {
+  line-height: 1.6;
+}
+.statement-file-actions {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.statement-file-actions button {
+  min-height: 44px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--theme-muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.credit-agent-panel .application-agent h2 {
+  font-size: 18px;
+  line-height: 1.3;
+  margin: 0 0 4px;
+}
+.credit-agent-panel .application-agent > header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--theme-line);
+}
+.agent-welcome {
+  padding: 8px 0 20px;
+  max-width: 52ch;
+}
+.agent-welcome p {
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 12px 0;
+  color: var(--theme-ink);
+}
+.agent-welcome small {
+  display: block;
+  line-height: 1.65;
+  max-width: 48ch;
+}
+.agent-reference-label {
+  font-size: 11px;
+  color: var(--red);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.credit-agent-panel .application-agent-prompts {
+  padding: 12px 0;
+}
+.credit-agent-panel .application-agent-prompts button {
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+.credit-agent-panel .application-message {
+  max-width: 90%;
+}
+.credit-agent-panel .application-agent form {
+  margin: 0;
+}
+.credit-agent-panel .application-agent > small {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.origination .journey-stage {
+  max-width: 1120px;
+  margin: 8px auto 24px;
+}
+.origination .journey-stage h1 {
+  font-size: 32px;
+}
+.origination .mvp2:not(.mvp-workspace) > .funding-surface {
+  max-width: 1120px;
+  margin: 0 auto 24px;
+}
+@media (max-width: 700px) {
+  .credit-save-status {
+    display: none;
+  }
+  .request-summary dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .credit-intro li {
+    gap: 12px;
+  }
+  .credit-error-summary {
+    padding: 12px;
+  }
+}
+.origination.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.origination .origination-header {
+  padding: 12px 24px;
+  gap: 16px;
+  min-height: 66px;
+}
+.origination-header .brand {
+  font-size: 16px;
+}
+.origination.app-shell > .mvp2 {
+  min-height: 0;
+  flex: 1;
+  padding: 20px 24px 28px;
+  width: 100%;
+  max-width: none;
+}
+.origination.app-shell > .mvp2.mvp-workspace {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 24px 20px;
+}
+.credit-journey {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0;
+  margin: 0 0 16px;
+  flex-shrink: 0;
+  color: var(--theme-muted);
+  font-size: 12px;
+}
+.credit-journey li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.credit-journey li > span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--theme-line);
+  border-radius: 50%;
+  font-size: 11px;
+}
+.credit-journey [aria-current] {
+  color: var(--theme-ink);
+  font-weight: 650;
+}
+.credit-journey [aria-current] > span {
+  color: var(--red);
+  background: var(--theme-danger-soft);
+  border-color: transparent;
+}
+.credit-journey .complete > span {
+  color: var(--red);
+}
+.mvp-layout.credit-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 20px;
+  align-items: stretch;
+}
+.credit-form-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--theme-line);
+  border-radius: 20px;
+  background: var(--theme-surface);
+}
+.credit-section-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: 1px solid var(--theme-line);
+  padding: 8px 16px 0;
+  flex-shrink: 0;
+  gap: 4px;
+}
+.credit-section-nav button {
+  position: relative;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  min-height: 56px;
+  padding: 12px 4px;
+  color: var(--theme-muted);
+  font-size: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+.credit-section-nav button span {
+  font-size: 11px;
+  color: var(--theme-muted);
+}
+.credit-section-nav button[aria-current] {
+  border-bottom-color: var(--red);
+  color: var(--theme-ink);
+  font-weight: 650;
+}
+.credit-form-header {
+  padding: 24px 32px 16px;
+  flex-shrink: 0;
+}
+.credit-form-header h1 {
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  margin: 0 0 10px;
+}
+.credit-form-header p {
+  max-width: 65ch;
+  color: var(--theme-muted);
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0;
+}
+.credit-form-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding: 20px;
+  padding: 8px 32px 28px;
+}
+.credit-form-scroll > form {
+  max-width: none;
+}
+.credit-form-scroll .mvp-fields-section-4 > .field {
+  max-width: 480px;
+}
+.credit-form-scroll .mvp-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.credit-form-scroll .mvp-fields:has(.field-inn) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.credit-form-scroll .field-inn {
+  max-width: 400px;
+}
+.credit-form-scroll .mvp-check {
+  grid-column: 1/-1;
+  font-size: 14px;
+  max-width: 72ch;
+}
+.credit-form-scroll .mvp-check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+.credit-form-scroll .company-card {
+  border: 0;
+  border-left: 3px solid var(--red);
+  border-radius: 0;
+  padding: 4px 0 4px 20px;
+  background: transparent;
+}
+.credit-form-scroll .company-card .dossier-facts {
+  margin: 20px 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.credit-form-scroll .company-card h3 {
+  font-size: 20px;
+}
+.credit-form-scroll .company-symbol {
+  width: 38px;
+  height: 38px;
+  font-size: 12px;
+}
+.credit-form-scroll fieldset {
+  border: 0;
+  border-top: 1px solid var(--theme-line);
+  border-radius: 0;
+  padding: 20px 0 0;
+  margin: 0;
+}
+.credit-form-scroll fieldset legend {
+  padding: 0 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.credit-form-scroll details {
+  font-size: 13px;
+  color: var(--theme-muted);
+}
+.credit-form-scroll details summary {
+  min-height: 44px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.credit-form-actions {
+  flex-shrink: 0;
+  padding: 16px 32px;
+  border-top: 1px solid var(--theme-line);
+  background: var(--theme-surface);
+}
+.credit-form-actions .mvp-actions {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  flex-wrap: nowrap;
+}
+.credit-agent-panel {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+.credit-agent-panel .application-agent {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  padding: 24px;
+}
+.credit-agent-panel .application-agent-messages {
+  min-height: 0;
+}
+.credit-agent-panel .application-agent-empty {
+  margin: 24px 0 auto;
+  text-align: left;
+  max-width: 36ch;
+}
+.workspace-mobile-switch {
+  display: none;
+}
+.credit-form-scroll :is(input, select, textarea, button):focus-visible,
+.credit-form-actions button:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+@media (max-width: 1023px) {
+  .origination.app-shell > .mvp2.mvp-workspace {
+    padding: 12px 16px 16px;
+  }
+  .mvp-layout.credit-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .credit-form-panel,
+  .credit-agent-panel {
+    flex: 1;
+    height: 100%;
+  }
+  .credit-workspace[data-mobile-panel="form"] .credit-agent-panel,
+  .credit-workspace[data-mobile-panel="agent"] .credit-form-panel {
+    display: none;
+  }
+  .workspace-mobile-switch {
+    display: flex;
+    gap: 4px;
+    margin: 0 0 12px;
+    background: var(--theme-surface);
+    padding: 4px;
+    border: 1px solid var(--theme-line);
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+  .workspace-mobile-switch button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1;
+    min-height: 44px;
+    border: 0;
+    background: none;
+    border-radius: 8px;
+    color: var(--theme-muted);
+  }
+  .workspace-mobile-switch button[aria-pressed="true"] {
+    color: var(--theme-ink);
+    background: var(--theme-danger-soft);
+  }
+}
+@media (max-width: 600px) {
+  .origination .origination-header {
+    padding: 12px 16px;
+  }
+  .origination.app-shell > .mvp2.mvp-workspace {
+    padding: 8px 12px 12px;
+  }
+  .credit-journey {
+    gap: 8px;
+    justify-content: space-between;
+    font-size: 10px;
+    margin-bottom: 12px;
+  }
+  .credit-journey li {
+    gap: 4px;
+  }
+  .credit-journey li > span {
+    width: 18px;
+    height: 18px;
+  }
+  .credit-section-nav {
+    padding: 0 8px;
+    gap: 0;
+  }
+  .credit-section-nav button {
+    font-size: 10px;
+    min-height: 48px;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .credit-form-header {
+    padding: 20px 20px 12px;
+  }
+  .credit-form-header h1 {
+    font-size: 25px;
+  }
+  .credit-form-scroll {
+    padding: 8px 20px 20px;
+  }
+  .credit-form-scroll .mvp-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .credit-form-scroll .company-card .dossier-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .credit-form-actions {
+    padding: 12px 16px;
+  }
+  .credit-form-actions .button {
+    padding: 12px;
+    font-size: 12px;
+    min-height: 44px;
+  }
+  .credit-agent-panel .application-agent {
+    padding: 20px;
+  }
+}

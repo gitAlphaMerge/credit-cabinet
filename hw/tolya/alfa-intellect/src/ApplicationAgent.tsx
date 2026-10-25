@@ -4,9 +4,10 @@ import { api } from "./api";
 import { MarkdownText } from "./MarkdownText";
 import type { Chat } from "../shared/types";
 import type { MvpApplication } from "../shared/mvp2";
+import { helpForSection, applicationHelp } from "../shared/application-help";
 const hints = [
   "Помогу найти ИНН, разобраться с полномочиями и согласиями.",
-  "Загрузите CSV в анкете слева: по каждому расчётному счёту отдельно. Объясню формат и период выписок.",
+  "Добавьте CSV в разделе «Финансы»: по каждому расчётному счёту отдельно. Объясню формат и период выписок.",
   "Помогу сверить кредитные платежи и лизинг с выписками.",
   "Объясню, как указать сезонность и будущие операции отдельно от подтверждённых поступлений.",
   "Помогу уточнить сумму, срок и особенности выбранного продукта.",
@@ -15,16 +16,24 @@ export function ApplicationAgent({
   application,
   section,
   full = false,
+  validationFields = [],
+  activeField = "",
 }: {
   application: MvpApplication;
   section: number;
   full?: boolean;
+  validationFields?: string[];
+  activeField?: string;
 }) {
   const [chat, setChat] = useState<Chat>(),
     [draft, setDraft] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [retry, setRetry] = useState<{ text: string; id?: string } | null>(null);
+    [retry, setRetry] = useState<{
+      text: string;
+      id?: string;
+      promptId?: string;
+    } | null>(null);
   const lock = useRef(false),
     messages = useRef<HTMLDivElement>(null),
     path = `/mvp2/applications/${application.id}/chat`;
@@ -50,7 +59,36 @@ export function ApplicationAgent({
       behavior: "instant",
     });
   }, [chat?.messages.length, busy]);
-  async function send(previous?: { text: string; id?: string }) {
+  useEffect(() => {
+    const element = messages.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    let wasVisible = false;
+    const observer = new ResizeObserver(([entry]) => {
+      const visible =
+        entry.contentRect.width > 0 && entry.contentRect.height > 0;
+      if (visible && !wasVisible)
+        element.scrollTo({ top: element.scrollHeight, behavior: "instant" });
+      wasVisible = visible;
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const { applicationId, promptId } = (event as CustomEvent).detail;
+      if (applicationId !== application.id) return;
+      const help = applicationHelp.find((x) => x.id === promptId);
+      if (help) void send({ text: help.question, promptId });
+    };
+    window.addEventListener("application-reference-question", handler);
+    return () =>
+      window.removeEventListener("application-reference-question", handler);
+  }, [application.id, section, chat]);
+  async function send(previous?: {
+    text: string;
+    id?: string;
+    promptId?: string;
+  }) {
     const text = previous?.text ?? draft.trim();
     if (lock.current || !text) return;
     lock.current = true;
@@ -59,11 +97,25 @@ export function ApplicationAgent({
     if (!previous) setDraft("");
     setRetry(null);
     try {
-      await api(path, { section });
+      await api(path, { section, activeField, validationFields });
       setChat(
         await api(
           path,
-          previous?.id ? { retryMessageId: previous.id } : { text },
+          previous?.id
+            ? {
+                retryMessageId: previous.id,
+                promptId: previous.promptId,
+                section,
+                activeField,
+                validationFields,
+              }
+            : {
+                text,
+                promptId: previous?.promptId,
+                section,
+                activeField,
+                validationFields,
+              },
         ),
       );
     } catch (e) {
@@ -75,14 +127,14 @@ export function ApplicationAgent({
         setChat(saved);
         const last = saved.messages.at(-1);
         if (last?.role === "user" && last.text === text) {
-          setRetry({ text, id: last.id });
+          setRetry({ text, id: last.id, promptId: previous?.promptId });
           setError(
             "Вопрос сохранён. Помощник сейчас недоступен — попробуйте ещё раз позже.",
           );
         } else if (last?.role === "assistant") setError("");
-        else setRetry({ text });
+        else setRetry({ text, promptId: previous?.promptId });
       } catch {
-        setRetry({ text });
+        setRetry({ text, promptId: previous?.promptId });
       }
     } finally {
       lock.current = false;
@@ -111,13 +163,6 @@ export function ApplicationAgent({
           </small>
         </div>
       </header>
-      <div className="application-agent-hint">
-        <p>
-          {application.decision
-            ? "Объясню сохранённое решение и доступные следующие шаги. Изменённые условия требуют нового расчёта."
-            : hints[section]}
-        </p>
-      </div>
       <div
         className="application-agent-messages"
         ref={messages}
@@ -125,13 +170,28 @@ export function ApplicationAgent({
         aria-live="polite"
       >
         {!chat?.messages.length && (
-          <p className="application-agent-empty">
-            Задайте вопрос — помогу разобраться с анкетой и условиями.
-          </p>
+          <div className="agent-welcome">
+            <span className="agent-reference-label">Помощь по разделу</span>
+            <p>
+              {application.decision
+                ? "Объясню сохранённое решение и доступные следующие шаги. Изменённые условия требуют нового расчёта."
+                : hints[section]}
+            </p>
+            <small>
+              Выберите подсказку, чтобы разобраться с заполнением, или напишите
+              свой вопрос по заявке.
+            </small>
+          </div>
         )}
         {chat?.messages.map((m) => (
           <article className={`application-message ${m.role}`} key={m.id}>
-            <small>{m.role === "user" ? "Вы" : "ИИ-помощник"}</small>
+            <small>
+              {m.role === "user"
+                ? "Вы"
+                : m.mode === "application-reference"
+                  ? "Справочное пояснение"
+                  : "ИИ-помощник"}
+            </small>
             <MarkdownText text={m.text} />
           </article>
         ))}
@@ -167,13 +227,22 @@ export function ApplicationAgent({
         </div>
       )}
       <div className="application-agent-prompts">
-        {["Что указать в этом разделе?", "Как подготовить выписку CSV?"].map(
-          (text) => (
-            <button type="button" key={text} onClick={() => setDraft(text)}>
-              {text}
-            </button>
-          ),
-        )}
+        {helpForSection(
+          section,
+          application.decision,
+          validationFields.length > 0,
+        ).map((prompt) => (
+          <button
+            type="button"
+            key={prompt.id}
+            disabled={busy || !chat}
+            onClick={() =>
+              void send({ text: prompt.question, promptId: prompt.id })
+            }
+          >
+            {prompt.label}
+          </button>
+        ))}
       </div>
       <form
         onSubmit={(e) => {
