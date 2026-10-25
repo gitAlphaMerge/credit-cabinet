@@ -1,3 +1,11 @@
+let workspaceId: string | null = null;
+export function setApiWorkspace(value: string | null) {
+  workspaceId = value;
+}
+/** Scope browser requests to the workspace that mounted this page, including keepalive saves. */
+export function workspaceHeaders(): Record<string, string> {
+  return workspaceId ? { "X-Journey-Workspace": workspaceId } : {};
+}
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -16,8 +24,12 @@ export async function api<T = any>(
   const response = await fetch("/api" + path, {
     method: method || (body === undefined ? "GET" : "POST"),
     credentials: "same-origin",
-    headers:
-      body instanceof FormData ? {} : { "Content-Type": "application/json" },
+    headers: {
+      ...workspaceHeaders(),
+      ...(body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
+    },
     body:
       body === undefined
         ? undefined

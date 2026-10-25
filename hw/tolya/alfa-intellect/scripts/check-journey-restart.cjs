@@ -1,0 +1,86 @@
+// Playwright CLI; isolated QA database on 4175. Never reset the user's 4174 session.
+// prettier-ignore
+async page => {
+  const base = "http://localhost:4175";
+  const field = name => page.getByLabel(name, {exact:true});
+  const button = name => (name === "Начать оформление" ? page.getByRole("banner") : page).getByRole("button", {name,exact:true});
+  const check = (value,message) => {if(!value) throw Error(message);};
+  const json = async path => (await page.request.get(base+"/api"+path)).json();
+  const errors=[];
+  page.on("pageerror",e=>errors.push(e.message));
+  await page.context().clearCookies();
+  await page.setViewportSize({width:1440,height:984});
+  await page.goto(base+"/onboarding");
+  await field("В какой сфере работает бизнес?").selectOption("Производство");
+  await field("Как давно работает бизнес?").selectOption("Более 3 лет");
+  await button("Продолжить").click();
+  await field("Для чего нужны деньги?").selectOption("Текущие расходы");
+  await field("Какая сумма необходима?").fill("750000");
+  await button("Продолжить").click();
+  await field("Как планируете использовать финансирование?").selectOption("Всё сразу");
+  await field("За счёт каких поступлений будете возвращать деньги?").selectOption("Регулярная выручка");
+  await button("Продолжить").click();
+  await button("Проверить доступность и продолжить").click();
+  await button("Начать заполнение").click();
+  const saved=page.waitForResponse(r=>r.url().endsWith("/api/journey/draft")&&r.request().postDataJSON()?.questionnaire?.inn==="99000"&&r.ok());
+  await field("ИНН компании").fill("99000");await saved;
+  const old = await json("/config");
+  const position = await json("/journey");
+  await button("Начать сначала").click();
+  await page.getByRole("dialog",{name:"Начать сначала?"}).waitFor();
+  await page.screenshot({path:"output/playwright/journey-restart-confirmation.png",fullPage:true});
+  await button("Отмена").click();
+  check((await json("/config")).workspaceId===old.workspaceId,"Cancel changed the owner");
+  await page.reload();await field("ИНН компании").waitFor();
+  check(await field("ИНН компании").inputValue()==="99000","Cancel lost saved progress");
+  const oldTab=await page.context().newPage();
+  try {
+    await oldTab.goto(base+"/apply");
+    await oldTab.getByLabel("ИНН компании",{exact:true}).waitFor();
+    await page.route("**/api/journey/restart",r=>r.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Не удалось начать заново. Повторите попытку."})}));
+    await button("Начать сначала").click();
+    await button("Да, начать сначала").click();
+    await page.getByRole("alert").filter({hasText:"Не удалось начать заново"}).waitFor();
+    check((await json("/config")).workspaceId===old.workspaceId,"Failed restart lost the current session");
+    check(page.url().endsWith("/apply"),"Failed restart navigated away");
+    await page.unroute("**/api/journey/restart");
+    await button("Да, начать сначала").click();
+    await page.waitForURL(base+"/");
+    await button("Начать оформление").waitFor();
+    const fresh=await json("/config");
+    check(fresh.workspaceId!==old.workspaceId,"Restart retained old workspace");
+    check((await json("/journey")).applicationId===null,"Old dossier restored after reset");
+    check((await json("/journey")).onboarding===null,"Onboarding copied into new journey");
+    check((await page.request.get(base+"/api/mvp2/applications/"+position.applicationId)).status()===404,"New owner can access old dossier");
+    // Old tab still has its original API workspace header, although cookies are now shared/new.
+    const stale=oldTab.waitForResponse(r=>r.url().endsWith("/api/journey/draft")&&r.status()===409);
+    await oldTab.getByLabel("ИНН компании",{exact:true}).fill("99001");await stale;
+    check((await json("/journey")).onboarding===null,"Old tab contaminated fresh journey");
+    await oldTab.reload();
+    await oldTab.getByLabel("В какой сфере работает бизнес?",{exact:true}).waitFor();
+    check(await oldTab.getByLabel("В какой сфере работает бизнес?",{exact:true}).inputValue()==="","Old tab reload did not show fresh first step");
+  } finally {await oldTab.close();}
+  check(await page.getByText("Решение по кредиту — без звонков",{exact:true}).count()===1,"Landing copy not replaced");
+  await button("Начать оформление").click();
+  await field("В какой сфере работает бизнес?").waitFor();
+  check(await field("В какой сфере работает бизнес?").inputValue()==="","First step has previous answers");
+  await field("В какой сфере работает бизнес?").selectOption("Производство");
+  await field("Как давно работает бизнес?").selectOption("Более 3 лет");
+  await button("Продолжить").click();
+  await field("Для чего нужны деньги?").selectOption("Текущие расходы");
+  await field("Какая сумма необходима?").fill("1250000");
+  const secondOwner=(await json("/config")).workspaceId;
+  await page.setViewportSize({width:390,height:844});
+  check(await page.locator("body").evaluate(el=>el.scrollWidth<=innerWidth+1),"Mobile header overflow");
+  await button("Начать сначала").click();
+  await page.screenshot({path:"output/playwright/journey-restart-mobile.png",fullPage:true});
+  await button("Да, начать сначала").click();
+  await page.waitForURL(base+"/");await button("Начать оформление").waitFor();
+  check((await json("/config")).workspaceId!==secondOwner,"Onboarding restart did not rotate owner");
+  check((await json("/journey")).onboarding===null,"pagehide autosave restored old answers");
+  await page.reload();await button("Начать оформление").click();
+  await field("В какой сфере работает бизнес?").waitFor();
+  check(await field("В какой сфере работает бизнес?").inputValue()==="","Reload restored prior onboarding");
+  check(errors.length===0,errors.join("; "));
+  return {checks:"PASS",scenarios:["header button and confirmation","cancel preserves progress","network failure stays in form and allows retry","fresh session and landing","old tab autosave rejected","onboarding pagehide and reload remain empty","mobile header and confirmation","concise landing copy"],errors};
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MvpOnboarding } from "./Mvp2";
-import { api } from "./api";
+import { api, workspaceHeaders } from "./api";
 import type { OnboardingAnswers } from "../shared/mvp2";
 import { onboardingSchema } from "../shared/mvp2";
 import { ProductPreparation } from "./ProductPreparation";
@@ -47,7 +47,10 @@ export function JourneyOnboarding({
           method: "PUT",
           credentials: "same-origin",
           keepalive: true,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...workspaceHeaders(),
+          },
           body: JSON.stringify(latest.current),
         }).catch(() => {});
     };

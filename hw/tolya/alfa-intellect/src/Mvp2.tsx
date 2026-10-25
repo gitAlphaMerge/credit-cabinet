@@ -7,7 +7,8 @@ import {
   Plus,
   ShieldCheck,
 } from "lucide-react";
-import { api, money, date, ApiError } from "./api";
+import { api, money, date, ApiError, workspaceHeaders } from "./api";
+import { RestartJourney } from "./RestartJourney";
 import { Button, Brand } from "./ui";
 import { NumericInput } from "./NumericInput";
 import { OnboardingAmount } from "./OnboardingAmount";
@@ -226,6 +227,7 @@ export function MvpOnboarding({
         <button className="unstyled" onClick={() => go("/")}>
           <Brand />
         </button>
+        <RestartJourney />
       </header>
       <main className="onboard-grid">
         <section className="onboard-main">
@@ -928,7 +930,7 @@ export function Mvp2({
         method: "PUT",
         credentials: "same-origin",
         keepalive: true,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...workspaceHeaders() },
         body: JSON.stringify({
           applicationId: current.id,
           version: current.version,

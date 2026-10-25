@@ -1,0 +1,29 @@
+.journey-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.journey-restart-button.button {
+  min-height: 40px;
+  padding: 9px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .origination-header,
+  .journey-onboarding .public-header,
+  .landing .public-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .journey-header-tools {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .landing .public-header,
+  .journey-onboarding .public-header {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}

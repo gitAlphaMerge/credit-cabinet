@@ -1,5 +1,6 @@
 import { Check, LoaderCircle } from "lucide-react";
 import { Brand } from "./ui";
+import { RestartJourney } from "./RestartJourney";
 const steps = [
   "Анализируем вашу потребность",
   "Сравниваем условия кредитных продуктов",
@@ -11,6 +12,7 @@ export function ProductPreparation({ stage }: { stage: number }) {
     <div className="onboarding journey-onboarding">
       <header className="public-header">
         <Brand />
+        <RestartJourney />
       </header>
       <main className="product-preparation" aria-live="polite" aria-busy="true">
         <div className="preparation-orbit" aria-hidden="true">

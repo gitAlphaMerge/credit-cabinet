@@ -270,6 +270,50 @@ test("anonymous approval: signature does not unlock cabinet; activation does, on
       .get(a.id)!.n,
     1,
   );
+  const dossierBefore = db
+    .prepare("SELECT data FROM mvp2_dossiers WHERE application_id=?")
+    .get(a.id)!.data;
+  const documentsBefore = db
+    .prepare(
+      "SELECT kind,signed,hash FROM mvp2_documents WHERE application_id=? ORDER BY kind,signed",
+    )
+    .all(a.id);
+  await x.client
+    .post("/api/journey/restart")
+    .set("X-Journey-Workspace", x.uid)
+    .send({})
+    .expect(200);
+  assert.equal(
+    (await x.client.get("/api/config")).body.cabinetAvailable,
+    false,
+  );
+  assert.equal(
+    cabinetAvailable(x.uid),
+    true,
+    "Previously issued credit must remain active for its original owner",
+  );
+  assert.equal(
+    db
+      .prepare("SELECT data FROM mvp2_dossiers WHERE application_id=?")
+      .get(a.id)!.data,
+    dossierBefore,
+  );
+  assert.deepEqual(
+    db
+      .prepare(
+        "SELECT kind,signed,hash FROM mvp2_documents WHERE application_id=? ORDER BY kind,signed",
+      )
+      .all(a.id),
+    documentsBefore,
+  );
+  assert.equal(
+    db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM mvp2_disbursements WHERE application_id=?",
+      )
+      .get(a.id)!.n,
+    1,
+  );
 });
 test("anonymous manager and missing-data branches never unlock service screens", async () => {
   const x = await guest();
@@ -314,4 +358,161 @@ test("anonymous refusal/alternative and compliance refusal cannot bypass the ban
   assert.equal(a.decision, "DECLINED");
   assert.equal(a.alternatives.length, 0);
   assert.equal(cabinetAvailable(y.uid), false);
+});
+
+test("Restart gives a fresh owner and empty onboarding without deleting dossiers or touching another visitor", async () => {
+  await request(app).post("/api/journey/restart").send({}).expect(401);
+  const x = await guest(),
+    other = await guest();
+  const a = await prepare(x, 3000000, "9900000001", false);
+  await x.client
+    .put("/api/journey/position")
+    .send({ applicationId: a.id, view: "questionnaire", section: 2 })
+    .expect(200);
+  const before = db.prepare("SELECT * FROM applications WHERE id=?").get(a.id);
+  const dossier = db
+    .prepare("SELECT data FROM mvp2_dossiers WHERE application_id=?")
+    .get(a.id)!.data;
+  const stateBefore = db
+    .prepare("SELECT state FROM users WHERE id=?")
+    .get(x.uid)!.state;
+  await x.client.post("/api/journey/restart").send({}).expect(409);
+  await x.client
+    .post("/api/journey/restart")
+    .set("X-Journey-Workspace", other.uid)
+    .send({})
+    .expect(409);
+  const restart = await x.client
+    .post("/api/journey/restart")
+    .set("X-Journey-Workspace", x.uid)
+    .send({})
+    .expect(200);
+  assert.notEqual(restart.body.workspaceId, x.uid);
+  assert.equal(restart.body.next, "/");
+  assert.match(restart.headers["set-cookie"][0], /HttpOnly/);
+  const config = (await x.client.get("/api/config")).body;
+  assert.equal(config.anonymous, true);
+  assert.equal(config.cabinetAvailable, false);
+  assert.equal(config.workspaceId, restart.body.workspaceId);
+  assert.equal(
+    (await x.client.get("/api/state")).body.profile.mvp2Answers,
+    undefined,
+  );
+  const fresh = (await x.client.get("/api/journey")).body;
+  assert.equal(fresh.onboarding, null);
+  assert.equal(fresh.onboardingStep, 0);
+  assert.equal(fresh.applicationId, null);
+  await request(app).get("/api/state").set("Cookie", x.cookie).expect(401);
+  await x.client.get(`/api/mvp2/applications/${a.id}`).expect(404);
+  await x.client.get(`/api/journey/draft/${a.id}`).expect(404);
+  assert.deepEqual(
+    db.prepare("SELECT * FROM applications WHERE id=?").get(a.id),
+    before,
+  );
+  assert.equal(
+    db
+      .prepare("SELECT data FROM mvp2_dossiers WHERE application_id=?")
+      .get(a.id)!.data,
+    dossier,
+  );
+  assert.equal(
+    db.prepare("SELECT state FROM users WHERE id=?").get(x.uid)!.state,
+    stateBefore,
+  );
+  assert.equal(
+    (await other.client.get("/api/config")).body.workspaceId,
+    other.uid,
+  );
+  // A second click/old-tab keepalive must not rotate again or overwrite the fresh answers.
+  await x.client
+    .post("/api/journey/restart")
+    .set("X-Journey-Workspace", x.uid)
+    .send({})
+    .expect(409);
+  await x.client
+    .put("/api/journey/onboarding")
+    .set("X-Journey-Workspace", x.uid)
+    .send({ answers, step: 2 })
+    .expect(409);
+  await x.client
+    .post("/api/journey/complete")
+    .set("X-Journey-Workspace", x.uid)
+    .send({ answers })
+    .expect(409);
+  assert.deepEqual((await x.client.get("/api/journey")).body, fresh);
+  const next = (
+    await x.client.post("/api/journey/complete").send({ answers }).expect(200)
+  ).body;
+  assert.notEqual(next.id, a.id);
+  assert.equal(next.company, undefined);
+  assert.equal(next.questionnaire.inn, "");
+});
+
+test("Restart during scoring leaves the old pipeline intact but cannot restore it into the new journey", async () => {
+  const previous = httpCoreClient.score;
+  let resolve!: (value: any) => void;
+  let called!: () => void;
+  const entered = new Promise<void>((r) => {
+    called = r;
+  });
+  httpCoreClient.score = async () => {
+    called();
+    return await new Promise<any>((r) => {
+      resolve = r;
+    });
+  };
+  const x = await guest();
+  let a: any;
+  try {
+    a = await prepare(x);
+    await x.client
+      .post(`/api/mvp2/applications/${a.id}/submit`)
+      .send({ version: a.version })
+      .expect(202);
+    await entered;
+    await x.client
+      .post("/api/journey/restart")
+      .set("X-Journey-Workspace", x.uid)
+      .send({})
+      .expect(200);
+    resolve({
+      core_result: {
+        core_id: "liza",
+        core: {
+          stops_fired: [],
+          missing: [],
+          flow_month_rub: 1000000,
+          limit_now_rub: 10000000,
+        },
+      },
+    });
+    await waitMvp(a.id);
+    assert.equal(
+      JSON.parse(
+        String(
+          db
+            .prepare("SELECT data FROM mvp2_dossiers WHERE application_id=?")
+            .get(a.id)!.data,
+        ),
+      ).decision,
+      "APPROVED",
+    );
+    assert.equal((await x.client.get("/api/journey")).body.applicationId, null);
+    assert.deepEqual((await x.client.get("/api/mvp2/applications")).body, []);
+  } finally {
+    if (resolve)
+      resolve({
+        core_result: {
+          core_id: "liza",
+          core: {
+            stops_fired: [],
+            missing: [],
+            flow_month_rub: 1000000,
+            limit_now_rub: 10000000,
+          },
+        },
+      });
+    if (a) await waitMvp(a.id);
+    httpCoreClient.score = previous;
+  }
 });

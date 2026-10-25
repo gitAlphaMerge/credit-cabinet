@@ -9,6 +9,7 @@ import {
   getUser,
   stateOf,
   saveState,
+  logout,
 } from "./store";
 import { onboardingSchema, questionnaireInputSchema } from "../shared/mvp2";
 import { createMvp } from "./mvp2";
@@ -138,48 +139,76 @@ function writeJourney(uid: string, data: unknown) {
     "INSERT INTO mvp2_journey VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data",
   ).run(uid, JSON.stringify(data));
 }
+function newGuestSession(previousToken?: string) {
+  const owner = randomUUID();
+  const state = initialState({
+    name: "Мой бизнес",
+    form: "ООО",
+    stage: "operating",
+    registered: true,
+    sector: "Не указан",
+    ageBand: "Не указан",
+    result: "Не указан",
+    debt: "Не уверен",
+    intent: "Оформление кредита",
+  });
+  state.preferences.tourDone = true;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    // Storage owner, not a customer account: no phone, password or login step.
+    db.prepare(
+      "INSERT INTO users(id,phone,password,state) VALUES(?,?,?,?)",
+    ).run(
+      owner,
+      `anonymous:${owner}`,
+      "!anonymous-login-disabled",
+      JSON.stringify(state),
+    );
+    db.prepare("INSERT INTO mvp2_guests VALUES(?)").run(owner);
+    const token = session(owner);
+    if (previousToken) logout(previousToken);
+    db.exec("COMMIT");
+    return { owner, token };
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+}
+function guestCookie(res: Response, token: string) {
+  res.cookie("alfa_session", token, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.COOKIE_SECURE === "true",
+    maxAge: 7 * 86400000,
+    path: "/",
+  });
+}
 export function bootstrapJourney(req: Request, res: Response) {
   let owner = sessionUser(journeyToken(req))?.user_id;
   if (!owner) {
-    owner = randomUUID();
-    const state = initialState({
-      name: "Мой бизнес",
-      form: "ООО",
-      stage: "operating",
-      registered: true,
-      sector: "Не указан",
-      ageBand: "Не указан",
-      result: "Не указан",
-      debt: "Не уверен",
-      intent: "Оформление кредита",
-    });
-    state.preferences.tourDone = true;
-    db.exec("BEGIN IMMEDIATE");
-    try {
-      // Storage owner, not a customer account: no phone, password or login step.
-      db.prepare(
-        "INSERT INTO users(id,phone,password,state) VALUES(?,?,?,?)",
-      ).run(
-        owner,
-        `anonymous:${owner}`,
-        "!anonymous-login-disabled",
-        JSON.stringify(state),
-      );
-      db.prepare("INSERT INTO mvp2_guests VALUES(?)").run(owner);
-      db.exec("COMMIT");
-    } catch (e) {
-      db.exec("ROLLBACK");
-      throw e;
-    }
-    res.cookie("alfa_session", session(owner), {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.COOKIE_SECURE === "true",
-      maxAge: 7 * 86400000,
-      path: "/",
-    });
+    const fresh = newGuestSession();
+    owner = fresh.owner;
+    guestCookie(res, fresh.token);
   }
   res.json({ ok: true, workspaceId: owner });
+}
+/** Start a separate journey; retain all dossiers, events, documents and active credits. */
+export function restartJourney(req: Request, res: Response) {
+  if (getUser(res.locals.userId)?.role === "manager") {
+    res
+      .status(403)
+      .json({ error: "Перезапуск доступен в клиентском интерфейсе." });
+    return;
+  }
+  if (req.get("X-Journey-Workspace") !== res.locals.userId) {
+    res.status(409).json({
+      error: "Сессия изменилась. Обновите страницу перед перезапуском.",
+    });
+    return;
+  }
+  const fresh = newGuestSession(journeyToken(req));
+  guestCookie(res, fresh.token);
+  res.json({ ok: true, workspaceId: fresh.owner, next: "/" });
 }
 const draftShape = Object.fromEntries(
   Object.entries(onboardingSchema.shape).map(([k, v]) => [
@@ -316,6 +345,14 @@ export function guardJourneyApi(
   next: NextFunction,
 ) {
   const uid = res.locals.userId;
+  // An old tab or a queued autosave must never write into a newly restarted journey.
+  const expected = req.get("X-Journey-Workspace");
+  if (expected && expected !== uid) {
+    res.status(409).json({
+      error: "В другой вкладке начат новый проход. Обновите страницу.",
+    });
+    return;
+  }
   const participant =
     isGuest(uid) ||
     !!db

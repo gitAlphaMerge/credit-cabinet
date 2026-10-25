@@ -3,10 +3,14 @@ import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { Landing } from "../src/Landing";
+import { RestartJourney } from "../src/RestartJourney";
+import { workspaceHeaders, setApiWorkspace } from "../src/api";
 test("Landing keeps the central animation and main CTA, without demo or covering finance cards", () => {
   const html = renderToStaticMarkup(<Landing go={() => {}} />);
   assert.match(html, /Большие планы/);
   assert.match(html, /Подобрать финансирование/);
+  assert.match(html, /Решение по кредиту — без звонков/);
+  assert.ok(!html.includes("Без банковских заявок"));
   assert.match(html, /minimal-theatre/);
   for (const forbidden of [
     "Посмотреть демо",
@@ -17,6 +21,31 @@ test("Landing keeps the central animation and main CTA, without demo or covering
     "Селлер на маркетплейсе",
   ])
     assert.ok(!html.includes(forbidden), forbidden);
+});
+
+test("Restart is visible in all client headers and requests retain their mounted workspace scope", () => {
+  assert.match(renderToStaticMarkup(<RestartJourney />), /Начать сначала/);
+  for (const file of [
+    "App.tsx",
+    "Mvp2.tsx",
+    "ProductPreparation.tsx",
+    "Landing.tsx",
+  ])
+    assert.match(
+      readFileSync(new URL("../src/" + file, import.meta.url), "utf8"),
+      /<RestartJourney/,
+    );
+  setApiWorkspace("owner-before-restart");
+  assert.deepEqual(workspaceHeaders(), {
+    "X-Journey-Workspace": "owner-before-restart",
+  });
+  setApiWorkspace(null);
+  assert.deepEqual(workspaceHeaders(), {});
+  for (const file of ["Mvp2.tsx", "JourneyOnboarding.tsx"])
+    assert.match(
+      readFileSync(new URL("../src/" + file, import.meta.url), "utf8"),
+      /headers:\s*\{[^}]*\.\.\.workspaceHeaders\(\)/s,
+    );
 });
 test("Origination uses compact onboarding and an embedded agent; no login or legacy workspace imports", () => {
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");

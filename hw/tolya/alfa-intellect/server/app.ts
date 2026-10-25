@@ -37,6 +37,7 @@ import { mvp2Router } from "./mvp2-routes";
 import { onboardingSchema } from "../shared/mvp2";
 import {
   bootstrapJourney,
+  restartJourney,
   cabinetAvailable,
   isGuest,
   readJourney,
@@ -459,6 +460,10 @@ app.use("/api", (req, res, next) => {
   next();
 });
 app.use("/api", guardJourneyApi);
+app.post("/api/journey/restart", (req, res) => {
+  limit("journey-restart:" + req.ip, 20);
+  restartJourney(req, res);
+});
 app.get("/api/journey", (_req, res) =>
   res.json(readJourney(res.locals.userId)),
 );

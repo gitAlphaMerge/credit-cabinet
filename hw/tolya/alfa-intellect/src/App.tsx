@@ -6,7 +6,7 @@ import {
   MessageSquare,
   WalletCards,
 } from "lucide-react";
-import { api, money } from "./api";
+import { api, money, setApiWorkspace } from "./api";
 import { Brand, Button, IconButton, Modal, Badge } from "./ui";
 import { Landing } from "./Landing";
 import { WorkspaceContext } from "./context";
@@ -17,6 +17,8 @@ import { JourneyOnboarding } from "./JourneyOnboarding";
 import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
 import { ThemeToggle } from "./ThemeToggle";
+import { RestartJourney } from "./RestartJourney";
+import "./restart-journey.css";
 import "./application-status.css";
 import "./manager/manager.css";
 import type { AppState, Doc } from "../shared/types";
@@ -99,6 +101,7 @@ export function App() {
   async function refresh() {
     const [s, c] = await Promise.all([api<AppState>("/state"), api("/config")]);
     setConfig(c);
+    setApiWorkspace(c.workspaceId ?? null);
     setState(s);
     setActiveChatId((id) =>
       s.chats.some((c) => c.id === id) ? id : s.chats[0]?.id || "",
@@ -117,6 +120,7 @@ export function App() {
   async function onAuth() {
     const c = await api("/config");
     setConfig(c);
+    setApiWorkspace(c.workspaceId ?? null);
     restoreFinancingDraft(c.workspaceId);
     setDraft("");
     setHistoryOpen(false);
@@ -127,6 +131,7 @@ export function App() {
   async function signOut() {
     try {
       await api("/auth/logout", {});
+      setApiWorkspace(null);
       if (financingOwner.current) {
         try {
           clearFinancingDraft(sessionStorage, financingOwner.current);
@@ -181,6 +186,7 @@ export function App() {
     initializing.current
       .then(async (c) => {
         setConfig(c);
+        setApiWorkspace(c.workspaceId ?? null);
         if (c.authenticated) {
           const s = await api("/state");
           restoreFinancingDraft(c.workspaceId);
@@ -309,7 +315,10 @@ export function App() {
             <button className="unstyled" onClick={() => go("/")}>
               <Brand />
             </button>
-            <ThemeToggle />
+            <div className="journey-header-tools">
+              <RestartJourney />
+              <ThemeToggle />
+            </div>
           </header>
           <Mvp2 />
           <footer className="workspace-footer">
@@ -343,6 +352,7 @@ export function App() {
             </nav>
             <div className="header-tools g2-tools">
               <ThemeToggle />
+              {config.role !== "manager" && <RestartJourney />}
               <IconButton
                 className="mobile-menu"
                 label="Меню"

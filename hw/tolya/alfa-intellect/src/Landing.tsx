@@ -17,6 +17,7 @@ import { Brand, Button, Badge, SectionTitle } from "./ui";
 import { useEffect, useRef } from "react";
 import { LivePattern } from "./LivePattern";
 import { HeroFinance } from "./HeroFinance";
+import { RestartJourney } from "./RestartJourney";
 export function Landing({ go }: { go: (s: string) => void }) {
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -49,9 +50,12 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#how">Как это работает</a>
           <a href="#questions">Вопросы</a>
         </nav>
-        <Button secondary onClick={() => go("/onboarding")}>
-          Начать оформление <ArrowUpRight size={16} />
-        </Button>
+        <div className="journey-header-tools">
+          <RestartJourney />
+          <Button secondary onClick={() => go("/onboarding")}>
+            Начать оформление <ArrowUpRight size={16} />
+          </Button>
+        </div>
       </header>
       <main>
         <section className="hero wrap hero-live-pattern">
@@ -72,7 +76,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
             </div>
             <div className="hero-meta">
               <span>
-                <Check size={15} /> Без банковских заявок
+                <Check size={15} /> Решение по кредиту — без звонков
               </span>
               <span>
                 <Clock3 size={15} /> Знакомство за 3 минуты
