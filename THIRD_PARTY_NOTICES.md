@@ -56,7 +56,8 @@ Overrides package.json: exceljs → uuid 11.1.1; mammoth → argparse 2.0.1. Э�
 | petite-vue, включая Vue reactivity | `services/frontend/v2/petite-vue.iife.js` | Vendored минифицированный файл без заголовка версии/лицензии. Проект petite-vue распространяется под MIT; соответствие конкретного файла версии и полный notice нужно подтвердить перед передачей |
 | Mermaid 10.9.1 | `services/frontend/puti.html`, CDN jsDelivr | MIT проекта Mermaid; сетевой CDN нужен для схемы на этой странице, не для расчёта |
 | Manrope | Ссылки Google Fonts в frontend и v2 | Семейство под SIL OFL-1.1; шрифт не vendored, точная CDN-версия и текст лицензии в дереве отсутствуют. При отсутствии сети используется запасной системный шрифт |
-| Системные шрифты кабинета | CSS кабинета | Файлов woff/woff2/ttf в каталоге кабинета не найдено; системные шрифты не поставляются как активы |
+| DejaVu Sans и DejaVu Sans Bold 2.37 | `hw/tolya/alfa-intellect/server/assets/fonts/` | Шрифт PDF договора и графика. Лицензия Bitstream Vera Fonts / DejaVu (свободная, разрешает распространение и встраивание); файлы взяты из дистрибутива matplotlib |
+| Системные шрифты кабинета | CSS кабинета | системные шрифты не поставляются как активы |
 | Локальные SVG/PNG и бренд Альфа | `services/frontend/`, `v2/img`, favicon кабинета | Не npm-пакеты; права на бренд и происхождение изображений не определены package-lock. Требуется подтверждение владельца, см. CLEANUP |
 | dc-lite.js | `services/frontend/v2/dc-lite.js` | Локальный мост классов экрана к petite-vue, отдельного стороннего пакета в коде не указано |
 

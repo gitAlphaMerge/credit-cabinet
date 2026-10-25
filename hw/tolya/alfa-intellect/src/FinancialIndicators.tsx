@@ -1,30 +1,31 @@
 import type { Metric } from "../shared/cabinet";
 import { ContextHelp } from "./ContextHelp";
 import { metricScale } from "./metric-scale";
+import { presentTechnicalText, safeDisplayText } from "./application-client";
 export function MetricExplanation({ metric: m }: { metric: Metric }) {
   const scale = metricScale(m);
   return (
     <>
-      <p>{m.meaning}</p>
+      <p>{presentTechnicalText(m.meaning)}</p>
       <dl>
         <div>
           <dt>Формула</dt>
-          <dd>{m.formula}</dd>
+          <dd>{presentTechnicalText(m.formula)}</dd>
         </div>
         <div>
           <dt>Исходные данные</dt>
-          <dd>{m.inputs}</dd>
+          <dd>{presentTechnicalText(m.inputs)}</dd>
         </div>
         <div>
           <dt>Источник и период</dt>
           <dd>
-            {m.source}
+            {presentTechnicalText(m.source)}
             <br />
             {m.period}
           </dd>
         </div>
       </dl>
-      <p>{m.reason}</p>
+      <p>{safeDisplayText(m.reason)}</p>
       <p className="scale-explanation">{scale.note}</p>
     </>
   );

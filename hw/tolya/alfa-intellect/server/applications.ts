@@ -590,6 +590,9 @@ function alternativeSchedule(option: AlternativeOffer): Installment[] {
 }
 
 function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
+  if (db.prepare("SELECT name FROM sqlite_master WHERE name='mvp2_dossiers'").get() &&
+      db.prepare("SELECT application_id FROM mvp2_dossiers WHERE application_id=?").get(command.applicationId))
+    throw new ApplicationError(409, "Используйте действия MVP 2: договор и выдача выполняются раздельно");
   let a = visibleApplication(
     db,
     command.applicationId,
@@ -1230,6 +1233,8 @@ export function createApplication(
       { role: Role } | undefined;
     if (user?.role !== "client")
       throw new ApplicationError(403, "Заявку создаёт клиент");
+    if(db.prepare("SELECT name FROM sqlite_master WHERE name='mvp2_dossiers'").get()&&db.prepare("SELECT application_id FROM mvp2_dossiers WHERE application_id=?").get(input.selectionId))
+      throw new ApplicationError(409,"Продолжите существующую заявку в MVP 2; старый конвейер для неё недоступен");
     const selection = selectionOf(
       userState(db, userId),
       input.selectionId,

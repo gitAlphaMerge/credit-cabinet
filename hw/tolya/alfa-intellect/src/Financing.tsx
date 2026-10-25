@@ -27,8 +27,11 @@ import {
   blankFundingRequest,
   financialLabels,
   fundingCatalog,
+  fundingTerms,
   fundingPurposes,
   fundingWarningRequired,
+  nearestFundingTerm,
+  preferredFundingProduct,
   type FinancialKey,
   type FundingRequest,
 } from "../shared/financing";
@@ -39,6 +42,7 @@ import { SelectionResult } from "./SelectionResult";
 import { NumericInput } from "./NumericInput";
 import { DateInput } from "./DateInput";
 import { FundingChoices, FundingDetails } from "./FundingFields";
+import { safeDisplayText, visibleError } from "./application-client";
 
 const icons = [
   WalletCards,
@@ -78,7 +82,10 @@ export function requestFrom(s: Selection): FundingRequest {
   return s.input
     ? {
         ...structuredClone(s.input),
-        cycleDays: s.assessment?.cycleDays ?? s.input.cycleDays,
+        cycleDays: nearestFundingTerm(
+          fundingCatalog.find((p) => p.id === "overdraft")!,
+          s.assessment?.cycleDays ?? s.input.cycleDays,
+        ),
       }
     : {
         ...blankFundingRequest(),
@@ -310,7 +317,7 @@ export function Financing() {
       setEditing(false);
       setApplication(false);
     } catch (e) {
-      setError((e as Error).message);
+    setError(visibleError(e));
     } finally {
       setBusy(false);
     }
@@ -325,7 +332,7 @@ export function Financing() {
       );
       w.go("/chat");
     } catch (e) {
-      setError((e as Error).message);
+    setError(visibleError(e));
     }
   }
   function revise(s: Selection) {
@@ -374,14 +381,23 @@ export function Financing() {
       </Button>
     </div>
   );
-  const parameters = (edit = false) => (
+  const currentProduct = fundingCatalog.find((p) => p.id === request.productId)
+    || (item ? fundingCatalog.find((p) => p.id === item.assessment?.selectedId) : undefined)
+    || preferredFundingProduct(request);
+  const parameters = () => (
     <div className="funding-fields funding-parameters">
-      {edit && (
         <Field label="Финансовый инструмент">
           <select
             aria-label="Финансовый инструмент"
-            value={request.productId || item?.assessment?.selectedId || ""}
-            onChange={(e) => update({ productId: e.target.value })}
+            value={currentProduct.id}
+            onChange={(e) => {
+              const product = fundingCatalog.find((p) => p.id === e.target.value)!;
+              update({
+                productId: product.id,
+                term: product.kind === "overdraft" ? null : request.term === null
+                  ? null : nearestFundingTerm(product, request.term),
+              });
+            }}
           >
             {fundingCatalog.map((p) => (
               <option value={p.id} key={p.id}>
@@ -390,7 +406,6 @@ export function Financing() {
             ))}
           </select>
         </Field>
-      )}
       <RangeField
         label="Запрашиваемая сумма"
         suffix="₽"
@@ -403,7 +418,7 @@ export function Financing() {
         onChange={(amount) => update({ amount })}
         hint="Ползунок до 50 млн ₽. Большую потребность можно ввести вручную — не скрываем её за лимитами продуктов."
       />
-      <div>
+      {currentProduct.kind !== "overdraft" ? <div>
         <FundingChoices
           label="Желаемый срок"
           value={request.term === null ? "auto" : "manual"}
@@ -411,20 +426,19 @@ export function Financing() {
             ["auto", "Подберите срок"],
             ["manual", "Укажу сам"],
           ]}
-          onChange={(v) => update({ term: v === "auto" ? null : 36 })}
+          onChange={(v) => update({ term: v === "auto" ? null : fundingTerms(currentProduct)[0] })}
         />
         {request.term !== null && (
-          <RangeField
-            label="Срок финансирования"
-            suffix="мес."
-            value={request.term}
-            min={1}
-            max={120}
-            clampInput={false}
-            onChange={(term) => update({ term })}
-          />
+          <Field label="Срок финансирования">
+            <select aria-label="Срок финансирования"
+              value={nearestFundingTerm(currentProduct, request.term)}
+              onChange={(e) => update({ term: Number(e.target.value) })}>
+              {fundingTerms(currentProduct).map((term) =>
+                <option key={term} value={term}>{term} месяцев</option>)}
+            </select>
+          </Field>
         )}
-      </div>
+      </div> : <p>Срок действия лимита: 12 месяцев.</p>}
       <FundingChoices
         label="Как будете использовать средства?"
         value={request.usage}
@@ -435,22 +449,18 @@ export function Financing() {
         ]}
         onChange={(usage) => update({ usage })}
       />
-      {edit && request.productId === "overdraft" && (
-        <RangeField
-          label="Цикл возврата овердрафта"
-          suffix="дн."
-          value={request.cycleDays}
-          min={1}
-          max={90}
-          clampInput={false}
-          onChange={(cycleDays) =>
-            update({
-              cycleDays,
+      {currentProduct.kind === "overdraft" && (
+        <Field label="Срок погашения задолженности">
+          <select aria-label="Срок погашения задолженности"
+            value={nearestFundingTerm(currentProduct, request.cycleDays)}
+            onChange={(e) => update({
+              cycleDays: Number(e.target.value),
               details: { ...request.details, cycleManual: true },
-            })
-          }
-          hint="Сценарная длительность одной задолженности, не срок кредитного лимита."
-        />
+            })}>
+            {fundingTerms(currentProduct).map((days) =>
+              <option key={days} value={days}>{days} дней</option>)}
+          </select>
+        </Field>
       )}
     </div>
   );
@@ -517,15 +527,15 @@ export function Financing() {
                 <span>
                   <b>{money(s.calculation.amount)}</b>
                   <small>
-                    {s.calculation.term} мес. · Версия {s.version}
+                    {s.calculation.term} мес.
                   </small>
                 </span>
                 <Badge>
                   {w.state.leads.some(
                     (l) => l.selectionId === s.id && l.version === s.version,
                   )
-                    ? "Демо-заявка создана"
-                    : s.status}
+                    ? "Заявка создана"
+                    : safeDisplayText(s.status)}
                 </Badge>
                 <ArrowRight size={18} />
               </button>
@@ -534,7 +544,7 @@ export function Financing() {
             <div className="small-empty">
               <Illustration group="empty" name="applications" size={64} decorative />
               <h3>История начнётся с вашей задачи</h3>
-              <p>Условия, версии и обсуждения сохранятся здесь.</p>
+              <p>Условия и обсуждения сохранятся здесь.</p>
               <Button onClick={reset}>Начать подбор</Button>
             </div>
           )}
@@ -544,11 +554,9 @@ export function Financing() {
           <button className="text-button" onClick={() => setApplication(false)}>
             <ArrowLeft size={16} /> К результату
           </button>
-          <Badge tone="red">Демонстрационное оформление</Badge>
           <h2>Проверьте заявление</h2>
           <p>
-            Проверим выбранные условия на демонстрационном стенде. Реальный
-            кредит оформляет банк.
+            Проверьте выбранные условия перед отправкой заявления.
           </p>
           <dl>
             {[
@@ -567,7 +575,6 @@ export function Financing() {
                     ? "Регулярно"
                     : "Сразу",
               ],
-              ["Версия условий", String(item.version)],
               ...(item.assessment?.cycleDays
                 ? [["Цикл возврата", item.assessment.cycleDays + " дн."]]
                 : []),
@@ -586,12 +593,12 @@ export function Financing() {
               <h3>
                 {submission
                   ? "Заявление передано на проверку"
-                  : "Демо-заявка создана"}
+                  : "Заявка создана"}
               </h3>
               <p>
                 {submission
-                  ? `Заявление версии ${item.version} обработано. ${submission.applicationStatus === "offered" ? "Предложение подготовлено автоматически." : submission.applicationStatus === "rejected" ? "Проверка завершена отказом. Причина сохранена в заявке." : "Для продолжения нужны дополнительные сведения. Откройте обсуждение подбора."}`
-                  : `Заявление версии ${item.version} сохранено. Реальной подачи в банк не было.`}
+                  ? `Заявление обработано. ${submission.applicationStatus === "offered" ? "Предложение подготовлено." : submission.applicationStatus === "rejected" ? "Проверка завершена отказом. Причина сохранена в заявке." : "Для продолжения нужны дополнительные сведения. Откройте обсуждение подбора."}`
+                  : "Заявление сохранено."}
               </p>
               <Button secondary onClick={() => setTab("history")}>
                 К истории подборов <ArrowRight size={16} />
@@ -602,7 +609,7 @@ export function Financing() {
               <p className="funding-source">
                 Используем контакт из регистрации, повторно вводить телефон не
                 нужно. Нажимая «Отправить заявление», вы даёте согласие на
-                обработку данных и запрос в БКИ в рамках демонстрации.
+                обработку данных и запрос в БКИ.
               </p>
               <Button
                 disabled={busy}
@@ -624,7 +631,7 @@ export function Financing() {
                       selectionVersion: item.version,
                     });
                   } catch (e) {
-                    setError((e as Error).message);
+                    setError(visibleError(e));
                   } finally {
                     setBusy(false);
                   }
@@ -643,7 +650,7 @@ export function Financing() {
               <Plus size={16} /> Новый запрос
             </button>
             <span>
-              Версия {shown.version} · {date(item.updatedAt || item.createdAt)}
+              {date(item.updatedAt || item.createdAt)}
             </span>
           </div>
           <SelectionResult
@@ -655,8 +662,8 @@ export function Financing() {
           />
           {viewVersion && viewVersion !== item.version && (
             <div className="funding-old-version">
-              Открыта сохранённая версия {viewVersion}. Изменение, обсуждение и
-              оформление используют последнюю версию {item.version}.{" "}
+              Открыты ранее сохранённые условия. Изменение, обсуждение и
+              оформление используют текущие условия.{" "}
               <button
                 className="text-button"
                 onClick={() => setViewVersion(null)}
@@ -667,7 +674,7 @@ export function Financing() {
           )}
           <details className="funding-surface funding-versions">
             <summary>
-              История условий · {item.versions?.length || 1} версий
+              История условий · {item.versions?.length || 1} вариантов
             </summary>
             {(
               item.versions || [
@@ -685,7 +692,7 @@ export function Financing() {
                 onClick={() => setViewVersion(v.version)}
               >
                 <span>
-                  Версия {v.version} · {date(v.createdAt)}
+                  {date(v.createdAt)}
                 </span>
                 <b>{v.product}</b>
                 <span>
@@ -1023,7 +1030,7 @@ export function Financing() {
               Создадим новую версию этого же подбора. Все инструменты доступны
               для сравнения; ограничения будут проверены заново.
             </p>
-            {parameters(true)}
+                {parameters()}
             {error && (
               <p className="funding-error" role="alert">
                 {error}
@@ -1105,7 +1112,7 @@ export function Financing() {
           </div>
           <p>
             Это не означает гарантированный отказ банка. Можно продолжить только
-            демонстрационное оформление — реальная заявка отправлена не будет.
+            выбранные условия и отправку заявления.
           </p>
           <div className="funding-form-actions">
             <Button secondary onClick={() => setWarning(false)}>

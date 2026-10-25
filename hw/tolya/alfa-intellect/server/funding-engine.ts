@@ -3,6 +3,10 @@ import { addDays, day, daysBetween, validDate } from "../shared/cabinet";
 import { fundingBusinessData } from "../shared/financing-business";
 import {
   fundingCatalog,
+  fundingTerms,
+  nearestFundingTerm,
+  overdraftCycles,
+  preferredFundingProduct,
   fundingPurposes,
   financialLabels,
   type FundingAssessment,
@@ -30,9 +34,9 @@ export const fundingInput = z
     description: z.string().max(1000),
     repayFrom: z.string().trim().min(1).max(300),
     productId: z
-      .enum(["working", "investment", "contract", "overdraft", "refinance"])
+      .enum(["working", "investment", "revolving", "contract", "overdraft", "refinance"])
       .optional(),
-    cycleDays: z.number().int().min(1).max(90),
+    cycleDays: z.union([z.literal(30), z.literal(60), z.literal(90)]),
     details: z.record(
       z.string(),
       z.union([
@@ -153,6 +157,16 @@ export function instrumentSchedule(
   let balance = p.kind === "line" ? 0 : amount;
   const result: Calculation["schedule"] = [];
   for (let k = 1; k <= term; k++) {
+    if (p.id === "revolving") {
+      const principal = k % 6 === 0 || k === term ? amount : 0;
+      const interest = round(amount * i);
+      result.push({
+        month: k, date: monthDate(start, k),
+        payment: round(principal + interest), principal, interest,
+        balance: principal ? 0 : amount,
+      });
+      continue;
+    }
     if (p.kind === "line")
       balance =
         usage === "parts"
@@ -180,12 +194,22 @@ export function instrumentSchedule(
   }
   return result;
 }
+function usageFits(p: FundingProduct, request: FundingRequest): boolean {
+  if (request.purpose === "Рефинансирование") return p.id === "refinance";
+  if (request.purpose === "Кассовый разрыв")
+    return p.id === "overdraft" || p.id === "working";
+  if (request.usage === "parts") return p.id === "contract";
+  if (request.usage === "regular") return p.id === "revolving";
+  return p.kind === "loan";
+}
 function checksFor(
   p: FundingProduct,
   request: FundingRequest,
   s: AppState,
   term: number,
   today: string,
+  cycleDays: number,
+  flow: number | null,
 ): FundingCheck[] {
   const profile = s.profile,
     age =
@@ -218,6 +242,13 @@ function checksFor(
         : "Назначение в каталоге не совпадает с целью запроса.",
     ),
     item(
+      "Характер использования",
+      usageFits(p, request) ? "met" : "unmet",
+      usageFits(p, request)
+        ? "Порядок выдачи соответствует запросу."
+        : `Вы указали ${request.usage === "once" ? "разовое" : request.usage === "parts" ? "поэтапное" : "повторяющееся"} использование; механика продукта иная. Измените продукт или характер использования.`,
+    ),
+    item(
       "Форма и регистрация бизнеса",
       profile.registered && p.forms.includes(profile.form) ? "met" : "unmet",
       profile.registered
@@ -230,15 +261,63 @@ function checksFor(
       `В сценарном каталоге — от ${p.minAge} месяцев. Источник: профиль бизнеса.`,
     ),
     item(
+      "Источник возврата",
+      flow === null ? "unknown" : flow > 0 ? "met" : "unmet",
+      flow === null
+        ? "Нужны сведения о доступном потоке; неизвестное значение не считается нулём."
+        : flow > 0
+          ? "Текущий поток положительный; посильность проверяется отдельно."
+          : "Текущий поток не положительный. Стандартный продукт нельзя рекомендовать без ручной проверки источника возврата.",
+    ),
+    item(
       "Сумма",
       request.amount >= p.min && request.amount <= p.max ? "met" : "unmet",
       `Каталог: ${p.min.toLocaleString("ru-RU")}–${p.max.toLocaleString("ru-RU")} ₽.`,
     ),
     item(
       "Срок",
-      term <= p.term ? "met" : "unmet",
-      `До ${p.term} месяцев по сценарию каталога.`,
+      fundingTerms(p).includes(p.kind === "overdraft" ? cycleDays : term) ? "met" : "unmet",
+      p.kind === "overdraft"
+        ? `Длительность использования: ${fundingTerms(p).join(", ")} дней; срок лимита 12 месяцев.`
+        : `Доступные сроки: ${fundingTerms(p).join(", ")} месяцев.`,
     ),
+    ...(p.kind === "overdraft" ? [item(
+      "Источник возврата овердрафта",
+      cycleDays > 60 ? "unmet" : request.details.receiptsDate ? "met" : "unknown",
+      cycleDays > 60
+        ? "Одно использование дольше 60 дней не проходит правило MVP. Уточните срок или выберите оборотный кредит."
+        : request.details.receiptsDate
+          ? "Дата ожидаемого поступления указана; подтверждение проверяется отдельно."
+          : "Укажите дату ожидаемого поступления для подробной проверки.",
+    )] : []),
+    ...(p.id === "contract" ? [item(
+      "План траншей",
+      request.details.projectCost || request.details.contractAmount ? "met" : "unknown",
+      request.details.projectCost || request.details.contractAmount
+        ? "Указана основа проекта; график этапов требует подтверждения."
+        : "Для невозобновляемой линии нужен бюджет проекта и график траншей.",
+    )] : []),
+    ...(p.id === "investment" ? [item(
+      "Бюджет проекта",
+      request.details.purchaseCost || request.details.projectCost ? "met" : "unknown",
+      "Для инвестиционного кредита нужна смета или стоимость оборудования.",
+    )] : []),
+    ...(p.id === "refinance" ? [(() => {
+      const oldPayment = num(request.details.currentPayment),
+        oldMonths = num(request.details.currentMonths),
+        oldBalance = num(request.details.currentBalance);
+      if (oldPayment === null || oldMonths === null || oldBalance === null)
+        return item("Экономика рефинансирования", "unknown", "Укажите проверенный остаток долга, старый платёж и оставшийся срок.");
+      const newTotal = instrumentSchedule(p, request.amount, term, request.usage, cycleDays, today)
+        .reduce((sum, row) => sum + row.payment, 0);
+      return item(
+        "Экономика рефинансирования",
+        oldPayment * oldMonths > newTotal ? "met" : "unmet",
+        oldPayment * oldMonths > newTotal
+          ? "Сценарная сумма новых платежей ниже оставшихся старых; комиссии нужно проверить отдельно."
+          : "Сумма новых платежей не ниже оставшихся старых. Проверьте комиссии, срок или оставьте прежний кредит.",
+      );
+    })()] : []),
     item(
       "Обеспечение и индивидуальные условия",
       "unknown",
@@ -268,7 +347,7 @@ export const transparentFundingEngine: FundingEngine = {
             String(request.details.receiptsDate),
           )
         : null;
-    const cycleDays =
+    const requestedCycle =
       request.purpose === "Кассовый разрыв" &&
       request.details.cycleManual !== true &&
       gap !== null &&
@@ -276,29 +355,26 @@ export const transparentFundingEngine: FundingEngine = {
       gap <= 90
         ? gap
         : request.cycleDays;
+    const cycleDays = overdraftCycles.reduce((best, value) =>
+      Math.abs(value - requestedCycle) < Math.abs(best - requestedCycle) ? value : best,
+    );
     const termFor = (p: FundingProduct) =>
-      request.term ??
-      (p.kind === "overdraft"
-        ? 12
-        : Math.min(
-            p.term,
-            request.purpose === "Оборудование"
-              ? 48
-              : request.purpose === "Кассовый разрыв"
-                ? 3
-                : 24,
-          ));
+      p.kind === "overdraft" ? 12 : nearestFundingTerm(
+        p,
+        request.term ?? (request.purpose === "Оборудование" ? 48 : 24),
+      );
     const ranked = fundingCatalog
         .map((p) => ({
           p,
-          checks: checksFor(p, request, s, termFor(p), today),
+          checks: checksFor(p, request, s, termFor(p), today, cycleDays, baseValue("flow")),
         }))
         .map((x) => ({
           ...x,
           score:
-            (x.p.purposes.includes(request.purpose) ? 100 : 0) -
+             (x.p.purposes.includes(request.purpose) ? 100 : 0) +
+             (x.p.id === preferredFundingProduct(request).id ? 50 : 0) -
             x.checks.filter((c) => c.state === "unmet").length * 20 +
-            (request.usage !== "once" && x.p.kind === "line" ? 15 : 0) +
+             (usageFits(x.p, request) ? 15 : 0) +
             (() => {
               const flow = baseValue("flow"),
                 debt = baseValue("existing");
@@ -318,10 +394,11 @@ export const transparentFundingEngine: FundingEngine = {
             })(),
         }))
         .sort((a, b) => b.score - a.score),
-      recommended = ranked[0].p,
-      p = fundingCatalog.find((p) => p.id === request.productId) || recommended,
-      term = termFor(p),
-      checks = checksFor(p, request, s, term, today),
+       eligible = ranked.filter((x) => !x.checks.some((c) => c.state === "unmet")),
+       recommended = eligible[0]?.p,
+       p = fundingCatalog.find((p) => p.id === request.productId) || recommended || ranked[0].p,
+       term = termFor(p),
+       checks = checksFor(p, request, s, term, today, cycleDays, baseValue("flow")),
       data = baseData,
       datum = (k: string) => data.find((d) => d.key === k)!,
       usable = (k: string) => {
@@ -331,7 +408,7 @@ export const transparentFundingEngine: FundingEngine = {
     let flow = usable("flow"),
       existing = usable("existing");
     const assumptions = [
-      "Ставка — сценарное допущение из каталога demo-1, не персональное предложение банка.",
+      "Ставка - сценарное допущение из каталога xlsx-2026-10, не персональное предложение банка.",
       "Комиссии, страхование и налоги на сделку не включены. Условия и график банка могут отличаться.",
       "Базовый сценарий сохраняет наблюдаемый или введённый месячный операционный поток. История не гарантирует будущие поступления; ожидаемые изменения не повышают посильную сумму автоматически.",
       "Модель DSCR ≥ 1,25; стресс — снижение операционного потока на 30%. Это не банковский скоринг.",
@@ -395,7 +472,9 @@ export const transparentFundingEngine: FundingEngine = {
     }
     if (p.kind === "line")
       assumptions.push(
-        request.usage === "parts"
+        p.id === "revolving"
+          ? "Возобновляемая линия: сценарий полной выборки, каждый транш возвращается через 6 месяцев и лимит становится доступен снова. Реальный календарь траншей требует подтверждения."
+          : request.usage === "parts"
           ? "Линия: три равных транша в начале первых трёх месяцев (либо по числу месяцев, если срок короче); проценты на выбранный остаток, основной долг — в конце срока."
           : "Линия: полная выборка лимита в начале; ежемесячные проценты, весь основной долг — в конце. Поступления для его возврата не предполагаются автоматически.",
       );
@@ -406,6 +485,14 @@ export const transparentFundingEngine: FundingEngine = {
     if (request.term === null)
       assumptions.push(
         `Для сравнения выбран срок ${term} мес.; его можно изменить.`,
+      );
+    else if (p.kind !== "overdraft" && request.term !== term)
+      assumptions.push(
+        `Вы просили ${request.term} месяцев, у продукта ближайший срок ${term} месяцев.`,
+      );
+    if (p.kind === "overdraft" && requestedCycle !== cycleDays)
+      assumptions.push(
+        `Вы просили срок использования ${requestedCycle} дней, ближайший срок продукта ${cycleDays} дней.`,
       );
     if (datum("changes").value !== null)
       assumptions.push(
@@ -438,10 +525,16 @@ export const transparentFundingEngine: FundingEngine = {
           : null,
       factor = p.kind === "overdraft" ? cycleDays / 30 : 1,
       unitPeak = peak / request.amount,
-      capacity =
+       rawCapacity =
         budget === null
           ? null
           : round(Math.max(0, (budget * factor) / unitPeak)),
+       turnoverCap = p.kind === "overdraft" && datum("incoming").kind === "fact"
+         ? Math.max(0, (usable("incoming") ?? 0) * 0.5)
+         : null,
+       capacity = rawCapacity === null ? null : Math.min(
+         rawCapacity, p.max, ...(turnoverCap === null ? [] : [turnoverCap]),
+       ),
       denominator = existing !== null ? peak + existing * factor : null,
       dscr =
         flow !== null && denominator !== null && denominator > 0
@@ -501,20 +594,26 @@ export const transparentFundingEngine: FundingEngine = {
       effect <= 0
     )
       decision = "rethink";
-    const title = {
+    if (checks.some((c) => c.state === "unmet") && decision === "consider")
+      decision = "rethink";
+    const title = checks.some((c) => c.state === "unmet")
+      ? "Параметры запроса не совпадают с условиями продукта"
+      : !recommended
+        ? "В каталоге нет продукта под этот запрос"
+        : ({
       consider: "Нагрузка выглядит посильной в этом сценарии",
       reduce: "Сначала уменьшите кредитную нагрузку",
       unnecessary: "Возможно, заимствование не требуется",
       rethink: "Сначала проверьте экономику покупки",
       insufficient: "Инструмент подобран, посильность пока не определена",
-    }[decision];
+    } as const)[decision];
     const total = round(schedule.reduce((n, r) => n + r.payment, 0)),
-      interest = round(total - request.amount);
+       interest = round(schedule.reduce((n, r) => n + r.interest, 0));
     const calc: Calculation = {
       amount: request.amount,
       term,
       rate: p.rate,
-      monthlyPayment: p.kind === "line" ? schedule[0].payment : peak,
+       monthlyPayment: p.kind === "line" ? schedule[0].payment : peak,
       total,
       interest,
       flow,
@@ -530,8 +629,10 @@ export const transparentFundingEngine: FundingEngine = {
       formula:
         p.kind === "loan"
           ? "A = S × i / (1 − (1 + i)^−n), i = ставка / 1200; при i=0: A=S/n."
-          : p.kind === "line"
-            ? "Проценты месяца = выбранный остаток × ставка / 1200; основной долг возвращается в конце срока."
+           : p.kind === "line"
+             ? p.id === "revolving"
+               ? "Проценты месяца = выбранный остаток × ставка / 1200; транш возвращается через 6 месяцев, лимит восстанавливается."
+               : "Проценты месяца = выбранный остаток × ставка / 1200; основной долг возвращается в конце срока."
             : "Проценты = выбранная сумма × ставка / 100 × дни / 365; платёж = долг + проценты.",
     };
     const reasons = [
@@ -547,6 +648,12 @@ export const transparentFundingEngine: FundingEngine = {
         ? "Неизвестные потоки или обязательства не приняты за ноль; посильная сумма не рассчитана."
         : `Посильная сумма рассчитана по ${p.kind === "loan" ? "ежемесячному" : "пиковому"} платежу, с учётом действующих обязательств.`,
     ];
+    if (request.term !== null && p.kind !== "overdraft" && request.term !== term)
+      reasons.unshift(`Вы просили ${request.term} месяцев, у продукта ближайший срок ${term} месяцев.`);
+    if (p.kind === "overdraft" && requestedCycle !== cycleDays)
+      reasons.unshift(`Вы просили срок использования ${requestedCycle} дней, ближайший срок продукта ${cycleDays} дней.`);
+    if (!recommended)
+      reasons.unshift("Сейчас ни один продукт каталога не соответствует всем параметрам запроса. Измените сумму, срок или характер использования.");
     const historical = s.documents.find(
         (d) =>
           d.confirmed &&
@@ -581,7 +688,7 @@ export const transparentFundingEngine: FundingEngine = {
     const assessment: FundingAssessment = {
       cycleDays: p.kind === "overdraft" ? cycleDays : undefined,
       engine: "transparent-mvp-2",
-      recommendedId: recommended.id,
+       recommendedId: recommended?.id ?? "",
       selectedId: p.id,
       level,
       decision,

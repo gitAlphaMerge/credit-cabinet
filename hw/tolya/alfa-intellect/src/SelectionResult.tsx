@@ -13,6 +13,7 @@ import { money, date } from "./api";
 import { formatRate } from "./format-rate";
 import { ProductIllustration } from "./Illustration";
 import type { Selection } from "../shared/types";
+import { presentTechnicalText, safeDisplayText } from "./application-client";
 import {
   financialLabels,
   fundingCatalog,
@@ -72,7 +73,7 @@ export function SelectionResult({
     recommended = fundingCatalog.find((p) => p.id === a?.recommendedId),
     reasons = a?.reasons || [
       "Инструмент выбран для задачи бизнеса.",
-      "Расчёт сохранён в предыдущей версии прототипа; источники можно уточнить при новом расчёте.",
+    "Расчёт сохранён ранее; источники можно уточнить при новом расчёте.",
     ],
     title = a?.title || result.title;
   return (
@@ -84,7 +85,9 @@ export function SelectionResult({
       <div className="funding-result-head">
         <span className="eyebrow">
           <Sparkles size={15} />{" "}
-          {a && a.selectedId !== a.recommendedId
+          {a && !a.recommendedId
+            ? "Подходящий продукт не найден"
+            : a && a.selectedId !== a.recommendedId
             ? "Выбранный вами инструмент"
             : "Рекомендуемый инструмент"}
         </span>
@@ -135,6 +138,12 @@ export function SelectionResult({
           </small>
           <b>{c.term} мес.</b>
         </div>
+        {selected?.kind === "overdraft" && a?.cycleDays && (
+          <div>
+            <small>Срок погашения задолженности</small>
+            <b>{a.cycleDays} дней</b>
+          </div>
+        )}
         <div>
           <small>Сценарная ставка</small>
           <b>{formatRate(c.rate)} годовых</b>
@@ -232,7 +241,7 @@ export function SelectionResult({
                     <td>
                       {d.source}
                       <small>
-                        {d.period} · {d.currency} ·{" "}
+                         {d.period} · {presentTechnicalText(d.currency)} ·{" "}
                         {d.kind === "fact"
                           ? "Исторические данные"
                           : d.kind === "forecast"
@@ -255,7 +264,7 @@ export function SelectionResult({
         <h3>Математика расчёта</h3>
         <div className="funding-formulas">
           {(a?.formula || [c.formula]).map((f) => (
-            <p key={f}>{f}</p>
+             <p key={f}>{presentTechnicalText(f)}</p>
           ))}
         </div>
         <dl className="funding-detail-values">
@@ -266,7 +275,7 @@ export function SelectionResult({
               money(a ? a.existingAfter : c.existing),
             ],
             ["Пиковый платёж", money(a?.peakPayment ?? c.monthlyPayment)],
-            ["DSCR, модель", String(c.dscr ?? "Недостаточно данных")],
+             ["Покрытие платежей потоком", String(c.dscr ?? "Недостаточно данных")],
             [
               "Стресс: поток −30%",
               String(c.stressDscr ?? "Недостаточно данных"),
@@ -290,10 +299,10 @@ export function SelectionResult({
         <h3>Допущения и ограничения</h3>
         <ul>
           {(a?.assumptions || [c.source]).map((text) => (
-            <li key={text}>{text}</li>
+             <li key={text}>{presentTechnicalText(text)}</li>
           ))}
           {item.risks.map((text) => (
-            <li key={text}>{text}</li>
+             <li key={text}>{presentTechnicalText(text)}</li>
           ))}
         </ul>
         <details className="funding-schedule">
@@ -330,7 +339,7 @@ export function SelectionResult({
           {a.alternatives.map((p) => (
             <div key={p.id}>
               <b><ProductIllustration productId={p.id} size={32} decorative /> {p.name}</b>
-              <span>{p.reason}</span>
+               <span>{safeDisplayText(p.reason)}</span>
             </div>
           ))}
         </div>
@@ -341,9 +350,7 @@ export function SelectionResult({
           каталога. Подробности — в оценке; это не банковский отказ.
         </p>
       )}
-      <p className="funding-source">
-        Каталог {a?.catalogVersion || "demo-1"} · ставки и ограничения
-        синтетические, не предложение Альфа-Банка.{" "}
+       <p className="funding-source">
         {a?.level === "Ориентировочная"
           ? "Добавление пригодных данных позволит оценить посильность."
           : "Для расширенной оценки нужны актуальная история потоков, сопоставимые обязательства и сценарии."}
@@ -355,7 +362,7 @@ export function SelectionResult({
         <Button secondary onClick={onDiscuss}>
           <MessageSquare size={17} /> Обсудить с агентом
         </Button>
-        <Button onClick={onApply}>
+        <Button onClick={onApply} disabled={!!a && (!a.recommendedId || a.checks.some((check) => check.state === "unmet"))}>
           Перейти к оформлению <ArrowRight size={17} />
         </Button>
       </div>

@@ -146,7 +146,7 @@ test("selecting application loads objections, alternatives, unavailable source a
     );
     for (const text of [
       "Не устраивает срок",
-      "Тестовый продукт",
+      "Нужна проверка менеджером",
       "Источник недоступен",
       "Мок ФНС",
       "система",

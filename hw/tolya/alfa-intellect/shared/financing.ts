@@ -130,6 +130,7 @@ export type FundingProduct = {
   rate: number;
   min: number;
   max: number;
+  minTerm: number;
   term: number;
   minAge: number;
   forms: readonly string[];
@@ -138,7 +139,7 @@ export type FundingProduct = {
   verifiedAt: string;
   rateKind: "scenario";
 };
-/** Existing project catalogue, normalised; none of these are verified bank offers. */
+/** Synthetic bank catalogue exported by the team, not a bank offer. */
 export const fundingCatalog: FundingProduct[] = [
   {
     id: "working",
@@ -148,62 +149,82 @@ export const fundingCatalog: FundingProduct[] = [
       "Оборотные средства",
       "Закупка товаров и материалов",
       "Развитие",
+      "Кассовый разрыв",
+      "Исполнение контракта",
     ],
-    rate: 24,
-    max: 15000000,
-    term: 36,
+    rate: 23.5, min: 300000, max: 5000000, minTerm: 6, term: 24, minAge: 9,
   },
   {
     id: "investment",
     name: "Инвестиционный кредит",
     kind: "loan",
     purposes: ["Оборудование", "Развитие", "Запуск"],
-    rate: 22,
-    max: 50000000,
-    term: 84,
+    rate: 22, min: 500000, max: 7000000, minTerm: 12, term: 60, minAge: 12,
+  },
+  {
+    id: "revolving",
+    name: "Возобновляемая кредитная линия",
+    kind: "line",
+    purposes: ["Оборотные средства", "Закупка товаров и материалов"],
+    rate: 24, min: 500000, max: 5000000, minTerm: 6, term: 24, minAge: 12,
   },
   {
     id: "contract",
-    name: "Кредитная линия под контракт",
+    name: "Невозобновляемая кредитная линия",
     kind: "line",
     purposes: [
       "Исполнение контракта",
-      "Закупка товаров и материалов",
-      "Оборотные средства",
+      "Оборудование",
+      "Развитие",
     ],
-    rate: 23,
-    max: 20000000,
-    term: 36,
+    rate: 23, min: 500000, max: 7000000, minTerm: 12, term: 36, minAge: 12,
   },
   {
     id: "overdraft",
     name: "Овердрафт",
     kind: "overdraft",
     purposes: ["Кассовый разрыв", "Оборотные средства"],
-    rate: 26,
-    max: 3000000,
-    term: 12,
+    rate: 26, min: 300000, max: 2000000, minTerm: 12, term: 12, minAge: 9,
   },
   {
     id: "refinance",
     name: "Рефинансирование",
     kind: "loan",
     purposes: ["Рефинансирование"],
-    rate: 23,
-    max: 10000000,
-    term: 60,
+    rate: 22.5, min: 300000, max: 5000000, minTerm: 12, term: 48, minAge: 12,
   },
 ].map((p) => ({
   ...p,
   kind: p.kind as FundingProduct["kind"],
-  min: 10000,
-  minAge: 12,
   forms: ["ИП", "ООО"],
   source: "Синтетический каталог проекта, не предложение банка",
-  version: "demo-1",
-  verifiedAt: "2026-10-16",
+  version: "xlsx-2026-10",
+  verifiedAt: "2026-10-25",
   rateKind: "scenario",
 }));
+
+const monthGrid = [6, 12, 18, 24, 36, 48, 60] as const;
+export const overdraftCycles = [30, 60, 90] as const;
+export function fundingTerms(product: FundingProduct): number[] {
+  return product.kind === "overdraft"
+    ? [...overdraftCycles]
+    : monthGrid.filter((month) => month >= product.minTerm && month <= product.term);
+}
+export function nearestFundingTerm(product: FundingProduct, requested: number): number {
+  const values = fundingTerms(product);
+  return values.reduce((best, value) =>
+    Math.abs(value - requested) < Math.abs(best - requested) ? value : best,
+  );
+}
+export function preferredFundingProduct(request: Pick<FundingRequest, "purpose" | "usage">): FundingProduct {
+  const id = request.purpose === "Рефинансирование" ? "refinance"
+    : request.purpose === "Кассовый разрыв" ? "overdraft"
+    : request.usage === "parts" ? "contract"
+    : request.purpose === "Оборудование" || request.purpose === "Развитие" || request.purpose === "Запуск"
+      ? "investment"
+    : request.usage === "regular" ? "revolving" : "working";
+  return fundingCatalog.find((product) => product.id === id)!;
+}
 
 export const requirementText = (state: FundingCheck["state"]) =>
   ({ met: "Выполнено", unmet: "Не выполнено", unknown: "Нужно уточнить" })[

@@ -16,6 +16,7 @@ import type { Profile } from "../shared/types";
 import { PhoneInput, normalizePhone } from "./phone";
 import { Preparation } from "./Preparation";
 import { PREPARATION_KEY, readPreparation } from "./preparation-state";
+import { JourneyOnboarding } from "./JourneyOnboarding";
 export const sectors = [
   "Оптовая торговля",
   "Розничная торговля и маркетплейсы",
@@ -323,11 +324,20 @@ export function Onboarding({
         setPreparing(start);
       }
     } catch (e) {
-      setError((e as Error).message);
+      setError(visibleError(e));
     } finally {
       setBusy(false);
     }
   }
+  if (!login && !auth && !preparing)
+    return (
+      <JourneyOnboarding
+        go={go}
+        onComplete={async () => {
+          await onAuth();
+        }}
+      />
+    );
   if (preparing)
     return (
       <Preparation
@@ -380,7 +390,12 @@ export function Onboarding({
                   />
                 </div>
               </div>
-              <Illustration group="docs" name="questionnaire" size={48} decorative />
+              <Illustration
+                group="docs"
+                name="questionnaire"
+                size={48}
+                decorative
+              />
               <h1>{titles[0]}</h1>
               <p className="lead">{titles[1]}</p>
               <div className="onboarding-fields">
@@ -565,3 +580,4 @@ function SparkleMark() {
 function ArrowUpRightMini() {
   return <ArrowRight size={14} />;
 }
+import { visibleError } from "./application-client";

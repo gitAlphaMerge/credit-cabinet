@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { money } from "../api";
 import { Modal } from "../ui";
-import { finite, clientLabels } from "../application-client";
+import { finite, labelCode, safeDisplayText } from "../application-client";
 import type { ApplicationDetail } from "./api";
 
 type Props = {
@@ -13,7 +13,7 @@ type Props = {
   onSend(payload: Record<string, string>): Promise<void>;
 };
 const rub = (n: unknown) => (finite(n) ? money(n) : "нет данных");
-const label = (s: string) => clientLabels[s] || "Требует уточнения: " + s;
+const label = labelCode;
 export function memoBlocks(detail: ApplicationDetail, optionId?: string) {
   const { application: a, dossier: d } = detail;
   const option = d?.alternatives?.find((o) => o.option_id === optionId);
@@ -49,7 +49,7 @@ export function memoBlocks(detail: ApplicationDetail, optionId?: string) {
         ? checks
             .map(
               (c) =>
-                `${c.status === "ok" ? "Пройдено" : c.status === "unavailable" ? "Источник недоступен" : "Не пройдено"}: ${c.managerText || "описание отсутствует"} (${c.source || "источник не указан"})`,
+                `${c.status === "ok" ? "Пройдено" : c.status === "unavailable" ? "Источник недоступен" : "Не пройдено"}: ${safeDisplayText(c.managerText) || "описание отсутствует"} (${safeDisplayText(c.source) || "источник не указан"})`,
             )
             .join("\n")
         : "Данных о проверках нет.",
@@ -61,7 +61,7 @@ export function memoBlocks(detail: ApplicationDetail, optionId?: string) {
         finite(d?.limit_now_rub) &&
         amount > 0 &&
         amount <= d.limit_now_rub
-          ? `Передать на проверку сумму ${rub(amount)} в пределах текущего лимита. Решение принимает банк.`
+          ? `Передать на проверку сумму ${rub(amount)} в пределах текущего лимита.`
           : "Не передавать: сумма превышает текущий лимит или данные о лимите отсутствуют.",
     },
   ];

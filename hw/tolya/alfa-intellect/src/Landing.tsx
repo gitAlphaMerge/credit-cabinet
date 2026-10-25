@@ -17,6 +17,7 @@ import { Brand, Button, Badge, SectionTitle } from "./ui";
 import { useEffect, useRef } from "react";
 import { LivePattern } from "./LivePattern";
 import { HeroFinance } from "./HeroFinance";
+import { RestartJourney } from "./RestartJourney";
 export function Landing({ go }: { go: (s: string) => void }) {
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -48,26 +49,17 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#opportunities">Возможности</a>
           <a href="#how">Как это работает</a>
           <a href="#questions">Вопросы</a>
-          <button className="text-button" onClick={() => go("/demo")}>
-            Демо
-          </button>
         </nav>
-        <button
-          className="text-button public-mobile-demo"
-          onClick={() => go("/demo")}
-        >
-          Демо
-        </button>
-        <Button secondary onClick={() => go("/login")}>
-          Войти <ArrowUpRight size={16} />
-        </Button>
+        <div className="journey-header-tools">
+          <RestartJourney />
+          <Button secondary onClick={() => go("/onboarding")}>
+            Начать оформление <ArrowUpRight size={16} />
+          </Button>
+        </div>
       </header>
       <main>
         <section className="hero wrap hero-live-pattern">
           <div className="hero-copy">
-            <Badge tone="red">
-              <Sparkles size={13} /> Финансовый помощник вашего бизнеса
-            </Badge>
             <h1>
               Большие планы.
               <br />
@@ -81,20 +73,17 @@ export function Landing({ go }: { go: (s: string) => void }) {
               <Button onClick={() => go("/onboarding")}>
                 Подобрать финансирование <ArrowRight size={19} />
               </Button>
-              <button className="text-button" onClick={() => go("/demo")}>
-                Посмотреть демо <ArrowUpRight size={17} />
-              </button>
             </div>
             <div className="hero-meta">
               <span>
-                <Check size={15} /> Без банковских заявок
+                <Check size={15} /> Решение по кредиту — без звонков
               </span>
               <span>
-                <Clock3 size={15} /> Знакомство за 3 минуты
+                <Clock3 size={15} /> Начните с семи вопросов
               </span>
             </div>
           </div>
-          <HeroFinance pattern={<LivePattern />} />
+          <HeroFinance pattern={<LivePattern showCaption={false} />} />
         </section>
         <section className="benefit-strip wrap">
           {[
@@ -330,7 +319,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
           {[
             [
               "Это банковское одобрение?",
-              "Нет. Продукт помогает предварительно оценить нагрузку и подготовить информацию. Решение о кредите принимает банк. Условия в текущем MVP демонстрационные.",
+    "Нет. Продукт помогает предварительно оценить нагрузку и подготовить информацию. Решение о кредите принимает банк.",
             ],
             [
               "Нужно сразу загружать документы?",
@@ -342,7 +331,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
             ],
             [
               "Что доступно без подключения ИИ?",
-              "Анкета, профиль, обработка подготовленных документов, программные расчёты, подбор, демозаявка и кабинет. Для свободного диалога нужен серверный ключ LLM.",
+    "Подбор продукта, заполнение заявки, анализ выписок CSV и проверка условий. После решения банка можно пройти договор, подпись и получение средств.",
             ],
           ].map(([q, a]) => (
             <details key={q}>
@@ -372,12 +361,10 @@ export function Landing({ go }: { go: (s: string) => void }) {
       <footer className="public-footer wrap">
         <Brand />
         <p>
-          Хакатон · демонстрационный MVP
-          <br />
-          Не является офертой или банковской идентификацией.
+          Иллюстративные данные, не предложение банка. Решение принимает банк
         </p>
-        <button className="text-button" onClick={() => go("/login")}>
-          Войти в кабинет <ArrowUpRight size={15} />
+        <button className="text-button" onClick={() => go("/onboarding")}>
+          Начать оформление <ArrowUpRight size={15} />
         </button>
       </footer>
     </div>

@@ -279,7 +279,7 @@ export function CalculationView({
             <strong>{c.term} мес.</strong>
           </div>
           <div>
-            <small>Демо-ставка</small>
+          <small>Ориентировочная ставка</small>
             <strong>{formatRate(c.rate)}</strong>
           </div>
           <div>

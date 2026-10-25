@@ -42,7 +42,10 @@ export const heroScenes = [
     hint: "Сравнивайте нагрузку до решения",
   },
 ];
-export function HeroFinance({ pattern }: { pattern?: ReactNode } = {}) {
+export function HeroFinance({
+  pattern,
+  minimal = false,
+}: { pattern?: ReactNode; minimal?: boolean } = {}) {
   const root = useRef<HTMLDivElement>(null),
     reduced = useReducedMotion();
   const [scene, setScene] = useState(0),
@@ -50,7 +53,8 @@ export function HeroFinance({ pattern }: { pattern?: ReactNode } = {}) {
     [hovered, setHovered] = useState(false),
     [visible, setVisible] = useState(true),
     [foreground, setForeground] = useState(true);
-  const playing = !reduced && !paused && !hovered && visible && foreground;
+  const playing =
+    !minimal && !reduced && !paused && !hovered && visible && foreground;
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setVisible(entry.isIntersecting),
@@ -74,6 +78,15 @@ export function HeroFinance({ pattern }: { pattern?: ReactNode } = {}) {
     return () => clearInterval(timer);
   }, [playing]);
   const s = heroScenes[scene];
+  if (minimal)
+    return (
+      <div
+        className="hero-visual finance-theatre minimal-theatre"
+        aria-label="Анимация о бизнесе и финансах"
+      >
+        {pattern}
+      </div>
+    );
   return (
     <div
       ref={root}
@@ -211,9 +224,6 @@ export function HeroFinance({ pattern }: { pattern?: ReactNode } = {}) {
           {paused ? <Play size={15} /> : <Pause size={15} />}
         </button>
       </div>
-      <p className="finance-example-note">
-        Иллюстративные данные · не предложение банка
-      </p>
     </div>
   );
 }

@@ -6,25 +6,23 @@ import {
   MessageSquare,
   WalletCards,
 } from "lucide-react";
-import { api, money } from "./api";
+import { api, money, setApiWorkspace } from "./api";
 import { Brand, Button, IconButton, Modal, Badge } from "./ui";
 import { Landing } from "./Landing";
-import { Onboarding } from "./Onboarding";
 import { WorkspaceContext } from "./context";
 import { WorkspaceView } from "./WorkspaceView";
-import { Tour } from "./Tour";
-import { DemoProfileTools } from "./DemoProfileMenu";
-import { DemoPage } from "./DemoPage";
 import { Chat } from "./Chat";
-import { ProfilePage } from "./Profile";
-import { Financing } from "./Financing";
+import { Mvp2, MvpManager } from "./Mvp2";
+import { JourneyOnboarding } from "./JourneyOnboarding";
 import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
-import { ApplicationStatus } from "./ApplicationStatus";
 import { ThemeToggle } from "./ThemeToggle";
+import { RestartJourney } from "./RestartJourney";
+import "./restart-journey.css";
 import "./application-status.css";
 import "./manager/manager.css";
 import type { AppState, Doc } from "../shared/types";
+import { labelCode, visibleError } from "./application-client";
 import {
   readFinancingDraft,
   writeFinancingDraft,
@@ -45,7 +43,6 @@ export function App() {
     [pending, setPending] = useState<Doc | null>(null),
     [uploading, setUploading] = useState(false),
     [bell, setBell] = useState(false),
-    [tour, setTour] = useState(-1),
     [mobileNav, setMobileNav] = useState(false);
   const [contactOpen, setContactOpen] = useState(false),
     [contactPhone, setContactPhone] = useState(""),
@@ -61,9 +58,9 @@ export function App() {
     text: string;
   } | null>(null);
   const sendingLock = useRef(false),
-    chatPageVisited = useRef(false);
+    chatPageVisited = useRef(false),
+    initializing = useRef<Promise<any> | null>(null);
   const cabinetPath = useRef("/cabinet");
-  const [tourPreview, setTourPreview] = useState<AppState>();
   const financingOwner = useRef<string | null>(null);
   const [financingDraft, setFinancingDraft] = useState<FinancingDraft>({});
   const [financingDraftStored, setFinancingDraftStored] = useState(false);
@@ -91,22 +88,6 @@ export function App() {
     }
     setFinancingDraftStored(saved);
   }
-  useEffect(() => {
-    if (tour < 0) {
-      setTourPreview(undefined);
-      return;
-    }
-    if (tourPreview) return;
-    let current = true;
-    api<AppState>("/public-demo?kind=ooo")
-      .then((s) => {
-        if (current) setTourPreview(s);
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [tour >= 0, tourPreview]);
   function go(p: string) {
     p = cabinetRoute(p);
     history.pushState({}, "", p);
@@ -119,7 +100,9 @@ export function App() {
     window.scrollTo(0, 0);
   }
   async function refresh() {
-    const s = await api<AppState>("/state");
+    const [s, c] = await Promise.all([api<AppState>("/state"), api("/config")]);
+    setConfig(c);
+    setApiWorkspace(c.workspaceId ?? null);
     setState(s);
     setActiveChatId((id) =>
       s.chats.some((c) => c.id === id) ? id : s.chats[0]?.id || "",
@@ -131,23 +114,25 @@ export function App() {
       await refresh();
       return r;
     } catch (e) {
-      if (p !== "/cabinet/facility") setToast((e as Error).message);
+      if (p !== "/cabinet/facility") setToast(visibleError(e));
       throw e;
     }
   }
   async function onAuth() {
     const c = await api("/config");
     setConfig(c);
+    setApiWorkspace(c.workspaceId ?? null);
     restoreFinancingDraft(c.workspaceId);
     setDraft("");
     setHistoryOpen(false);
     setChatVisible(false);
     await refresh();
-    go("/cabinet");
+    go("/financing");
   }
   async function signOut() {
     try {
       await api("/auth/logout", {});
+      setApiWorkspace(null);
       if (financingOwner.current) {
         try {
           clearFinancingDraft(sessionStorage, financingOwner.current);
@@ -159,12 +144,10 @@ export function App() {
       setChatFiles([]);
       setUploadName("");
       setHistoryOpen(false);
-      setTour(-1);
-      setTourPreview(undefined);
       setState(null);
       go("/");
     } catch (e) {
-      setToast((e as Error).message);
+      setToast(visibleError(e));
     }
   }
   async function sendMessage(provided?: string) {
@@ -178,7 +161,7 @@ export function App() {
       await api("/chats/" + chatId + "/messages", { text });
       await refresh();
     } catch (e) {
-      setToast((e as Error).message);
+      setToast(visibleError(e));
       await refresh().catch(() => {});
     } finally {
       sendingLock.current = false;
@@ -193,9 +176,18 @@ export function App() {
     };
     pop();
     addEventListener("popstate", pop);
-    api("/config")
+    if (!initializing.current)
+      initializing.current = api("/config").then(async (c) => {
+        if (!c.authenticated) {
+          await api("/journey/session", {});
+          c = await api("/config");
+        }
+        return c;
+      });
+    initializing.current
       .then(async (c) => {
         setConfig(c);
+        setApiWorkspace(c.workspaceId ?? null);
         if (c.authenticated) {
           const s = await api("/state");
           restoreFinancingDraft(c.workspaceId);
@@ -203,13 +195,30 @@ export function App() {
           setActiveChatId(s.chats[0]?.id || "");
         }
       })
-      .catch((e) => setToast(e.message))
+      .catch((e) => setToast(visibleError(e)))
       .finally(() => setLoading(false));
     return () => removeEventListener("popstate", pop);
   }, []);
   useEffect(() => {
-    if (state && !state.preferences.tourDone && path === "/cabinet") setTour(0);
-  }, [state?.preferences.tourDone, path]);
+    if (loading || !state) return;
+    const allowed =
+      path === "/" ||
+      path === "/onboarding" ||
+      (path === "/bank" && config.role === "manager") ||
+      (config.cabinetAvailable && ["/cabinet", "/chat"].includes(path)) ||
+      (path === "/apply" && !!state.profile.mvp2Answers);
+    if (!allowed) {
+      const target = state.profile.mvp2Answers ? "/apply" : "/onboarding";
+      history.replaceState({}, "", target);
+      setPath(target);
+    }
+  }, [
+    path,
+    loading,
+    state?.profile.mvp2Answers,
+    config.cabinetAvailable,
+    config.role,
+  ]);
   useEffect(() => {
     if (toast) {
       const t = setTimeout(() => setToast(""), 7000);
@@ -235,7 +244,7 @@ export function App() {
       setPending(d);
       await refresh();
     } catch (e) {
-      setToast((e as Error).message);
+      setToast(visibleError(e));
     } finally {
       setUploading(false);
       setUploadName("");
@@ -249,27 +258,18 @@ export function App() {
         <p>Открываем ваш финансовый контекст…</p>
       </div>
     );
-  const publicPage =
-    path === "/" ||
-    path === "/demo" ||
-    path === "/login" ||
-    path === "/onboarding";
+  const publicPage = path === "/" || path === "/onboarding";
   const page = path.split("/")[1] || "cabinet";
   const rendered = publicPage ? (
     path === "/" ? (
       <Landing go={go} />
-    ) : path === "/demo" ? (
-      <DemoPage go={go} />
     ) : (
-      <Onboarding
-        key={path}
-        go={go}
-        login={path === "/login"}
-        onAuth={onAuth}
-      />
+      <JourneyOnboarding go={go} onComplete={refresh} />
     )
   ) : !state ? (
-    <Onboarding login go={go} onAuth={onAuth} />
+    <main className="loading-screen">
+      <p>Не удалось восстановить сессию. Обновите страницу.</p>
+    </main>
   ) : (
     <WorkspaceContext.Provider
       value={{
@@ -310,92 +310,93 @@ export function App() {
         sending,
       }}
     >
-      <div className={"workspace app-shell page-" + page}>
-        <header className="app-header">
-          <button onClick={() => go("/cabinet")} className="unstyled">
-            <Brand />
-          </button>
-          <nav className={mobileNav || tour === 5 ? "open" : ""}>
-            {[
-              ["cabinet", "Кредитный кабинет"],
-              ["chat", "Чат"],
-              ["financing", "Подбор финансирования"],
-              ...(config.role === "client"
-                ? [["application", "Моя заявка"]]
-                : []),
-              ...(config.role === "manager"
-                ? [["bank", "Рабочее место менеджера"]]
-                : []),
-            ].map(([p, label]) => (
-              <button
-                data-tour={p}
-                key={p}
-                className={page === p ? "active" : ""}
-                onClick={() => go("/" + p)}
+      {page !== "bank" && (!config.cabinetAvailable || page === "apply") ? (
+        <div className="origination app-shell">
+          <header className="origination-header">
+            <button className="unstyled" onClick={() => go("/")}>
+              <Brand />
+            </button>
+            <div className="journey-header-tools">
+              <Button
+                secondary
+                onClick={() => {
+                  setContactSent(false);
+                  setContactOpen(true);
+                }}
               >
-                {label}
-              </button>
-            ))}
-            <button
-              className="mobile-nav-action"
-              onClick={() => void signOut()}
-            >
-              Выйти из аккаунта
+                Обратиться к сотруднику
+              </Button>
+              <RestartJourney />
+              <ThemeToggle />
+            </div>
+          </header>
+          <Mvp2 />
+          <footer className="workspace-footer">Иллюстративные данные, не предложение банка. Решение принимает банк</footer>
+        </div>
+      ) : (
+        <div className={"workspace app-shell page-" + page}>
+          <header className="app-header">
+            <button onClick={() => go("/cabinet")} className="unstyled">
+              <Brand />
             </button>
-          </nav>
-          <div className="header-tools g2-tools">
-            <ThemeToggle />
-            <DemoProfileTools
-              company={config.role === "manager" ? "Менеджер банка" : state.profile.name}
-              onProfile={() => go("/profile")}
-              onHelp={() => {
-                go("/cabinet");
-                setTour(0);
-              }}
-              onLogout={() => void signOut()}
-            />
-            <IconButton
-              className="mobile-menu"
-              label="Меню"
-              onClick={() => setMobileNav(!mobileNav)}
-            >
-              <Menu size={20} />
-            </IconButton>
-          </div>
-        </header>
-        {page === "application" ? (
-          <ApplicationStatus />
-        ) : page === "bank" ? (
-          <ManagerAccess role={config.role} />
-        ) : page === "profile" ? (
-          <ProfilePage />
-        ) : page === "financing" ? (
-          <Financing />
-        ) : page === "chat" ? (
-          <div className="full-chat">
-            <Chat full />
-          </div>
-        ) : (
-          <WorkspaceView
-            tour={tour}
-            preview={tour >= 0 ? tourPreview : undefined}
-          />
-        )}
-        <footer className="workspace-footer">
-          <span>Альфа-Интеллект</span>
-          {page === "financing" && (
-            <button
-              className="text-button"
-              onClick={() => {
-                setContactSent(false);
-                setContactOpen(true);
-              }}
-            >
-              Обратиться к сотруднику <ArrowRight size={12} />
-            </button>
+            <nav className={mobileNav ? "open" : ""}>
+              {[
+                ["cabinet", "Кредитный кабинет"],
+                ["chat", "Чат"],
+                ...(config.role === "manager"
+                  ? [["bank", "Рабочее место менеджера"]]
+                  : []),
+              ].map(([p, label]) => (
+                <button
+                  data-tour={p}
+                  key={p}
+                  className={page === p ? "active" : ""}
+                  onClick={() => go("/" + p)}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <div className="header-tools g2-tools">
+              <ThemeToggle />
+              {config.role !== "manager" && <RestartJourney />}
+              <IconButton
+                className="mobile-menu"
+                label="Меню"
+                onClick={() => setMobileNav(!mobileNav)}
+              >
+                <Menu size={20} />
+              </IconButton>
+            </div>
+          </header>
+          {page === "bank" ? (
+            <>
+              <ManagerAccess role={config.role} />
+              {config.role === "manager" && <MvpManager />}
+            </>
+          ) : page === "chat" ? (
+            <div className="full-chat">
+              <Chat full />
+            </div>
+          ) : (
+            <WorkspaceView tour={-1} />
           )}
-        </footer>
-      </div>
+          <footer className="workspace-footer">
+          <span>Иллюстративные данные, не предложение банка. Решение принимает банк</span>
+            {page === "financing" && (
+              <button
+                className="text-button"
+                onClick={() => {
+                  setContactSent(false);
+                  setContactOpen(true);
+                }}
+              >
+                Обратиться к сотруднику <ArrowRight size={12} />
+              </button>
+            )}
+          </footer>
+        </div>
+      )}
     </WorkspaceContext.Provider>
   );
   return (
@@ -406,7 +407,6 @@ export function App() {
           title="Обратиться к сотруднику"
           onClose={() => setContactOpen(false)}
         >
-          <Badge tone="red">Демонстрационное обращение</Badge>
           {contactSent ? (
             <div className="success-state">
               <Check size={24} />
@@ -423,12 +423,13 @@ export function App() {
                 await act("/consultations", {
                   phone: contactPhone,
                   note: contactNote,
-                });
-                setContactSent(true);
+                })
+                  .then(() => setContactSent(true))
+                  .catch(() => {});
               }}
             >
               <p className="fine-print">
-                Вы можете обратиться на любом этапе. В MVP сохраняется только
+                  Вы можете обратиться на любом этапе. Здесь сохраняется только
                 локальная запись.
               </p>
               <label className="field">
@@ -454,7 +455,7 @@ export function App() {
               </label>
               <label className="checkbox-row">
                 <input required type="checkbox" />Я понимаю, что это
-                демонстрационное локальное обращение.
+                  обращение к сотруднику.
               </label>
               <Button>
                 Сохранить обращение <ArrowRight size={16} />
@@ -486,7 +487,7 @@ export function App() {
           <div className="extracted-fields">
             {Object.entries(pending.fields).map(([k, v]) => (
               <div key={k}>
-                <span>{config.fieldNames?.[k] || k}</span>
+                    <span>{config.fieldNames?.[k] || labelCode(k)}</span>
                 <b>{typeof v === "number" ? v.toLocaleString("ru-RU") : v}</b>
               </div>
             ))}
@@ -506,17 +507,6 @@ export function App() {
             </Button>
           </div>
         </Modal>
-      )}
-      {tour >= 0 && state && !publicPage && (
-        <Tour
-          step={tour}
-          setStep={setTour}
-          finish={async () => {
-            await act("/preferences", { tourDone: true }, "PATCH");
-            setTour(-1);
-            setTourPreview(undefined);
-          }}
-        />
       )}
     </>
   );

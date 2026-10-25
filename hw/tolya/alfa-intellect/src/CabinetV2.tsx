@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Illustration } from "./Illustration";
+import { CreditArchive } from "./CreditArchive";
 import {
   ArrowRight,
   CalendarDays,
@@ -48,6 +49,7 @@ const statusText = (p: PaymentEvent, today: string) =>
         : "Плановый платёж";
 export function DebtChart({ facility }: { facility: Facility | null }) {
   const [hover, setHover] = useState<number | null>(null);
+  if(facility?.origin==="mvp2"&&facility.kind!=="loan"&&!facility.events.length)return <div className="cv-chart-empty"><TrendingDown size={28}/><h3>Лимит открыт</h3><p>Задолженность и график появятся после фактической выборки. До неё фиксированных платежей нет.</p></div>;
   if (!facility || !facility.events.length)
     return (
       <div className="cv-chart-empty">
@@ -405,7 +407,7 @@ export function PaymentCalendar({
                 });
                 setRecord(null);
               } catch (e) {
-                setRecordError((e as Error).message);
+      setRecordError(visibleError(e));
               }
             }}
           >
@@ -613,7 +615,7 @@ export function CabinetEditor({
                   .querySelector<HTMLElement>('[aria-invalid="true"]')
                   ?.focus(),
               );
-            } else setError((e as Error).message);
+    } else setError(visibleError(e));
           } finally {
             setBusy(false);
           }
@@ -898,7 +900,7 @@ export function CabinetV2({
     <div className="cabinet-v2 unified-cabinet">
       {training && (
         <div className="cv-training-label">
-          Учебный пример · синтетические данные исчезнут после обучения
+          Данные кабинета обновляются по мере поступления сведений
         </div>
       )}
       <div className="cv-overview">
@@ -906,6 +908,8 @@ export function CabinetV2({
           <div className="cv-card-head">
             <h2>{c ? "Кредит бизнеса" : "Ваше финансирование"}</h2>
           </div>
+          {(s.cabinet?.facilities?.length??0)>1 && <label className="field"><span>Активный договор</span><select value={c?.id} onChange={e=>void w.act("/cabinet/select",{id:e.target.value})}>{s.cabinet!.facilities!.map(f=><option key={f.id} value={f.id}>{f.name} · {money(f.amount)}</option>)}</select></label>}
+          {c?.origin === "mvp2" && <CreditArchive applicationId={c.applicationId!} name={c.name} kind={c.kind} />}
           <div className="cv-summary-grid">
             <div>
               <small>
@@ -1039,7 +1043,7 @@ export function CabinetV2({
               <CalendarDays size={20} />
             </button>
           </div>
-          <small>{p ? date(p.date) : "График не определён"}</small>
+          <small>{p ? date(p.date) : c?.origin==="mvp2"&&c.kind!=="loan" ? "После выборки средств" : "График не определён"}</small>
           <div className="cv-payment-number">{value(p ? total(p) : null)}</div>
           {p ? (
             <>
@@ -1063,7 +1067,7 @@ export function CabinetV2({
               </div>
             </>
           ) : (
-            <p>Даты и суммы появятся из подтверждённого графика.</p>
+            <p>{c?.origin==="mvp2"&&c.kind!=="loan" ? "Сейчас задолженность отсутствует. Условия использования лимита доступны в документах договора." : "Даты и суммы появятся из подтверждённого графика."}</p>
           )}
           {v.unresolved.length > 0 && (
             <p className="cv-note">
@@ -1127,7 +1131,7 @@ export function CabinetV2({
               <div>
                 <dt>Источники</dt>
                 <dd>
-                  {v.cash.source}; {v.forecast.source}.
+                  {presentTechnicalText(v.cash.source)}; {presentTechnicalText(v.forecast.source)}.
                 </dd>
               </div>
             </dl>
@@ -1142,7 +1146,7 @@ export function CabinetV2({
               {value(v.cash.inflow)}. Списания: {value(v.cash.outflow)}.
               Остаток: {value(v.cash.balance)}.
             </p>
-            <p>{v.forecast.reason}</p>
+            <p>{safeDisplayText(v.forecast.reason)}</p>
             {v.forecast.available && (
               <p>
                 План до {date(v.forecast.through)}. Минимальный остаток:{" "}
@@ -1246,3 +1250,4 @@ export function CabinetV2({
     </div>
   );
 }
+import { presentTechnicalText, safeDisplayText, visibleError } from "./application-client";

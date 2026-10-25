@@ -29,7 +29,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
         if (current) setState(s);
       })
       .catch((e) => {
-        if (current) setError(e.message);
+      if (current) setError(visibleError(e));
       });
     return () => {
       current = false;
@@ -73,7 +73,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
         <button className="unstyled" onClick={() => go("/")}>
           <Brand />
         </button>
-        <Badge tone="red">Публичная демонстрация</Badge>
+          <Badge tone="red">Пример работы кабинета</Badge>
         <Button onClick={() => go("/onboarding")}>
           Начать со своими данными <ArrowRight size={16} />
         </Button>
@@ -109,7 +109,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
         <div
           className="page-tabs"
           role="tablist"
-          aria-label="Экраны демонстрации"
+            aria-label="Экраны примера"
         >
           {[
             ["cabinet", "Кредитный кабинет"],
@@ -159,7 +159,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
                         setState({ ...state, selections: [s] });
                         setEditing(false);
                       } catch (e) {
-                        setError((e as Error).message);
+      setError(visibleError(e));
                       } finally {
                         setBusy(false);
                       }
@@ -224,7 +224,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
                 <h2>Профиль и финансовые документы</h2>
                 <p>
                   Документы добавляются один раз, после проверки и подтверждения
-                  показателей. В публичном демо загрузка отключена: файлы не
+              показателей. В этом режиме загрузка отключена: файлы не
                   сохраняются.
                 </p>
                 <div className="demo-document-grid">
@@ -250,7 +250,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
           onClose={() => setApply(false)}
         >
           <p>
-            В публичном демо заявки не создаются. Пройдите анкету, чтобы
+              Здесь заявки не создаются. Пройдите анкету, чтобы
             сохранить свои документы и расчёт, затем подготовьте досье.
           </p>
           <Button onClick={() => go("/onboarding")}>
@@ -261,3 +261,4 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
     </div>
   );
 }
+import { visibleError } from "./application-client";

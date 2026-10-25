@@ -324,7 +324,21 @@ class Handler(BaseHTTPRequestHandler):
             decide = decide_slot if os.getenv("AGENT_CORE_URL") else None
             application = card.get("application")
             if application is not None or mode is not None:
-                reply = dialog.application_turn(state, text, application or {}, mode)
+                # Uppercase states belong to the versioned MVP2 workflow. Legacy
+                # application modes retain their existing offline contract.
+                contextual = bool(application and application.get("status") in {
+                    "DRAFT", "SUBMITTED", "PROCESSING", "APPROVED", "DECLINED",
+                    "ADDITIONAL_DATA_REQUIRED", "MANAGER_REVIEW_REQUIRED",
+                    "DECIDED", "MEETING_SCHEDULED", "MANAGER_APPROVED", "MANAGER_DECLINED",
+                    "CONTRACT_READY", "SIGNED_DEMO", "ACTIVE",
+                })
+                if contextual:
+                    reply = dialog.application_turn(
+                        state, text, application, mode,
+                        speak=speak_slot if use_llm else None, require_llm=True,
+                        need={k: card[k] for k in ("amount_rub", "term_months") if k in card})
+                else:
+                    reply = dialog.application_turn(state, text, application or {}, mode)
             else:
                 reply = dialog.turn(state, text, intake=intake_slot, decide=decide,
                                     speak=speak_slot if use_llm else None, client_memory=client_memory)
@@ -335,6 +349,8 @@ class Handler(BaseHTTPRequestHandler):
             if state.get("trace"):
                 fallback = fallback or bool(state["trace"][-1].get("violations"))
             source = "llm" if use_llm and application is None and mode is None and not fallback else "template"
+            if application is not None and state.get("trace"):
+                source = state["trace"][-1].get("source", "template")
             with _TURN_LOCK:
                 global TURNS
                 TURNS += 1
@@ -356,6 +372,9 @@ class Handler(BaseHTTPRequestHandler):
                     memory.update(client_id, text, reply, state, use_llm=use_llm)
             except Exception as error:
                 _log({"event": "memory_update_error", "error_type": type(error).__name__})
+        except dialog.ApplicationAgentUnavailable:
+            _log({"event": "application_agent_unavailable"})
+            self._json(503, {"error": "application agent unavailable"})
         except Exception as error:
             _log({"event": "agent_turn_error", "error_type": type(error).__name__})
             self._json(500, {"error": "agent unavailable"})

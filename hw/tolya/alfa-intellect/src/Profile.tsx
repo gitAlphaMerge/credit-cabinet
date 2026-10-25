@@ -72,7 +72,7 @@ export function ProfilePage() {
     try {
       setCandidate(await api("/lookup", { inn }));
     } catch (e) {
-      setLookupError((e as Error).message);
+      setLookupError(visibleError(e));
     } finally {
       setLookupBusy(false);
     }
@@ -344,7 +344,7 @@ export function ProfilePage() {
                 });
                 w.reviewDocument(imported);
               } catch (error) {
-                w.error((error as Error).message);
+                w.error(visibleError(error));
               } finally {
                 pullLock.current = false;
                 setPulling(null);
@@ -519,7 +519,7 @@ export function ProfilePage() {
           <Info size={14} /> До 8 МБ. PDF с текстовым слоем, XLSX, CSV, DOCX в
           поддерживаемых шаблонах. Сканы не распознаются. Подтянутые данные
           синтетические (мок): проверьте их перед подтверждением. Сроки
-          актуальности заданы для прототипа, решение принимает банк.
+          актуальности могут потребовать уточнения у банка.
         </p>
       </section>
       {candidate && (
@@ -584,3 +584,4 @@ export function ProfilePage() {
     </main>
   );
 }
+import { visibleError } from "./application-client";

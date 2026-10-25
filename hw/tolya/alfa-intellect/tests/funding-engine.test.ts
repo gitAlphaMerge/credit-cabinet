@@ -61,7 +61,7 @@ test("Equipment: deterministic investment selection, amortisation and provenance
 test("Cash gap: actual dates select overdraft cycle with actual/365 interest, not annuity", () => {
   const r = evaluate({
       purpose: "Кассовый разрыв",
-      amount: 100000,
+      amount: 400000,
       details: {
         expenseDate: addDays(today, 1),
         receiptsDate: addDays(today, 16),
@@ -73,23 +73,24 @@ test("Cash gap: actual dates select overdraft cycle with actual/365 interest, no
   assert.equal(c.schedule.length, 1);
   assert.equal(
     c.interest,
-    Math.round(((100000 * 0.26 * 15) / 365) * 100) / 100,
+    Math.round(((400000 * 0.26 * 30) / 365) * 100) / 100,
   );
-  assert.equal(c.schedule[0].date, addDays(today, 16));
-  assert.equal(c.schedule[0].principal, 100000);
-  assert.match(r.assessment!.paymentLabel, /15/);
-  assert.equal(r.assessment!.cycleDays, 15);
+  assert.equal(c.schedule[0].date, addDays(today, 31));
+  assert.equal(c.schedule[0].principal, 400000);
+  assert.match(r.assessment!.paymentLabel, /30/);
+  assert.equal(r.assessment!.cycleDays, 30);
+  assert.match(r.assessment!.reasons.join(" "), /15 дней.*30/);
   const manual = evaluate({
     purpose: "Кассовый разрыв",
-    amount: 100000,
-    cycleDays: 20,
+    amount: 400000,
+    cycleDays: 60,
     details: {
       expenseDate: addDays(today, 1),
       receiptsDate: addDays(today, 16),
       cycleManual: true,
     },
   });
-  assert.equal(manual.assessment!.cycleDays, 20);
+  assert.equal(manual.assessment!.cycleDays, 60);
 });
 test("Credit line: drawdown interest, balloon principal and peak-aware affordability", () => {
   const full = evaluate({
@@ -97,6 +98,7 @@ test("Credit line: drawdown interest, balloon principal and peak-aware affordabi
       amount: 900000,
       term: 12,
       usage: "once",
+      productId: "contract",
     }),
     parts = evaluate({
       purpose: "Исполнение контракта",
@@ -196,7 +198,7 @@ test("Any catalogue product can be selected without suppressing known mismatches
   }
   const r = evaluate({ productId: "overdraft", amount: 9000000, term: 48 });
   assert.equal(r.calculation.amount, 9000000);
-  assert.equal(r.calculation.term, 48);
+  assert.equal(r.calculation.term, 12);
   assert.ok(
     r.assessment!.checks.filter((c) => c.state === "unmet").length >= 3,
   );

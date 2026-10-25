@@ -4,14 +4,14 @@ import { useWorkspace } from "./context";
 import { money } from "./api";
 import { formatRate } from "./format-rate";
 import {
-  clientLabels,
   finite,
   loadOwnApplication,
   loadOwnApplications,
   offerOf,
   sendClientEvent,
   escalateToManager,
-  statusLabels,
+  labelCode,
+  visibleError,
   type ClientDetail,
 } from "./application-client";
 
@@ -48,7 +48,7 @@ const nextSteps: Record<string, string> = {
   offered: "Проверьте условия и график перед подписанием договора.",
   signed: "Договор подписан. Ожидайте подтверждения зачисления.",
   disbursed:
-    "Выдача завершена. В прототипе зачисление смоделировано, реальные деньги не переводятся.",
+    "Получение средств отражено в заявке.",
   rejected:
     "Уточните сведения и обсудите результат с банком перед новой заявкой.",
   expired:
@@ -90,7 +90,7 @@ export function ApplicationStatusView(p: Props) {
           <small>МОЯ ЗАЯВКА</small>
           <h1>Моя заявка</h1>
           <span className="badge">
-            {statusLabels[a.status] || "Статус уточняется"}
+            {labelCode(a.status)}
           </span>
         </div>
         <div className="application-heading-actions">
@@ -101,7 +101,7 @@ export function ApplicationStatusView(p: Props) {
       <div className="application-columns">
         <section className="application-stack">
           <article className="cv-card">
-            <h2>{statusLabels[a.status] || "Статус уточняется"}</h2>
+            <h2>{labelCode(a.status)}</h2>
             <p>
               {nextSteps[a.status] || "Обновите заявку или свяжитесь с банком."}
             </p>
@@ -112,7 +112,7 @@ export function ApplicationStatusView(p: Props) {
             )}
             {reasons.map((r) => (
               <p key={r}>
-                {clientLabels[r] || "Для уточнения причины свяжитесь с банком."}
+                {labelCode(r)}
               </p>
             ))}
           </article>
@@ -124,8 +124,7 @@ export function ApplicationStatusView(p: Props) {
               <h2>Что нужно дополнить</h2>
               {d?.holes?.map((h, i) => (
                 <p key={i}>
-                  {clientLabels[h] ||
-                    "Дополнительные сведения: уточните в чате с банком"}
+                  {labelCode(h)}
                 </p>
               ))}
               {d?.holes?.some((h) => registryHoles.includes(h)) && (
@@ -150,7 +149,7 @@ export function ApplicationStatusView(p: Props) {
                 ["contract_main_customer", "reconciliation_act"].includes(h),
               ) && (
                 <p role="status">
-                  Загрузчик прототипа пока поддерживает только финансовые
+                  Сейчас можно загрузить только финансовые
                   шаблоны. Для договора или акта сверки свяжитесь с банком в
                   чате.
                 </p>
@@ -279,7 +278,7 @@ export function ApplicationStatusView(p: Props) {
               <h2>Доступные варианты</h2>
               {options.map((option) => (
                 <article key={option.option_id} className="application-option">
-                  <h3><ProductIllustration productId={option.product_id} size={32} decorative /> {option.product_name}</h3>
+                  <h3><ProductIllustration productId={option.product_id} size={32} decorative /> {labelCode(option.product_id)}</h3>
                   {finite(option.amount_rub) && (
                     <p>Сумма: {money(option.amount_rub)}</p>
                   )}
@@ -400,7 +399,7 @@ export function ApplicationStatusView(p: Props) {
                     />
                   </label>
                   <p className="fine-print">
-                    Демонстрационная подпись. Код: 0000, СМС не отправляется.
+                    Для подписи введите код подтверждения.
                   </p>
                   <button className="button" disabled={p.busy}>
                     Подписать договор
@@ -425,7 +424,7 @@ export function ApplicationStatusView(p: Props) {
               <ol className="application-history">
                 {events.map((e) => (
                   <li key={e.seq}>
-                    <b>{statusLabels[e.to_status] || "Статус обновлён"}</b>
+                    <b>{labelCode(e.to_status)}</b>
                     {Number.isFinite(Date.parse(e.at)) && (
                       <time dateTime={e.at}>
                         {new Date(e.at).toLocaleString("ru-RU")}
@@ -514,7 +513,7 @@ export function ApplicationStatus() {
       await fn();
       setRevision((v) => v + 1);
     } catch (e) {
-      setError((e as Error).message);
+      setError(visibleError(e));
     } finally {
       lock.current = false;
       setBusy(false);
@@ -549,7 +548,7 @@ export function ApplicationStatus() {
               {rows.map((row, i) => (
                 <option key={row.id} value={row.id}>
                   Заявка {i + 1}:{" "}
-                  {statusLabels[row.status] || "Статус уточняется"}
+                  {labelCode(row.status)}
                 </option>
               ))}
             </select>

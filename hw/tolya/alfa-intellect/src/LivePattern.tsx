@@ -152,6 +152,7 @@ function blend(from: Tile["b"], to: Tile["b"], progress: number) {
 export function animateLivePattern(
   svg: SVGSVGElement,
   caption: HTMLParagraphElement,
+  showCaption = true,
 ) {
   const backgrounds = Array.from(svg.querySelectorAll("rect"));
   const shapes = Array.from(svg.querySelectorAll("path"));
@@ -168,7 +169,7 @@ export function animateLivePattern(
     pausedAt = now();
   let transition: { from: Tile[]; to: Tile[]; start: number } | null = null;
   function captionScene() {
-    const name = SCENES[index].name;
+    const name = showCaption ? SCENES[index].name : "";
     caption.classList.toggle("on", !!name);
     caption.textContent = name || " ";
   }
@@ -273,13 +274,15 @@ export function animateLivePattern(
   };
 }
 
-export function LivePattern() {
+export function LivePattern({
+  showCaption = true,
+}: { showCaption?: boolean } = {}) {
   const svg = useRef<SVGSVGElement>(null);
   const caption = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     if (svg.current && caption.current)
-      return animateLivePattern(svg.current, caption.current);
-  }, []);
+      return animateLivePattern(svg.current, caption.current, showCaption);
+  }, [showCaption]);
   return (
     <div
       className="live-pattern"
@@ -317,7 +320,13 @@ export function LivePattern() {
           </g>
         </svg>
       </div>
-      <p ref={caption} className="live-pattern-caption" aria-live="off">
+      <p
+        ref={caption}
+        className="live-pattern-caption"
+        style={showCaption ? undefined : { display: "none" }}
+        aria-hidden={!showCaption}
+        aria-live="off"
+      >
         {" "}
       </p>
     </div>

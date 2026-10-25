@@ -1,0 +1,149 @@
+// Run with Playwright CLI against a disposable database on 4175 and CORE_ID=liza.
+// No real customer data, external LLM, signature or bank transfer.
+// prettier-ignore
+async page => {
+  const select = async (label,value) => {await page.getByLabel(label,{exact:true}).waitFor();const group=page.getByRole("group",{name:label,exact:true});if(await group.count())await group.getByText(value==="Не уверен"?"Не знаю":value,{exact:true}).click();else await page.getByLabel(label,{exact:true}).selectOption(value);};
+  const base="http://localhost:4175";
+  const check=(value,message)=>{if(!value)throw new Error(message);};
+  const button=name=>page.getByRole("button",{name,exact:true}),field=name=>page.getByLabel(name,{exact:true});
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  const noCabinet=async()=>{for(const name of ["Кредитный кабинет","Чат","Подбор финансирования","Моя заявка"])check(await page.getByRole("button",{name,exact:true}).count()===0,"Premature service navigation: "+name);};
+  await page.context().clearCookies();
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(base+"/");
+  await page.getByRole("heading",{name:/Большие планы/}).waitFor();
+  check(await page.getByText("Посмотреть демо",{exact:true}).count()===0,"Demo entry still visible");
+  check(await page.locator(".finance-scene-card").count()===1,"Original HeroFinance infographic missing");
+  for(const section of await page.locator('main > section').all()){await section.scrollIntoViewIfNeeded();await page.waitForTimeout(100);}
+  await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(800);
+  await page.screenshot({path:"output/playwright/mvp2-landing-corrected.png",fullPage:true});
+  await page.goto(base+"/onboarding");
+  await noCabinet();check(await page.getByText("От задачи к понятным условиям",{exact:true}).count()===0,"Onboarding decoration remains");
+  await select("В какой сфере работает бизнес?","Производство");
+  await select("Как давно работает бизнес?","Более 3 лет");
+  const savedStep=page.waitForResponse(r=>r.url().endsWith("/api/journey/onboarding")&&r.request().postDataJSON()?.step===1&&r.status()===200);
+  await button("Продолжить").click();await savedStep;
+  await page.reload();await field("Для чего нужны деньги?").waitFor();
+  await select("Для чего нужны деньги?","Текущие расходы");
+  check(await page.getByText(/Предварительно подберём инструмент/).count()===0,"Removed onboarding copy is visible");
+  await field("Какая сумма необходима?").fill("3000000");
+  await button("Продолжить").click();
+  await select("Как планируете использовать финансирование?","Всё сразу");
+  await select("За счёт каких поступлений будете возвращать деньги?","Регулярная выручка");
+  await button("Продолжить").click();
+  await page.getByRole("heading",{name:"Оборотный кредит",exact:true}).waitFor({timeout:20000});
+  await noCabinet();check(await field("Номер телефона").count()===0,"Registration is still mandatory");
+  check(await page.locator(".journey-stage small,.journey-stage p,.origination-header > span").count()===0,"Removed application header copy is visible");
+  for(const old of ["/cabinet","/cabinet-v2","/efficiency","/chat","/profile","/calculations","/demo"]){const r=await page.request.get(base+old,{maxRedirects:0});check(r.status()===303,"Old route not gated: "+old);}
+  check(await page.getByText("ПРЕДВАРИТЕЛЬНЫЙ ПОДБОР · НЕ ОДОБРЕНИЕ").count()===1,"Recommendation missing");
+  await page.request.patch(base+"/api/preferences",{data:{tourDone:true}});
+  await button("Посмотреть все продукты").click();await page.locator(".mvp-products article").first().waitFor();check(await page.locator(".mvp-products article").count()===6,"Catalog incomplete");
+  await page.locator(".mvp-products article").filter({has:page.getByRole("heading",{name:"Возобновляемая кредитная линия",exact:true})}).getByRole("button",{name:"Выбрать",exact:true}).click();
+  await button("Посмотреть все продукты").click();await page.locator(".mvp-products article").filter({has:page.getByRole("heading",{name:"Оборотный кредит",exact:true})}).getByRole("button",{name:"Выбрать",exact:true}).click();
+  await button("Проверить доступность и продолжить").waitFor();await page.reload();await button("Проверить доступность и продолжить").waitFor();
+  await button("Проверить доступность и продолжить").click();await button("Начать заполнение").waitFor();
+  await page.reload();await button("Начать заполнение").click();
+  const layout=await page.locator(".mvp-layout").evaluate(el=>{const [left,right]=Array.from(el.children).map(x=>x.getBoundingClientRect());return left.width/(left.width+right.width);});check(Math.abs(layout-.6)<.02,"Not a 60/40 questionnaire");
+  check(await field("Сообщение финансовому помощнику").count()===1,"No permanent right-hand agent");
+  await page.screenshot({path:"output/playwright/mvp2-questionnaire-corrected.png",fullPage:true});
+  await button("Сохранить и продолжить").click();check(await page.getByRole("alert").count()>0,"Empty fields accepted without inline errors");
+  const consent=field("Даю согласие на обработку данных, проверку компании и кредитной истории, а также анализ выписок.");
+  const draftSaved=page.waitForResponse(r=>r.url().endsWith("/api/journey/draft")&&r.request().postDataJSON()?.questionnaire?.inn==="99000"&&r.status()===200);
+  await field("ИНН компании").fill("99000");await draftSaved;await page.reload();await field("ИНН компании").waitFor();check(await field("ИНН компании").inputValue()==="99000","Incomplete field not restored from server");
+  check(await page.evaluate(()=>![...Object.values(localStorage),...Object.values(sessionStorage)].some(v=>v.includes("99000"))),"Bank details persisted in browser storage");
+  await field("ИНН компании").fill("9900000001");await page.getByRole("heading",{name:"ООО «Мок Мастерская»",exact:true}).waitFor();
+  check(await page.getByRole("group",{name:"Согласие на обработку данных",exact:true}).getByRole("checkbox").count()===1,"Consent is not a single checkbox");
+  const consentSaved=checked=>page.waitForResponse(r=>r.url().endsWith("/api/journey/draft")&&["registry","financial","bki"].every(key=>r.request().postDataJSON()?.questionnaire?.consents?.[key]===checked)&&r.status()===200);
+  let savedConsent=consentSaved(true);await consent.check();await savedConsent;
+  savedConsent=consentSaved(false);await consent.uncheck();await savedConsent;
+  savedConsent=consentSaved(true);await consent.check();await savedConsent;
+  await page.reload();await consent.waitFor();check(await consent.isChecked(),"Combined consent not restored after reload");
+  await field("Это моя компания").check();await field("Я уполномочен оформлять заявку от имени компании").check();await button("Сохранить и продолжить").click();
+  await field("Банк").fill("Учебный банк");
+  check(await page.getByText(/Рекомендуем последние 12 полных месяцев/).count()===1,"Client-facing statement hint missing");
+  await field("CSV-выписка счёта 1").setInputFiles("fixtures/mvp2-cashflow.csv");
+  await page.getByText(/60 операций · проверено/).waitFor();
+  await select("Все основные поступления и расходы есть в выписках?","Да");await button("Сохранить и продолжить").click();
+  await select("Есть ли у бизнеса действующие кредиты или кредитные линии?","Нет");await select("Есть ли у бизнеса действующий лизинг?","Нет");await button("Сохранить и продолжить").click();await button("Сохранить и продолжить").click();
+  await page.locator(".request-summary").getByRole("button",{name:"Изменить",exact:true}).click();
+  await field("Точная сумма").fill("3000000");await field("Точный срок").fill("12");await button("Проверить заявку").click();
+  await page.locator(".client-dossier").waitFor();
+  await page.screenshot({path:"output/playwright/mvp2-dossier.png",fullPage:true});
+  const beforeSubmit=(await(await page.request.get(base+'/api/mvp2/applications')).json())[0];
+  let failSubmit=true;
+  await page.route('**/api/mvp2/applications/*/submit',route=>failSubmit
+    ?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Временная ошибка подачи. Повторите попытку.'})})
+    :route.continue());
+  await button('Подать заявку на рассмотрение').click();await page.getByRole('alert').filter({hasText:'Временная ошибка подачи. Повторите попытку.'}).waitFor();
+  check(page.url()===base+'/apply'&&await page.locator('.client-dossier').count()===1,'Failed submission reset route or dossier');
+  const afterError=(await(await page.request.get(base+'/api/mvp2/applications/'+beforeSubmit.id)).json());
+  check(afterError.lifecycle==='DRAFT'&&afterError.questionnaire.accounts[0].documentId===beforeSubmit.questionnaire.accounts[0].documentId,'Failed submission lost draft or file');
+  failSubmit=false;
+  let releaseOld,held=false;
+  const oldReply=new Promise(r=>releaseOld=r);
+  await page.route('**/api/mvp2/applications/'+beforeSubmit.id,async route=>{
+    const response=await route.fetch();
+    if(!held&&route.request().method()==='GET'){held=true;await oldReply;}
+    await route.fulfill({response});
+  });
+  await button("Подать заявку на рассмотрение").click();await page.getByRole("heading",{name:"Рассматриваем заявку",exact:true}).waitFor();await page.screenshot({path:"output/playwright/ui3-processing.png",fullPage:true});await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor({timeout:45000});
+  await button("Обсудить с агентом").click();await button("Вернуться к решению").waitFor();
+  releaseOld();await page.waitForTimeout(200);
+  check(await field("Сообщение финансовому помощнику").count()===1,"Late polling response closed the decision chat");
+  await page.unroute('**/api/mvp2/applications/'+beforeSubmit.id);
+  await button("Вернуться к решению").click();
+  await noCabinet();check((await (await page.request.get(base+"/api/config")).json()).cabinetAvailable===false,"Approval alone opened cabinet");
+  const a=(await (await page.request.get(base+"/api/mvp2/applications")).json())[0];
+  check(a.decision==="APPROVED"&&a.questionnaire.amount===3000000,"Wrong decision at boundary");
+  check(a.stages.every(s=>s.status==="done"),"Backend stages not complete");
+  await page.reload();await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor();
+  await page.goto(base+"/cabinet");await page.waitForURL(base+"/apply");await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor();await noCabinet();
+  await button("Обсудить с агентом").click();await button("Вернуться к решению").waitFor();check(await field("Сообщение финансовому помощнику").count()===1,"Not existing full chat");await button("Вернуться к решению").click();
+  await page.setViewportSize({width:390,height:844});check(await page.locator("main").evaluate(el=>el.scrollWidth<=el.clientWidth+1),"Mobile overflow");await page.screenshot({path:"output/playwright/mvp2-decision-mobile.png",fullPage:true});await page.setViewportSize({width:1440,height:1000});
+  await button("Перейти к подписанию").click();await field("Подписант").fill("Синтетический Представитель");await field("Основание полномочий").fill("Устав учебной организации");await field("Счёт получателя (20 цифр)").fill("40702810000000000001");await field("Банк получателя").fill("Учебный банк");await button("Сформировать договор").click();
+  await page.getByTitle("Кредитный договор",{exact:true}).waitFor();check((await page.request.get(base+`/api/mvp2/applications/${a.id}/documents/contract`)).headers()["x-frame-options"]==="SAMEORIGIN","PDF frame blocked");
+  await page.getByLabel("Ознакомился с договором и условиями обслуживания",{exact:true}).waitFor();
+  const box=await page.getByTitle("Кредитный договор",{exact:true}).boundingBox();
+  check(box.width>1200&&box.height>400,"Contract is not full-size");
+  const signBox=await button("Подписать электронной подписью").boundingBox();
+  check(signBox.y+signBox.height<=1000,"Signature controls are outside viewport");
+  await page.waitForTimeout(1000); // Native PDF paint, never delays a credit decision.
+  await page.screenshot({path:"output/playwright/mvp2-contract.png"});
+  await button("График платежей").click();await page.getByTitle("График платежей",{exact:true}).waitFor();
+  await button("Договор").click();await page.getByTitle("Кредитный договор",{exact:true}).waitFor();
+  await button("Вернуться к решению").click();await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor();
+  await button("Обсудить с агентом").click();await button("Вернуться к решению").click();
+  await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor();
+  await page.reload();await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor();
+  await page.route("**/api/mvp2/applications/*/documents/contract",r=>r.fulfill({status:503,body:"Temporary PDF error"}));
+  await button("Перейти к подписанию").click();await page.getByRole("alert").filter({hasText:"Не удалось загрузить документ"}).waitFor();
+  check(await field("Ознакомился с договором и условиями обслуживания").isDisabled(),"Failed PDF permits confirmation");
+  await page.unroute("**/api/mvp2/applications/*/documents/contract");
+  await button("Повторить загрузку документа").click();await page.getByTitle("Кредитный договор",{exact:true}).waitFor();
+  await field("Ознакомился с договором и условиями обслуживания").check();
+  let failSign=true, releaseSign;const signatureReply=new Promise(r=>releaseSign=r);
+  await page.route('**/api/mvp2/applications/*/sign',async route=>{
+    if(failSign){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Не удалось сохранить подпись'})});return;}
+    const response=await route.fetch();await signatureReply;await route.fulfill({response});
+  });
+  await button("Подписать электронной подписью").click();await page.getByRole('alert').filter({hasText:'Не удалось сохранить подпись'}).waitFor();
+  check((await(await page.request.get(base+'/api/mvp2/applications/'+a.id)).json()).signature===undefined,'Failed signature became signed');
+  failSign=false;await button("Подписать электронной подписью").click();await page.getByRole('status',{name:'Демонстрационная подпись',exact:true}).waitFor();
+  check(await page.locator('.credit-signing .preparation-sphere').count()===1,'Signature animation missing');await page.screenshot({path:'output/playwright/stabilization-signature.png'});releaseSign();
+  await page.getByRole("heading",{name:"Кредитный договор подписан",exact:true}).waitFor();await page.unroute('**/api/mvp2/applications/*/sign');
+  await noCabinet();check((await (await page.request.get(base+"/api/config")).json()).cabinetAvailable===false,"Signature alone opened cabinet");await page.screenshot({path:"output/playwright/ui3-receive.png",fullPage:true});
+  await button("Открыть подписанный договор").click();await page.getByTitle("Кредитный договор",{exact:true}).waitFor();
+  check(await button("Подписать электронной подписью").count()===0,"Signed contract asks to sign again");
+  await page.reload();await page.getByTitle("Кредитный договор",{exact:true}).waitFor();
+  await button("К получению средств").click();await page.getByRole("heading",{name:"Кредитный договор подписан",exact:true}).waitFor();
+  await button("Получить деньги").click();await page.waitForURL(base+"/cabinet");await page.getByRole("heading",{name:"Документы",exact:true}).count();await page.getByRole("link",{name:"Подписанный договор PDF",exact:true}).waitFor();
+  check((await (await page.request.get(base+"/api/state")).json()).cabinet.facility.applicationId===a.id,"Active facility not integrated");
+  await page.screenshot({path:"output/playwright/mvp2-cabinet.png",fullPage:true});
+  await page.getByRole("link",{name:"Подписанный договор PDF",exact:true}).click();
+  await page.getByTitle("Подписанный договор PDF",{exact:true}).waitFor();
+  check(page.url()===base+'/cabinet',"Document left the credit cabinet");
+  await page.waitForTimeout(1000);await page.screenshot({path:"output/playwright/stabilization-cabinet-document.png"});
+  await page.keyboard.press('Escape');check(await page.getByRole('dialog').count()===0,"Document viewer did not close");
+  check(errors.length===0,errors.join("; "));
+  return {checks:"PASS",applicationId:a.id,core:"real liza /score",scenarios:["clean landing","anonymous 7-question onboarding","onboarding reload","direct URL gates","catalog/manual selection","60/40 embedded agent","inline errors","CSV","persisted dossier","submission error keeps draft, file and ID; retry","exact 3m approval","decision chat and return","mobile","PDF preview","signature without premature access","one disbursement","existing cabinet after activation"],errors};
+}

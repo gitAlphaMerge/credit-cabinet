@@ -39,13 +39,13 @@ test("Перезагрузка восстанавливает лишь свеж�
     null,
   );
 });
-test("Хиро: три сцены с управлением и честной маркировкой иллюстрации", () => {
+test("Хиро: три сцены с управлением и маркировкой примера", () => {
   const html = renderToStaticMarkup(<HeroFinance />);
   assert.equal(heroScenes.length, 3);
   assert.match(html, /Приостановить анимацию/);
   assert.match(html, /aria-pressed="true"/);
-  assert.match(html, /Иллюстративные данные/);
-  assert.match(html, /не предложение банка/);
+  assert.match(html, /Пример/);
+  assert.doesNotMatch(html, /Иллюстративные данные/);
 });
 test("Подготовка: доступный прогресс, переход сразу, без выдуманного обучения модели", () => {
   const html = renderToStaticMarkup(

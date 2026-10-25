@@ -11,6 +11,8 @@ export type PaymentEvent = {
   status: "planned" | "paid" | "overdue";
 };
 export type Facility = {
+  origin?: "mvp2";
+  applicationId?: string;
   contractTerm?: number;
   issuedAt?: string;
   id: string;
@@ -45,6 +47,7 @@ export type Coverage = {
   confirmedAt: string;
 };
 export type CabinetData = {
+  facilities?: Facility[];
   facility?: Facility;
   noCreditConfirmedAt?: string;
   plan?: CashPlan;
@@ -123,7 +126,7 @@ export function cabinetSnapshot(s: AppState, today = day(), preview = false) {
   // Public demo and temporary training explicitly opt in to synthetic data.
   const candidate = facilityOf(s),
     facility =
-      candidate?.quality === "synthetic" && !preview ? null : candidate,
+      candidate?.quality === "synthetic" && candidate.origin !== "mvp2" && !preview ? null : candidate,
     events = facility?.events || [],
     end = addDays(today, 29),
     start = addDays(today, -29);
