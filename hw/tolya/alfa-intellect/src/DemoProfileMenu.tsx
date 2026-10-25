@@ -54,7 +54,7 @@ export function DemoProfileMenuView(p: MenuProps) {
       </p>
       {p.personas.length > 0 && (
         <>
-          <h2>Демонстрационные профили</h2>
+          <h2>Примеры профилей</h2>
           <p>Синтетические данные (мок). Выберите готовый сценарий.</p>
           <ul className="g2-personas">
             {p.personas.map((persona) => (
@@ -94,7 +94,7 @@ export async function switchDemoPersona(key: string) {
     result.is_demo !== true ||
     !["/bank", "/application"].includes(result.destination)
   )
-    throw new Error("Сервер не подтвердил смену демонстрационного профиля");
+        throw new Error("Не удалось сменить пример профиля");
   return result.destination;
 }
 
@@ -154,7 +154,7 @@ export function DemoProfileTools(p: {
       // Полная навигация сбрасывает чаты, документы и незавершённые запросы предыдущего пользователя.
       window.location.assign(destination);
     } catch (e) {
-      setError((e as Error).message);
+      setError(visibleError(e));
       setBusy(false);
       switching.current = false;
     }
@@ -199,3 +199,4 @@ export function DemoProfileTools(p: {
     </>
   );
 }
+import { visibleError } from "./application-client";

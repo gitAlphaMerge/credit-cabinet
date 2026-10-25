@@ -407,7 +407,7 @@ export function PaymentCalendar({
                 });
                 setRecord(null);
               } catch (e) {
-                setRecordError((e as Error).message);
+      setRecordError(visibleError(e));
               }
             }}
           >
@@ -615,7 +615,7 @@ export function CabinetEditor({
                   .querySelector<HTMLElement>('[aria-invalid="true"]')
                   ?.focus(),
               );
-            } else setError((e as Error).message);
+    } else setError(visibleError(e));
           } finally {
             setBusy(false);
           }
@@ -900,7 +900,7 @@ export function CabinetV2({
     <div className="cabinet-v2 unified-cabinet">
       {training && (
         <div className="cv-training-label">
-          Учебный пример · синтетические данные исчезнут после обучения
+          Данные кабинета обновляются по мере поступления сведений
         </div>
       )}
       <div className="cv-overview">
@@ -1131,7 +1131,7 @@ export function CabinetV2({
               <div>
                 <dt>Источники</dt>
                 <dd>
-                  {v.cash.source}; {v.forecast.source}.
+                  {presentTechnicalText(v.cash.source)}; {presentTechnicalText(v.forecast.source)}.
                 </dd>
               </div>
             </dl>
@@ -1146,7 +1146,7 @@ export function CabinetV2({
               {value(v.cash.inflow)}. Списания: {value(v.cash.outflow)}.
               Остаток: {value(v.cash.balance)}.
             </p>
-            <p>{v.forecast.reason}</p>
+            <p>{safeDisplayText(v.forecast.reason)}</p>
             {v.forecast.available && (
               <p>
                 План до {date(v.forecast.through)}. Минимальный остаток:{" "}
@@ -1250,3 +1250,4 @@ export function CabinetV2({
     </div>
   );
 }
+import { presentTechnicalText, safeDisplayText, visibleError } from "./application-client";

@@ -224,9 +224,6 @@ export function HeroFinance({
           {paused ? <Play size={15} /> : <Pause size={15} />}
         </button>
       </div>
-      <p className="finance-example-note">
-        Иллюстративные данные · не предложение банка
-      </p>
     </div>
   );
 }

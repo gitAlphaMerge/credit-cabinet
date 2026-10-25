@@ -3,6 +3,7 @@ import { money } from "../api";
 import { formatRate } from "../format-rate";
 import { Illustration, StatusIllustration, ProductIllustration, DocumentIllustration, CheckIllustration } from "../Illustration";
 import { ManagerMemo } from "./ManagerMemo";
+import { labelCode, safeDisplayText, visibleError } from "../application-client";
 import {
   loadApplication,
   loadQueue,
@@ -13,52 +14,7 @@ import {
   type QueueItem,
 } from "./api";
 
-const labels: Record<string, string> = {
-  CLIENT_SILENT: "Клиент молчит после напоминания",
-  CLIENT_DISAGREED: "Не согласен с вариантами",
-  UNDERWRITING_REJECTED: "Отказ андеррайтинга",
-  ENFORCEMENT: "Исполнительное производство",
-  NOT_BUSINESS: "Заёмщик не является ИП или ООО",
-  TOO_YOUNG: "Недостаточная история работы бизнеса",
-  NO_FREE_CASHFLOW: "Нет положительного свободного денежного потока",
-  CASH_OUT: "Высокая доля снятия наличных",
-  SHORT_STATEMENT: "Недостаточный период выписки",
-  BKI_OVERDUE_90_PLUS: "Просрочка в БКИ более 90 дней",
-  BKI_OVERDUE_30_PLUS: "Просрочка в БКИ более 30 дней",
-  statement: "Банковская выписка",
-  request: "Параметры заявки",
-  business: "Данные бизнеса",
-  consent: "Согласие клиента",
-  checks: "Проверки",
-  contract_main_customer: "Контракт с основным заказчиком",
-  reconciliation_act: "Акт сверки",
-  COMPLIANCE_INN_MISSING: "Не указан ИНН",
-  COMPLIANCE_EGRUL_NOT_FOUND: "Компания не найдена в реестре",
-  COMPLIANCE_EGRUL_INACTIVE: "Деятельность компании прекращена",
-  COMPLIANCE_EGRUL_MISMATCH: "Данные не совпадают с реестром",
-  COMPLIANCE_FNS_UNRELIABLE: "Недостоверные сведения ФНС",
-  COMPLIANCE_FNS_TAX_DEBT: "Налоговая задолженность",
-  COMPLIANCE_BANKRUPTCY: "Сведения о банкротстве",
-  COMPLIANCE_AML_REVIEW: "Нужна дополнительная проверка",
-  COMPLIANCE_DOC_EXPIRED: "Документ устарел",
-  COMPLIANCE_DOC_DATE_UNKNOWN: "Дата документа неизвестна",
-  COMPLIANCE_SOURCE_UNAVAILABLE: "Источник недоступен",
-  LIMIT_EXCEEDED_ALTERNATIVES: "Запрошенная сумма превышает лимит",
-};
-const statuses: Record<string, string> = {
-  draft: "Черновик",
-  queued: "В очереди",
-  info_requested: "Дозапрос",
-  underwriting: "Андеррайтинг",
-  approved: "Одобрена",
-  offered: "Предложение выдано",
-  signed: "Подписана",
-  disbursed: "Выдана",
-  rejected: "Отказ",
-  expired: "Истекла",
-  withdrawn: "Отозвана",
-};
-const explain = (code: string) => labels[code] || `Требует уточнения: ${code}`;
+const explain = labelCode;
 const verdicts: Record<string, string> = {
   underwriting: "Готова к автоматическому офферу",
   info_requested: "Нужны дополнительные сведения",
@@ -102,14 +58,8 @@ type ViewProps = {
   onMemo?(): void;
 };
 // Досье, собранные до 23.10, хранят технический ключ проверки в тексте.
-const CHECK_LABELS: Record<string, string> = {
-  egrul: "ЕГРЮЛ/ЕГРИП",
-  fns: "ФНС",
-  bankruptcy: "Банкротство",
-  aml: "115-ФЗ",
-};
 const checkText = (text?: string) =>
-  text?.replace(/^(egrul|fns|bankruptcy|aml):/, (_, key) => `${CHECK_LABELS[key]}:`);
+  text?.replace(/^(egrul|fns|bankruptcy|aml):/, (_, key) => `${labelCode(key)}:`);
 
 export function ManagerView(p: ViewProps) {
   const row = p.rows.find((r) => r.application.id === p.selected);
@@ -194,13 +144,13 @@ export function ManagerView(p: ViewProps) {
                       : r.red_reason
                       ? explain(r.red_reason)
                       : "Причина передачи: нет данных"}
-                    {r.reason ? `: ${labels[r.reason] || r.reason}` : ""}
+                    {r.reason ? `: ${safeDisplayText(r.reason)}` : ""}
                   </span>
                   {r.return_to_manager && (
                     <span className="manager-missing">вы просили вернуть</span>
                   )}
                   {r.return_to_manager && r.core_verdict && (
-                    <span>Новый вердикт: {verdicts[r.core_verdict]}</span>
+                    <span>Новый вердикт: {verdicts[r.core_verdict] || labelCode(r.core_verdict)}</span>
                   )}
                   <span>
                     Запрос: <b>{rub(r.application.amount)}</b>
@@ -241,7 +191,7 @@ export function ManagerView(p: ViewProps) {
                   <p className="manager-missing">вы просили вернуть</p>
                 )}
                 {d?.return_to_manager && d.core_verdict && (
-                  <p>Новый вердикт: {verdicts[d.core_verdict]}</p>
+                  <p>Новый вердикт: {verdicts[d.core_verdict] || labelCode(d.core_verdict)}</p>
                 )}
                 {d?.age?.source === "questionnaire" && (
                   <p className="manager-missing">
@@ -263,7 +213,7 @@ export function ManagerView(p: ViewProps) {
                   Подготовить записку андеррайтеру
                 </button>
                 <p>
-                  {statuses[p.detail.application.status] || "Статус неизвестен"}{" "}
+                  {labelCode(p.detail.application.status)}{" "}
                   · Лимит сейчас: {rub(limit)}
                 </p>
                 {!d ? (
@@ -294,7 +244,7 @@ export function ManagerView(p: ViewProps) {
                                 : "Не пройдено"}
                           </strong>
                           :{" "}
-                          {checkText(c.managerText) ||
+                          {safeDisplayText(checkText(c.managerText)) ||
                             (c.reasonCode
                               ? explain(c.reasonCode)
                               : "Описание отсутствует")}
@@ -384,13 +334,13 @@ export function ManagerView(p: ViewProps) {
                             className="manager-option"
                             key={option.option_id}
                           >
-                            <h4><ProductIllustration productId={option.product_id} size={32} decorative /> {option.product_name}</h4>
+                    <h4><ProductIllustration productId={option.product_id} size={32} decorative /> {labelCode(option.product_id)}</h4>
                             <p>
                               {rub(option.amount_rub)} · {option.term_months}{" "}
                               мес. · {formatRate(option.rate_annual_pct)} годовых
                             </p>
                             <p>Платёж: {rub(option.monthly_payment_rub)}</p>
-                            <p>{option.reason}</p>
+                            <p>{safeDisplayText(option.reason)}</p>
                             <form
                               className="manager-option-form"
                               data-option-form={option.option_id}
@@ -540,12 +490,12 @@ export function ManagerView(p: ViewProps) {
                         · {timestamp(e.at)}
                         <p>
                           {e.from_status
-                            ? statuses[e.from_status] || "Статус неизвестен"
+                            ? labelCode(e.from_status)
                             : "Начало"}{" "}
-                          → {statuses[e.to_status] || "Статус неизвестен"}
+                          → {labelCode(e.to_status)}
                         </p>
                         <p>
-                          {e.reason ? explain(e.reason) : "Причина не указана"}
+                          {e.reason ? safeDisplayText(e.reason) : "Причина не указана"}
                         </p>
                       </li>
                     ))}
@@ -594,7 +544,7 @@ export function ManagerWorkspace() {
         if (current) {
           setRows([]);
           setSelected("");
-          setError(e.message);
+          setError(visibleError(e));
         }
       })
       .finally(() => {
@@ -614,7 +564,7 @@ export function ManagerWorkspace() {
         if (current) setDetail(d);
       })
       .catch((e) => {
-        if (current) setError(e.message);
+        if (current) setError(visibleError(e));
       })
       .finally(() => {
         if (current) setDetailLoading(false);
@@ -636,7 +586,7 @@ export function ManagerWorkspace() {
       await sendManagerEvent(detail.application, event, payload);
       setRevision((v) => v + 1);
     } catch (e) {
-      setError((e as Error).message);
+      setError(visibleError(e));
       throw e;
     } finally {
       lock.current = false;

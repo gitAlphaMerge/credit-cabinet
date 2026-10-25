@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Download, FileText, ShieldCheck } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { workspaceHeaders } from "./api";
 import { Button } from "./ui";
 import type { MvpApplication, Product } from "../shared/mvp2";
@@ -49,7 +49,7 @@ export function CreditDocument({
       })
       .catch((e) => {
         if (!abort.signal.aborted) {
-          setError(e.message);
+      setError(visibleError(e));
           setLoading(false);
         }
       });
@@ -120,9 +120,7 @@ export function CreditContract({
         <FileText />
         <div>
           <h2>Подписание кредитного договора</h2>
-          <p>
-            Договор № {a.contract?.number} · {a.contract?.date}
-          </p>
+          <p>Проверьте условия договора перед подписанием.</p>
         </div>
       </div>
       {summary}
@@ -163,11 +161,6 @@ export function CreditContract({
       />
       <footer className="contract-confirmation">
         <div>
-          <p>
-            <ShieldCheck size={16} />
-            Демонстрационная электронная подпись для хакатона. Юридических
-            обязательств не возникает.
-          </p>
           {a.signature ? (
             <p>
               Подпись сохранена. Документ доступен для просмотра и скачивания.
@@ -202,3 +195,4 @@ export function CreditContract({
     </section>
   );
 }
+import { visibleError } from "./application-client";

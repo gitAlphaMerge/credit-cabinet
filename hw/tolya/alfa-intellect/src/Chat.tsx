@@ -123,7 +123,7 @@ export function Chat({
       if (!r.ok) throw new Error("Не удалось загрузить оценки");
       const rows = await r.json() as FeedbackValue[];
       if (!cancelled) {setFeedback(rows);setFeedbackLoaded(true);}
-    }).catch(e => { if (!cancelled) w.error(e.message); });
+    }).catch(e => { if (!cancelled) w.error(visibleError(e)); });
     return () => {cancelled = true;};
   },[chat?.id]);
   async function saveFeedback(value: FeedbackValue) {
@@ -138,7 +138,7 @@ export function Chat({
       if (!response.ok) throw new Error("Не удалось сохранить оценку. Попробуйте ещё раз.");
       const rows = await response.json() as FeedbackValue[];
       if (activeFeedbackChat.current === id) setFeedback(rows);
-    } catch(e) {w.error((e as Error).message);}
+    } catch(e) {w.error(visibleError(e));}
     finally {feedbackLock.current = false;setFeedbackSaving(false);}
   }
   useEffect(() => {
@@ -269,11 +269,7 @@ export function Chat({
           {chat?.selectionId && (
             <div className="chat-funding-context">
               <span>
-                Подбор финансирования · версия{" "}
-                {
-                  w.state.selections.find((s) => s.id === chat.selectionId)
-                    ?.version
-                }
+                Подбор финансирования
               </span>
               <button
                 className="text-button"
@@ -335,9 +331,6 @@ export function Chat({
                       </div>
                     )}
                     <div className="message-body">
-                      {m.mode === "demo" && (
-                        <Badge>Демо · программный сценарий</Badge>
-                      )}
                       <MarkdownText text={m.text} />
                       {m.calculation && <CalculationView c={m.calculation} />}
                       {m.warning && (
@@ -499,3 +492,4 @@ export function Chat({
     </section>
   );
 }
+import { visibleError } from "./application-client";

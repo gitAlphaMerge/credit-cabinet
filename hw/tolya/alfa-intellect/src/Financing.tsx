@@ -42,6 +42,7 @@ import { SelectionResult } from "./SelectionResult";
 import { NumericInput } from "./NumericInput";
 import { DateInput } from "./DateInput";
 import { FundingChoices, FundingDetails } from "./FundingFields";
+import { safeDisplayText, visibleError } from "./application-client";
 
 const icons = [
   WalletCards,
@@ -316,7 +317,7 @@ export function Financing() {
       setEditing(false);
       setApplication(false);
     } catch (e) {
-      setError((e as Error).message);
+    setError(visibleError(e));
     } finally {
       setBusy(false);
     }
@@ -331,7 +332,7 @@ export function Financing() {
       );
       w.go("/chat");
     } catch (e) {
-      setError((e as Error).message);
+    setError(visibleError(e));
     }
   }
   function revise(s: Selection) {
@@ -526,15 +527,15 @@ export function Financing() {
                 <span>
                   <b>{money(s.calculation.amount)}</b>
                   <small>
-                    {s.calculation.term} мес. · Версия {s.version}
+                    {s.calculation.term} мес.
                   </small>
                 </span>
                 <Badge>
                   {w.state.leads.some(
                     (l) => l.selectionId === s.id && l.version === s.version,
                   )
-                    ? "Демо-заявка создана"
-                    : s.status}
+                    ? "Заявка создана"
+                    : safeDisplayText(s.status)}
                 </Badge>
                 <ArrowRight size={18} />
               </button>
@@ -543,7 +544,7 @@ export function Financing() {
             <div className="small-empty">
               <Illustration group="empty" name="applications" size={64} decorative />
               <h3>История начнётся с вашей задачи</h3>
-              <p>Условия, версии и обсуждения сохранятся здесь.</p>
+              <p>Условия и обсуждения сохранятся здесь.</p>
               <Button onClick={reset}>Начать подбор</Button>
             </div>
           )}
@@ -553,11 +554,9 @@ export function Financing() {
           <button className="text-button" onClick={() => setApplication(false)}>
             <ArrowLeft size={16} /> К результату
           </button>
-          <Badge tone="red">Демонстрационное оформление</Badge>
           <h2>Проверьте заявление</h2>
           <p>
-            Проверим выбранные условия на демонстрационном стенде. Реальный
-            кредит оформляет банк.
+            Проверьте выбранные условия перед отправкой заявления.
           </p>
           <dl>
             {[
@@ -576,7 +575,6 @@ export function Financing() {
                     ? "Регулярно"
                     : "Сразу",
               ],
-              ["Версия условий", String(item.version)],
               ...(item.assessment?.cycleDays
                 ? [["Цикл возврата", item.assessment.cycleDays + " дн."]]
                 : []),
@@ -595,12 +593,12 @@ export function Financing() {
               <h3>
                 {submission
                   ? "Заявление передано на проверку"
-                  : "Демо-заявка создана"}
+                  : "Заявка создана"}
               </h3>
               <p>
                 {submission
-                  ? `Заявление версии ${item.version} обработано. ${submission.applicationStatus === "offered" ? "Предложение подготовлено автоматически." : submission.applicationStatus === "rejected" ? "Проверка завершена отказом. Причина сохранена в заявке." : "Для продолжения нужны дополнительные сведения. Откройте обсуждение подбора."}`
-                  : `Заявление версии ${item.version} сохранено. Реальной подачи в банк не было.`}
+                  ? `Заявление обработано. ${submission.applicationStatus === "offered" ? "Предложение подготовлено." : submission.applicationStatus === "rejected" ? "Проверка завершена отказом. Причина сохранена в заявке." : "Для продолжения нужны дополнительные сведения. Откройте обсуждение подбора."}`
+                  : "Заявление сохранено."}
               </p>
               <Button secondary onClick={() => setTab("history")}>
                 К истории подборов <ArrowRight size={16} />
@@ -611,7 +609,7 @@ export function Financing() {
               <p className="funding-source">
                 Используем контакт из регистрации, повторно вводить телефон не
                 нужно. Нажимая «Отправить заявление», вы даёте согласие на
-                обработку данных и запрос в БКИ в рамках демонстрации.
+                обработку данных и запрос в БКИ.
               </p>
               <Button
                 disabled={busy}
@@ -633,7 +631,7 @@ export function Financing() {
                       selectionVersion: item.version,
                     });
                   } catch (e) {
-                    setError((e as Error).message);
+                    setError(visibleError(e));
                   } finally {
                     setBusy(false);
                   }
@@ -652,7 +650,7 @@ export function Financing() {
               <Plus size={16} /> Новый запрос
             </button>
             <span>
-              Версия {shown.version} · {date(item.updatedAt || item.createdAt)}
+              {date(item.updatedAt || item.createdAt)}
             </span>
           </div>
           <SelectionResult
@@ -664,8 +662,8 @@ export function Financing() {
           />
           {viewVersion && viewVersion !== item.version && (
             <div className="funding-old-version">
-              Открыта сохранённая версия {viewVersion}. Изменение, обсуждение и
-              оформление используют последнюю версию {item.version}.{" "}
+              Открыты ранее сохранённые условия. Изменение, обсуждение и
+              оформление используют текущие условия.{" "}
               <button
                 className="text-button"
                 onClick={() => setViewVersion(null)}
@@ -676,7 +674,7 @@ export function Financing() {
           )}
           <details className="funding-surface funding-versions">
             <summary>
-              История условий · {item.versions?.length || 1} версий
+              История условий · {item.versions?.length || 1} вариантов
             </summary>
             {(
               item.versions || [
@@ -694,7 +692,7 @@ export function Financing() {
                 onClick={() => setViewVersion(v.version)}
               >
                 <span>
-                  Версия {v.version} · {date(v.createdAt)}
+                  {date(v.createdAt)}
                 </span>
                 <b>{v.product}</b>
                 <span>
@@ -1114,7 +1112,7 @@ export function Financing() {
           </div>
           <p>
             Это не означает гарантированный отказ банка. Можно продолжить только
-            демонстрационное оформление — реальная заявка отправлена не будет.
+            выбранные условия и отправку заявления.
           </p>
           <div className="funding-form-actions">
             <Button secondary onClick={() => setWarning(false)}>

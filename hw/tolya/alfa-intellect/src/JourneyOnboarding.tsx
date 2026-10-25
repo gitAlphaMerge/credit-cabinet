@@ -56,7 +56,7 @@ export function JourneyOnboarding({
         if (active) adopt(restoreOnboarding(position));
       })
       .catch((e) => {
-        if (active) setError(e.message);
+      if (active) setError(visibleError(e));
       });
     return () => {
       active = false;
@@ -105,7 +105,7 @@ export function JourneyOnboarding({
         if (current.current?.sequence === sequence) setError("");
       },
       (e) => {
-        if (current.current?.sequence === sequence) setError(e.message);
+      if (current.current?.sequence === sequence) setError(visibleError(e));
       },
     );
   }
@@ -151,7 +151,7 @@ export function JourneyOnboarding({
       // Keep the same form and answers; a failed save is not a completed transition.
       void persist(value.answers, value.step).catch(() => {});
       adopt({ ...current.current!, answers: value.answers, step: value.step });
-      setError((e as Error).message);
+      setError(visibleError(e));
     } finally {
       navigation.current = false;
       setMoving(false);
@@ -186,3 +186,4 @@ export function JourneyOnboarding({
     </>
   );
 }
+import { visibleError } from "./application-client";

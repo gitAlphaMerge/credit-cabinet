@@ -38,7 +38,7 @@ export function Cabinet({ preview }: { preview?: AppState }) {
         if (result.available && result.after < 0) void w.refresh();
       })
       .catch((e) => {
-        if (current) setForecastError(e.message);
+      if (current) setForecastError(visibleError(e));
       });
     return () => {
       current = false;
@@ -352,3 +352,4 @@ export function Cabinet({ preview }: { preview?: AppState }) {
     </div>
   );
 }
+import { visibleError } from "./application-client";

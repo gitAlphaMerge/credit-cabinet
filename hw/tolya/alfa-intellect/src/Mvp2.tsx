@@ -29,6 +29,7 @@ import { JourneyProgress } from "./JourneyProgress";
 import { journeyView, journeySection } from "../shared/journey-view";
 import { CreditContract } from "./CreditDocument";
 import { CreditMotion } from "./CreditMotion";
+import { labelCode, safeDisplayText, visibleError } from "./application-client";
 import {
   emptyOnboarding,
   onboardingStepValid,
@@ -334,12 +335,6 @@ export function MvpOnboarding({
     </div>
   );
 }
-const labels = {
-  APPROVED: "Ваш кредит одобрен",
-  MANAGER_REVIEW_REQUIRED: "Предварительная оценка пройдена",
-  ADDITIONAL_DATA_REQUIRED: "Необходимо дополнить заявку",
-  DECLINED: "Заявка не одобрена",
-};
 const sectionTitles = [
   "Компания",
   "Финансы",
@@ -359,7 +354,7 @@ function Summary({ a, products }: { a: MvpApplication; products: Product[] }) {
     <dl className="mvp-summary">
       <div>
         <dt>Продукт</dt>
-        <dd>{p?.name}</dd>
+              <dd>{labelCode(p?.id)}</dd>
       </div>
       <div>
         <dt>{a.decision === "APPROVED" ? "Одобрено" : "Запрошено"}</dt>
@@ -883,7 +878,7 @@ function QuestionnaireFields({
               {editingRequest ? "Свернуть параметры" : "Изменить"}
             </button>
           </header>
-          <strong>{catalog.find((p) => p.id === q.productId)?.name}</strong>
+                  <strong>{labelCode(q.productId)}</strong>
           <dl>
             <div>
               <dt>Сумма</dt>
@@ -988,7 +983,7 @@ function QuestionnaireFields({
           >
             {catalog.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                    {labelCode(p.id)}
               </option>
             ))}
           </select>
@@ -1176,7 +1171,7 @@ export function Mvp2({
     try {
       await fn();
     } catch (e) {
-      setError((e as Error).message);
+      setError(visibleError(e));
       if (e instanceof ApiError && e.fields) setErrors(e.fields);
     } finally {
       lock.current = false;
@@ -1322,7 +1317,7 @@ export function Mvp2({
     if (!a || !q || !dirty.current || busy) return;
     const timer = setTimeout(() => {
       void flushDraft(q, section).catch((e) =>
-        setError("Не удалось сохранить черновик: " + e.message),
+        setError(visibleError(e)),
       );
     }, 300);
     return () => clearTimeout(timer);
@@ -1341,7 +1336,7 @@ export function Mvp2({
           ),
         )
         .then(() => {});
-      void positionQueue.current.catch((e) => setError(e.message));
+    void positionQueue.current.catch((e) => setError(visibleError(e)));
     }, 150);
     return () => clearTimeout(timer);
   }, [a?.id, view, section, busy]);
@@ -1392,7 +1387,7 @@ export function Mvp2({
               setView(derivedView(next));
           })
           .catch((e) => {
-            if (active) setError(e.message);
+        if (active) setError(visibleError(e));
           });
       },
       view === "processing" ? 700 : 5000,
@@ -1459,7 +1454,7 @@ export function Mvp2({
         } catch (e) {
           setUploadErrors((previous) => ({
             ...previous,
-            [accountId]: (e as Error).message,
+            [accountId]: visibleError(e),
           }));
           throw e;
         }
@@ -1519,7 +1514,7 @@ export function Mvp2({
         setRegistryStatus({
           status:
             e instanceof ApiError && e.status === 404 ? "not-found" : "error",
-          message: (e as Error).message,
+              message: visibleError(e),
         });
     } finally {
       lock.current = false;
@@ -1588,7 +1583,7 @@ export function Mvp2({
           </Button>
         )}
         <p>
-          {a.decision ? labels[a.decision] : sectionTitles[section]} ·{" "}
+              {a.decision ? labelCode(a.decision) : sectionTitles[section]} ·{" "}
           {money(a.questionnaire.amount)} · Контекст заявки сохранён
         </p>
         <ApplicationAgent application={a} section={section} full />
@@ -1612,7 +1607,7 @@ export function Mvp2({
         <div
           className="credit-signing"
           role="status"
-          aria-label="Демонстрационная подпись"
+          aria-label="Подпись договора"
           aria-busy="true"
         >
           <CreditMotion
@@ -1621,7 +1616,7 @@ export function Mvp2({
             steps={[
               {
                 id: "signature",
-                label: "Сохраняем демонстрационную подпись и подписанный PDF",
+                label: "Сохраняем подпись и договор",
                 status: "running",
               },
             ]}
@@ -1705,7 +1700,7 @@ export function Mvp2({
           </p>
           <OnboardingFields value={answers} onChange={setAnswers} />
           <div className="mvp-actions">
-            <span>Условия каталога синтетические, не банковские тарифы.</span>
+          <span>Условия уточняются при рассмотрении заявки.</span>
             <Button
               disabled={busy || Object.values(answers).some((v) => !v)}
               onClick={() => void create()}
@@ -1718,8 +1713,8 @@ export function Mvp2({
       {a && q && view === "recommendation" && (
         <section className="funding-surface">
           <ProductIllustration productId={q.productId} size={64} decorative />
-          <small>ПРЕДВАРИТЕЛЬНЫЙ ПОДБОР · НЕ ОДОБРЕНИЕ</small>
-          <h2>{p?.name}</h2>
+          <small>ПРЕДВАРИТЕЛЬНЫЙ ПОДБОР</small>
+          <h2>{labelCode(p?.id)}</h2>
           <p>{p?.description}</p>
           <Summary a={a} products={products} />
           <p>
@@ -1814,8 +1809,7 @@ export function Mvp2({
         <section className="funding-surface">
           <h2>Все продукты</h2>
           <p>
-            Фиксированные синтетические условия MVP. Выбор продукта не означает
-            одобрение.
+            Выбор продукта запускает проверку условий банком.
           </p>
           <div className="mvp-products">
             {products.map((product) => (
@@ -1825,7 +1819,7 @@ export function Mvp2({
                   size={48}
                   decorative
                 />
-                <h3>{product.name}</h3>
+                <h3>{labelCode(product.id)}</h3>
                 <strong>{product.rate}% годовых</strong>
                 <p>{product.description}</p>
                 <p>
@@ -2161,7 +2155,7 @@ export function Mvp2({
                 {view === "supplement" &&
                   a.missing.map((m) => (
                     <p className="mvp-notice" key={m.key}>
-                      {m.label}
+                      {safeDisplayText(m.label)}
                     </p>
                   ))}
                 <QuestionnaireFields
@@ -2296,22 +2290,22 @@ export function Mvp2({
             {a.lifecycle === "ACTIVE"
               ? "Финансирование оформлено"
               : a.decision
-                ? labels[a.decision]
+                ? labelCode(a.decision)
                 : "Рассмотрение не завершено"}
           </h2>
           <Summary a={a} products={products} />
           {a.reasons.slice(0, 3).map((r) => (
-            <p key={r}>{r}</p>
+            <p key={r}>{safeDisplayText(r)}</p>
           ))}
           {a.reasons.length > 3 && (
             <details className="decision-details">
               <summary>Подробнее о результате</summary>
               {a.reasons.slice(3).map((r) => (
-                <p key={r}>{r}</p>
+                  <p key={r}>{safeDisplayText(r)}</p>
               ))}
             </details>
           )}
-          {a.error && <p className="mvp-error">{a.error}</p>}
+          {a.error && <p className="mvp-error">{visibleError(new Error(a.error))}</p>}
           {a.financial && (
             <div className="decision-financial">
               <dl>
@@ -2409,12 +2403,12 @@ export function Mvp2({
               <h3>Проверенные альтернативы</h3>
               {a.alternatives.map((o) => (
                 <article className="mvp-account" key={o.id}>
-                  <h3>{products.find((p) => p.id === o.productId)?.name}</h3>
+                    <h3>{labelCode(o.productId)}</h3>
                   <p>
                     {money(o.amount)} · {o.term} мес. · {o.rate}% ·{" "}
                     {money(o.payment)} в месяц
                   </p>
-                  <p>{o.reason}. Это не окончательное одобрение.</p>
+                  <p>{safeDisplayText(o.reason)}. Условия проверит банк.</p>
                   <Button
                     disabled={busy}
                     onClick={() =>
@@ -2441,8 +2435,7 @@ export function Mvp2({
         <section className="funding-surface">
           <h2>Запись на встречу</h2>
           <p>
-            Учебный календарь с синтетическими слотами. Запись сохраняется в
-            заявке.
+            Выберите удобное время. Запись сохранится в заявке.
           </p>
           <div className="mvp-products">
             {slots.map((s) => (
@@ -2532,7 +2525,7 @@ export function Mvp2({
                 >
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                  {labelCode(p.id)}
                     </option>
                   ))}
                 </select>
@@ -2665,8 +2658,7 @@ export function Mvp2({
           <StatusIllustration status="signed" size={96} decorative />
           <h2>Кредитный договор подписан</h2>
           <p>
-            Демонстрационная подпись сохранена. Юридических обязательств и
-            реального перевода денег не возникает.
+            Подпись сохранена. Проверьте сведения перед получением средств.
           </p>
           <Summary a={a} products={products} />
           <p>
@@ -2708,7 +2700,7 @@ export function MvpManager() {
   const load = () =>
     api<MvpApplication[]>("/mvp2/manager")
       .then(setItems)
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(visibleError(e)));
   useEffect(() => {
     void load();
     const timer = setInterval(() => void load(), 5000);
@@ -2716,7 +2708,7 @@ export function MvpManager() {
   }, []);
   return (
     <section className="funding-surface mvp-manager">
-      <h2>Встречи по заявкам MVP 2</h2>
+      <h2>Встречи по заявкам</h2>
       {error && <p role="alert">{error}</p>}
       {!items.length && <p>Нет заявок, ожидающих решения после встречи.</p>}
       {items.map((a) => (
@@ -2733,7 +2725,7 @@ export function MvpManager() {
               missingKey: f.get("missingKey"),
             })
               .then(load)
-              .catch((e) => setError(e.message));
+        .catch((e) => setError(visibleError(e)));
           }}
         >
           <h3>

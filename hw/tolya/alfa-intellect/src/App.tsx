@@ -22,6 +22,7 @@ import "./restart-journey.css";
 import "./application-status.css";
 import "./manager/manager.css";
 import type { AppState, Doc } from "../shared/types";
+import { labelCode, visibleError } from "./application-client";
 import {
   readFinancingDraft,
   writeFinancingDraft,
@@ -113,7 +114,7 @@ export function App() {
       await refresh();
       return r;
     } catch (e) {
-      if (p !== "/cabinet/facility") setToast((e as Error).message);
+      if (p !== "/cabinet/facility") setToast(visibleError(e));
       throw e;
     }
   }
@@ -146,7 +147,7 @@ export function App() {
       setState(null);
       go("/");
     } catch (e) {
-      setToast((e as Error).message);
+      setToast(visibleError(e));
     }
   }
   async function sendMessage(provided?: string) {
@@ -160,7 +161,7 @@ export function App() {
       await api("/chats/" + chatId + "/messages", { text });
       await refresh();
     } catch (e) {
-      setToast((e as Error).message);
+      setToast(visibleError(e));
       await refresh().catch(() => {});
     } finally {
       sendingLock.current = false;
@@ -194,7 +195,7 @@ export function App() {
           setActiveChatId(s.chats[0]?.id || "");
         }
       })
-      .catch((e) => setToast(e.message))
+      .catch((e) => setToast(visibleError(e)))
       .finally(() => setLoading(false));
     return () => removeEventListener("popstate", pop);
   }, []);
@@ -243,7 +244,7 @@ export function App() {
       setPending(d);
       await refresh();
     } catch (e) {
-      setToast((e as Error).message);
+      setToast(visibleError(e));
     } finally {
       setUploading(false);
       setUploadName("");
@@ -330,6 +331,7 @@ export function App() {
             </div>
           </header>
           <Mvp2 />
+          <footer className="workspace-footer">Иллюстративные данные, не предложение банка. Решение принимает банк</footer>
         </div>
       ) : (
         <div className={"workspace app-shell page-" + page}>
@@ -380,7 +382,7 @@ export function App() {
             <WorkspaceView tour={-1} />
           )}
           <footer className="workspace-footer">
-            <span>Альфа-Интеллект</span>
+          <span>Иллюстративные данные, не предложение банка. Решение принимает банк</span>
             {page === "financing" && (
               <button
                 className="text-button"
@@ -405,7 +407,6 @@ export function App() {
           title="Обратиться к сотруднику"
           onClose={() => setContactOpen(false)}
         >
-          <Badge tone="red">Демонстрационное обращение</Badge>
           {contactSent ? (
             <div className="success-state">
               <Check size={24} />
@@ -428,7 +429,7 @@ export function App() {
               }}
             >
               <p className="fine-print">
-                Вы можете обратиться на любом этапе. В MVP сохраняется только
+                  Вы можете обратиться на любом этапе. Здесь сохраняется только
                 локальная запись.
               </p>
               <label className="field">
@@ -454,7 +455,7 @@ export function App() {
               </label>
               <label className="checkbox-row">
                 <input required type="checkbox" />Я понимаю, что это
-                демонстрационное локальное обращение.
+                  обращение к сотруднику.
               </label>
               <Button>
                 Сохранить обращение <ArrowRight size={16} />
@@ -486,7 +487,7 @@ export function App() {
           <div className="extracted-fields">
             {Object.entries(pending.fields).map(([k, v]) => (
               <div key={k}>
-                <span>{config.fieldNames?.[k] || k}</span>
+                    <span>{config.fieldNames?.[k] || labelCode(k)}</span>
                 <b>{typeof v === "number" ? v.toLocaleString("ru-RU") : v}</b>
               </div>
             ))}

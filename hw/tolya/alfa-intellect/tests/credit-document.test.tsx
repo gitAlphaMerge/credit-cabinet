@@ -45,14 +45,15 @@ test("signature requires reading; signed contract offers viewing and receiving, 
   const props = {
     application: a,
     busy: false,
-    summary: <p>Одобрено: 1 млн ₽</p>,
+    summary: <p>Сумма: 1 млн ₽</p>,
     onSign() {},
     onReturn() {},
     onReceive() {},
   };
   const unsigned = renderToStaticMarkup(<CreditContract {...props} />);
   assert.match(unsigned, /disabled=""[^>]*>Подписать электронной подписью/);
-  assert.match(unsigned, /Демонстрационная электронная подпись/);
+  assert.match(unsigned, /Проверьте условия договора перед подписанием/);
+  assert.doesNotMatch(unsigned, /MVP-a/);
   const signed = renderToStaticMarkup(
     <CreditContract
       {...props}

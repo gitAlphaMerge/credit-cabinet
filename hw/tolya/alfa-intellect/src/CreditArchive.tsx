@@ -22,7 +22,7 @@ export function CreditArchive({
     <div className="mvp-cabinet-documents">
       <h3>{name}</h3>
       <p>
-        Синтетическое финансирование ·{" "}
+        Финансирование ·{" "}
         {kind === "loan"
           ? "выдача оформлена"
           : "лимит открыт; до выборки долг равен нулю"}

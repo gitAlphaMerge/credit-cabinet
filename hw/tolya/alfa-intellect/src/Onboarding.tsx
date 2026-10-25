@@ -324,7 +324,7 @@ export function Onboarding({
         setPreparing(start);
       }
     } catch (e) {
-      setError((e as Error).message);
+      setError(visibleError(e));
     } finally {
       setBusy(false);
     }
@@ -580,3 +580,4 @@ function SparkleMark() {
 function ArrowUpRightMini() {
   return <ArrowRight size={14} />;
 }
+import { visibleError } from "./application-client";

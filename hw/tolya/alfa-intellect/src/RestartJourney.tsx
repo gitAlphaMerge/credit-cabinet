@@ -18,7 +18,7 @@ export function RestartJourney() {
       // Full navigation unmounts all forms, queues and cached decisions. No global storage clear.
       window.location.replace("/");
     } catch (e) {
-      setError((e as Error).message);
+      setError(visibleError(e));
       setBusy(false);
       lock.current = false;
     }
@@ -68,3 +68,4 @@ export function RestartJourney() {
     </>
   );
 }
+import { visibleError } from "./application-client";
