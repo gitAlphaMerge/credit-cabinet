@@ -431,11 +431,11 @@ def calculate_scorecard(dscr, cv, debt_load, top_share, cash_gaps_count):
 
 def make_decision(score, stops, need, limit_now, limit_after, instrument, missing, reasons):
     # context/stop-rules.md: поведенческий стоп имеет приоритет над документным.
-    behavioral = {"ENFORCEMENT", "CASH_OUT", "NOT_BUSINESS", "NO_FREE_CASHFLOW", "OVERDUE_DEBT"}
+    behavioral = {"ENFORCEMENT", "CASH_OUT", "NOT_BUSINESS", "NO_FREE_CASHFLOW", "OVERDUE_DEBT", "TOO_YOUNG"}
     if behavioral.intersection(stops):
         return "нужен менеджер", missing, reasons
     # context/stop-rules.md: неподходящая цель или возраст ведут к другому продукту.
-    if "RESTRICTED_PURPOSE" in stops or "TOO_YOUNG" in stops:
+    if "RESTRICTED_PURPOSE" in stops:
         return "лучше другой инструмент", missing, reasons
     if instrument == "MANUAL":
         if not stops and not reasons:
