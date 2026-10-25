@@ -83,7 +83,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
               </span>
             </div>
           </div>
-          <HeroFinance minimal pattern={<LivePattern showCaption={false} />} />
+          <HeroFinance pattern={<LivePattern showCaption={false} />} />
         </section>
         <section className="benefit-strip wrap">
           {[

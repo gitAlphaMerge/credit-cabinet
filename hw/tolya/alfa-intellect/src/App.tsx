@@ -316,6 +316,15 @@ export function App() {
               <Brand />
             </button>
             <div className="journey-header-tools">
+              <Button
+                secondary
+                onClick={() => {
+                  setContactSent(false);
+                  setContactOpen(true);
+                }}
+              >
+                Обратиться к сотруднику
+              </Button>
               <RestartJourney />
               <ThemeToggle />
             </div>
@@ -413,8 +422,9 @@ export function App() {
                 await act("/consultations", {
                   phone: contactPhone,
                   note: contactNote,
-                });
-                setContactSent(true);
+                })
+                  .then(() => setContactSent(true))
+                  .catch(() => {});
               }}
             >
               <p className="fine-print">

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Illustration } from "./Illustration";
+import { CreditArchive } from "./CreditArchive";
 import {
   ArrowRight,
   CalendarDays,
@@ -908,7 +909,7 @@ export function CabinetV2({
             <h2>{c ? "Кредит бизнеса" : "Ваше финансирование"}</h2>
           </div>
           {(s.cabinet?.facilities?.length??0)>1 && <label className="field"><span>Активный договор</span><select value={c?.id} onChange={e=>void w.act("/cabinet/select",{id:e.target.value})}>{s.cabinet!.facilities!.map(f=><option key={f.id} value={f.id}>{f.name} · {money(f.amount)}</option>)}</select></label>}
-          {c?.origin === "mvp2" && <div className="mvp-cabinet-documents"><h3>{c.name}</h3><p>Синтетическое финансирование · {c.kind === "loan" ? "выдача оформлена" : "лимит открыт; до выборки долг равен нулю"}</p><h4>Документы</h4><p><a href={`/api/mvp2/applications/${c.applicationId}/documents/contract`} target="_blank" rel="noreferrer">Подписанный договор PDF</a> · <a href={`/api/mvp2/applications/${c.applicationId}/documents/schedule`} target="_blank" rel="noreferrer">График / условия лимита PDF</a></p></div>}
+          {c?.origin === "mvp2" && <CreditArchive applicationId={c.applicationId!} name={c.name} kind={c.kind} />}
           <div className="cv-summary-grid">
             <div>
               <small>

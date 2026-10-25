@@ -117,6 +117,10 @@ export function JourneyOnboarding({
     navigation.current = true;
     setMoving(true);
     setError("");
+    if (next > 2) {
+      setPreparing(true);
+      setStage(0);
+    }
     try {
       // The rendered position advances only after the complete current snapshot is stored.
       await persist(value.answers, Math.min(2, next));

@@ -439,7 +439,7 @@ export function guardJourneyApi(
   }
   // Guests cannot manufacture an active credit through old calculator/demo/manual routes.
   if (
-    /^\/(?:mvp2(?:\/|$)|journey(?:\/|$)|state$|config$|preferences$|chats\/[^/]+\/feedback$)/.test(
+    /^\/(?:mvp2(?:\/|$)|journey(?:\/|$)|state$|config$|preferences$|consultations$|chats\/[^/]+\/feedback$)/.test(
       req.path,
     )
   ) {

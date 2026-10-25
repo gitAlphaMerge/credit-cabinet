@@ -18,6 +18,25 @@ const { waitMvp } = await import("../server/mvp2");
 const { cabinetAvailable, guardJourneyPage } =
   await import("../server/journey");
 const original = httpCoreClient.score;
+test("contact request remains available before disbursement without opening servicing APIs", async () => {
+  const client = request.agent(app);
+  await client.post("/api/journey/session").send({}).expect(200);
+  const payload = {
+    phone: "+79991234567",
+    note: "Нужно обсудить сведения кредитной заявки",
+  };
+  await client.post("/api/consultations").send(payload).expect(200);
+  await client.post("/api/consultations").send(payload).expect(200);
+  const saved = (await client.get("/api/state").expect(200)).body;
+  assert.equal(
+    saved.leads.filter((l: any) => l.selectionId === "consultation").length,
+    1,
+  );
+  await client.get("/api/cabinet").expect(403);
+  const other = request.agent(app);
+  await other.post("/api/journey/session").send({}).expect(200);
+  assert.equal((await other.get("/api/state")).body.leads.length, 0);
+});
 let capacity = 10000000;
 before(() => {
   httpCoreClient.score = async () =>

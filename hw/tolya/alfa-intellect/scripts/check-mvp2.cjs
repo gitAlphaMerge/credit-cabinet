@@ -11,8 +11,11 @@ async page => {
   await page.context().clearCookies();
   await page.setViewportSize({width:1440,height:1000});
   await page.goto(base+"/");
+  await page.getByRole("heading",{name:/Большие планы/}).waitFor();
   check(await page.getByText("Посмотреть демо",{exact:true}).count()===0,"Demo entry still visible");
-  check(await page.locator(".finance-scene-card,.finance-insight,.finance-controls").count()===0,"Decorative hero cards remain");
+  check(await page.locator(".finance-scene-card").count()===1,"Original HeroFinance infographic missing");
+  for(const section of await page.locator('main > section').all()){await section.scrollIntoViewIfNeeded();await page.waitForTimeout(100);}
+  await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(800);
   await page.screenshot({path:"output/playwright/mvp2-landing-corrected.png",fullPage:true});
   await page.goto(base+"/onboarding");
   await noCabinet();check(await page.getByText("От задачи к понятным условиям",{exact:true}).count()===0,"Onboarding decoration remains");
@@ -76,7 +79,19 @@ async page => {
   const afterError=(await(await page.request.get(base+'/api/mvp2/applications/'+beforeSubmit.id)).json());
   check(afterError.lifecycle==='DRAFT'&&afterError.questionnaire.accounts[0].documentId===beforeSubmit.questionnaire.accounts[0].documentId,'Failed submission lost draft or file');
   failSubmit=false;
+  let releaseOld,held=false;
+  const oldReply=new Promise(r=>releaseOld=r);
+  await page.route('**/api/mvp2/applications/'+beforeSubmit.id,async route=>{
+    const response=await route.fetch();
+    if(!held&&route.request().method()==='GET'){held=true;await oldReply;}
+    await route.fulfill({response});
+  });
   await button("Подать заявку на рассмотрение").click();await page.getByRole("heading",{name:"Рассматриваем заявку",exact:true}).waitFor();await page.screenshot({path:"output/playwright/ui3-processing.png",fullPage:true});await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor({timeout:45000});
+  await button("Обсудить с агентом").click();await button("Вернуться к решению").waitFor();
+  releaseOld();await page.waitForTimeout(200);
+  check(await field("Сообщение финансовому помощнику").count()===1,"Late polling response closed the decision chat");
+  await page.unroute('**/api/mvp2/applications/'+beforeSubmit.id);
+  await button("Вернуться к решению").click();
   await noCabinet();check((await (await page.request.get(base+"/api/config")).json()).cabinetAvailable===false,"Approval alone opened cabinet");
   const a=(await (await page.request.get(base+"/api/mvp2/applications")).json())[0];
   check(a.decision==="APPROVED"&&a.questionnaire.amount===3000000,"Wrong decision at boundary");
@@ -87,12 +102,48 @@ async page => {
   await page.setViewportSize({width:390,height:844});check(await page.locator("main").evaluate(el=>el.scrollWidth<=el.clientWidth+1),"Mobile overflow");await page.screenshot({path:"output/playwright/mvp2-decision-mobile.png",fullPage:true});await page.setViewportSize({width:1440,height:1000});
   await button("Перейти к подписанию").click();await field("Подписант").fill("Синтетический Представитель");await field("Основание полномочий").fill("Устав учебной организации");await field("Счёт получателя (20 цифр)").fill("40702810000000000001");await field("Банк получателя").fill("Учебный банк");await button("Сформировать договор").click();
   await page.getByTitle("Кредитный договор",{exact:true}).waitFor();check((await page.request.get(base+`/api/mvp2/applications/${a.id}/documents/contract`)).headers()["x-frame-options"]==="SAMEORIGIN","PDF frame blocked");
-  await page.screenshot({path:"output/playwright/mvp2-contract.png",fullPage:true});
-  await field("Ознакомился с договором и условиями обслуживания").check();await button("Подписать электронной подписью").click();await page.getByRole("heading",{name:"Кредитный договор подписан",exact:true}).waitFor();
+  await page.getByLabel("Ознакомился с договором и условиями обслуживания",{exact:true}).waitFor();
+  const box=await page.getByTitle("Кредитный договор",{exact:true}).boundingBox();
+  check(box.width>1200&&box.height>400,"Contract is not full-size");
+  const signBox=await button("Подписать электронной подписью").boundingBox();
+  check(signBox.y+signBox.height<=1000,"Signature controls are outside viewport");
+  await page.waitForTimeout(1000); // Native PDF paint, never delays a credit decision.
+  await page.screenshot({path:"output/playwright/mvp2-contract.png"});
+  await button("График платежей").click();await page.getByTitle("График платежей",{exact:true}).waitFor();
+  await button("Договор").click();await page.getByTitle("Кредитный договор",{exact:true}).waitFor();
+  await button("Вернуться к решению").click();await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor();
+  await button("Обсудить с агентом").click();await button("Вернуться к решению").click();
+  await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor();
+  await page.reload();await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor();
+  await page.route("**/api/mvp2/applications/*/documents/contract",r=>r.fulfill({status:503,body:"Temporary PDF error"}));
+  await button("Перейти к подписанию").click();await page.getByRole("alert").filter({hasText:"Не удалось загрузить документ"}).waitFor();
+  check(await field("Ознакомился с договором и условиями обслуживания").isDisabled(),"Failed PDF permits confirmation");
+  await page.unroute("**/api/mvp2/applications/*/documents/contract");
+  await button("Повторить загрузку документа").click();await page.getByTitle("Кредитный договор",{exact:true}).waitFor();
+  await field("Ознакомился с договором и условиями обслуживания").check();
+  let failSign=true, releaseSign;const signatureReply=new Promise(r=>releaseSign=r);
+  await page.route('**/api/mvp2/applications/*/sign',async route=>{
+    if(failSign){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Не удалось сохранить подпись'})});return;}
+    const response=await route.fetch();await signatureReply;await route.fulfill({response});
+  });
+  await button("Подписать электронной подписью").click();await page.getByRole('alert').filter({hasText:'Не удалось сохранить подпись'}).waitFor();
+  check((await(await page.request.get(base+'/api/mvp2/applications/'+a.id)).json()).signature===undefined,'Failed signature became signed');
+  failSign=false;await button("Подписать электронной подписью").click();await page.getByRole('status',{name:'Демонстрационная подпись',exact:true}).waitFor();
+  check(await page.locator('.credit-signing .preparation-sphere').count()===1,'Signature animation missing');await page.screenshot({path:'output/playwright/stabilization-signature.png'});releaseSign();
+  await page.getByRole("heading",{name:"Кредитный договор подписан",exact:true}).waitFor();await page.unroute('**/api/mvp2/applications/*/sign');
   await noCabinet();check((await (await page.request.get(base+"/api/config")).json()).cabinetAvailable===false,"Signature alone opened cabinet");await page.screenshot({path:"output/playwright/ui3-receive.png",fullPage:true});
+  await button("Открыть подписанный договор").click();await page.getByTitle("Кредитный договор",{exact:true}).waitFor();
+  check(await button("Подписать электронной подписью").count()===0,"Signed contract asks to sign again");
+  await page.reload();await page.getByTitle("Кредитный договор",{exact:true}).waitFor();
+  await button("К получению средств").click();await page.getByRole("heading",{name:"Кредитный договор подписан",exact:true}).waitFor();
   await button("Получить деньги").click();await page.waitForURL(base+"/cabinet");await page.getByRole("heading",{name:"Документы",exact:true}).count();await page.getByRole("link",{name:"Подписанный договор PDF",exact:true}).waitFor();
   check((await (await page.request.get(base+"/api/state")).json()).cabinet.facility.applicationId===a.id,"Active facility not integrated");
   await page.screenshot({path:"output/playwright/mvp2-cabinet.png",fullPage:true});
+  await page.getByRole("link",{name:"Подписанный договор PDF",exact:true}).click();
+  await page.getByTitle("Подписанный договор PDF",{exact:true}).waitFor();
+  check(page.url()===base+'/cabinet',"Document left the credit cabinet");
+  await page.waitForTimeout(1000);await page.screenshot({path:"output/playwright/stabilization-cabinet-document.png"});
+  await page.keyboard.press('Escape');check(await page.getByRole('dialog').count()===0,"Document viewer did not close");
   check(errors.length===0,errors.join("; "));
   return {checks:"PASS",applicationId:a.id,core:"real liza /score",scenarios:["clean landing","anonymous 7-question onboarding","onboarding reload","direct URL gates","catalog/manual selection","60/40 embedded agent","inline errors","CSV","persisted dossier","submission error keeps draft, file and ID; retry","exact 3m approval","decision chat and return","mobile","PDF preview","signature without premature access","one disbursement","existing cabinet after activation"],errors};
 }

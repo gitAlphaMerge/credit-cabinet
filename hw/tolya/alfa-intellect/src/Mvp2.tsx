@@ -26,13 +26,20 @@ import {
   sectionDescriptions,
 } from "./ApplicationWorkspace";
 import { JourneyProgress } from "./JourneyProgress";
+import { journeyView, journeySection } from "../shared/journey-view";
+import { CreditContract } from "./CreditDocument";
+import { CreditMotion } from "./CreditMotion";
 import {
   emptyOnboarding,
   onboardingStepValid,
 } from "../shared/onboarding-state";
 import { useWorkspace, WorkspaceContext } from "./context";
 import { Chat } from "./Chat";
-import { Illustration } from "./Illustration";
+import {
+  Illustration,
+  ProductIllustration,
+  StatusIllustration,
+} from "./Illustration";
 import {
   industries,
   managerRequestedFields,
@@ -260,6 +267,18 @@ export function MvpOnboarding({
       <main className="onboard-grid">
         <JourneyProgress current={0} />
         <section className="onboard-main">
+          <Illustration
+            group="docs"
+            name={
+              step === 0
+                ? "questionnaire"
+                : step === 1
+                  ? "business-plan"
+                  : "debt-schedule"
+            }
+            size={48}
+            decorative
+          />
           <small>Вопросы о задаче · {step + 1} из 3</small>
           <progress
             className="journey-onboarding-progress"
@@ -1029,6 +1048,7 @@ export function Mvp2({
     [view, setView] = useState("loading"),
     [section, setSection] = useState(0),
     [busy, setBusy] = useState(false),
+    [signing, setSigning] = useState(false),
     [error, setError] = useState(""),
     [registryStatus, setRegistryStatus] = useState({
       status: "empty",
@@ -1041,8 +1061,6 @@ export function Mvp2({
     [errors, setErrors] = useState<Record<string, string>>({}),
     [statements, setStatements] = useState<any[]>([]),
     [slots, setSlots] = useState<any[]>([]),
-    [tab, setTab] = useState<"contract" | "schedule">("contract"),
-    [read, setRead] = useState(false),
     [chatId, setChatId] = useState(""),
     [chatSending, setChatSending] = useState(false),
     [editAnswers, setEditAnswers] = useState(false);
@@ -1063,6 +1081,7 @@ export function Mvp2({
     loaded = useRef(false);
   aRef.current = a;
   useLayoutEffect(() => {
+    window.scrollTo(0, 0);
     formPanel.current?.scrollTo({ top: 0, behavior: "instant" });
     mainPanel.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [view, section]);
@@ -1113,20 +1132,7 @@ export function Mvp2({
     dirty.current = false;
     return next;
   };
-  const derivedView = (next: MvpApplication) =>
-    next.error
-      ? "decision"
-      : next.lifecycle === "ACTIVE"
-        ? "decision"
-        : next.lifecycle === "SIGNED_DEMO"
-          ? "receive"
-          : next.contract
-            ? "contract"
-            : ["PROCESSING", "SUBMITTED"].includes(next.lifecycle)
-              ? "processing"
-              : next.decision
-                ? "decision"
-                : "recommendation";
+  const derivedView = (next: MvpApplication) => journeyView(next);
   const loadStatements = async (id: string) =>
     setStatements(await api(`/mvp2/applications/${id}/statements`));
   async function run(fn: () => Promise<void>) {
@@ -1147,32 +1153,16 @@ export function Mvp2({
   }
   async function open(next: MvpApplication) {
     adopt(next);
-    setView(derivedView(next));
     if (next.lifecycle === "ACTIVE") {
       w.go("/cabinet");
       return;
     }
     const position = await api("/journey");
+    setView(journeyView(next, position));
+    if (journeyView(next, position) === "meeting")
+      setSlots(await api("/mvp2/slots"));
     if (position.applicationId === next.id) {
       setSection(position.section ?? 0);
-      if (
-        next.lifecycle === "DRAFT" &&
-        !next.error &&
-        [
-          "recommendation",
-          "catalog",
-          "intro",
-          "questionnaire",
-          "dossier",
-        ].includes(position.view)
-      )
-        setView(position.view);
-      else if (
-        next.decision === "ADDITIONAL_DATA_REQUIRED" &&
-        position.view === "supplement"
-      )
-        setView("supplement");
-      else if (next.decision && position.view === "chat") setView("chat");
     }
     const serverBuffer = await api(`/journey/draft/${next.id}`);
     if (
@@ -1188,7 +1178,7 @@ export function Mvp2({
         draftSequence.current,
         serverBuffer.sequence ?? 0,
       );
-      setSection(serverBuffer.section);
+      setSection(journeySection(next.id, position, serverBuffer));
       dirty.current = true;
       if (next.decision) {
         if (position.view === "supplement") setView("supplement");
@@ -1207,7 +1197,7 @@ export function Mvp2({
         setQ(buffer.questionnaire);
         if (buffer.onboarding && next.lifecycle === "DRAFT")
           setAnswers(buffer.onboarding);
-        setSection(buffer.section ?? 0);
+        setSection(journeySection(next.id, position, buffer));
         setView(next.decision ? "supplement" : "questionnaire");
         dirty.current = true;
         await api(
@@ -1354,19 +1344,31 @@ export function Mvp2({
     )
       return;
     const id = a.id;
+    let active = true;
     const timer = setInterval(
       () => {
         void api<MvpApplication>(`/mvp2/applications/${id}`)
           .then((next) => {
+            if (
+              !active ||
+              aRef.current?.id !== id ||
+              Date.parse(next.updatedAt) < Date.parse(aRef.current.updatedAt)
+            )
+              return;
             adopt(next);
             if (!["SUBMITTED", "PROCESSING"].includes(next.lifecycle))
               setView(derivedView(next));
           })
-          .catch((e) => setError(e.message));
+          .catch((e) => {
+            if (active) setError(e.message);
+          });
       },
       view === "processing" ? 700 : 5000,
     );
-    return () => clearInterval(timer);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, [view, a?.id, a?.lifecycle]);
   async function save() {
     if (!a || !q) throw new Error("Заявка ещё не создана");
@@ -1535,13 +1537,17 @@ export function Mvp2({
   }, [q?.inn, a?.id, a?.company?.inn, view, section, busy]);
   const openDiscussion = async () => {
     if (!a) return;
-    setView("chat");
+    await transition("chat");
   };
   const discuss = () => run(openDiscussion);
   if (view === "chat" && a)
     return (
       <div className="mvp-full-chat">
-        <Button secondary onClick={() => setView(derivedView(a))}>
+        <Button
+          secondary
+          disabled={busy}
+          onClick={() => void run(() => transition("decision"))}
+        >
           Вернуться к решению
         </Button>
         {a.financial && !a.signature && (
@@ -1565,9 +1571,31 @@ export function Mvp2({
         "financing-page page-wrap funding-mvp mvp2" +
         (["intro", "questionnaire", "dossier", "supplement"].includes(view)
           ? " mvp-workspace"
-          : "")
+          : view === "contract"
+            ? " mvp-contract-workspace"
+            : "")
       }
     >
+      {signing && (
+        <div
+          className="credit-signing"
+          role="status"
+          aria-label="Демонстрационная подпись"
+          aria-busy="true"
+        >
+          <CreditMotion
+            title="Подписываем кредитный договор"
+            variant="signature"
+            steps={[
+              {
+                id: "signature",
+                label: "Сохраняем демонстрационную подпись и подписанный PDF",
+                status: "running",
+              },
+            ]}
+          />
+        </div>
+      )}
       <JourneyProgress
         current={
           ["processing"].includes(view)
@@ -1585,7 +1613,13 @@ export function Mvp2({
                 : 1
         }
       />
-      {!["intro", "questionnaire", "dossier", "supplement"].includes(view) && (
+      {![
+        "intro",
+        "questionnaire",
+        "dossier",
+        "supplement",
+        "contract",
+      ].includes(view) && (
         <header className="journey-stage">
           <h1>
             {{
@@ -1651,6 +1685,7 @@ export function Mvp2({
       )}
       {a && q && view === "recommendation" && (
         <section className="funding-surface">
+          <ProductIllustration productId={q.productId} size={64} decorative />
           <small>ПРЕДВАРИТЕЛЬНЫЙ ПОДБОР · НЕ ОДОБРЕНИЕ</small>
           <h2>{p?.name}</h2>
           <p>{p?.description}</p>
@@ -1753,6 +1788,11 @@ export function Mvp2({
           <div className="mvp-products">
             {products.map((product) => (
               <article className="mvp-account" key={product.id}>
+                <ProductIllustration
+                  productId={product.id}
+                  size={48}
+                  decorative
+                />
                 <h3>{product.name}</h3>
                 <strong>{product.rate}% годовых</strong>
                 <p>{product.description}</p>
@@ -2163,50 +2203,27 @@ export function Mvp2({
         )}
       {a && view === "processing" && (
         <section className="funding-surface mvp-processing" aria-live="polite">
-          <div className="credit-processing-mark" aria-hidden="true">
-            <span className="mvp-spinner" />
-          </div>
-          <h2>Рассматриваем заявку</h2>
+          <CreditMotion
+            title="Рассматриваем заявку"
+            steps={a.stages.map((s) => ({
+              ...s,
+              label:
+                (
+                  {
+                    Скоринг: "Финансовая оценка",
+                    "Комплаенс, антифрод и БКИ":
+                      "Проверка компании и кредитной истории",
+                    "Финансовый анализ CSV": "Анализ выписок",
+                    Андеррайтинг: "Проверка условий",
+                    "Маршрутизация решения": "Подготовка результата",
+                  } as Record<string, string>
+                )[s.label] ?? s.label,
+            }))}
+          />
           <p>
-            Заявка и документы сохранены. Проверяем сведения и готовим решение.
-            Можно обновить страницу и вернуться к результату.
+            Заявка и документы сохранены. Можно обновить страницу — рассмотрение
+            продолжится на сервере.
           </p>
-          <ol>
-            {a.stages.map((s) => (
-              <li key={s.id} className={s.status}>
-                {s.status === "done" ? (
-                  <Check size={16} />
-                ) : s.status === "running" ? (
-                  <span className="mvp-spinner" />
-                ) : (
-                  <span className="stage-dot" />
-                )}
-                <div>
-                  <strong>
-                    {{
-                      Скоринг: "Финансовая оценка",
-                      "Комплаенс, антифрод и БКИ":
-                        "Проверка компании и кредитной истории",
-                      "Финансовый анализ CSV": "Анализ выписок",
-                      Андеррайтинг: "Проверка условий",
-                      "Маршрутизация решения": "Подготовка результата",
-                    }[s.label] ?? s.label}
-                  </strong>
-                  <small>
-                    {
-                      {
-                        pending: "Ожидает",
-                        running: "Выполняется",
-                        done: "Готово",
-                        error: "Не удалось завершить",
-                        "waiting-data": "Нужны дополнительные сведения",
-                      }[s.status]
-                    }
-                  </small>
-                </div>
-              </li>
-            ))}
-          </ol>
           <Button
             secondary
             disabled={busy}
@@ -2224,6 +2241,24 @@ export function Mvp2({
       )}
       {a && q && view === "decision" && (
         <section className="funding-surface">
+          {a.error ? (
+            <Illustration group="empty" name="network" size={64} decorative />
+          ) : (
+            <StatusIllustration
+              status={
+                a.lifecycle === "ACTIVE"
+                  ? "disbursed"
+                  : {
+                      APPROVED: "approved",
+                      MANAGER_REVIEW_REQUIRED: "queued",
+                      ADDITIONAL_DATA_REQUIRED: "info_requested",
+                      DECLINED: "rejected",
+                    }[a.decision ?? "DECLINED"]
+              }
+              size={64}
+              decorative
+            />
+          )}
           <small>РЕЗУЛЬТАТ РАССМОТРЕНИЯ</small>
           <h2>
             {a.lifecycle === "ACTIVE"
@@ -2297,12 +2332,19 @@ export function Mvp2({
                 </Button>
               ) : a.decision === "APPROVED" ? (
                 <Button
-                  onClick={() => setView(a.contract ? "contract" : "details")}
+                  onClick={() =>
+                    void run(() =>
+                      transition(a.contract ? "contract" : "details"),
+                    )
+                  }
                 >
                   Перейти к подписанию
                 </Button>
               ) : a.decision === "ADDITIONAL_DATA_REQUIRED" ? (
-                <Button onClick={() => setView("supplement")}>
+                <Button
+                  disabled={busy}
+                  onClick={() => void run(() => transition("supplement"))}
+                >
                   Дополнить сведения
                 </Button>
               ) : a.decision === "MANAGER_REVIEW_REQUIRED" ? (
@@ -2311,7 +2353,7 @@ export function Mvp2({
                   onClick={() =>
                     void run(async () => {
                       setSlots(await api("/mvp2/slots"));
-                      setView("meeting");
+                      await transition("meeting");
                     })
                   }
                 >
@@ -2547,76 +2589,35 @@ export function Mvp2({
         </section>
       )}
       {a && q && view === "contract" && (
-        <section className="funding-surface">
-          <h2>Подписание кредитного договора</h2>
-          <Summary a={a} products={products} />
-          <div className="mvp-document-tools">
-            <Button secondary onClick={() => setTab("contract")}>
-              Договор
-            </Button>
-            <Button secondary onClick={() => setTab("schedule")}>
-              {p?.kind === "loan"
-                ? "График платежей"
-                : "Условия использования лимита"}
-            </Button>
-            <a href={`/api${path}/documents/contract?download=1`}>
-              Скачать договор PDF
-            </a>
-            <a href={`/api${path}/documents/schedule?download=1`}>
-              {p?.kind === "loan"
-                ? "Скачать график PDF"
-                : "Скачать условия лимита PDF"}
-            </a>
-          </div>
-          <iframe
-            className="mvp-document"
-            title={
-              tab === "contract"
-                ? "Кредитный договор"
-                : p?.kind === "loan"
-                  ? "График платежей"
-                  : "Условия использования лимита"
-            }
-            src={`/api${path}/documents/${tab}${a.signature ? "?signed=1" : ""}`}
-          />
-          <p>
-            Подписание — неюридическая имитация электронной подписи в учебном
-            MVP.
-          </p>
-          <label className="mvp-check">
-            <input
-              type="checkbox"
-              checked={read}
-              onChange={(e) => setRead(e.target.checked)}
-            />
-            Ознакомился с договором и условиями обслуживания
-          </label>
-          <div className="mvp-actions">
-            <Button secondary onClick={() => setView("decision")}>
-              Вернуться к решению
-            </Button>
-            <Button
-              disabled={busy || !read}
-              onClick={() =>
-                void run(async () => {
-                  adopt(
-                    await api(path + "/sign", {
-                      hash: a.contract!.hash,
-                      confirmed: read,
-                    }),
-                  );
-                  setView("receive");
-                })
+        <CreditContract
+          key={a.id + ":" + a.contract?.hash}
+          application={a}
+          product={p ?? undefined}
+          busy={busy}
+          summary={<Summary a={a} products={products} />}
+          onReturn={() => void run(() => transition("decision"))}
+          onReceive={() => void run(() => transition("receive"))}
+          onSign={() =>
+            void run(async () => {
+              setSigning(true);
+              try {
+                adopt(
+                  await api(path + "/sign", {
+                    hash: a.contract!.hash,
+                    confirmed: true,
+                  }),
+                );
+                await transition("receive");
+              } finally {
+                setSigning(false);
               }
-            >
-              {busy ? "Подписываем…" : "Подписать электронной подписью"}
-            </Button>
-          </div>
-        </section>
+            })
+          }
+        />
       )}
       {a && q && view === "receive" && (
         <section className="funding-surface">
-          <Check size={48} />
+          <StatusIllustration status="signed" size={96} decorative />
           <h2>Кредитный договор подписан</h2>
           <p>
             Демонстрационная подпись сохранена. Юридических обязательств и
@@ -2630,7 +2631,11 @@ export function Mvp2({
               : "Будет открыт лимит; задолженность до выборки равна нулю."}
           </p>
           <div className="mvp-actions">
-            <Button secondary onClick={() => setView("contract")}>
+            <Button
+              secondary
+              disabled={busy}
+              onClick={() => void run(() => transition("contract"))}
+            >
               Открыть подписанный договор
             </Button>
             <Button

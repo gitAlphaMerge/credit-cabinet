@@ -5,21 +5,15 @@ import { readFileSync } from "node:fs";
 import { Landing } from "../src/Landing";
 import { RestartJourney } from "../src/RestartJourney";
 import { workspaceHeaders, setApiWorkspace } from "../src/api";
-test("Landing keeps the central animation and main CTA, without demo or covering finance cards", () => {
+test("Landing restores the original HeroFinance pattern and infographic without restoring demo navigation", () => {
   const html = renderToStaticMarkup(<Landing go={() => {}} />);
   assert.match(html, /Большие планы/);
   assert.match(html, /Подобрать финансирование/);
   assert.match(html, /Решение по кредиту — без звонков/);
   assert.ok(!html.includes("Без банковских заявок"));
-  assert.match(html, /minimal-theatre/);
-  for (const forbidden of [
-    "Посмотреть демо",
-    "Свободный поток после платежа",
-    "Смотрите на шаг вперёд",
-    "finance-scene-card",
-    "finance-controls",
-    "Селлер на маркетплейсе",
-  ])
+  assert.match(html, /finance-theatre with-pattern/);
+  assert.match(html, /finance-scene-card/);
+  for (const forbidden of ["Посмотреть демо", "Селлер на маркетплейсе"])
     assert.ok(!html.includes(forbidden), forbidden);
 });
 

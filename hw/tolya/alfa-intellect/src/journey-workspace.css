@@ -194,7 +194,7 @@
   margin: 4px;
 }
 .mvp2 .mvp-processing {
-  max-width: 700px !important;
+  max-width: 1040px !important;
 }
 .credit-form-actions .button {
   min-height: 48px;
@@ -533,6 +533,162 @@
   overflow: hidden;
   padding: 12px 24px 20px;
 }
+.origination.app-shell > .mvp2.mvp-contract-workspace {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 24px;
+}
+.origination .mvp2.mvp-contract-workspace > .credit-contract {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 16px 20px;
+}
+.contract-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.contract-heading > svg {
+  color: var(--theme-red);
+  flex-shrink: 0;
+}
+.contract-heading h2 {
+  font-size: 22px;
+  margin: 0;
+}
+.contract-heading p {
+  font-size: 12px;
+  color: var(--theme-muted);
+  margin: 4px 0 0;
+}
+.credit-contract .mvp-summary {
+  padding: 10px 0;
+  margin: 8px 0;
+}
+.credit-contract .mvp-summary div {
+  padding: 0;
+}
+.credit-contract .mvp-document-tools {
+  margin: 8px 0 12px;
+  gap: 16px;
+  font-size: 13px;
+}
+.mvp-document-tools > div {
+  display: flex;
+  gap: 8px;
+}
+.mvp-document-tools a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.credit-document-viewer {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--theme-line);
+  border-radius: 12px;
+  background: var(--theme-bg);
+}
+.credit-document-viewer .mvp-document {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+.document-loading,
+.document-failure {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: var(--theme-bg);
+}
+.document-failure {
+  flex-direction: column;
+}
+.contract-confirmation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 0;
+}
+.contract-confirmation p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--theme-muted);
+  margin: 0 0 8px;
+}
+.contract-confirmation .mvp-actions {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: 8px;
+}
+.contract-confirmation .mvp-check {
+  margin: 0;
+  font-size: 13px;
+}
+@media (max-width: 700px) {
+  .origination.app-shell > .mvp2.mvp-contract-workspace {
+    padding: 8px;
+  }
+  .origination .mvp2.mvp-contract-workspace > .credit-contract {
+    padding: 12px;
+  }
+  .contract-heading h2 {
+    font-size: 18px;
+  }
+  .credit-contract .mvp-summary {
+    grid-template-columns: 1.6fr 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 8px 0;
+  }
+  .credit-contract .mvp-summary dt {
+    font-size: 10px;
+  }
+  .credit-contract .mvp-summary dd {
+    font-size: 12px;
+  }
+  .credit-contract .mvp-document-tools {
+    gap: 8px;
+  }
+  .credit-contract .mvp-document-tools .button {
+    padding: 8px;
+    min-height: 36px;
+    font-size: 12px;
+  }
+  .contract-confirmation {
+    gap: 8px;
+  }
+  .contract-confirmation .mvp-actions {
+    width: 100%;
+  }
+  .contract-confirmation .button {
+    font-size: 12px;
+    min-height: 40px;
+    padding: 8px;
+  }
+}
 .credit-journey {
   list-style: none;
   display: flex;
@@ -861,4 +1017,226 @@
   padding: 0;
   margin: 0;
   min-width: 0;
+}
+
+/* Reuse the MVP 1 orbit/sphere geometry without its timer-based percentage. */
+.credit-motion {
+  text-align: center;
+}
+.credit-motion-visual {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  margin: 12px auto 20px;
+  display: grid;
+  place-items: center;
+}
+.credit-motion .preparation-orbit {
+  position: absolute;
+  inset: 0;
+  width: 280px;
+  height: 280px;
+  margin: 0;
+  transform: none;
+  background: none;
+  border: 0;
+}
+.credit-motion .preparation-sphere {
+  width: 208px;
+  height: 208px;
+  margin: 0;
+}
+.credit-motion .sphere-number {
+  gap: 8px;
+  color: var(--theme-ink);
+}
+.credit-motion .sphere-number > svg {
+  color: var(--theme-red);
+}
+.credit-motion .sphere-number strong {
+  color: var(--theme-ink);
+  font-size: 38px;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.credit-motion .sphere-number small {
+  font-size: 20px;
+  font-weight: 450;
+  color: var(--theme-muted);
+}
+.credit-motion .sphere-number > span {
+  font-size: 11px;
+  color: var(--theme-muted);
+}
+.credit-motion-wave {
+  position: absolute;
+  height: 34%;
+  bottom: 0;
+  width: 100%;
+  background: var(--theme-danger-soft);
+}
+.credit-motion-wave i {
+  position: absolute;
+  width: 210%;
+  height: 44px;
+  top: -22px;
+  left: -55%;
+  border-radius: 50%;
+  background: var(--theme-danger-soft);
+  animation: sphere-wave 7s linear infinite;
+}
+.credit-motion-wave i:nth-child(2) {
+  animation-direction: reverse;
+  animation-duration: 11s;
+  opacity: 0.6;
+}
+.credit-motion h1,
+.credit-motion h2 {
+  font-size: 28px;
+  line-height: 1.25;
+  margin: 12px 0;
+}
+.credit-motion-status {
+  min-height: 24px;
+  color: var(--theme-muted);
+  font-size: 14px;
+}
+.credit-motion .credit-motion-stages {
+  display: grid;
+  max-width: 520px;
+  margin: 24px auto 8px;
+  padding: 0;
+  list-style: none;
+  gap: 12px;
+  text-align: left;
+}
+.credit-motion .credit-motion-stages li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--theme-muted);
+}
+.credit-motion .credit-motion-stages li.running {
+  border-color: var(--theme-danger-soft);
+  background: var(--theme-danger-soft);
+  color: var(--theme-ink);
+}
+.credit-motion .credit-motion-stages li.done {
+  color: var(--theme-ink);
+}
+.credit-motion-stages strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.credit-motion-stages small {
+  display: block;
+  color: var(--theme-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.credit-step-mark {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--theme-line);
+}
+.done .credit-step-mark {
+  color: var(--theme-green);
+  border-color: var(--theme-green);
+}
+.running .credit-step-mark {
+  color: var(--theme-red);
+  border-color: var(--theme-red);
+}
+.credit-step-mark i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.credit-motion-review {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  column-gap: 32px;
+  text-align: left;
+  align-items: center;
+}
+.credit-motion-review .credit-motion-visual {
+  grid-row: 1 / 4;
+}
+.credit-motion-review .credit-motion-stages {
+  width: 100%;
+  margin: 8px 0;
+}
+.credit-motion-review h2 {
+  margin: 0;
+}
+.credit-motion-review .credit-motion-status {
+  margin: 8px 0;
+}
+.credit-motion[data-running="false"] .preparation-orbit i,
+.credit-motion[data-running="false"] .credit-motion-wave i {
+  animation-play-state: paused;
+}
+.credit-signing {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--theme-bg);
+}
+@media (max-width: 700px) {
+  .credit-motion-review {
+    display: block;
+    text-align: center;
+  }
+  .credit-motion-visual {
+    transform: scale(0.8);
+    margin-top: -16px;
+    margin-bottom: -8px;
+    height: 260px;
+  }
+  .credit-motion h1,
+  .credit-motion h2 {
+    font-size: 23px;
+  }
+  .credit-motion-stages strong {
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .credit-motion .preparation-orbit i,
+  .credit-motion .credit-motion-wave i {
+    animation: none !important;
+  }
+}
+
+.credit-archive .modal {
+  width: calc(100vw - 48px);
+  max-width: none;
+  height: calc(100dvh - 48px);
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+.credit-archive .modal > header {
+  flex-shrink: 0;
+}
+@media (max-width: 700px) {
+  .credit-archive .modal {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+    padding: 12px;
+  }
 }

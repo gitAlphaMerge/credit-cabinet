@@ -128,6 +128,9 @@ async (page, managerCookie = null) => {
   let a = await prepare(3000001);
   check(a.decision === "MANAGER_REVIEW_REQUIRED", JSON.stringify(a));
   await button("Записаться на встречу").click();
+  await page.reload();
+  await page.getByRole("heading",{name:"Запись на встречу",exact:true}).waitFor();
+  await page.locator(".mvp-products").getByRole("button").first().waitFor();
   await page.locator(".mvp-products").getByRole("button").first().click();
   await page.getByText(/Встреча:/).waitFor();
   await closed();
