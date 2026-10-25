@@ -275,7 +275,11 @@ test("Submission pins the owner application and real pipeline stage across stale
       (await x.client.get(`/api/mvp2/applications/${x.a.id}`)).body.lifecycle,
       "PROCESSING",
     );
-    await x.client.post("/api/journey/complete").send({ answers }).expect(409);
+    // New journeys are allowed; the already submitted dossier itself is immutable.
+    await x.client
+      .put(`/api/mvp2/applications/${x.a.id}`)
+      .send({ version, questionnaire: x.a.questionnaire })
+      .expect(409);
     assert.equal(
       (await x.client.get(`/api/journey/draft/${x.a.id}`)).body,
       null,

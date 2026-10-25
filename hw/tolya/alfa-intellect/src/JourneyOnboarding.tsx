@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { MvpOnboarding } from "./Mvp2";
-import { api, workspaceHeaders } from "./api";
-import { onboardingSchema, type OnboardingAnswers } from "../shared/mvp2";
+import { api, workspaceHeaders, setApiWorkspace } from "./api";
+import {
+  onboardingSchema,
+  type OnboardingAnswers,
+  type MvpApplication,
+} from "../shared/mvp2";
 import {
   restoreOnboarding,
   onboardingStepValid,
@@ -42,8 +46,10 @@ export function JourneyOnboarding({
           const a = await api(`/mvp2/applications/${position.applicationId}`);
           if (!active) return;
           if (a.lifecycle !== "DRAFT" || a.error) {
-            await onComplete();
-            if (active) go("/apply");
+            // Opening onboarding explicitly starts another pass. Reuse the
+            // existing isolated restart so old tabs/pipelines cannot restore it.
+            await api("/journey/restart", {});
+            if (active) window.location.replace("/onboarding");
             return;
           }
         }
@@ -120,11 +126,19 @@ export function JourneyOnboarding({
         onboardingSchema.parse(value.answers);
         setPreparing(true);
         setStage(1);
-        await api("/journey/complete", {
+        const previousOwner = workspaceHeaders()["X-Journey-Workspace"];
+        const application = await api<MvpApplication>("/journey/complete", {
           answers: value.answers,
           sequence: current.current!.sequence,
         });
         latest.current = null;
+        setApiWorkspace(application.businessId);
+        if (previousOwner && previousOwner !== application.businessId) {
+          // A previously open form can finish after submission in another tab.
+          // Reload the root state for its new owner instead of mixing sessions.
+          window.location.replace("/apply");
+          return;
+        }
         setStage(2);
         await onComplete();
         go("/apply");

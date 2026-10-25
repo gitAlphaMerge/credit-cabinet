@@ -270,9 +270,10 @@ export function saveOnboarding(req: Request, res: Response) {
   res.json({ ok: true });
 }
 export function completeOnboarding(req: Request, res: Response) {
-  const answers = onboardingSchema.parse(req.body.answers),
-    uid = res.locals.userId;
-  const position = readJourney(uid);
+  const answers = onboardingSchema.parse(req.body.answers);
+  let uid = res.locals.userId;
+  let position = readJourney(uid);
+  let fresh: ReturnType<typeof newGuestSession> | undefined;
   const sequence = z
     .number()
     .int()
@@ -299,14 +300,19 @@ export function completeOnboarding(req: Request, res: Response) {
       )
       .get(existing, uid);
     if (saved && JSON.parse(saved.data as string).lifecycle !== "DRAFT") {
-      res.status(409).json({
-        error:
-          "У вас уже есть отправленная заявка. Продолжите её рассмотрение.",
-        next: "/apply",
-      });
-      return;
-    }
-    if (saved) draft = JSON.parse(saved.data as string);
+      if (getUser(uid)?.role === "manager") {
+        res
+          .status(403)
+          .json({ error: "Новый подбор доступен в клиентском интерфейсе." });
+        return;
+      }
+      // A repeated pass is a separate anonymous workspace, never an edit of a
+      // submitted dossier. Keep entered answers and revoke the old cookie only
+      // after the new application has been created successfully.
+      fresh = newGuestSession();
+      uid = fresh.owner;
+      position = { onboardingSequence: sequence ?? 0 };
+    } else if (saved) draft = JSON.parse(saved.data as string);
   }
   const next = initialQuestionnaire(answers);
   const a =
@@ -339,6 +345,10 @@ export function completeOnboarding(req: Request, res: Response) {
     view: "recommendation",
     section: 0,
   });
+  if (fresh) {
+    logout(journeyToken(req));
+    guestCookie(res, fresh.token);
+  }
   res.json(a);
 }
 export function saveJourneyPosition(req: Request, res: Response) {
