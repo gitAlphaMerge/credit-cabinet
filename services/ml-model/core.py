@@ -2,9 +2,11 @@
 """ядро ступенек 1 и 2: парсинг, скоринг, лимиты и подбор 6 продуктов (Толя)"""
 
 import csv
+import json
 import statistics
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
 PARAMS = {
     "dscr_min": 1.25,
@@ -19,16 +21,14 @@ PARAMS = {
     "pair_days": 180,
 }
 
-# 6 продуктов из расширенной модели Толи
-PRODUCTS_DB = {
-    "WORKING":   {"rate": 0.235},
-    "INVEST":    {"rate": 0.220},
-    "RCL":       {"rate": 0.240},
-    "NCL":       {"rate": 0.230},
-    "OVERDRAFT": {"rate": 0.260},
-    "REFI":      {"rate": 0.225},
-    "MANUAL":    {"rate": 0.235}, # Заглушка для ручного маршрута
-}
+# data/catalog/products.json is the source for product limits and public base rates.
+_CATALOG = json.loads((Path(__file__).resolve().parents[2] / "data/catalog/products.json").read_text(encoding="utf-8"))["products"]
+PRODUCTS_DB = {p["id"]: {**p, "rate": (p["bank_base_rate_from_pct"] / 100
+                                     if p["bank_base_rate_from_pct"] is not None else None)}
+               for p in _CATALOG}
+# MANUAL still passes through the legacy payment calculator. This proxy is the
+# catalogue ALFA_LUMP_UNSEC public base rate, never a bank offer for MANUAL.
+PRODUCTS_DB["MANUAL"] = {"rate": PRODUCTS_DB["ALFA_LUMP_UNSEC"]["rate"]}
 
 IN_LABELS = {"inflow"}
 OUT_LABELS = {"mandatory", "loan", "operating", "cash", "enforcement"}
@@ -38,8 +38,17 @@ GOV_MARKERS = ("уфк", "фнс", "фед", "казначейств", "нало
 BANK_MARKERS = ("банк", "сбер", "втб", "альфа", "т-банк", "тинькофф", "открытие", "райффайзен", "росбанк", "газпромбанк", "псб", "совкомбанк")
 AGGREGATED_MARKERS = ("эквайринг", "сбп", "торговый эквайринг", "ozon", "ozon банк", "wildberries", "яндекс", "яндекс.маркет")
 OWNER_MARKERS = ("дивиденд", "распределение прибыли", "на личную карту", "собственные средства ип", "выплата участнику", "выплата собственнику", "доход участника")
-CASH_MARKERS = ("снятие наличн", "выдача наличн", "под отчёт", "подотчёт", "банкомат", "выдача под", "на хозяйственные нужды")
-SELF_TRANSFER_MARKERS = ("собственных средств", "между своими", "между счетами", "на свой счёт", "на счёт в другом", "своего счёта", "в другой банк")
+# context/stop-rules.md: CASH_OUT counts operations classified as cash.
+# data/realistic/from_spec.py special_events labels explicit person transfers in cash_out/transit as cash.
+CASH_MARKERS = ("снятие наличн", "выдача наличн", "под отчёт", "подотчёт", "банкомат", "выдача под", "на хозяйственные нужды", "перевод физическому лицу")
+
+# ИСПРАВЛЕНИЕ 2: Добавлены маркеры "собственных денежных средств", "перевод собственных" и "на счет в другом"
+SELF_TRANSFER_MARKERS = (
+    "собственных средств", "собственных денежных средств", "перевод собственных",
+    "между своими", "между счетами", "на свой счёт", "на счёт в другом", "на счет в другом",
+    "своего счёта", "в другой банк"
+)
+
 LOAN_MARKERS = ("займ", "заём", "loan", "финансовая помощь")
 ENFORCE_MARKERS = ("инкассов", "исполнительн", "взыскан", "арест")
 SALARY_MARKERS = ("заработн", "оплата труда", "выплата зп", "аванс по заработ", "зп за", "перечисление зп")
@@ -63,19 +72,21 @@ def classify(amount, counterparty, purpose, client_inn=None, cp_inn=None):
     if _has_any(p, OWNER_MARKERS): return "owner"
     if _has_any(p, LOAN_MARKERS): return "financing"
     
-    if _is_government(cp) or "зарплатн" in cp or ("реестр" in p and "зарплат" in p): return "mandatory"
-    if _has_any(p, SALARY_MARKERS): return "mandatory"
-    if _has_any(p, TAX_MARKERS): return "mandatory"
-    if "аренд" in p: return "mandatory"
-    if "лизинг" in p: return "mandatory"
-    if _has_any(p, CREDIT_MARKERS): return "loan" 
+    # ИСПРАВЛЕНИЕ 1: Добавлена проверка amount < 0, чтобы приход от УФК не считался расходом.
+    # Также добавлено amount < 0 ко всем остальным обязательным расходам для надежности.
+    if amount < 0 and (_is_government(cp) or "зарплатн" in cp or ("реестр" in p and "зарплат" in p)): return "mandatory"
+    if amount < 0 and _has_any(p, SALARY_MARKERS): return "mandatory"
+    if amount < 0 and _has_any(p, TAX_MARKERS): return "mandatory"
+    if amount < 0 and "аренд" in p: return "mandatory"
+    if amount < 0 and "лизинг" in p: return "mandatory"
+    if amount < 0 and _has_any(p, CREDIT_MARKERS): return "loan" 
     
     if amount > 0: return "inflow"
     return "operating"
 
 def read_csv(path):
     content = None
-    for enc in ("utf-8", "cp1251"):
+    for enc in ("utf-8-sig", "cp1251"):
         try:
             with open(path, encoding=enc) as f: content = f.read()
             break
@@ -83,7 +94,7 @@ def read_csv(path):
     if content is None: raise ValueError(f"не смог прочитать {path}")
     lines = content.splitlines()
     if not lines: return []
-    if lines[0].strip().startswith("1CClientBankExchange"): return _read_1c(lines)
+    if next((line.strip() for line in lines if line.strip()), "").startswith("1CClientBankExchange"): return _read_1c(lines)
 
     header_idx = 0
     for i, line in enumerate(lines[:20]):
@@ -132,18 +143,68 @@ def read_csv(path):
     return rows
 
 def _read_1c(lines):
+    # 1CClientBankExchange 1.03: document fields span lines, while account sections
+    # identify the customer's settlement accounts and document accounts set direction.
     rows = []
+    accounts = set()
+    section = None
+    documents = []
+    fields = None
     for line in lines:
         line = line.strip()
-        if not line or "=" not in line or line.startswith("1CClientBankExchange"): continue
-        fields = {}
-        for part in line.split("|"):
-            if "=" in part: k, v = part.split("=", 1); fields[k.strip()] = v.strip()
-        if "Дата" not in fields or "Сумма" not in fields: continue
-        date_iso = _parse_date(fields.get("Дата", ""))
-        amt = _parse_amount(fields.get("Сумма", ""))
+        if not line: continue
+        if line.startswith("СекцияДокумент=") and "|" in line:
+            # The older single-line exporter stores signed amounts and uses | fields.
+            legacy = {}
+            for part in line.split("|"):
+                if "=" in part:
+                    key, value = part.split("=", 1)
+                    legacy[key.strip()] = value.strip()
+            date_iso = _parse_date(legacy.get("Дата", ""))
+            amt = _parse_amount(legacy.get("Сумма", ""))
+            if date_iso is not None and amt is not None:
+                rows.append({"date": date_iso, "amount": amt, "counterparty": legacy.get("Контрагент", ""), "purpose": legacy.get("Назначение", ""), "inn": None, "inn_client": None})
+            continue
+        if line.startswith("СекцияДокумент="):
+            fields = {}
+            section = "document"
+            continue
+        if line == "КонецДокумента":
+            if fields is not None: documents.append(fields)
+            fields = None
+            section = None
+            continue
+        if line == "СекцияРасчСчет":
+            section = "account"
+            continue
+        if line == "КонецРасчСчет":
+            section = None
+            continue
+        if "=" not in line: continue
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip()
+        if section == "document" and fields is not None:
+            fields[key] = value
+        elif key == "РасчСчет":
+            accounts.add(value)
+
+    for doc in documents:
+        payer_account = doc.get("ПлательщикСчет", "")
+        payee_account = doc.get("ПолучательСчет", "")
+        outgoing = payer_account in accounts
+        incoming = payee_account in accounts
+        if not outgoing and not incoming: continue
+        if outgoing and incoming:
+            # Both accounts belong to the customer; date fields disambiguate postings.
+            outgoing = bool(doc.get("ДатаСписано"))
+            incoming = not outgoing and bool(doc.get("ДатаПоступило"))
+            if not outgoing and not incoming: continue
+        date_field = "ДатаСписано" if outgoing else "ДатаПоступило"
+        date_iso = _parse_date(doc.get(date_field) or doc.get("Дата", ""))
+        amt = _parse_amount(doc.get("Сумма", ""))
         if date_iso is None or amt is None: continue
-        rows.append({"date": date_iso, "amount": amt, "counterparty": fields.get("Контрагент", "").strip(), "purpose": fields.get("Назначение", "").strip(), "inn": None, "inn_client": None})
+        counterparty = (doc.get("Получатель") or doc.get("Получатель1") or "") if outgoing else (doc.get("Плательщик") or doc.get("Плательщик1") or "")
+        rows.append({"date": date_iso, "amount": -abs(amt) if outgoing else abs(amt), "counterparty": counterparty, "purpose": doc.get("НазначениеПлатежа") or doc.get("Назначение", ""), "inn": None, "inn_client": None})
     return rows
 
 def _detect_delimiter(header):
@@ -171,52 +232,186 @@ def resolve_financing_pairs(rows, params=None):
     for r in rows:
         if r["label"] in ("inflow", "operating"): by_cp[r["counterparty"]].append(r)
     for cp, ops in by_cp.items():
-        if not (len(str(ops[0].get("inn") or "")) == 12 or _is_individual(cp.lower())): continue
-        ins = [o for o in ops if o["amount"] > 0]; outs = [o for o in ops if o["amount"] < 0]; used = set()
+        if not (any(len(str(op.get("inn") or "")) == 12 for op in ops) or _is_individual(cp.lower())): continue
+        ins = [o for o in ops if o["amount"] > 0]
+        outs = [o for o in ops if o["amount"] < 0]
+        candidates = []
         for i in ins:
-            d_i = datetime.fromisoformat(i["date"])
             for j in outs:
-                if id(j) in used: continue
-                d_j = datetime.fromisoformat(j["date"])
-                if abs((d_j - d_i).days) > days: continue
+                day_gap = abs((datetime.fromisoformat(i["date"]) - datetime.fromisoformat(j["date"])).days)
+                amount_gap = abs(i["amount"] + j["amount"])
                 big = max(abs(i["amount"]), abs(j["amount"]))
-                if big == 0: continue
-                if abs(abs(i["amount"]) - abs(j["amount"])) / big <= tol:
-                    i["label"] = "financing"; j["label"] = "financing"; used.add(id(j)); break
+                if day_gap <= days and big and amount_gap / big <= tol:
+                    candidates.append((day_gap, amount_gap, i["date"], j["date"], i["amount"], j["amount"], i, j))
+        # Stable edge order makes the one-to-one match independent of statement order.
+        candidates.sort(key=lambda edge: edge[:6])
+        used_in, used_out = set(), set()
+        for *_, i, j in candidates:
+            if id(i) in used_in or id(j) in used_out: continue
+            i["label"] = j["label"] = "financing"
+            used_in.add(id(i)); used_out.add(id(j))
 
 def annuity_factor(rate, term):
     i = rate / 12
     if i == 0: return term
     return (1 - (1 + i) ** -term) / i
 
-def select_instrument(need, questionnaire):
-    purpose = need.get("purpose", "")
-    years = questionnaire.get("years", "")
-    
-    if years == "меньше года":
-        return "MANUAL"
-        
-    if purpose == "кассовый разрыв": return "OVERDRAFT"
-    elif purpose == "оборудование": return "INVEST"
-    elif purpose == "сезон": return "RCL"
-    
-    # ИСПРАВЛЕНО: разовая закупка под контракт - это WORKING, а не NCL
-    elif purpose == "закупка под контракт": return "WORKING" 
-    
-    elif purpose == "рост": return "INVEST" 
-    elif purpose == "рефинансирование": return "REFI"
-    
-    return "WORKING"
+def _purpose_facts(need, purpose_code=None):
+    """Map stated use to catalogue goal/fit columns without reading client identity."""
+    code = str(purpose_code or need.get("purpose_code") or "").strip().lower()
+    purpose = str(need.get("purpose") or "").strip().lower()
+    if code.startswith("do_") or "рефинанс" in purpose:
+        return "debt_optimization", code or "do_refinance", "refinance_existing_business_loans"
+    if code.startswith("cg_") or "разрыв" in purpose:
+        return "cash_gap", code or "cg_customer_delay", "short_term_working_capital"
+    if code.startswith("ap_") or "оборудован" in purpose:
+        return "asset_purchase", code or "ap_machinery", "business_development"
+    if code.startswith("ct_") or "контракт" in purpose:
+        return "contract_financing", code or "ct_materials", "working_capital"
+    if code.startswith("wc_") or "сезон" in purpose or "закуп" in purpose:
+        return "working_capital", code or "wc_seasonal_stock", "working_capital"
+    if code.startswith("ex_") or "рост" in purpose:
+        return "business_expansion", code or "ex_capacity", "business_development"
+    return "unknown", code, "unknown"
 
-def check_restrictions(instrument_id, need):
-    purpose = need.get("purpose", "")
-    # RCL (возобновляемая линия) не подходит для капвложений (T12)
-    if instrument_id == "RCL" and purpose in ("оборудование", "рост"):
+
+def check_restrictions(instrument_id, need, purpose_code=None):
+    """Check bank_restricted_uses and bank_allowed_purposes in products.json."""
+    goal, code, use = _purpose_facts(need, purpose_code)
+    if code in {"dividends", "securities", "equity_contributions", "personal_withdrawals"}:
         return "RESTRICTED_PURPOSE"
-    # Овердрафт только для кассового разрыва
-    if instrument_id == "OVERDRAFT" and purpose != "кассовый разрыв":
+    if instrument_id == "MANUAL":
+        return None
+    product = PRODUCTS_DB[instrument_id]
+    allowed = {x.strip() for x in product["bank_allowed_purposes"].split(";")}
+    forbidden = {x.strip() for x in product["bank_restricted_uses"].split(";")}
+    # products.json: refinancing_as_per_offer is conditional, not a public
+    # permission to refinance with a general-purpose lump-sum loan.
+    if use == "refinance_existing_business_loans" and "refinancing_as_per_offer" in allowed and not need.get("personal_offer_confirmed"):
+        return "RESTRICTED_PURPOSE"
+    if code in forbidden or (use == "business_development" and "fixed_asset_investments" in forbidden):
+        return "RESTRICTED_PURPOSE"
+    # products.json: ALFA_LUMP_* allows refinancing_as_per_offer. A generic
+    # request has no documented personal offer, so eligibility is unproven.
+    if use == "refinance_existing_business_loans" and "refinancing_as_per_offer" in allowed:
+        return "RESTRICTED_PURPOSE"
+    compatible = {
+        "short_term_working_capital": {"short_term_working_capital", "working_capital", "working_capital_only",
+                                       "business_purchase_of_goods_equipment_services"},
+        "working_capital": {"working_capital", "working_capital_only", "short_term_working_capital",
+                            "business_purchase_of_goods_equipment_services"},
+        "business_development": {"business_development", "business_purchase_of_goods_equipment_services"},
+        "refinance_existing_business_loans": {"refinance_existing_business_loans", "refinancing_as_per_offer"},
+    }
+    if goal == "unknown" or not allowed.intersection(compatible.get(use, set()) | {"registered_business_general_purpose_per_contract"}):
         return "RESTRICTED_PURPOSE"
     return None
+
+
+def select_instrument(need, questionnaire, purpose_code=None, product_match=None):
+    """Filter catalogue restrictions, then rank explicit fit before broad goal fit."""
+    goal, code, use = _purpose_facts(need, purpose_code)
+    amount, term = need.get("amount_rub"), need.get("term_months")
+    years = questionnaire.get("years")
+    # questionnaire.years gives a range. Under one year cannot prove the 9-month
+    # minimum, so only zero-minimum products pass without a precise age.
+    age = (None if years in (None, "не указан", "") else 0 if years == "меньше года"
+           else 12 if years == "1–3" else 37 if years == "больше 3" else
+           round(float(years) * 12) if isinstance(years, (int, float)) else None)
+    collateral = questionnaire.get("collateral")
+    if isinstance(collateral, dict):
+        collateral = bool(collateral.get("type"))
+    rejected, candidates = {}, []
+    for product in _CATALOG:
+        pid = product["id"]
+        failures = []
+        if check_restrictions(pid, need, code): failures.append("purpose")
+        if amount is not None and not product["bank_min_amount_rub"] <= amount <= product["bank_max_amount_rub"]:
+            failures.append("amount_rub")
+        if term is not None and ((product["bank_min_term_months"] is not None and term < product["bank_min_term_months"])
+                                 or (product["bank_max_term_months"] is not None and term > product["bank_max_term_months"])):
+            failures.append("term_months")
+        if age is not None and age < product["bank_min_business_age_months"]:
+            failures.append("business_age_months")
+        if collateral is False and product["bank_collateral"] == "required":
+            failures.append("collateral")
+        if product["bank_base_rate_from_pct"] is None:
+            failures.append("public_base_rate_missing")
+        # products.json: ALFA_START bank_rate_unit=daily_pct. The existing
+        # annuity calculator accepts annual rates, so it cannot price Start.
+        if product["bank_rate_unit"] != "annual_pct":
+            failures.append("rate_unit_not_annual")
+        if failures:
+            rejected[pid] = failures
+            continue
+        fit = product.get("fit_" + code, 0)
+        goal_fit = product.get("goal_" + goal + "_score", 0)
+        # Priority: exact catalogue fit, then goal score, no obligatory pledge
+        # when pledge is unknown, then lower public base rate and stable id.
+        candidates.append(((-fit, -goal_fit, age is not None and age >= 9 and product["bank_min_business_age_months"] == 0,
+                            product["bank_collateral"] == "required" and collateral is None,
+                            product["bank_base_rate_from_pct"], pid), pid))
+    candidates.sort()
+    chosen = candidates[0][1] if candidates else "MANUAL"
+    if product_match is not None:
+        product_match.update({"goal": goal, "purpose_code": code, "use": use,
+                              "selected": chosen, "rejected": rejected,
+                              "eligible": [pid for _, pid in candidates]})
+    return chosen
+
+
+# A 20% annual-revenue gap is material enough to request reconciliation, while
+# normal collection timing and other-bank receipts can explain smaller gaps.
+# Compare only an overlapping 12-month statement and report, never metadata's
+# consistent flag. Source fields: from_spec.py lines.2110 and revenue_rub.
+DOSSIER_REVENUE_MISMATCH = 0.20
+
+
+def _inspect_dossier(statement_csv, inflow_total):
+    """Read only existing sibling documents; an isolated live CSV adds no findings."""
+    folder = Path(statement_csv).parent
+    names = ("balance_sheet", "income_statement", "financial_model", "business_plan")
+    docs = {}
+    for name in names:
+        path = folder / (name + ".json")
+        if path.is_file():
+            try:
+                docs[name] = json.loads(path.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                docs[name] = {"unreadable": True}
+    schedule = folder / "existing_debt_schedule.csv"
+    if not docs and not schedule.is_file():
+        return {"reasons": [], "missing": [], "evidence": {}, "business_plan": {}}
+    reasons, missing, evidence = [], [], {}
+    for name, doc in docs.items():
+        period = str(doc.get("period", ""))
+        as_of = str(doc.get("as_of", ""))
+        stale = bool(doc.get("stale"))
+        # Annual reporting older than the preceding complete year is stale.
+        # A year shift must work even if stale metadata was not recomputed.
+        if period.isdigit() and len(period) == 4 and as_of[:4].isdigit():
+            stale = stale or int(period) < int(as_of[:4]) - 1
+        evidence[name] = {"period": period, "stale": stale}
+        if stale:
+            reasons.append("STALE_DOC")
+            if "fresh_financials" not in missing: missing.append("fresh_financials")
+    if "financial_model" not in docs:
+        missing.append("financial_model")
+    income = docs.get("income_statement", {})
+    revenue = income.get("lines", {}).get("2110")
+    if isinstance(revenue, (int, float)) and inflow_total > 0:
+        gap = abs(revenue - inflow_total) / inflow_total
+        evidence["income_statement"].update({"revenue_2110_rub": revenue,
+                                              "statement_inflow_rub": round(inflow_total, 2),
+                                              "difference_pct": round(gap * 100, 2)})
+        if gap > DOSSIER_REVENUE_MISMATCH:
+            reasons.append("DOCS_MISMATCH")
+    plan = docs.get("business_plan", {})
+    if str(plan.get("purpose_code", "")).startswith("do_") and not schedule.is_file():
+        reasons.append("MISSING_SCHEDULE")
+        missing.append("debt_schedule")
+    return {"reasons": list(dict.fromkeys(reasons)), "missing": missing,
+            "evidence": evidence, "business_plan": plan}
 
 def calculate_scorecard(dscr, cv, debt_load, top_share, cash_gaps_count):
     score = 0
@@ -244,20 +439,31 @@ def calculate_scorecard(dscr, cv, debt_load, top_share, cash_gaps_count):
     return score, reasons
 
 def make_decision(score, stops, need, limit_now, limit_after, instrument, missing, reasons):
-    # ручной маршрут - сразу к менеджеру (перебивает любые стопы)
+    # context/stop-rules.md: поведенческий стоп имеет приоритет над документным.
+    behavioral = {"ENFORCEMENT", "CASH_OUT", "NOT_BUSINESS", "NO_FREE_CASHFLOW", "OVERDUE_DEBT", "TOO_YOUNG"}
+    if behavioral.intersection(stops):
+        return "нужен менеджер", missing, reasons
+    # context/stop-rules.md: неподходящая цель или возраст ведут к другому продукту.
+    if "RESTRICTED_PURPOSE" in stops:
+        return "лучше другой инструмент", missing, reasons
     if instrument == "MANUAL":
+        if not stops and not reasons:
+            reasons.append("MANUAL_REVIEW")
         return "нужен менеджер", missing, reasons
-
-    if stops:
-        if "SHORT_STATEMENT" in stops:
-            return "можно после шага", missing, reasons
-        return "нужен менеджер", missing, reasons
-
+    # context/stop-rules.md: короткая выписка и недостающие документы требуют шага.
+    if "SHORT_STATEMENT" in stops or missing:
+        if not stops and not reasons:
+            reasons.append("MISSING_DOCUMENTS")
+        return "можно после шага", missing, reasons
     if need["amount_rub"] <= limit_now:
         return "можно подавать", missing, reasons
     if need["amount_rub"] <= limit_after:
+        if not reasons:
+            reasons.append("LIMIT_AFTER_STEP")
         return "можно после шага", missing, reasons
-
+    # context/stop-rules.md, «Статус, если стопов нет»: выше обоих лимитов нужен менеджер.
+    if not reasons:
+        reasons.append("AMOUNT_EXCEEDS_LIMIT")
     return "нужен менеджер", missing, reasons
 
 def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None):
@@ -285,12 +491,15 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
     # Стопы
     stops = []
     if questionnaire.get("form") not in ("ИП", "ООО"): stops.append("NOT_BUSINESS")
-    if questionnaire.get("years") == "меньше года" or n < p["min_months"]: stops.append("TOO_YOUNG")
+    # context/stop-rules.md: возраст бизнеса берём из анкеты, длину выписки отмечаем отдельно.
+    if questionnaire.get("years") == "меньше года": stops.append("TOO_YOUNG")
     if n < p["full_months"] or len(rows) < p["min_ops"]: stops.append("SHORT_STATEMENT")
     if flow <= 0: stops.append("NO_FREE_CASHFLOW")
     if any(r["label"] == "enforcement" for r in rows): stops.append("ENFORCEMENT")
     cash_total = -sum(r["amount"] for r in rows if r["label"] == "cash")
-    if inflow_total > 0 and cash_total / inflow_total > p["cash_share"]: stops.append("CASH_OUT")
+    # context/stop-rules.md: CASH_OUT считаем независимо от свободного потока.
+    cash_share = cash_total / inflow_total if inflow_total > 0 else 0.0
+    if cash_share > p["cash_share"]: stops.append("CASH_OUT")
 
     # Причины
     reasons = []
@@ -316,9 +525,14 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
     if "SHORT_STATEMENT" in stops:
         missing.insert(0, "statement_12m")
 
+    dossier = _inspect_dossier(statement_csv, inflow_total)
     # Выбор продукта
-    instrument = select_instrument(need, questionnaire)
-    restriction = check_restrictions(instrument, need)
+    reasons.extend(dossier["reasons"])
+    missing.extend(dossier["missing"])
+    purpose_code = dossier["business_plan"].get("purpose_code")
+    product_match = {}
+    instrument = select_instrument(need, questionnaire, purpose_code, product_match)
+    restriction = check_restrictions(instrument, need, purpose_code)
     if restriction:
         stops.append(restriction)
 
@@ -330,7 +544,8 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
     # Считаем платеж по запрашиваемому кредиту
     requested_payment = need["amount_rub"] / a if a > 0 else 0
     # DSCR = Свободный поток (уже с вычетом старых кредитов) / Платеж по новому кредиту
-    dscr = round(flow / requested_payment, 2) if requested_payment > 0 else 0
+    # context/core.md: порог 1.25 применяется до округления показателя для экрана.
+    dscr = flow / requested_payment if requested_payment > 0 else 0
 
     # Лимит (сколько МОЖЕМ выдать безопасно при DSCR 1.25)
     safe_payment = max(flow, 0.0) / p["dscr_min"]
@@ -371,5 +586,12 @@ def score(statement_csv, need, questionnaire, confirmed_fields=None, params=None
             "months": n,
             "operations": len(rows),
             "flow_by_month": {m: round(v) for m, v in m_flow.items()},
+            "dossier": dossier["evidence"],
+            "product_match": product_match,
+            "cash_share": cash_share,
+            "dscr": dscr,
+            "top_share": top_share,
+            "limit_now_rub": round(limit_now),
+            "limit_after_rub": round(limit_after),
         },
     }
