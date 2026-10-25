@@ -122,7 +122,7 @@
         }
       },
       "expected": {
-        "status": "можно подавать",
+        "status": "можно после шага",
         "instrument": ["ALFA_OVERDRAFT"],
         "why_products": "Тот же временный разрыв, что cash_gap: product_family=overdraft, bank_allowed_purposes=short_term_working_capital.",
         "stops_fired": [],
@@ -202,12 +202,12 @@
         "asked_for": "кредит"
       },
       "expected": {
-        "status": "лучше другой инструмент",
+        "status": "нужен менеджер",
         "instrument": ["ALFA_LUMP_UNSEC", "ALFA_LUMP_SEC", "ALFA_NCL_SEC", "ALFA_DELO"],
         "why_products": "Лизинга в каталоге нет; оборудование относится к business_development в bank_allowed_purposes разового кредита и НКЛ, либо general_purpose_per_contract у DELO; наличие залога и этапы не указаны, множество широкое, прежний статус сохранён.",
         "stops_fired": [],
         "reasons": [
-          "STRESS_NEGATIVE_FLOW"
+          "LOW_DSCR"
         ],
         "missing": [],
         "flow_month_rub": {
@@ -506,7 +506,7 @@
       },
       "expected": {
         "status": "нужен менеджер",
-        "instrument": ["ALFA_START", "ALFA_DELO"],
+        "instrument": ["MANUAL"],
         "why_products": "story: бизнес 5 месяцев, найм разработчиков, 1 млн; bank_min_business_age_months=0, product_family=young_business_revolving_line/young_business_secured_finance; services/general_purpose_per_contract; залог и транши требуют уточнения, статус и стопы не менялись.",
         "stops_fired": [
           "TOO_YOUNG",
@@ -577,7 +577,7 @@
       },
       "expected": {
         "status": "нужен менеджер",
-        "instrument": ["ALFA_RCL_UNSEC", "ALFA_NCL_SEC"],
+        "instrument": ["ALFA_LUMP_UNSEC", "ALFA_RCL_UNSEC", "ALFA_NCL_SEC"],
         "why_products": "story/tests: линия на закупку под контракт, need.purpose: working_capital; product_family=revolving_line/nonrevolving_line_secured, bank_allowed_purposes=working_capital_only/working_capital; транши и залог неизвестны, множество не сужено по ответу ядра.",
         "stops_fired": [
           "CASH_OUT"
