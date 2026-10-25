@@ -1,7 +1,7 @@
 // Playwright CLI, isolated QA database on 4175, actual unchanged Liza core.
 // Preparatory data uses HTTP endpoints, never patched decisions or UI flags.
 // prettier-ignore
-async (page) => {
+async (page, managerCookie = null) => {
   const base = "http://localhost:4175";
   const check = (ok, text) => {
     if (!ok) throw new Error(text);
@@ -135,7 +135,23 @@ async (page) => {
     path: "output/playwright/mvp2-manager-corrected.png",
     fullPage: true,
   });
-  checks.push("manager booking; no contract or cabinet");
+  if(managerCookie) {
+    const manager=await page.context().browser().newContext();
+    try {
+      await manager.addCookies([managerCookie]);
+      const managerPage=await manager.newPage();await managerPage.goto(base+'/bank');
+      const form=managerPage.locator('form[data-application-id="'+a.id+'"]');
+      await form.locator('select[name=decision]').selectOption('APPROVED');
+      await form.locator('textarea[name=reason]').fill('Проверены документы и результаты оценки; одобрено менеджером.');
+      const decision=managerPage.waitForResponse(r=>r.url().includes('/mvp2/manager/'+a.id+'/decision')&&r.status()===200);
+      await form.getByRole('button',{name:'Зафиксировать решение',exact:true}).click();await decision;
+      await page.reload();await page.getByRole('heading',{name:'Ваш кредит одобрен',exact:true}).waitFor();
+      const approved=await result(a.id);check(approved.lifecycle==='MANAGER_APPROVED'&&approved.decision==='APPROVED','Manager decision not persisted');
+      await page.screenshot({path:'output/playwright/recovery-manager-approved.png',fullPage:true});
+    } finally {await manager.close();}
+    checks.push('manager UI records decision; client resumes same application');
+  }
+  checks.push("manager booking; no contract or cabinet before final decision");
   a = await prepare(3000000, "9900000001", false);
   check(a.decision === "ADDITIONAL_DATA_REQUIRED", JSON.stringify(a));
   await button("Дополнить сведения").click();

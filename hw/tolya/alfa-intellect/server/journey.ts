@@ -11,8 +11,13 @@ import {
   saveState,
   logout,
 } from "./store";
-import { onboardingSchema, questionnaireInputSchema } from "../shared/mvp2";
-import { createMvp } from "./mvp2";
+import {
+  onboardingSchema,
+  questionnaireInputSchema,
+  initialQuestionnaire,
+  type MvpApplication,
+} from "../shared/mvp2";
+import { createMvp, updateMvp } from "./mvp2";
 
 db.exec(`CREATE TABLE IF NOT EXISTS mvp2_guests(user_id TEXT PRIMARY KEY REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS mvp2_journey(user_id TEXT PRIMARY KEY REFERENCES users(id),data TEXT NOT NULL);`);
@@ -77,10 +82,17 @@ export function saveDraft(req: Request, res: Response) {
       "SELECT version,data FROM mvp2_draft_buffers WHERE application_id=?",
     )
     .get(a.id);
+  const oldBuffer =
+    previous?.version === value.version
+      ? JSON.parse(String(previous.data))
+      : null;
   if (
-    value.sequence !== undefined &&
-    previous?.version === value.version &&
-    (JSON.parse(previous.data as string).sequence ?? 0) > value.sequence
+    oldBuffer &&
+    ((value.sequence === undefined && oldBuffer.sequence !== undefined) ||
+      (value.sequence !== undefined &&
+        ((oldBuffer.sequence ?? -1) > value.sequence ||
+          (oldBuffer.sequence === value.sequence &&
+            JSON.stringify(oldBuffer) !== JSON.stringify(value)))))
   ) {
     res
       .status(409)
@@ -231,9 +243,16 @@ export function saveOnboarding(req: Request, res: Response) {
     .strict()
     .parse(req.body);
   const uid = res.locals.userId;
+  const previous = readJourney(uid);
   if (
-    value.sequence !== undefined &&
-    (readJourney(uid).onboardingSequence ?? 0) > value.sequence
+    (value.sequence === undefined &&
+      previous.onboardingSequence !== undefined) ||
+    (value.sequence !== undefined &&
+      ((previous.onboardingSequence ?? 0) > value.sequence ||
+        ((previous.onboardingSequence ?? -1) === value.sequence &&
+          (JSON.stringify(previous.onboarding) !==
+            JSON.stringify(value.answers) ||
+            previous.onboardingStep !== value.step))))
   ) {
     res
       .status(409)
@@ -241,7 +260,7 @@ export function saveOnboarding(req: Request, res: Response) {
     return;
   }
   writeJourney(uid, {
-    ...readJourney(uid),
+    ...previous,
     onboarding: value.answers,
     onboardingStep: value.step,
     ...(value.sequence !== undefined
@@ -253,7 +272,26 @@ export function saveOnboarding(req: Request, res: Response) {
 export function completeOnboarding(req: Request, res: Response) {
   const answers = onboardingSchema.parse(req.body.answers),
     uid = res.locals.userId;
+  const position = readJourney(uid);
+  const sequence = z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .parse(req.body.sequence);
+  if (
+    sequence !== undefined &&
+    (sequence !== position.onboardingSequence ||
+      JSON.stringify(position.onboarding) !== JSON.stringify(answers))
+  ) {
+    res.status(409).json({
+      error:
+        "Ответы изменились. Сохраните актуальные ответы и повторите подбор.",
+    });
+    return;
+  }
   const existing = readJourney(uid).applicationId;
+  let draft: MvpApplication | undefined;
   if (existing) {
     const saved = db
       .prepare(
@@ -268,12 +306,33 @@ export function completeOnboarding(req: Request, res: Response) {
       });
       return;
     }
+    if (saved) draft = JSON.parse(saved.data as string);
   }
-  const a = createMvp(db, uid, answers),
+  const next = initialQuestionnaire(answers);
+  const a =
+      draft && JSON.stringify(draft.onboarding) !== JSON.stringify(answers)
+        ? updateMvp(
+            db,
+            uid,
+            draft.id,
+            draft.version,
+            {
+              ...draft.questionnaire,
+              purpose: answers.purpose,
+              amount: next.amount,
+              term: answers.term,
+              usage: answers.usage,
+              repayment: answers.repayment,
+              productId: next.productId,
+            },
+            answers,
+          )
+        : createMvp(db, uid, answers),
     s = stateOf(uid);
   s.profile.mvp2Answers = a.onboarding;
   saveState(uid, s);
   writeJourney(uid, {
+    ...position,
     onboarding: a.onboarding,
     onboardingStep: 2,
     applicationId: a.id,

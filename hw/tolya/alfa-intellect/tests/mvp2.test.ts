@@ -278,6 +278,11 @@ test("exactly 3m: real persisted pipeline, separate signature/activation, one di
       .expect(200)
   ).body;
   assert.equal(a.lifecycle, "SIGNED_DEMO");
+  assert.ok(
+    a.financial!.limit <=
+      products.find((p) => p.id === a.questionnaire.productId)!.max,
+    "Displayed available amount exceeds product cap",
+  );
   assert.equal(
     db
       .prepare(
@@ -812,6 +817,7 @@ test(
       httpCoreClient.score = original;
       process.env.TEAM_API_URL = process.env.MVP2_LIVE_CORE_URL;
       for (const [amount, product, decision] of [
+        [2999999, "WORKING", "APPROVED"],
         [3000000, "WORKING", "APPROVED"],
         [3000001, "WORKING", "MANAGER_REVIEW_REQUIRED"],
         [1000000, "REFI", "APPROVED"],

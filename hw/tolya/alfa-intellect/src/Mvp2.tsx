@@ -26,6 +26,10 @@ import {
   sectionDescriptions,
 } from "./ApplicationWorkspace";
 import { JourneyProgress } from "./JourneyProgress";
+import {
+  emptyOnboarding,
+  onboardingStepValid,
+} from "../shared/onboarding-state";
 import { useWorkspace, WorkspaceContext } from "./context";
 import { Chat } from "./Chat";
 import { Illustration } from "./Illustration";
@@ -52,16 +56,7 @@ import {
 } from "../shared/mvp2";
 import "./mvp2.css";
 
-const defaults: OnboardingAnswers = {
-  industry: "",
-  age: "",
-  purpose: "",
-  amountRange: "",
-  amount: null,
-  term: 12,
-  usage: "",
-  repayment: "",
-};
+const defaults = emptyOnboarding;
 function Choice({
   label,
   value,
@@ -236,49 +231,24 @@ export function OnboardingFields({
   );
 }
 export function MvpOnboarding({
-  initial,
-  initialStep = 0,
-  onProgress,
+  value: answers,
+  step,
+  onChange,
+  onMove,
   busy = false,
-  onDone,
   go,
 }: {
-  initial?: OnboardingAnswers;
-  initialStep?: number;
+  value: OnboardingAnswers;
+  step: number;
   busy?: boolean;
-  onProgress?: (v: OnboardingAnswers, step: number) => void;
-  onDone: (v: OnboardingAnswers) => void | Promise<void>;
+  onChange: (v: OnboardingAnswers) => void;
+  onMove: (step: number) => void | Promise<void>;
   go: (p: string) => void;
 }) {
-  const [answers, setAnswers] = useState<OnboardingAnswers>(() => {
-      try {
-        return initial || defaults;
-      } catch {
-        return defaults;
-      }
-    }),
-    [step, setStep] = useState(initialStep);
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [step]);
-  function move(next: number) {
-    setStep(next);
-    onProgress?.(answers, next);
-  }
-  function update(a: OnboardingAnswers) {
-    setAnswers(a);
-    onProgress?.(a, step);
-  }
-  const valid =
-    step === 0
-      ? !!answers.industry && !!answers.age
-      : step === 1
-        ? !!answers.purpose &&
-          (answers.amountRange === "Не знаю" ||
-            (typeof answers.amount === "number" &&
-              answers.amount >= catalogAmount.min &&
-              answers.amount <= catalogAmount.max))
-        : !!answers.usage && !!answers.repayment;
+  const valid = onboardingStepValid(answers, step);
   return (
     <div className="onboarding journey-onboarding">
       <header className="public-header">
@@ -312,18 +282,28 @@ export function MvpOnboarding({
               подобрать подходящий кредитный инструмент.
             </p>
           )}
-          <OnboardingFields value={answers} onChange={update} group={step} />
+          <fieldset disabled={busy} className="onboarding-fieldset">
+            <OnboardingFields
+              value={answers}
+              onChange={onChange}
+              group={step}
+            />
+          </fieldset>
           <div className="mvp-actions">
             <Button
               secondary
               disabled={busy}
-              onClick={() => (step ? move(step - 1) : go("/"))}
+              onClick={(e) => {
+                if (e.detail < 2) step ? void onMove(step - 1) : go("/");
+              }}
             >
               Назад
             </Button>
             <Button
               disabled={!valid || busy}
-              onClick={() => (step < 2 ? move(step + 1) : void onDone(answers))}
+              onClick={(e) => {
+                if (e.detail < 2) void onMove(step + 1);
+              }}
             >
               Продолжить <ArrowRight size={16} />
             </Button>
@@ -2692,6 +2672,7 @@ export function MvpManager() {
       {items.map((a) => (
         <form
           key={a.id}
+          data-application-id={a.id}
           onSubmit={(e) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);

@@ -16,7 +16,7 @@ import type { Profile } from "../shared/types";
 import { PhoneInput, normalizePhone } from "./phone";
 import { Preparation } from "./Preparation";
 import { PREPARATION_KEY, readPreparation } from "./preparation-state";
-import { MvpOnboarding } from "./Mvp2";
+import { JourneyOnboarding } from "./JourneyOnboarding";
 export const sectors = [
   "Оптовая торговля",
   "Розничная торговля и маркетплейсы",
@@ -330,10 +330,14 @@ export function Onboarding({
     }
   }
   if (!login && !auth && !preparing)
-    return <MvpOnboarding initial={p.mvp2Answers} go={go} onDone={answers => {
-      setP({...base, stage:"operating", sector:answers.industry, ageBand:answers.age, intent:"Подобрать финансирование", result:"Не указан", debt:"Не уверен", mvp2Answers:answers});
-      setAuth(true);
-    }} />;
+    return (
+      <JourneyOnboarding
+        go={go}
+        onComplete={async () => {
+          await onAuth();
+        }}
+      />
+    );
   if (preparing)
     return (
       <Preparation
@@ -386,7 +390,12 @@ export function Onboarding({
                   />
                 </div>
               </div>
-              <Illustration group="docs" name="questionnaire" size={48} decorative />
+              <Illustration
+                group="docs"
+                name="questionnaire"
+                size={48}
+                decorative
+              />
               <h1>{titles[0]}</h1>
               <p className="lead">{titles[1]}</p>
               <div className="onboarding-fields">

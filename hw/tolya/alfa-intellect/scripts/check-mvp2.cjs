@@ -66,6 +66,16 @@ async page => {
   await field("Точная сумма").fill("3000000");await field("Точный срок").fill("12");await button("Проверить заявку").click();
   await page.locator(".client-dossier").waitFor();
   await page.screenshot({path:"output/playwright/mvp2-dossier.png",fullPage:true});
+  const beforeSubmit=(await(await page.request.get(base+'/api/mvp2/applications')).json())[0];
+  let failSubmit=true;
+  await page.route('**/api/mvp2/applications/*/submit',route=>failSubmit
+    ?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Временная ошибка подачи. Повторите попытку.'})})
+    :route.continue());
+  await button('Подать заявку на рассмотрение').click();await page.getByRole('alert').filter({hasText:'Временная ошибка подачи. Повторите попытку.'}).waitFor();
+  check(page.url()===base+'/apply'&&await page.locator('.client-dossier').count()===1,'Failed submission reset route or dossier');
+  const afterError=(await(await page.request.get(base+'/api/mvp2/applications/'+beforeSubmit.id)).json());
+  check(afterError.lifecycle==='DRAFT'&&afterError.questionnaire.accounts[0].documentId===beforeSubmit.questionnaire.accounts[0].documentId,'Failed submission lost draft or file');
+  failSubmit=false;
   await button("Подать заявку на рассмотрение").click();await page.getByRole("heading",{name:"Рассматриваем заявку",exact:true}).waitFor();await page.screenshot({path:"output/playwright/ui3-processing.png",fullPage:true});await page.getByRole("heading",{name:"Ваш кредит одобрен",exact:true}).waitFor({timeout:45000});
   await noCabinet();check((await (await page.request.get(base+"/api/config")).json()).cabinetAvailable===false,"Approval alone opened cabinet");
   const a=(await (await page.request.get(base+"/api/mvp2/applications")).json())[0];
@@ -84,5 +94,5 @@ async page => {
   check((await (await page.request.get(base+"/api/state")).json()).cabinet.facility.applicationId===a.id,"Active facility not integrated");
   await page.screenshot({path:"output/playwright/mvp2-cabinet.png",fullPage:true});
   check(errors.length===0,errors.join("; "));
-  return {checks:"PASS",applicationId:a.id,core:"real liza /score",scenarios:["clean landing","anonymous 7-question onboarding","onboarding reload","direct URL gates","catalog/manual selection","60/40 embedded agent","inline errors","CSV","persisted dossier","exact 3m approval","decision chat and return","mobile","PDF preview","signature without premature access","one disbursement","existing cabinet after activation"],errors};
+  return {checks:"PASS",applicationId:a.id,core:"real liza /score",scenarios:["clean landing","anonymous 7-question onboarding","onboarding reload","direct URL gates","catalog/manual selection","60/40 embedded agent","inline errors","CSV","persisted dossier","submission error keeps draft, file and ID; retry","exact 3m approval","decision chat and return","mobile","PDF preview","signature without premature access","one disbursement","existing cabinet after activation"],errors};
 }

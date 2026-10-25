@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { MvpOnboarding } from "./Mvp2";
 import { api, workspaceHeaders } from "./api";
-import type { OnboardingAnswers } from "../shared/mvp2";
-import { onboardingSchema } from "../shared/mvp2";
+import { onboardingSchema, type OnboardingAnswers } from "../shared/mvp2";
+import {
+  restoreOnboarding,
+  onboardingStepValid,
+  type OnboardingPosition,
+} from "../shared/onboarding-state";
 import { ProductPreparation } from "./ProductPreparation";
+
 export function JourneyOnboarding({
   go,
   onComplete,
@@ -11,34 +16,45 @@ export function JourneyOnboarding({
   go: (path: string) => void;
   onComplete: () => Promise<void>;
 }) {
-  const [saved, setSaved] = useState<any>(),
+  const [model, setModel] = useState<OnboardingPosition>(),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
+    [moving, setMoving] = useState(false),
+    [preparing, setPreparing] = useState(false),
     [stage, setStage] = useState(0);
-  const queue = useRef(Promise.resolve()),
-    sequence = useRef(0),
+  const current = useRef<OnboardingPosition | undefined>(undefined),
+    queue = useRef(Promise.resolve()),
     latest = useRef<{
       answers: OnboardingAnswers;
       step: number;
       sequence: number;
-    } | null>(null);
+    } | null>(null),
+    navigation = useRef(false);
+  function adopt(next: OnboardingPosition) {
+    current.current = next;
+    setModel(next);
+  }
   useEffect(() => {
+    let active = true;
     void api("/journey")
       .then(async (position) => {
+        if (!active) return;
         if (position.applicationId) {
-          const current = await api(
-            `/mvp2/applications/${position.applicationId}`,
-          );
-          if (current.lifecycle !== "DRAFT" || current.error) {
+          const a = await api(`/mvp2/applications/${position.applicationId}`);
+          if (!active) return;
+          if (a.lifecycle !== "DRAFT" || a.error) {
             await onComplete();
-            go("/apply");
+            if (active) go("/apply");
             return;
           }
         }
-        sequence.current = position.onboardingSequence ?? 0;
-        setSaved(position);
+        if (active) adopt(restoreOnboarding(position));
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        if (active) setError(e.message);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   useEffect(() => {
     const preserve = () => {
@@ -57,61 +73,96 @@ export function JourneyOnboarding({
     addEventListener("pagehide", preserve);
     return () => removeEventListener("pagehide", preserve);
   }, []);
-  if (busy) return <ProductPreparation stage={stage} />;
-  if (!saved)
+  function persist(answers: OnboardingAnswers, step: number) {
+    const value = {
+      answers,
+      step,
+      sequence: (current.current?.sequence ?? 0) + 1,
+    };
+    current.current = { ...value };
+    latest.current = value;
+    const request = queue.current
+      .catch(() => {})
+      .then(() => api("/journey/onboarding", value, "PUT"))
+      .then(() => {});
+    queue.current = request.catch(() => {});
+    return request;
+  }
+  function update(answers: OnboardingAnswers) {
+    if (!current.current || navigation.current) return;
+    const step = current.current.step;
+    const request = persist(answers, step);
+    const sequence = current.current!.sequence;
+    adopt({ ...current.current!, answers, step });
+    void request.then(
+      () => {
+        if (current.current?.sequence === sequence) setError("");
+      },
+      (e) => {
+        if (current.current?.sequence === sequence) setError(e.message);
+      },
+    );
+  }
+  async function move(next: number) {
+    const value = current.current;
+    if (!value || navigation.current) return;
+    if (next > value.step && !onboardingStepValid(value.answers, value.step))
+      return;
+    navigation.current = true;
+    setMoving(true);
+    setError("");
+    try {
+      // The rendered position advances only after the complete current snapshot is stored.
+      await persist(value.answers, Math.min(2, next));
+      if (next <= 2)
+        adopt({ ...current.current!, answers: value.answers, step: next });
+      else {
+        onboardingSchema.parse(value.answers);
+        setPreparing(true);
+        setStage(1);
+        await api("/journey/complete", {
+          answers: value.answers,
+          sequence: current.current!.sequence,
+        });
+        latest.current = null;
+        setStage(2);
+        await onComplete();
+        go("/apply");
+      }
+    } catch (e) {
+      // Keep the same form and answers; a failed save is not a completed transition.
+      void persist(value.answers, value.step).catch(() => {});
+      adopt({ ...current.current!, answers: value.answers, step: value.step });
+      setError((e as Error).message);
+    } finally {
+      navigation.current = false;
+      setMoving(false);
+      setPreparing(false);
+    }
+  }
+  if (preparing) return <ProductPreparation stage={stage} />;
+  if (!model)
     return (
       <main className="loading-screen">
         <p role="status">{error || "Восстанавливаем ответы…"}</p>
+        {error && (
+          <button onClick={() => location.reload()}>Повторить загрузку</button>
+        )}
       </main>
     );
   return (
     <>
       <MvpOnboarding
-        initial={saved.onboarding ?? undefined}
-        initialStep={saved.onboardingStep ?? 0}
+        value={model.answers}
+        step={model.step}
         go={go}
-        busy={busy}
-        onProgress={(answers, step) => {
-          setSaved((previous: any) => ({
-            ...previous,
-            onboarding: answers,
-            onboardingStep: step,
-          }));
-          const payload = { answers, step, sequence: ++sequence.current };
-          latest.current = payload;
-          queue.current = queue.current
-            .catch(() => {})
-            .then(() => api("/journey/onboarding", payload, "PUT"))
-            .then(() => {})
-            .catch((e) => setError(e.message));
-        }}
-        onDone={async (answers) => {
-          setSaved((previous: any) => ({
-            ...previous,
-            onboarding: answers,
-            onboardingStep: 2,
-          }));
-          setBusy(true);
-          setError("");
-          try {
-            onboardingSchema.parse(answers);
-            setStage(0);
-            await queue.current;
-            setStage(1);
-            await api("/journey/complete", { answers });
-            setStage(2);
-            await onComplete();
-            go("/apply");
-          } catch (e) {
-            setError((e as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
+        busy={moving}
+        onChange={update}
+        onMove={move}
       />
       {error && (
         <div className="toast" role="alert">
-          {error}
+          {error} Повторите переход — введённые ответы сохранены в форме.
         </div>
       )}
     </>

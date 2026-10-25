@@ -279,6 +279,7 @@ export function updateMvp(
 ) {
   const q = questionnaireSchema.parse(raw),
     a = mvpGet(db, id, uid);
+  const previousOnboarding = hash(a.onboarding);
   requireVersion(a, version);
   if (a.lifecycle !== "DRAFT" && a.decision !== "ADDITIONAL_DATA_REQUIRED")
     throw new ApplicationError(
@@ -320,6 +321,32 @@ export function updateMvp(
     save(db, a, "mvp2_edit", "client");
     const s = stateFor(db, uid);
     syncSelection(s, a);
+    if (previousOnboarding !== hash(a.onboarding)) {
+      s.profile.mvp2Answers = a.onboarding;
+      if (
+        db
+          .prepare("SELECT name FROM sqlite_master WHERE name='mvp2_journey'")
+          .get()
+      ) {
+        const row = db
+          .prepare("SELECT data FROM mvp2_journey WHERE user_id=?")
+          .get(uid);
+        const position = row ? JSON.parse(String(row.data)) : null;
+        if (
+          position?.applicationId === id &&
+          hash(position.onboarding) !== hash(a.onboarding)
+        )
+          db.prepare("UPDATE mvp2_journey SET data=? WHERE user_id=?").run(
+            JSON.stringify({
+              ...position,
+              onboarding: a.onboarding,
+              onboardingStep: 2,
+              onboardingSequence: (position.onboardingSequence ?? 0) + 1,
+            }),
+            uid,
+          );
+      }
+    }
     saveState(db, uid, s);
   });
   return a;
@@ -1018,6 +1045,7 @@ async function processMvp(
       limit: Math.max(
         0,
         Math.min(
+          p.max,
           Number(core.limit_now_rub),
           (flow / dscrMin / payment) * q.amount,
         ),
