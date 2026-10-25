@@ -21,6 +21,7 @@ async page => {
   await button("Продолжить").click();await savedStep;
   await page.reload();await field("Для чего нужны деньги?").waitFor();
   await field("Для чего нужны деньги?").selectOption("Текущие расходы");
+  check(await page.getByText(/Предварительно подберём инструмент/).count()===0,"Removed onboarding copy is visible");
   await field("Какая сумма необходима?").fill("3");
   await button("Продолжить").click();
   await field("Как будете использовать деньги?").selectOption("Всё сразу");
@@ -28,6 +29,7 @@ async page => {
   await button("Продолжить").click();
   await page.getByRole("heading",{name:"Оборотный кредит",exact:true}).waitFor({timeout:20000});
   await noCabinet();check(await field("Номер телефона").count()===0,"Registration is still mandatory");
+  check(await page.locator(".journey-stage small,.journey-stage p,.origination-header > span").count()===0,"Removed application header copy is visible");
   for(const old of ["/cabinet","/cabinet-v2","/efficiency","/chat","/profile","/calculations","/demo"]){const r=await page.request.get(base+old,{maxRedirects:0});check(r.status()===303,"Old route not gated: "+old);}
   check(await page.getByText("ПРЕДВАРИТЕЛЬНЫЙ ПОДБОР · НЕ ОДОБРЕНИЕ").count()===1,"Recommendation missing");
   await page.request.patch(base+"/api/preferences",{data:{tourDone:true}});
@@ -39,13 +41,20 @@ async page => {
   check(await field("Сообщение финансовому помощнику").count()===1,"No permanent right-hand agent");
   await page.screenshot({path:"output/playwright/mvp2-questionnaire-corrected.png",fullPage:true});
   await button("Сохранить и продолжить").click();check(await page.getByRole("alert").count()>0,"Empty fields accepted without inline errors");
-  await field("Проверка компании в синтетическом реестре").check();await field("Обработка и финансовый анализ загруженных CSV").check();await field("Проверка синтетической кредитной истории").check();
+  const consent=field("Даю согласие на обработку данных, проверку компании и кредитной истории, а также анализ выписок.");
+  check(await page.getByRole("group",{name:"Согласие на обработку данных",exact:true}).getByRole("checkbox").count()===1,"Consent is not a single checkbox");
+  const consentSaved=checked=>page.waitForResponse(r=>r.url().endsWith("/api/journey/draft")&&["registry","financial","bki"].every(key=>r.request().postDataJSON()?.questionnaire?.consents?.[key]===checked)&&r.status()===200);
+  let savedConsent=consentSaved(true);await consent.check();await savedConsent;
+  savedConsent=consentSaved(false);await consent.uncheck();await savedConsent;
+  savedConsent=consentSaved(true);await consent.check();await savedConsent;
   const draftSaved=page.waitForResponse(r=>r.url().endsWith("/api/journey/draft")&&r.request().postDataJSON()?.questionnaire?.inn==="99000"&&r.status()===200);
   await field("ИНН компании").fill("99000");await draftSaved;await page.reload();await field("ИНН компании").waitFor();check(await field("ИНН компании").inputValue()==="99000","Incomplete field not restored from server");
+  check(await consent.isChecked(),"Combined consent not restored after reload");
   check(await page.evaluate(()=>![...Object.values(localStorage),...Object.values(sessionStorage)].some(v=>v.includes("99000"))),"Bank details persisted in browser storage");
   await field("ИНН компании").fill("9900000001");await button("Найти компанию").click();await page.getByRole("heading",{name:"ООО «Мок Мастерская»",exact:true}).waitFor();
   await field("Сведения компании верны").check();await field("Я уполномочен оформлять заявку от имени компании").check();await button("Сохранить и продолжить").click();
   await field("Банк").fill("Учебный банк");
+  check(await page.getByText(/Загрузите CSV-выписки за последние 12 месяцев/).count()===1,"Client-facing statement hint missing");
   await field("CSV-выписка счёта 1").setInputFiles("fixtures/mvp2-cashflow.csv");
   await page.getByText(/60 операций · проверено/).waitFor();
   await field("Все основные поступления и расходы есть в выписках?").selectOption("Да");await button("Сохранить и продолжить").click();

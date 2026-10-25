@@ -45,3 +45,21 @@ test("Desktop columns preserve 60/40; animation numbers use white without blendi
   assert.match(rule, /color: #fff/);
   assert.match(rule, /mix-blend-mode: normal/);
 });
+test("Origination copy omits the requested redundant headings and explains statement uploads", () => {
+  const form = readFileSync(
+    new URL("../src/Mvp2.tsx", import.meta.url),
+    "utf8",
+  );
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  for (const removed of [
+    "Предварительно подберём инструмент.",
+    "Ответы и текущий этап сохраняются автоматически в этой сессии.",
+    "ОФОРМЛЕНИЕ КРЕДИТА",
+    "По каждому счёту загрузите CSV.",
+  ])
+    assert.ok(!form.includes(removed), removed);
+  assert.ok(!app.includes("<span>Оформление финансирования</span>"));
+  assert.match(form, /Загрузите CSV-выписки за последние 12 месяцев/);
+  assert.match(form.replace(/\s+/g, " "), /начните с выписок за 6 месяцев/);
+  assert.match(form, /<DataConsent/);
+});

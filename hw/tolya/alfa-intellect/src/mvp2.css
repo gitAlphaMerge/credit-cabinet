@@ -307,10 +307,6 @@
   border-bottom: 1px solid var(--theme-line);
   flex-shrink: 0;
 }
-.origination-header > span {
-  color: var(--theme-muted);
-  font-size: var(--text-sm);
-}
 .origination > .mvp2 {
   overflow: auto;
   flex: 1;
@@ -474,9 +470,6 @@
   .origination-header {
     padding: 16px;
     gap: 12px;
-  }
-  .origination-header > span {
-    display: none;
   }
   .application-agent {
     min-height: 440px;

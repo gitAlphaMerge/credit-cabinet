@@ -309,7 +309,6 @@ export function App() {
             <button className="unstyled" onClick={() => go("/")}>
               <Brand />
             </button>
-            <span>Оформление финансирования</span>
             <ThemeToggle />
           </header>
           <Mvp2 />

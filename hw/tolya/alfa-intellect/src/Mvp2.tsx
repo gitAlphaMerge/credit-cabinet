@@ -11,6 +11,7 @@ import { api, money, date, ApiError } from "./api";
 import { Button, Brand } from "./ui";
 import { NumericInput } from "./NumericInput";
 import { OnboardingAmount } from "./OnboardingAmount";
+import { DataConsent } from "./DataConsent";
 import { ApplicationAgent } from "./ApplicationAgent";
 import { useWorkspace, WorkspaceContext } from "./context";
 import { Chat } from "./Chat";
@@ -202,10 +203,6 @@ export function MvpOnboarding({
               ][step]
             }
           </h1>
-          <p className="lead">
-            Предварительно подберём инструмент. Это ещё не оценка
-            платёжеспособности и не одобрение.
-          </p>
           <OnboardingFields value={answers} onChange={update} group={step} />
           <div className="mvp-actions">
             <Button
@@ -428,33 +425,10 @@ function QuestionnaireFields({
         0,
       )}
       {show("consents", 0) && (
-        <fieldset className="mvp-span">
-          <legend>Согласия для учебного сценария</legend>
-          {(
-            [
-              ["registry", "Проверка компании в синтетическом реестре"],
-              ["financial", "Обработка и финансовый анализ загруженных CSV"],
-              ["bki", "Проверка синтетической кредитной истории"],
-            ] as const
-          ).map(([key, label]) => (
-            <label className="mvp-check" key={key}>
-              <input
-                type="checkbox"
-                checked={q.consents[key]}
-                onChange={(e) =>
-                  setQ({
-                    ...q,
-                    consents: { ...q.consents, [key]: e.target.checked },
-                  })
-                }
-              />
-              {label}
-            </label>
-          ))}
-          <small>
-            Это не юридически утверждённые банковские формы согласий.
-          </small>
-        </fieldset>
+        <DataConsent
+          value={q.consents}
+          onChange={(consents) => setQ({ ...q, consents })}
+        />
       )}
       {text(
         "actualIndustry",
@@ -465,9 +439,9 @@ function QuestionnaireFields({
         <div className="mvp-span">
           <h3>Расчётные счета · {q.accounts.length}</h3>
           <p>
-            По каждому счёту загрузите CSV. Желательно 12 полных месяцев,
-            минимум 6 для базовой проверки; ядро может запросить более полную
-            историю. Допустимы два счёта в одном банке.
+            Загрузите CSV-выписки за последние 12 месяцев по всем расчётным
+            счетам. Если полной истории пока нет, начните с выписок за 6
+            месяцев.
           </p>
           {q.accounts.map((account, i) => (
             <section key={account.id} className="mvp-account">
@@ -1041,7 +1015,6 @@ export function Mvp2({
   return (
     <main className="financing-page page-wrap funding-mvp mvp2">
       <header className="journey-stage">
-        <small>ОФОРМЛЕНИЕ КРЕДИТА</small>
         <h1>
           {{
             recommendation: "Предварительный подбор",
@@ -1059,7 +1032,6 @@ export function Mvp2({
             scenario: "Новые условия",
           }[view] || "Оформление финансирования"}
         </h1>
-        <p>Ответы и текущий этап сохраняются автоматически в этой сессии.</p>
       </header>
       {error && (
         <div className="mvp-error" role="alert">
