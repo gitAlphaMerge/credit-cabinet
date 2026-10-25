@@ -17,6 +17,7 @@ import {
   type Questionnaire,
   type OnboardingAnswers,
   type MissingField,
+  type MissingDataItem,
   type Decision,
 } from "../shared/mvp2";
 import type { AppState, Selection } from "../shared/types";
@@ -84,7 +85,9 @@ export function mvpGet(
     .get(id);
   if (!row || (!manager && row.user_id !== uid))
     throw new ApplicationError(404, "Заявка не найдена");
-  return JSON.parse(row.data as string);
+  const application = JSON.parse(row.data as string) as MvpApplication;
+  application.missing = missingDataFor(application);
+  return application;
 }
 const legacyStatus = (a: MvpApplication) =>
   a.lifecycle === "ACTIVE"
@@ -110,6 +113,7 @@ function save(
   event: string,
   actor = "system",
 ) {
+  a.missing = missingDataFor(a);
   a.updatedAt = new Date().toISOString();
   const old = db
     .prepare("SELECT status,user_id FROM applications WHERE id=?")
@@ -324,6 +328,17 @@ export function updateMvp(
     a.recommendedProductId = recommend(a.onboarding);
   }
   const now = new Date().toISOString();
+  const changedKeys = (Object.keys(q) as (keyof Questionnaire)[]).filter(
+    (key) => hash(q[key]) !== hash(a.questionnaire[key]),
+  );
+  const changedRequests = changedKeys.flatMap((key) =>
+    key === "accounts"
+      ? q.accounts.filter((account) =>
+          hash(account) !== hash(a.questionnaire.accounts.find((old) => old.id === account.id)),
+        ).map((account) => `accounts:${account.id}:`)
+      : [key],
+  );
+  a.missing = mergeMissingData(a.missing, [], changedRequests);
   for (const k of Object.keys(q) as (keyof Questionnaire)[])
     if (hash(q[k]) !== hash(a.questionnaire[k]))
       a.provenance[k] = { source: "USER_CONFIRMED", confirmed: true, at: now };
@@ -400,7 +415,9 @@ export async function registryMvp(
   );
   fresh.questionnaire.companyConfirmed = false;
   if (fresh.decision === "ADDITIONAL_DATA_REQUIRED")
-    fresh.missing = missingFor(fresh, statementsOf(db, id));
+    fresh.missing = mergeMissingData(
+      fresh.missing, missingFor(fresh, statementsOf(db, id)), ["inn"],
+    );
   fresh.provenance.company = {
     source: "REGISTRY",
     confirmed: false,
@@ -471,6 +488,15 @@ export function attachStatement(
     );
   const statement = { ...s, id: randomUUID() };
   account.documentId = statement.id;
+  if (a.decision === "ADDITIONAL_DATA_REQUIRED") {
+    const refreshed = missingFor(a, [
+      ...statementsOf(db, id).filter((item) => item.accountId !== s.accountId),
+      statement,
+    ]);
+    const uploaded = refreshed.some((item) => item.key === "accounts")
+      ? [`accounts:${s.accountId}:`] : ["accounts"];
+    a.missing = mergeMissingData(a.missing, refreshed, uploaded);
+  }
   a.version++;
   a.provenance["accounts." + s.accountId] = {
     source: "CSV",
@@ -520,6 +546,9 @@ export function removeStatement(
   if (!existing) throw new ApplicationError(404, "Выписка не найдена");
   for (const account of a.questionnaire.accounts)
     if (account.documentId === statementId) account.documentId = "";
+  if (a.decision === "ADDITIONAL_DATA_REQUIRED")
+    a.missing = mergeMissingData(a.missing, missingFor(a,
+      statementsOf(db, id).filter((item) => item.id !== statementId)));
   a.version++;
   transaction(db, () => {
     db.prepare(
@@ -532,14 +561,109 @@ export function removeStatement(
   });
   return a;
 }
+const criticalMissing = new Set([
+  "inn", "companyConfirmed", "authorized", "consents", "accounts",
+  "debtReconciled",
+]);
+const limitMissing = new Set([
+  "customerContractAmount", "customerContractMonths", "reconciliationReference",
+  "debt", "monthlyDebt", "monthlyLeasing",
+]);
+const genericMissingEffect = "Сведения уточнят расчёт и помогут банку рассмотреть заявку.";
+const criticalMissingEffect = "После этого банк сможет продолжить проверку заявки.";
+
+/** Return the same persisted requests, with one identity and explanation per cause. */
+export function missingDataFor(a: MvpApplication): MissingDataItem[] {
+  const unique = new Map<string, MissingDataItem>();
+  for (const field of a.missing) {
+    const id = field.id ?? `${field.key}:${hash(field.label).slice(0, 12)}`;
+    const limitAfter = a.financial?.limitAfter;
+    const calculatedLimit = ["customerContractAmount", "customerContractMonths", "reconciliationReference"].includes(field.key);
+    const canUseLimit = !field.effect || field.effect === genericMissingEffect;
+    const limitNow = a.financial?.limitNow ?? a.financial?.limit ?? 0;
+    const effect =
+      calculatedLimit && canUseLimit && Number.isFinite(limitAfter) &&
+      limitAfter! > limitNow
+        ? `Расчётный лимит сейчас ${Math.round(limitNow).toLocaleString("ru-RU")} ₽. После подтверждения всех запрошенных сведений он может вырасти до ${Math.round(limitAfter!).toLocaleString("ru-RU")} ₽. Итог проверит банк.`
+        : field.effect ?? (criticalMissing.has(field.key)
+          ? criticalMissingEffect : genericMissingEffect);
+    unique.set(id, {
+      ...field,
+      id,
+      title: field.title ?? field.label,
+      why: field.why ?? field.label,
+      effect,
+      status: field.status ?? "todo",
+    });
+  }
+  const priority = (item: MissingDataItem) =>
+    criticalMissing.has(item.key) ? 0 : limitMissing.has(item.key) ? 1 : 2;
+  const impact = (item: MissingDataItem) =>
+    ["customerContractAmount", "customerContractMonths", "reconciliationReference"].includes(item.key)
+      ? Math.max(0, (a.financial?.limitAfter ?? 0) - (a.financial?.limitNow ?? a.financial?.limit ?? 0))
+      : 0;
+  return [...unique.values()].sort(
+    (x, y) =>
+      Number(x.status !== "todo") - Number(y.status !== "todo") ||
+      priority(x) - priority(y) || impact(y) - impact(x) || x.section - y.section ||
+      x.id.localeCompare(y.id),
+  );
+}
+
+/** Keep closed requests and manager additions when automatic checks run again. */
+export function mergeMissingData(
+  previous: MissingField[],
+  current: MissingField[],
+  uploadedKeys: string[] = [],
+  checked = false,
+): MissingDataItem[] {
+  const old = missingDataFor({ missing: previous } as MvpApplication);
+  const fresh = missingDataFor({ missing: current } as MvpApplication);
+  const uploaded = (item: MissingDataItem) => uploadedKeys.some(
+    (key) => key === item.key || item.id.startsWith(key),
+  );
+  const byId = new Map(old.map((item) => [item.id, item]));
+  const freshIds = new Set(fresh.map((item) => item.id));
+  for (const item of fresh) {
+    const earlier = byId.get(item.id);
+    byId.set(item.id, {
+      ...item,
+      status: earlier?.status === "skipped" ? "skipped" :
+        earlier && uploaded(item) ? "uploaded" : "todo",
+    });
+  }
+  for (const item of old) {
+    if (freshIds.has(item.id)) continue;
+    byId.set(item.id, {
+      ...item,
+      status: item.status === "skipped" || item.status === "accepted"
+        ? item.status
+        : uploaded(item) || (checked && !item.id.startsWith("manager:"))
+          ? "uploaded" : item.status,
+    });
+  }
+  return missingDataFor({ missing: [...byId.values()] } as MvpApplication);
+}
+
 export function missingFor(
   a: MvpApplication,
   statements: Statement[],
 ): MissingField[] {
   const q = normalizeQuestionnaire(a.questionnaire),
     missing: MissingField[] = [];
-  const add = (key: string, label: string, section: number) =>
-    missing.push({ key, label, section });
+  const add = (key: string, label: string, section: number, id?: string) =>
+    missing.push({
+      key, label, section, id,
+      why: section === 0
+        ? "Эти сведения нужны для обязательных проверок компании и заявителя."
+        : section === 1
+          ? "Выписки нужны для оценки оборота и доступного лимита."
+          : section === 2
+            ? "Текущие платежи учитываются при расчёте долговой нагрузки."
+            : section === 3
+              ? "Предстоящие операции влияют на денежный поток."
+              : "Условие продукта или параметры запроса требуют уточнения.",
+    });
   if (!a.company) add("inn", "Найдите компанию по ИНН", 0);
   if (!q.companyConfirmed || q.registryError)
     add(
@@ -574,6 +698,7 @@ export function missingFor(
         "accounts",
         `Добавьте банк и CSV для счёта ${q.accounts.indexOf(account) + 1}`,
         1,
+        `accounts:${account.id}:file`,
       );
       continue;
     }
@@ -592,12 +717,14 @@ export function missingFor(
         "accounts",
         `Счёт ${account.bank}: нужна непрерывная история не менее 6 полных месяцев; желательно 12`,
         1,
+        `accounts:${account.id}:history`,
       );
     if ((months.at(-1) ?? "") < dateMonth(day(), -1).slice(0, 7))
       add(
         "accounts",
         `Счёт ${account.bank}: добавьте выписку до последнего полного месяца`,
         1,
+        `accounts:${account.id}:recent`,
       );
   }
   if (q.complete === "unknown") add("complete", "Уточните полноту выписок", 1);
@@ -674,9 +801,7 @@ export function missingFor(
   for (let section = 0; section < 5; section++)
     for (const [key, label] of Object.entries(questionnaireErrors(q, section)))
       add(key, label, section);
-  return missing.filter(
-    (m, i) => missing.findIndex((x) => x.key === m.key) === i,
-  );
+  return missingDataFor({ missing } as MvpApplication);
 }
 function unresolvedCoreFields(
   keys: string[],
@@ -690,12 +815,14 @@ function unresolvedCoreFields(
           key: "customerContractAmount",
           label:
             "Укажите сумму договора с основным заказчиком (со слов заявителя)",
+          why: "Для расчёта возможного лимита нужны условия договора с основным заказчиком.",
           section: 4,
         });
       if (!q.customerContractMonths)
         result.push({
           key: "customerContractMonths",
           label: "Укажите срок договора с основным заказчиком в месяцах",
+          why: "Срок договора влияет на оценку будущих поступлений.",
           section: 4,
         });
     } else if (key === "reconciliation_act") {
@@ -704,6 +831,7 @@ function unresolvedCoreFields(
           key: "reconciliationReference",
           label:
             "Укажите номер и дату акта сверки с основным заказчиком (со слов заявителя)",
+          why: "Акт сверки помогает проверить расчёты с основным заказчиком.",
           section: 4,
         });
     } else
@@ -713,6 +841,7 @@ function unresolvedCoreFields(
           key === "statement_12m"
             ? "Нужна выписка за 12 месяцев"
             : "Ядру нужны дополнительные подтверждения. Добавьте уточнённую историю CSV; автоматический разбор иных документов не поддерживается.",
+        why: "Истории операций пока недостаточно для оценки денежного потока.",
         section: 1,
       });
   }
@@ -753,6 +882,16 @@ export function submitMvp(
     !a.error
   )
     throw new ApplicationError(409, "Заявка уже подана");
+  if (a.decision === "ADDITIONAL_DATA_REQUIRED" &&
+      a.missing.some((item) => item.status === "skipped") &&
+      !a.missing.some((item) => (item.status ?? "todo") === "todo")) {
+    a.decision = "MANAGER_REVIEW_REQUIRED";
+    a.lifecycle = a.meeting ? "MEETING_SCHEDULED" : "DECIDED";
+    a.reasons = ["Заявка передана с текущими данными. Недостающие сведения увидит менеджер."];
+    a.version++;
+    save(db, a, "mvp2_submit_with_missing", "client");
+    return a;
+  }
   a.questionnaire = questionnaireSchema.parse(a.questionnaire);
   const issues = questionnaireErrors(a.questionnaire, 4);
   if (
@@ -812,6 +951,30 @@ export function resumeMvp(
 export async function waitMvp(id: string) {
   await running.get(id);
 }
+
+/** Record a client's explicit choice to continue without one requested item. */
+export function skipMissingMvp(
+  db: DatabaseSync, uid: string, id: string, version: number, missingId: string,
+) {
+  return transaction(db, () => {
+    const a = mvpGet(db, id, uid);
+    requireVersion(a, version);
+    if (a.decision !== "ADDITIONAL_DATA_REQUIRED")
+      throw new ApplicationError(409, "Дополнение сведений недоступно");
+    const item = a.missing.find((field) => field.id === missingId);
+    if (!item || item.status !== "todo")
+      throw new ApplicationError(404, "Пункт запроса не найден");
+    item.status = "skipped";
+    if (!missingDataFor(a).some((field) => field.status === "todo")) {
+      a.decision = "MANAGER_REVIEW_REQUIRED";
+      a.lifecycle = a.meeting ? "MEETING_SCHEDULED" : "DECIDED";
+      a.reasons = ["Заявка передана с текущими данными. Недостающие сведения увидит менеджер."];
+    }
+    a.version++;
+    save(db, a, "mvp2_missing_skipped", "client");
+    return a;
+  });
+}
 async function processMvp(
   db: DatabaseSync,
   uid: string,
@@ -828,6 +991,11 @@ async function processMvp(
     save(db, a, "mvp2_stage");
   };
   const finish = (decision: Decision, reasons: string[]) => {
+    if (decision === "ADDITIONAL_DATA_REQUIRED" &&
+        !missingDataFor(a).some((item) => item.status === "todo")) {
+      decision = "MANAGER_REVIEW_REQUIRED";
+      reasons = ["Сведения переданы с текущими данными. Дальше заявку рассмотрит менеджер."];
+    }
     if (
       decision === "ADDITIONAL_DATA_REQUIRED" &&
       !a.stages.some((s) => s.status === "waiting-data")
@@ -839,6 +1007,11 @@ async function processMvp(
     }
     a.decision = decision;
     a.reasons = reasons;
+    if (decision !== "ADDITIONAL_DATA_REQUIRED")
+      a.missing = a.missing.map((item) => ({
+        ...item,
+        status: item.status === "uploaded" ? "accepted" : item.status,
+      }));
     a.lifecycle =
       decision === "MANAGER_REVIEW_REQUIRED" && a.meeting
         ? "MEETING_SCHEDULED"
@@ -853,7 +1026,7 @@ async function processMvp(
     const statements = statementsOf(db, id).filter((s) =>
       q.accounts.some((x) => x.documentId === s.id),
     );
-    a.missing = missingFor(a, statements);
+    a.missing = mergeMissingData(a.missing, missingFor(a, statements), [], true);
     stage(0, true);
     stage(1);
     if (
@@ -892,11 +1065,11 @@ async function processMvp(
       return;
     }
     if ([aml, bankruptcy, fns, bki].some((x) => x.status === "unavailable")) {
-      a.missing.push({
+      a.missing = mergeMissingData(a.missing, [{
         key: "inn",
         label: "Уточните ИНН: синтетические проверки неполны",
         section: 0,
-      });
+      }]);
       stage(1, true);
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Недостаточно сведений для обязательных проверок.",
@@ -906,7 +1079,7 @@ async function processMvp(
     stage(1, true);
     stage(2);
     const aggregate = aggregateStatements(statements);
-    if (a.missing.length) {
+    if (missingDataFor(a).some((item) => item.status === "todo")) {
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Дополните указанные сведения. Остальная анкета сохранена.",
       ]);
@@ -917,7 +1090,7 @@ async function processMvp(
       (q.loans === "yes" ? (q.monthlyDebt ?? 0) : 0) +
       (q.leasing === "yes" ? (q.monthlyLeasing ?? 0) : 0);
     if (Math.abs(claimed - aggregate.debt) > 1 && !q.debtReconciled) {
-      a.missing = [
+      a.missing = mergeMissingData(a.missing, [
         {
           key: "debtReconciled",
           label: `В CSV найдено ${aggregate.debt.toLocaleString("ru-RU")} ₽ платежей в месяц; вы указали ${claimed.toLocaleString("ru-RU")} ₽. Подтвердите итоговую нагрузку.`,
@@ -941,7 +1114,7 @@ async function processMvp(
               },
             ]
           : []),
-      ];
+      ], [], true);
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Сверьте долговые платежи с выписками.",
       ]);
@@ -1067,6 +1240,9 @@ async function processMvp(
           (flow / dscrMin / payment) * q.amount,
         ),
       ),
+      limitNow: Number(core.limit_now_rub),
+      limitAfter: Number.isFinite(Number(core.limit_after_rub))
+        ? Number(core.limit_after_rub) : undefined,
       months: aggregate.months.length,
       debtInCsv: aggregate.debt,
       uncoveredDebt: uncovered,
@@ -1079,14 +1255,14 @@ async function processMvp(
     };
     const stops = core.stops_fired as string[];
     if (stops.includes("SHORT_STATEMENT")) {
-      a.missing = [
+      a.missing = mergeMissingData(a.missing, [
         {
           key: "accounts",
           label:
             "Ядру нужна более полная выписка: загрузите 12 месяцев истории с операциями",
           section: 1,
         },
-      ];
+      ], [], true);
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Финансовая история недостаточна для расчёта ядра.",
       ]);
@@ -1105,7 +1281,7 @@ async function processMvp(
     // Core missing items remain concrete follow-ups, never fictitious confirmations.
     const coreFollowups = unresolvedCoreFields(core.missing as string[], q);
     if (coreFollowups.length) {
-      a.missing = coreFollowups;
+      a.missing = mergeMissingData(a.missing, coreFollowups, [], true);
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Ядро выявило недостаточность подтверждённых финансовых данных.",
       ]);
@@ -1245,6 +1421,11 @@ export function managerMvp(
       );
     a.decision = decision;
     a.reasons = [reason];
+    if (decision !== "ADDITIONAL_DATA_REQUIRED")
+      a.missing = a.missing.map((item) => ({
+        ...item,
+        status: item.status === "uploaded" ? "accepted" : item.status,
+      }));
     a.lifecycle =
       decision === "APPROVED"
         ? "MANAGER_APPROVED"
@@ -1258,7 +1439,14 @@ export function managerMvp(
           422,
           "Выберите конкретное поле для дозапроса",
         );
-      a.missing = [{ ...field, label: `${field.label}: ${reason}` }];
+      a.missing = mergeMissingData(a.missing, [{
+        ...field,
+        id: `manager:${randomUUID()}`,
+        title: field.label,
+        why: reason,
+        effect: "После уточнения менеджер сможет продолжить рассмотрение заявки.",
+        status: "todo",
+      }]);
     }
     a.version++;
     save(db, a, "mvp2_manager_decision", "manager");

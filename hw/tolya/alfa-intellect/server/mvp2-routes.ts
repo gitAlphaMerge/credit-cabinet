@@ -16,6 +16,7 @@ import {
   attachStatement,
   removeStatement,
   submitMvp,
+  skipMissingMvp,
   resumeMvp,
   seedSlots,
   bookMvp,
@@ -62,7 +63,7 @@ mvp2Router.get("/applications", (_req, res) =>
         "SELECT d.data FROM mvp2_dossiers d JOIN applications a ON a.id=d.application_id WHERE a.user_id=? ORDER BY a.created_at DESC,a.id",
       )
       .all(res.locals.userId)
-      .map((r) => JSON.parse(r.data as string)),
+      .map((r) => mvpGet(db, (JSON.parse(r.data as string) as {id: string}).id, res.locals.userId)),
   ),
 );
 mvp2Router.post("/applications", (req, res) =>
@@ -162,6 +163,12 @@ mvp2Router.post("/applications/:id/submit", (req, res) =>
       ),
     ),
 );
+mvp2Router.post("/applications/:id/missing/:missingId/skip", (req, res) =>
+  res.json(skipMissingMvp(
+    db, res.locals.userId, id(req), version.parse(req.body.version),
+    z.string().min(1).max(160).parse(req.params.missingId),
+  )),
+);
 mvp2Router.post("/applications/:id/alternative", (req, res) =>
   res
     .status(202)
@@ -240,7 +247,7 @@ mvp2Router.get("/manager", (_req, res) =>
     db
       .prepare("SELECT data FROM mvp2_dossiers")
       .all()
-      .map((r) => JSON.parse(r.data as string))
+      .map((r) => mvpGet(db, (JSON.parse(r.data as string) as {id: string}).id, res.locals.userId, true))
       .filter((a) => a.lifecycle === "MEETING_SCHEDULED"),
   ),
 );

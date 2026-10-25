@@ -5,7 +5,7 @@ export function journeyView(
   a: Pick<
     MvpApplication,
     "id" | "lifecycle" | "decision" | "contract" | "error"
-  >,
+  > & { missing?: MvpApplication["missing"] },
   position?: { applicationId?: string; view?: string },
 ): string {
   if (a.lifecycle === "ACTIVE") return "decision";
@@ -28,7 +28,9 @@ export function journeyView(
     return saved === "contract" ? "contract" : "receive";
   if (saved === "dossier" && a.decision) return "dossier";
   if (a.decision === "ADDITIONAL_DATA_REQUIRED")
-    return saved === "supplement" ? "supplement" : "decision";
+    return saved === "supplement" &&
+      (!("missing" in a) || a.missing?.some((item) => item.status !== "uploaded" && item.status !== "accepted" && item.status !== "skipped"))
+      ? "supplement" : "decision";
   if (a.decision === "MANAGER_REVIEW_REQUIRED")
     return saved === "meeting" ? "meeting" : "decision";
   if (a.decision === "APPROVED") {

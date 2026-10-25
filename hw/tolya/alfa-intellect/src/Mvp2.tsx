@@ -27,6 +27,7 @@ import {
 } from "./ApplicationWorkspace";
 import { JourneyProgress } from "./JourneyProgress";
 import { journeyView, journeySection } from "../shared/journey-view";
+import { MissingDataStep } from "./MissingDataStep";
 import { CreditContract } from "./CreditDocument";
 import { CreditMotion } from "./CreditMotion";
 import { labelCode, safeDisplayText, visibleError } from "./application-client";
@@ -357,7 +358,7 @@ function Summary({ a, products }: { a: MvpApplication; products: Product[] }) {
               <dd>{labelCode(p?.id)}</dd>
       </div>
       <div>
-        <dt>{a.decision === "APPROVED" ? "Одобрено" : "Запрошено"}</dt>
+        <dt>Сумма заявки</dt>
         <dd>{q.amount > 0 ? money(q.amount) : "Уточните сумму в анкете"}</dd>
       </div>
       <div>
@@ -627,7 +628,7 @@ function QuestionnaireFields({
         company.okved &&
         industryFromOkved(company.okved) !== catalogIndustry && (
           <p className="mvp-span mvp-notice">
-            Вы указали сферу «{catalogIndustry}», в реестре — «
+            Вы указали сферу «{catalogIndustry}», в реестре указано «
             {company.activity || industryFromOkved(company.okved)}». Уточните
             фактическую деятельность ниже.
           </p>
@@ -659,7 +660,7 @@ function QuestionnaireFields({
               <p>
                 В интернет-банке выберите расчётный счёт, период и экспорт CSV.
                 Нужны дата, сумма, контрагент и назначение платежа. Поступления
-                со знаком плюс, расходы — минус. PDF не подходит для
+                со знаком плюс, расходы со знаком минус. PDF не подходит для
                 автоматического анализа.
               </p>
             </details>
@@ -738,7 +739,7 @@ function QuestionnaireFields({
             <p className="mvp-notice" role="status">
               Вы пока не загрузили выписки по всем счетам. Без них система не
               сможет завершить финансовую оценку. Можно продолжить заполнение и
-              подать неполную заявку — после отправки мы укажем, какие выписки
+              подать неполную заявку. После отправки мы укажем, какие выписки
               нужно добавить.
             </p>
           )}
@@ -860,7 +861,7 @@ function QuestionnaireFields({
         text("futurePeriod", "Период будущих операций", 3)}
       {section === 3 && (
         <small className="mvp-span">
-          Будущие операции — ваша неподтверждённая оценка. Они сохраняются
+          Будущие операции основаны на вашей оценке. Они сохраняются
           отдельно от выписок и сами по себе не увеличивают доступную сумму
           кредита.
         </small>
@@ -1078,7 +1079,7 @@ export function Mvp2({
     [error, setError] = useState(""),
     [registryStatus, setRegistryStatus] = useState({
       status: "empty",
-      message: "Введите ИНН — сведения о компании появятся автоматически.",
+      message: "Введите ИНН, сведения о компании появятся автоматически.",
     }),
     [uploadErrors, setUploadErrors] = useState<Record<string, string>>({}),
     [uploadingAccount, setUploadingAccount] = useState(""),
@@ -1106,6 +1107,12 @@ export function Mvp2({
     formPanel = useRef<HTMLElement>(null),
     mainPanel = useRef<HTMLElement>(null),
     loaded = useRef(false);
+  const activeMissing = a?.missing.find((item) => (item.status ?? "todo") === "todo");
+  useEffect(() => {
+    if (view !== "supplement") return;
+    if (!activeMissing) setView("decision");
+    else setSection(activeMissing.section);
+  }, [view, activeMissing?.id, activeMissing?.section]);
   aRef.current = a;
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
@@ -1208,7 +1215,7 @@ export function Mvp2({
       setSection(journeySection(next.id, position, serverBuffer));
       dirty.current = true;
       if (next.decision) {
-        if (position.view === "supplement") setView("supplement");
+        if (position.view === "supplement") setView(journeyView(next, position));
       } else if (position.applicationId !== next.id) setView("questionnaire");
     }
     try {
@@ -1225,7 +1232,7 @@ export function Mvp2({
         if (buffer.onboarding && next.lifecycle === "DRAFT")
           setAnswers(buffer.onboarding);
         setSection(journeySection(next.id, position, buffer));
-        setView(next.decision ? "supplement" : "questionnaire");
+        setView(next.decision ? journeyView(next, { applicationId: next.id, view: "supplement" }) : "questionnaire");
         dirty.current = true;
         await api(
           "/journey/draft",
@@ -1540,7 +1547,7 @@ export function Mvp2({
     if (!q.inn) {
       setRegistryStatus({
         status: "empty",
-        message: "Введите ИНН — сведения о компании появятся автоматически.",
+        message: "Введите ИНН, сведения о компании появятся автоматически.",
       });
       return;
     }
@@ -1693,7 +1700,7 @@ export function Mvp2({
       )}
       {view === "start" && (
         <section className="funding-surface">
-          <h2>Сначала задача — затем условия</h2>
+          <h2>Сначала задача, затем условия</h2>
           <p>
             Уточним семь ответов и подберём один из шести инструментов.
             Финансовую доступность проверим отдельно.
@@ -1727,7 +1734,7 @@ export function Mvp2({
               Цель: {answers.purpose}.{" "}
               {recommend(answers) === q.productId
                 ? "Выбран подходящий по назначению инструмент."
-                : "Вы выбрали другой инструмент — проверьте соответствие цели."}
+                : "Вы выбрали другой инструмент. Проверьте соответствие цели."}
             </li>
             <li>
               {productIssues(q).join(" ") ||
@@ -1888,7 +1895,7 @@ export function Mvp2({
                 : view === "dossier"
                   ? "Проверьте сведения перед отправкой. Любой раздел можно изменить."
                   : view === "supplement"
-                    ? "Нужны только перечисленные сведения — остальные ответы уже сохранены."
+                    ? "Нужны только перечисленные сведения. Остальные ответы уже сохранены."
                     : sectionDescriptions[section]
             }
             navigation={
@@ -2008,7 +2015,7 @@ export function Mvp2({
                       form={"mvp-questionnaire-" + a.id}
                     >
                       {view === "supplement"
-                        ? "Отправить на повторную проверку"
+                        ? "Сохранить пункт"
                         : section === 4
                           ? "Проверить заявку"
                           : section === 1 &&
@@ -2058,7 +2065,7 @@ export function Mvp2({
                 </ol>
                 <p className="mvp-notice">
                   Помощник объяснит вопросы и формат выписок. После проверки
-                  покажем решение — сейчас никаких дополнительных банковских
+                  покажем результат. Сейчас никаких дополнительных банковских
                   проверок не выполняется.
                 </p>
               </div>
@@ -2109,12 +2116,10 @@ export function Mvp2({
                     await save();
                     if (view === "supplement") {
                       const current = aRef.current!;
-                      adopt(
-                        await api(path + "/submit", {
-                          version: current.version,
-                        }),
-                      );
-                      setView("processing");
+                      if (!current.missing.some((item) => (item.status ?? "todo") === "todo")) {
+                        const next = adopt(await api(path + "/submit", { version: current.version }));
+                        setView(derivedView(next));
+                      } else setSection(current.missing.find((item) => (item.status ?? "todo") === "todo")!.section);
                     } else if (section < 4)
                       await transition("questionnaire", section + 1);
                     else await transition("dossier");
@@ -2152,18 +2157,23 @@ export function Mvp2({
                     </ul>
                   </div>
                 )}
-                {view === "supplement" &&
-                  a.missing.map((m) => (
-                    <p className="mvp-notice" key={m.key}>
-                      {safeDisplayText(m.label)}
-                    </p>
-                  ))}
+                {view === "supplement" && (
+                  <MissingDataStep items={a.missing} onSkip={(missingId) =>
+                    void run(async () => {
+                      const current = aRef.current!;
+                      const next = adopt(await api(`${path}/missing/${encodeURIComponent(missingId)}/skip`, {
+                        version: current.version,
+                      }));
+                      if (next.decision !== "ADDITIONAL_DATA_REQUIRED") setView(derivedView(next));
+                    })
+                  } />
+                )}
                 <QuestionnaireFields
                   catalog={products}
                   q={q}
                   setQ={draftQ}
-                  section={section}
-                  missing={view === "supplement" ? a.missing : undefined}
+                  section={view === "supplement" ? activeMissing?.section : section}
+                  missing={view === "supplement" ? activeMissing ? [activeMissing] : [] : undefined}
                   upload={upload}
                   uploadingAccount={uploadingAccount}
                   removeStatement={removeFile}
@@ -2247,7 +2257,7 @@ export function Mvp2({
             }))}
           />
           <p>
-            Заявка и документы сохранены. Можно обновить страницу — рассмотрение
+            Заявка и документы сохранены. Можно обновить страницу, рассмотрение
             продолжится на сервере.
           </p>
           <Button
@@ -2369,9 +2379,11 @@ export function Mvp2({
               ) : a.decision === "ADDITIONAL_DATA_REQUIRED" ? (
                 <Button
                   disabled={busy}
-                  onClick={() => void run(() => transition("supplement"))}
+                  onClick={() => activeMissing
+                    ? void run(() => transition("supplement", activeMissing.section))
+                    : void submit()}
                 >
-                  Дополнить сведения
+                  {activeMissing ? "Дополнить сведения" : "Отправить на повторную проверку"}
                 </Button>
               ) : a.decision === "MANAGER_REVIEW_REQUIRED" ? (
                 <Button
@@ -2742,6 +2754,20 @@ export function MvpManager() {
             Платёж: {money(a.financial?.payment)}; поток:{" "}
             {money(a.financial?.flow)}. Предварительная оценка пройдена.
           </p>
+          {a.missing.length > 0 && (
+            <div className="mvp-account">
+              <h4>Запрошенные сведения</h4>
+              <ol>
+                {a.missing.map((item) => (
+                  <li key={item.id ?? item.key}>
+                    {safeDisplayText(item.title ?? item.label)}. {safeDisplayText(item.why ?? item.label)}. {safeDisplayText(item.effect ?? "Уточнит расчёт.")} {item.status === "uploaded" ? "Загружено." :
+                      item.status === "skipped" ? "Подано без этого." :
+                      item.status === "accepted" ? "Принято." : "Ожидает ответа."}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           <label className="field">
             <span>Решение менеджера</span>
             <select name="decision">
@@ -2755,7 +2781,7 @@ export function MvpManager() {
             <textarea name="reason" minLength={5} maxLength={500} required />
           </label>
           <label className="field">
-            <span>Если нужны сведения — какое поле уточнить?</span>
+            <span>Если нужны сведения, какое поле уточнить?</span>
             <select name="missingKey">
               {managerRequestedFields.map((f) => (
                 <option key={f.key} value={f.key}>

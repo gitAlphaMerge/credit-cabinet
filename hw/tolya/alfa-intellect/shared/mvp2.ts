@@ -593,7 +593,23 @@ export function productIssues(
       : "",
   ].filter(Boolean);
 }
-export type MissingField = { key: string; label: string; section: number };
+export type MissingField = {
+  key: string;
+  label: string;
+  section: number;
+  id?: string;
+  title?: string;
+  why?: string;
+  effect?: string;
+  status?: "todo" | "uploaded" | "accepted" | "skipped";
+};
+export type MissingDataItem = MissingField & {
+  id: string;
+  title: string;
+  why: string;
+  effect: string;
+  status: "todo" | "uploaded" | "accepted" | "skipped";
+};
 export const managerRequestedFields: MissingField[] = [
   { key: "actualIndustry", label: "Фактическая деятельность", section: 0 },
   { key: "accounts", label: "CSV по расчётным счетам", section: 1 },
@@ -677,6 +693,8 @@ export type MvpApplication = {
     payment: number;
     dscr: number;
     limit: number;
+    limitNow?: number;
+    limitAfter?: number;
     months: number;
     debtInCsv: number;
     uncoveredDebt: number;
