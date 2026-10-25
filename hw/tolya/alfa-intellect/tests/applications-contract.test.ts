@@ -325,7 +325,7 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
   // Random chains advance the clock by eight days per step. Refresh only the
   // positive statement fixture before operations that rerun compliance.
   function refreshStatement(event: Event) {
-    if (event !== "submit" && event !== "client_update") return;
+    if (event !== "submit" && event !== "client_update" && event !== "send_to_underwriting") return;
     const state = JSON.parse((db.prepare("SELECT state FROM users WHERE id=?").get(ownerId) as { state: string }).state);
     state.documents.find((d: { id: string }) => d.id === "p1-statement").records =
       [{ date: statementDate(now), amount: 1000 }];
@@ -389,6 +389,21 @@ describe("P1 application contract against the real app and SQLite", { concurrenc
     let result: { application: Application } | undefined, failure: unknown;
     try { result = await module.transitionApplication(db, command(id, event, role), deps); }
     catch (error) { failure = error; }
+    const offer = before.events.findLast(e => e.event === "make_offer");
+    if (target && ["sign", "disburse"].includes(event) && offer &&
+      now - Date.parse(offer.at) > Number(process.env.OFFER_TTL_DAYS ?? 7) * 24 * HOUR) {
+      assert.equal((failure as { status?: number })?.status, 409, `${label}: expired offer must fail`);
+      assert.deepEqual(dossiers(id), before.dossiers, `${label}: expiration cannot rescore`);
+      if (event === "sign") {
+        assert.equal(row(id).status, "expired", label);
+        assert.equal(row(id).version, before.application.version + 1, label);
+        assert.equal(journal(id).length, before.events.length + 1, label);
+        assert.equal(journal(id).at(-1)?.event, "expire", label);
+        assert.equal(journal(id).at(-1)?.actor_role, "system", label);
+      } else assert.deepEqual(snapshot(id), before, `${label}: expired disbursement cannot mutate`);
+      invariants(id, label);
+      return;
+    }
     if (target) {
       assert.equal(failure, undefined, `${label}: allowed transition threw ${String(failure)}`);
       const automatic = (event === "submit" || event === "client_update") && role === "client";

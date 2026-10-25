@@ -589,8 +589,32 @@ function alternativeSchedule(option: AlternativeOffer): Installment[] {
   });
 }
 
+// TTL is measured from the latest offer, never from a later signature or update.
+export function offerExpired(
+  db: DatabaseSync,
+  id: string,
+  deps: Pick<Dependencies, "clock">,
+) {
+  const offer = db
+    .prepare(
+      "SELECT at FROM application_events WHERE application_id=? AND event='make_offer' ORDER BY seq DESC LIMIT 1",
+    )
+    .get(id) as { at: string } | undefined;
+  if (!offer || !Number.isFinite(Date.parse(offer.at)))
+    throw new ApplicationError(409, "Не найдены действующие условия оффера");
+  return (
+    deps.clock().getTime() - Date.parse(offer.at) >
+    applicationConfig().OFFER_TTL_DAYS * 86_400_000
+  );
+}
+class OfferExpiredError extends ApplicationError {
+  constructor() {
+    super(409, "Срок действия оффера истёк. Запросите новые условия");
+  }
+}
+
 function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
-  let a = visibleApplication(
+  const a = visibleApplication(
     db,
     command.applicationId,
     command.actorRole,
@@ -656,31 +680,8 @@ function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
     )
       throw new ApplicationError(409, "Сначала агент должен напомнить клиенту");
   }
-  if (command.event === "send_to_underwriting") {
-    if (p.option_id !== undefined) {
-      const option = alternativeOf(db, a, p);
-      a = { ...a, amount: option.amount_rub, term_months: option.term_months };
-    }
-    const dossier = dossierOf(db, a.id);
-    const limit =
-      dossier && record(JSON.parse(dossier.core_result).core).limit_now_rub;
-    if (typeof limit === "number" && a.amount > limit)
-      throw new ApplicationError(409, "AMOUNT_EXCEEDS_LIMIT");
-    if (
-      !dossier ||
-      typeof limit !== "number" ||
-      !Number.isFinite(limit) ||
-      a.amount > limit ||
-      dossier.readiness_n == null ||
-      dossier.readiness_m == null ||
-      dossier.readiness_m < 1 ||
-      dossier.readiness_n !== dossier.readiness_m
-    )
-      throw new ApplicationError(
-        409,
-        "Нужны полное досье и сумма в пределах текущего лимита",
-      );
-  }
+  if (command.event === "send_to_underwriting" && p.option_id !== undefined)
+    alternativeOf(db, a, p);
   if (command.event === "reject" && p.alternative !== undefined) {
     const alternative = record(p.alternative);
     if (
@@ -700,6 +701,11 @@ function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
     throw new ApplicationError(422, "Нужны новые подтверждённые данные");
   if (command.event === "sign" && p.code !== "0000")
     throw new ApplicationError(422, "Неверный SMS-код");
+  if (
+    ["sign", "disburse"].includes(command.event) &&
+    offerExpired(db, a.id, deps)
+  )
+    throw new OfferExpiredError();
   if (
     command.event === "underwriter_approve" ||
     command.event === "make_offer"
@@ -745,17 +751,7 @@ function checkCommand(db: DatabaseSync, command: Command, deps: Dependencies) {
       throw new ApplicationError(422, "Неверные условия оффера");
   }
   if (command.event === "expire") {
-    const offer = db
-      .prepare(
-        `SELECT at FROM application_events WHERE application_id=?
-      AND event='make_offer' ORDER BY seq DESC LIMIT 1`,
-      )
-      .get(a.id) as { at: string } | undefined;
-    if (
-      !offer ||
-      deps.clock().getTime() - Date.parse(offer.at) <=
-        applicationConfig().OFFER_TTL_DAYS * 86_400_000
-    )
+    if (!offerExpired(db, a.id, deps))
       throw new ApplicationError(409, "Оффер ещё действует");
   }
   return a;
@@ -766,13 +762,40 @@ async function scoreCommand(
   command: Command,
   deps: Dependencies,
 ): Promise<ScoredDossier | undefined> {
+  const reply = await scoreDossier(db, command, deps);
+  // queued -> underwriting is the only permitted manager outcome. A fresh red
+  // verdict requires request_info/client_update, never an offer on the old dossier.
+  if (
+    command.event === "send_to_underwriting" &&
+    reply?.target !== "underwriting"
+  ) {
+    const limit = reply && record(reply.core_result.core).limit_now_rub;
+    if (reply && typeof limit === "number" && reply.application.amount > limit)
+      throw new ApplicationError(409, "AMOUNT_EXCEEDS_LIMIT");
+    throw new ApplicationError(
+      409,
+      "Нужен повторный расчёт: проверки не пройдены или досье неполное",
+    );
+  }
+  return reply;
+}
+
+async function scoreDossier(
+  db: DatabaseSync,
+  command: Command,
+  deps: Dependencies,
+): Promise<ScoredDossier | undefined> {
   let a = checkCommand(db, command, deps);
   if (
-    !["submit", "client_update", "accept_alternative"].includes(command.event)
+    ![
+      "submit", "client_update", "accept_alternative", "send_to_underwriting",
+    ].includes(command.event)
   )
     return;
   const acceptedAlternative =
-    command.event === "accept_alternative"
+    command.event === "accept_alternative" ||
+    (command.event === "send_to_underwriting" &&
+      command.payload?.option_id !== undefined)
       ? alternativeOf(db, a, command.payload ?? {})
       : acceptedAlternativeOf(db, a);
   if (acceptedAlternative) {
@@ -785,7 +808,7 @@ async function scoreCommand(
     const input = coreInput(
       db,
       a,
-      command.payload ?? {},
+      command.event === "send_to_underwriting" ? {} : command.payload ?? {},
       state,
       acceptedAlternative,
     );
@@ -1064,7 +1087,7 @@ function persistTransition(
       (command.event === "request_info"
         ? String(command.payload?.text ?? "")
         : null);
-  if (reply) {
+  if (reply && command.event !== "send_to_underwriting") {
     actorRole = "system";
     actorId = null;
     reason = reply.reason ?? null;
@@ -1183,11 +1206,7 @@ function persistCascade(
     const amount = result.application.amount;
     system("underwriter_approve", { amount });
     const option =
-      command.event === "send_to_underwriting" &&
-      command.payload?.option_id !== undefined
-        ? alternativeOf(db, result.application, command.payload)
-        : (reply?.acceptedAlternative ??
-          acceptedAlternativeOf(db, result.application));
+      reply?.acceptedAlternative ?? acceptedAlternativeOf(db, result.application);
     const rate = option
         ? option.rate_annual_pct / 100
         : applicationConfig().OFFER_RATE,
@@ -1211,12 +1230,49 @@ export async function transitionApplication(
   input: DependencyInput,
 ) {
   const deps = completeDependencies(input);
-  const reply = await scoreCommand(db, command, deps);
-  return transactionWithRetry(db, () =>
-    reply
-      ? persistCascade(db, command, deps, reply)
-      : persistTransition(db, command, deps),
-  );
+  return withOfferExpiry(db, command, deps, async () => {
+    const reply = await scoreCommand(db, command, deps);
+    return transactionWithRetry(db, () =>
+      reply && command.event !== "send_to_underwriting"
+        ? persistCascade(db, command, deps, reply)
+        : persistTransition(db, command, deps, reply),
+    );
+  });
+}
+
+// Expiration must survive rejection/rollback of signing, including a TTL crossed
+// inside the HTTP cascade. The frozen contract permits expiration only from offered.
+async function withOfferExpiry<T>(
+  db: DatabaseSync,
+  command: Command,
+  deps: Dependencies,
+  operation: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof OfferExpiredError) {
+      await transactionWithRetry(db, () => {
+        const current = applicationOf(db, command.applicationId);
+        if (
+          current.status === "offered" &&
+          current.version === command.expectedVersion
+        )
+          persistTransition(
+            db,
+            {
+              applicationId: current.id,
+              expectedVersion: current.version,
+              event: "expire",
+              actorRole: "system",
+              actorId: null,
+            },
+            deps,
+          );
+      });
+    }
+    throw error;
+  }
 }
 
 export function createApplication(
@@ -1347,15 +1403,17 @@ export async function executeApplicationEvent(
     throw new ApplicationError(403, "Системное событие недоступно через HTTP");
   const cached = replay(db, userId, key, hash);
   if (cached) return cached;
-  const reply = await scoreCommand(db, command, deps);
-  return transactionWithRetry(db, () => {
-    const duplicate = replay(db, userId, key, hash);
-    if (duplicate) return duplicate;
-    const result = persistCascade(db, command, deps, reply);
-    db.prepare(
-      "INSERT INTO application_idempotency(key,user_id,request_hash,response) VALUES(?,?,?,?)",
-    ).run(key, userId, hash, JSON.stringify(result));
-    return result;
+  return withOfferExpiry(db, command, deps, async () => {
+    const reply = await scoreCommand(db, command, deps);
+    return transactionWithRetry(db, () => {
+      const duplicate = replay(db, userId, key, hash);
+      if (duplicate) return duplicate;
+      const result = persistCascade(db, command, deps, reply);
+      db.prepare(
+        "INSERT INTO application_idempotency(key,user_id,request_hash,response) VALUES(?,?,?,?)",
+      ).run(key, userId, hash, JSON.stringify(result));
+      return result;
+    });
   });
 }
 
