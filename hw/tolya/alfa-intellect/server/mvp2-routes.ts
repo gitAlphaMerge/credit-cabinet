@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { db, getUser, saveState } from "./store";
 import { ApplicationError } from "./applications";
 import { createAIProvider } from "./ai-provider";
-import { products } from "../shared/mvp2";
+import { products, productTerms } from "../shared/mvp2";
 import {
   migrateMvp2,
   createMvp,
@@ -198,8 +198,14 @@ mvp2Router.post("/applications/:id/recalculate", (req, res) => {
         "OVERDRAFT",
         "REFI",
       ]),
+      overdraftRepaymentDays: z.union([z.literal(30), z.literal(60), z.literal(90)]).optional(),
     })
     .strict()
+    .superRefine((terms, context) => {
+      const product = products.find((item) => item.id === terms.productId)!;
+      if (!productTerms(product).includes(terms.term))
+        context.addIssue({ code: "custom", path: ["term"], message: "Выберите срок из сетки продукта." });
+    })
     .parse(req.body.terms);
   res
     .status(202)

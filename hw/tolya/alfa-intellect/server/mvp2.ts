@@ -7,6 +7,8 @@ import {
   recommend,
   initialQuestionnaire,
   questionnaireSchema,
+  defaultContractDetails,
+  productTerms,
   questionnaireErrors,
   normalizeQuestionnaire,
   amountBand,
@@ -279,6 +281,8 @@ export function updateMvp(
 ) {
   const q = questionnaireSchema.parse(raw),
     a = mvpGet(db, id, uid);
+  if (q.term !== 0 && !productTerms(products.find((product) => product.id === q.productId)!).includes(q.term))
+    throw new ApplicationError(422, "Выберите срок из сетки выбранного продукта.");
   const previousOnboarding = hash(a.onboarding);
   requireVersion(a, version);
   if (a.lifecycle !== "DRAFT" && a.decision !== "ADDITIONAL_DATA_REQUIRED")
@@ -300,6 +304,15 @@ export function updateMvp(
   if (q.inn !== a.questionnaire.inn) {
     a.company = undefined;
     q.companyConfirmed = false;
+  }
+  if (a.company) {
+    const profile = stateFor(db, uid).profile;
+    const generated = defaultContractDetails(a.company, [], profile).receivingAccount;
+    const current = defaultContractDetails(a.company, q.accounts, profile);
+    if ((!q.receivingAccount || q.receivingAccount === generated) && current.receivingAccount) {
+      q.receivingAccount = current.receivingAccount;
+      q.receivingBank = current.receivingBank;
+    }
   }
   if (onboardingRaw) {
     if (a.decision === "ADDITIONAL_DATA_REQUIRED")
@@ -381,6 +394,10 @@ export async function registryMvp(
     };
   }
   fresh.company = company;
+  Object.assign(
+    fresh.questionnaire,
+    defaultContractDetails(company, fresh.questionnaire.accounts, stateFor(db, uid).profile),
+  );
   fresh.questionnaire.companyConfirmed = false;
   if (fresh.decision === "ADDITIONAL_DATA_REQUIRED")
     fresh.missing = missingFor(fresh, statementsOf(db, id));
@@ -1351,7 +1368,8 @@ export function recalculateMvp(
   uid: string,
   id: string,
   version: number,
-  terms: Pick<Questionnaire, "amount" | "term" | "productId">,
+  terms: Pick<Questionnaire, "amount" | "term" | "productId"> &
+    Partial<Pick<Questionnaire, "overdraftRepaymentDays">>,
 ) {
   const a = mvpGet(db, id, uid);
   requireVersion(a, version);

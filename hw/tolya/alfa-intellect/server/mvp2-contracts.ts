@@ -1,12 +1,13 @@
 import PDFDocument from "pdfkit";
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { products, type MvpApplication } from "../shared/mvp2";
+import { products, defaultContractDetails, type MvpApplication } from "../shared/mvp2";
 import { addDays, day } from "../shared/cabinet";
 import { makeSchedule, dateMonth } from "./cabinet";
 import { ApplicationError } from "./applications";
-import { mvpGet, recordMvpTransition } from "./mvp2";
+import { mvpGet, recordMvpTransition, stateFor } from "./mvp2";
 
 const rub = (n: number) =>
   n.toLocaleString("ru-RU", {
@@ -17,10 +18,16 @@ const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 const font = () =>
   [
     process.env.CONTRACT_FONT,
+    fileURLToPath(new URL("./assets/fonts/DejaVuSans.ttf", import.meta.url)),
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
     "/System/Library/Fonts/Supplemental/Arial.ttf",
   ].find((p): p is string => !!p && existsSync(p));
+const boldFont = (regular: string) => {
+  const bold = fileURLToPath(new URL("./assets/fonts/DejaVuSans-Bold.ttf", import.meta.url));
+  return regular === fileURLToPath(new URL("./assets/fonts/DejaVuSans.ttf", import.meta.url)) && existsSync(bold)
+    ? bold : regular;
+};
 export function contractSchedule(a: MvpApplication) {
   const q = a.questionnaire,
     p = products.find((x) => x.id === q.productId)!;
@@ -47,8 +54,8 @@ export function contractParagraphs(a: MvpApplication): string[] {
     "1.1. Кредитор предоставляет Заёмщику кредит на условиях настоящего договора, а Заёмщик обязуется возвратить полученные денежные средства и уплатить проценты за пользование кредитом.",
     `1.2. Кредитный продукт: ${p.name}. Цель финансирования: ${q.purpose}.`,
     "2. Основные условия",
-    `Сумма кредита или лимит: ${rub(q.amount)} руб. Срок: ${q.term} мес. Фиксированная ставка: ${p.rate} % годовых.`,
-    `Способ предоставления: ${p.kind === "loan" ? "единовременное перечисление" : p.id === "RCL" ? "возобновляемый лимит" : p.id === "NCL" ? "невозобновляемый лимит, выдача траншами" : "овердрафт по счёту, использование до 60 дней"}. Условия погашения: ${p.repayment}.`,
+    `Сумма кредита или лимит: ${rub(q.amount)} руб. ${p.kind === "overdraft" ? "Срок действия лимита 12 мес." : p.kind === "line" ? `Срок действия лимита ${q.term} мес.` : `Срок кредита ${q.term} мес.`} Фиксированная ставка: ${p.rate} % годовых.`,
+    `Способ предоставления: ${p.kind === "loan" ? "единовременное перечисление" : p.id === "RCL" ? "возобновляемый лимит" : p.id === "NCL" ? "невозобновляемый лимит, выдача траншами" : "овердрафт по счёту"}. ${p.kind === "overdraft" ? `Каждая задолженность погашается не позднее ${q.overdraftRepaymentDays} дней с даты возникновения.` : `Условия погашения: ${p.repayment}.`}`,
     `Дата окончания: ${maturity(n.date, q.term)}. Договор не предусматривает залог в рамках демонстрационной модели.`,
     "3. Предоставление кредита",
     "3.1. По продуктам с единовременной выдачей сумма предоставляется одним перечислением. По кредитным линиям и овердрафту устанавливается лимит, а использование денежных средств производится в пределах предусмотренных продуктом условий.",
@@ -56,12 +63,14 @@ export function contractParagraphs(a: MvpApplication): string[] {
     "3.3. Выдача или активация лимита в рамках учебного прототипа моделируется после демонстрационного подписания и отдельного подтверждения Заёмщика.",
     ...(p.id === "REFI"
       ? [
-          "Целевое назначение — рефинансирование. Внешний реальный кредит не считается погашенным операцией в MVP.",
+          "Целевое назначение: рефинансирование. Внешний реальный кредит не считается погашенным операцией в MVP.",
         ]
       : []),
     "4. Проценты и погашение",
     `4.1. Проценты начисляются на фактический остаток задолженности по фиксированной ставке. ${p.kind === "loan" ? "Расчётная модель: месячная ставка равна годовой / 12; точные платежи приведены в Приложении № 1." : "При фактической выборке: остаток долга × годовая ставка / 100 × дни использования / 365. До выборки задолженность и проценты равны нулю."}`,
-    "4.2. Для единовременного кредита платежи определяются графиком в Приложении № 1. Для кредитной линии и овердрафта Приложение № 1 содержит параметры лимита и правила погашения; прогнозный график, если он есть, имеет иллюстративный характер до фактической выборки.",
+    p.kind === "loan"
+      ? "4.2. Платежи по кредиту определяются графиком в Приложении № 1."
+      : "4.2. Для лимита Приложение № 1 содержит параметры и правила погашения. Аннуитетный график до фактической выборки не формируется.",
     "4.3. Заёмщик вправе инициировать досрочное погашение в порядке, определённом условиями продукта. Проценты рассчитываются за фактическое время пользования денежными средствами.",
     "5. Права и обязанности сторон",
     "5.1. Кредитор обязуется предоставить кредит или открыть лимит в соответствии с условиями договора и отражать сведения о задолженности и платежах.",
@@ -76,7 +85,7 @@ export function contractParagraphs(a: MvpApplication): string[] {
     "8. Реквизиты и отметки о подписании",
     `Кредитор: условный кредитор учебного MVP. Заёмщик: ${c.name}; ИНН ${c.inn}. Подписант: ${q.signatory}.`,
     signatureText(a),
-  ];
+  ].map((paragraph) => paragraph.replaceAll("\u2014", "."));
 }
 function maturity(date: string, months: number) {
   const d = new Date(date + "T00:00:00Z"),
@@ -119,6 +128,7 @@ export async function renderContractPdf(
   if (kind === "contract") {
     const paragraphs = contractParagraphs(a);
     for (const [i, p] of paragraphs.entries()) {
+      doc.font(i === 0 || /^\d\. /.test(p) ? boldFont(fontPath) : fontPath);
       doc.fontSize(i === 0 ? 14 : 10);
       const h =
         doc.heightOfString(p, { lineGap: 3 }) +
@@ -136,14 +146,16 @@ export async function renderContractPdf(
     const q = a.questionnaire,
       p = products.find((x) => x.id === q.productId)!;
     doc
+      .font(boldFont(fontPath))
       .fontSize(14)
       .text("ПРИЛОЖЕНИЕ № 1")
-      .text("График платежей / условия лимита")
+      .text(p.kind === "loan" ? "График платежей" : "Условия использования лимита")
       .moveDown();
     doc
+      .font(fontPath)
       .fontSize(10)
       .text(
-        `К договору № ${a.contract!.number} от ${a.contract!.date}. ${p.name}; ${rub(q.amount)} руб.; ${p.rate}% годовых; ${q.term} мес.`,
+        `К договору № ${a.contract!.number} от ${a.contract!.date}. ${p.name}; ${rub(q.amount)} руб.; ${p.rate}% годовых; ${p.kind === "loan" ? "срок кредита" : "срок лимита"} ${q.term} мес.`,
       )
       .moveDown();
     const rows = contractSchedule(a);
@@ -195,7 +207,7 @@ export async function renderContractPdf(
     } else {
       doc
         .text(
-          `Установленный лимит: ${rub(q.amount)} руб. До фактической выборки задолженность: 0 руб. ${p.repayment}.`,
+          `Установленный лимит: ${rub(q.amount)} руб. Срок действия лимита: ${q.term} мес. Дата окончания: ${maturity(a.contract!.date, q.term)}. До фактической выборки задолженность: 0 руб. ${p.kind === "overdraft" ? `Каждая задолженность погашается не позднее ${q.overdraftRepaymentDays} дней с даты возникновения.` : p.repayment + "."}`,
         )
         .moveDown();
       doc
@@ -204,7 +216,7 @@ export async function renderContractPdf(
         )
         .moveDown();
       doc.text(
-        `План использования, со слов заёмщика: ${q.tranches || `цикл ${q.cycleDays ?? "не указан"} дней`}. Фактические обязательства формируются при согласованной выборке, не автоматически при открытии лимита.`,
+        `План использования, со слов заёмщика: ${(q.tranches || `цикл ${q.cycleDays ?? "не указан"} дней`).replaceAll("\u2014", ".")}. Фактические обязательства формируются при согласованной выборке, не автоматически при открытии лимита.`,
       );
     }
     doc.x = 48;
@@ -232,6 +244,11 @@ export async function prepareContract(
       "Договор доступен только после окончательного одобрения",
     );
   const q = a.questionnaire;
+  if (!a.company)
+    throw new ApplicationError(422, "Данные компании не найдены. Найдите компанию по ИНН в анкете или проверьте сведения в ЕГРЮЛ/ЕГРИП на сайте ФНС.");
+  const defaults = defaultContractDetails(a.company, q.accounts, stateFor(db, uid).profile);
+  for (const key of ["signatory", "authority", "receivingAccount", "receivingBank"] as const)
+    if (!q[key]) q[key] = defaults[key];
   if (
     !q.signatory.trim() ||
     !q.authority.trim() ||
@@ -240,7 +257,7 @@ export async function prepareContract(
   )
     throw new ApplicationError(
       422,
-      "Для договора подтвердите подписанта, основание полномочий, 20 цифр счёта и банк",
+      "Не хватает реквизитов для договора. Проверьте руководителя в выписке ЕГРЮЛ или ФИО ИП в ЕГРИП на сайте ФНС, а расчётный счёт в кабинете Альфа-Банка; затем нажмите «Изменить».",
     );
   a.contract = {
     number: "MVP-" + id.slice(0, 8).toUpperCase(),

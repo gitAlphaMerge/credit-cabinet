@@ -50,6 +50,8 @@ import {
   initialQuestionnaire,
   recommend,
   productIssues,
+  productTerms,
+  nearestProductTerm,
   questionnaireErrors,
   normalizeQuestionnaire,
   neededOptions,
@@ -428,7 +430,16 @@ function QuestionnaireFields({
     if (section === 4 && requestKeys.some((key) => errors[key]))
       setEditingRequest(true);
   }, [section, errors]);
-  const patch = (k: keyof Questionnaire, v: unknown) => setQ({ ...q, [k]: v });
+  const patch = (k: keyof Questionnaire, v: unknown) => {
+    if (k === "productId") {
+      const product = catalog.find((item) => item.id === v);
+      if (product) {
+        setQ({ ...q, productId: product.id, term: nearestProductTerm(product, q.term) });
+        return;
+      }
+    }
+    setQ({ ...q, [k]: v });
+  };
   const calendar = (
     key: "balloonPeriod" | "neededDate",
     label: string,
@@ -943,7 +954,17 @@ function QuestionnaireFields({
         </>
       )}
       {number("amount", "Точная сумма", 4)}
-      {number("term", "Точный срок", 4, "мес.", 120)}
+      {show("term", 4) && (
+        <label className="field">
+          <span>Срок {q.productId === "OVERDRAFT" ? "действия лимита" : "финансирования"}</span>
+          <select aria-label="Срок финансирования" value={q.term}
+            onChange={(e) => patch("term", Number(e.target.value))}>
+            {productTerms(catalog.find((item) => item.id === q.productId)!).map((term) =>
+              <option key={term} value={term}>{term} мес.</option>)}
+          </select>
+          {errors.term && <small className="mvp-error">{errors.term}</small>}
+        </label>
+      )}
       {show("neededAt", 4) && (
         <Choice
           label="Когда нужны средства?"
@@ -1020,6 +1041,16 @@ function QuestionnaireFields({
           "дн.",
           q.productId === "OVERDRAFT" ? 60 : 365,
         )}
+      {q.productId === "OVERDRAFT" && show("overdraftRepaymentDays", 4) && (
+        <label className="field">
+          <span>Погасить каждую задолженность</span>
+          <select aria-label="Срок погашения овердрафта" value={q.overdraftRepaymentDays}
+            onChange={(e) => patch("overdraftRepaymentDays", Number(e.target.value))}>
+            {[30, 60, 90].map((days) =>
+              <option key={days} value={days}>{days} дней</option>)}
+          </select>
+        </label>
+      )}
       {q.productId === "NCL" &&
         text("tranches", "План траншей: суммы и сроки", 4)}
       {q.productId === "REFI" && (
@@ -1063,7 +1094,8 @@ export function Mvp2({
     [slots, setSlots] = useState<any[]>([]),
     [chatId, setChatId] = useState(""),
     [chatSending, setChatSending] = useState(false),
-    [editAnswers, setEditAnswers] = useState(false);
+    [editAnswers, setEditAnswers] = useState(false),
+    [editingDetails, setEditingDetails] = useState(false);
   const lock = useRef(false),
     aRef = useRef(a),
     dirty = useRef(false),
@@ -2461,6 +2493,7 @@ export function Mvp2({
                       amount: q.amount,
                       term: q.term,
                       productId: q.productId,
+                      overdraftRepaymentDays: q.overdraftRepaymentDays,
                     },
                   }),
                 );
@@ -2480,14 +2513,10 @@ export function Mvp2({
               </label>
               <label className="field">
                 <span>Срок нового запроса</span>
-                <NumericInput
-                  unit="мес."
-                  decimals={0}
-                  value={q.term}
-                  onValueChange={(v) => draftQ({ ...q, term: Number(v) })}
-                  min={1}
-                  max={120}
-                />
+                <select value={q.term} onChange={(e) => draftQ({ ...q, term: Number(e.target.value) })}>
+                  {p && productTerms(p).map((term) =>
+                    <option key={term} value={term}>{term} мес.</option>)}
+                </select>
               </label>
               <label className="field">
                 <span>Продукт нового запроса</span>
@@ -2497,6 +2526,7 @@ export function Mvp2({
                     draftQ({
                       ...q,
                       productId: e.target.value as Questionnaire["productId"],
+                      term: nearestProductTerm(products.find((item) => item.id === e.target.value)!, q.term),
                     })
                   }
                 >
@@ -2507,6 +2537,15 @@ export function Mvp2({
                   ))}
                 </select>
               </label>
+              {q.productId === "OVERDRAFT" && (
+                <label className="field">
+                  <span>Погашение каждой задолженности</span>
+                  <select value={q.overdraftRepaymentDays}
+                    onChange={(e) => draftQ({ ...q, overdraftRepaymentDays: Number(e.target.value) as 30 | 60 | 90 })}>
+                    {[30, 60, 90].map((days) => <option key={days} value={days}>{days} дней</option>)}
+                  </select>
+                </label>
+              )}
             </div>
             <div className="mvp-actions">
               <Button
@@ -2529,23 +2568,27 @@ export function Mvp2({
       {a && q && view === "details" && (
         <section className="funding-surface">
           <h2>Реквизиты для договора</h2>
-          <p>Подтвердите подписанта и счёт. Не создаём реквизиты вместо вас.</p>
+          <p>Данные подставлены из сведений о компании и счёте. Проверьте их перед подписанием.</p>
+          {(!q.signatory || !q.receivingAccount) && (
+            <p role="status">Если сведений не хватает, проверьте ФИО руководителя в выписке ЕГРЮЛ или ЕГРИП на сайте ФНС, а расчётный счёт в кабинете Альфа-Банка. Затем нажмите «Изменить».</p>
+          )}
           <form
             noValidate
             onSubmit={(e) => {
               e.preventDefault();
               void run(async () => {
-                adopt(
-                  await api(path + "/contract-details", {
-                    version: a.version,
-                    details: {
-                      signatory: q.signatory,
-                      authority: q.authority,
-                      receivingAccount: q.receivingAccount,
-                      receivingBank: q.receivingBank,
-                    },
-                  }),
-                );
+                adopt(editingDetails
+                  ? await api(path + "/contract-details", {
+                      version: a.version,
+                      details: {
+                        signatory: q.signatory,
+                        authority: q.authority,
+                        receivingAccount: q.receivingAccount,
+                        receivingBank: q.receivingBank,
+                      },
+                    })
+                  : await api(path + "/contract", { version: a.version }));
+                setEditingDetails(false);
                 setView("contract");
               });
             }}
@@ -2561,12 +2604,11 @@ export function Mvp2({
               ).map(([k, label]) => (
                 <label className="field" key={k}>
                   <span>{label}</span>
-                  <input
-                    value={q[k]}
-                    maxLength={k === "receivingAccount" ? 20 : 160}
-                    aria-invalid={!!errors[k]}
-                    onChange={(e) => setQ({ ...q, [k]: e.target.value })}
-                  />
+                  {editingDetails ? (
+                    <input value={q[k]} maxLength={k === "receivingAccount" ? 20 : 160}
+                      aria-invalid={!!errors[k]}
+                      onChange={(e) => setQ({ ...q, [k]: e.target.value })} />
+                  ) : <strong>{q[k] || "Нет данных"}</strong>}
                   {errors[k] && (
                     <small className="mvp-error">{errors[k]}</small>
                   )}
@@ -2574,6 +2616,9 @@ export function Mvp2({
               ))}
             </div>
             <div className="mvp-actions">
+              {!editingDetails && (
+                <Button type="button" secondary onClick={() => setEditingDetails(true)}>Изменить</Button>
+              )}
               <Button
                 type="button"
                 secondary

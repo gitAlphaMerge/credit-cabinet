@@ -202,19 +202,31 @@ async function contract(
 ) {
   return (
     await agent
-      .post(`/api/mvp2/applications/${a.id}/contract-details`)
-      .send({
-        version: a.version,
-        details: {
-          signatory: "Синтетический Представитель",
-          authority: "Устав учебной организации",
-          receivingAccount: "40702810000000000001",
-          receivingBank: "Учебный банк",
-        },
-      })
+      .post(`/api/mvp2/applications/${a.id}/contract`)
+      .send({ version: a.version })
       .expect(200)
   ).body as MvpApplication;
 }
+test("contract details auto-fill by registry; server rejects off-grid months and overdraft days", async () => {
+  const x = await draft({ productId: "OVERDRAFT", amount: 500000 });
+  assert.equal(x.a.questionnaire.signatory, "Синтетический директор");
+  assert.equal(x.a.questionnaire.authority, "Устава");
+  assert.match(x.a.questionnaire.receivingAccount, /^40702810\d{12}$/);
+  assert.equal(x.a.questionnaire.receivingBank, "АО «Альфа-Банк»");
+  await x.agent.put(`/api/mvp2/applications/${x.a.id}`)
+    .send({ version: x.a.version, questionnaire: { ...x.a.questionnaire, overdraftRepaymentDays: 45 } })
+    .expect(422);
+  await x.agent.put(`/api/mvp2/applications/${x.a.id}`)
+    .send({ version: x.a.version, questionnaire: { ...x.a.questionnaire, term: 6 } })
+    .expect(422);
+  await x.agent.put(`/api/mvp2/applications/${x.a.id}`)
+    .send({ version: x.a.version, questionnaire: { ...x.a.questionnaire, term: 7 } })
+    .expect(422);
+  const ip = await draft({ inn: "990000000001", industry: "IT" });
+  assert.equal(ip.a.questionnaire.signatory, "Синтетический Алексей Примерович");
+  assert.match(ip.a.questionnaire.authority, /ЕГРИП/);
+  assert.match(ip.a.questionnaire.receivingAccount, /^40802810\d{12}$/);
+});
 test("catalog has exactly six fixed products; onboarding selection is not a score", () => {
   assert.equal(products.length, 6);
   assert.equal(products.find((p) => p.id === "WORKING")!.rate, 23.5);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { day, validDate } from "./cabinet";
 import { innError } from "./inn";
+import { fundingTerms, overdraftCycles, type FundingProduct } from "./financing";
 export const productIds = [
   "WORKING",
   "INVEST",
@@ -82,8 +83,7 @@ export const products: Product[] = [
     maxTerm: 12,
     kind: "overdraft",
     description: "Короткий кассовый разрыв до поступления выручки",
-    repayment:
-      "Каждое использование — до 60 дней; проценты на фактический долг",
+    repayment: "Каждая задолженность погашается в выбранный срок; проценты на фактический долг",
   },
   {
     id: "REFI",
@@ -99,6 +99,48 @@ export const products: Product[] = [
       "Ежемесячные платежи; внешний кредит не считается автоматически погашенным",
   },
 ];
+export function productTerms(product: Product): number[] {
+  return product.kind === "overdraft"
+    ? [12]
+    : fundingTerms({
+        kind: product.kind,
+        minTerm: product.minTerm,
+        term: product.maxTerm,
+      } as FundingProduct);
+}
+export function nearestProductTerm(product: Product, requested: number): number {
+  return productTerms(product).reduce((best, term) =>
+    Math.abs(term - requested) < Math.abs(best - requested) ? term : best,
+  );
+}
+export function defaultContractDetails(
+  company: Company,
+  accounts: Pick<Questionnaire["accounts"][number], "bank" | "number">[],
+  profile?: { name?: string; registryRecord?: Record<string, unknown> },
+) {
+  const ip = company.form === "ИП";
+  const registry = profile?.registryRecord;
+  const director = company.director ||
+    (typeof registry?.director === "string" ? registry.director : "");
+  const ipName = company.name.match(/^ИП\s+([^«"\d]+)$/u)?.[1]?.trim() || "";
+  const signatory = ip
+    ? (ipName.split(/\s+/u).length === 3 ? ipName : company.demo ? "Синтетический предприниматель" : "")
+    : director || (company.demo ? "Синтетический директор" : "");
+  const ogrnip = company.ogrnip ||
+    (typeof registry?.ogrnip === "string" ? registry.ogrnip : "");
+  const alfaAccount = accounts.find((account) =>
+    /альфа|alfa/i.test(account.bank) && /^\d{20}$/.test(account.number),
+  );
+  const generatedAccount = company.demo && /^\d{10}(\d{2})?$/.test(company.inn)
+    ? `${ip ? "40802810" : "40702810"}${(BigInt(company.inn) % 1000000000000n).toString().padStart(12, "0")}`
+    : "";
+  return {
+    signatory,
+    authority: ip ? `записи в ЕГРИП${ogrnip ? `, ОГРНИП ${ogrnip}` : ""}` : "Устава",
+    receivingAccount: alfaAccount?.number || generatedAccount,
+    receivingBank: alfaAccount || generatedAccount ? "АО «Альфа-Банк»" : "",
+  };
+}
 export const industries = [
   "Торговля и маркетплейсы",
   "Услуги",
@@ -248,7 +290,9 @@ export const questionnaireInputSchema = z
     purpose: z.enum(["", ...purposes]),
     purposeDetails: text.default(""),
     amount: z.number().int().min(0).max(1e12),
-    term: z.number().int().min(0).max(120),
+    term: z.number().int().refine((term) => term === 0 || products.some((product) => productTerms(product).includes(term)), {
+      message: "Выберите срок из сетки продукта.",
+    }),
     neededAt: z.enum(["", ...neededOptions]),
     neededDate: text.default(""),
     productId: z.enum(productIds),
@@ -257,6 +301,7 @@ export const questionnaireInputSchema = z
     projectCost: rub.nullable(),
     economicEffect: rub.nullable(),
     cycleDays: z.number().int().min(1).max(365).nullable(),
+    overdraftRepaymentDays: z.union([z.literal(30), z.literal(60), z.literal(90)]).default(60),
     tranches: text,
     oldRate: z.number().min(0).max(100).nullable(),
     oldPayment: rub.nullable(),
@@ -429,13 +474,15 @@ export function questionnaireErrors(
       required("purposeDetails", "Уточните назначение финансирования.");
     if (!Number.isSafeInteger(q.amount) || q.amount <= 0 || q.amount > 1e12)
       errors.amount = "Введите положительную сумму в рублях.";
-    if (!Number.isInteger(q.term) || q.term < 1 || q.term > 120)
-      errors.term = "Укажите срок от 1 до 120 месяцев.";
+    if (!Number.isInteger(q.term) || q.term < 1)
+      errors.term = "Выберите срок продукта.";
     const product = products.find((p) => p.id === q.productId);
     if (product && (q.amount < product.min || q.amount > product.max))
       errors.amount = `Для этого продукта доступно от ${product.min.toLocaleString("ru-RU")} до ${product.max.toLocaleString("ru-RU")} ₽. Измените сумму или продукт.`;
-    if (product && (q.term < product.minTerm || q.term > product.maxTerm))
-      errors.term = `Выберите срок от ${product.minTerm} до ${product.maxTerm} месяцев.`;
+    if (product && !productTerms(product).includes(q.term))
+      errors.term = `Выберите срок: ${productTerms(product).join(", ")} мес.`;
+    if (q.productId === "OVERDRAFT" && !overdraftCycles.includes(q.overdraftRepaymentDays))
+      errors.overdraftRepaymentDays = "Выберите 30, 60 или 90 дней.";
     if (q.productId === "INVEST")
       required("projectCost", "Укажите стоимость проекта.");
     if (q.productId === "INVEST") {
@@ -509,7 +556,7 @@ export function initialQuestionnaire(a: OnboardingAnswers): Questionnaire {
         : ([250000, 400000, 750000, 2000000, 4000000, 6000000, 7500000, 0][
             ranges.indexOf(a.amountRange)
           ] ?? 0),
-    term: a.term,
+    term: nearestProductTerm(products.find((p) => p.id === recommend(a))!, a.term),
     neededAt: "До месяца",
     neededDate: "",
     productId: recommend(a),
@@ -518,6 +565,7 @@ export function initialQuestionnaire(a: OnboardingAnswers): Questionnaire {
     projectCost: null,
     economicEffect: null,
     cycleDays: null,
+    overdraftRepaymentDays: 60,
     tranches: "",
     oldRate: null,
     oldPayment: null,
@@ -540,8 +588,8 @@ export function productIssues(
     !Number.isSafeInteger(q.amount) || q.amount < p.min || q.amount > p.max
       ? `Сумма продукта: от ${p.min.toLocaleString("ru-RU")} до ${p.max.toLocaleString("ru-RU")} ₽.`
       : "",
-    q.term < p.minTerm || q.term > p.maxTerm
-      ? `Срок продукта: ${p.minTerm}–${p.maxTerm} мес.`
+    !productTerms(p).includes(q.term)
+      ? `Срок продукта: ${productTerms(p).join(", ")} мес.`
       : "",
   ].filter(Boolean);
 }
@@ -590,6 +638,9 @@ export type Company = {
   status: string;
   source: string;
   region?: string;
+  director?: string;
+  ogrnip?: string;
+  demo?: boolean;
 };
 export type Stage = {
   id: string;
