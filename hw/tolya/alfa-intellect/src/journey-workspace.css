@@ -1020,7 +1020,12 @@
 }
 
 /* Reuse the MVP 1 orbit/sphere geometry without its timer-based percentage. */
+.product-preparation {
+  width: min(760px, 100%);
+  min-width: 0;
+}
 .credit-motion {
+  min-width: 0;
   text-align: center;
 }
 .credit-motion-visual {

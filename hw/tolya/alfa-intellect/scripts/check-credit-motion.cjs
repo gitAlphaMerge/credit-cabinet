@@ -23,7 +23,8 @@ async page => {
   await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'output/playwright/stabilization-selection-light.png'});
   await page.emulateMedia({reducedMotion:'reduce'});
   ok(await page.locator('.preparation-orbit > i').first().evaluate(el=>getComputedStyle(el).animationName)==='none','Reduced motion ignored');
-  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.scrollTo(0,0));ok(await page.locator('.public-header .brand').isVisible(),'Mobile loading header lost branding');await page.screenshot({path:'output/playwright/stabilization-selection-mobile.png'});
+  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.scrollTo(0,0));ok(await page.locator('.public-header .brand').isVisible(),'Mobile loading header lost branding');
+  const titleBox=await page.locator('.credit-motion h1').boundingBox();ok(titleBox.x>=12&&titleBox.width<=366,'Mobile loading copy touches viewport edge');await page.screenshot({path:'output/playwright/stabilization-selection-mobile.png'});
   release();await page.getByRole('heading',{name:'Оборотный кредит',exact:true}).waitFor();await page.unrouteAll();await page.emulateMedia({reducedMotion:'no-preference'});
   await page.setViewportSize({width:1440,height:1000});await b('Обратиться к сотруднику').click();
   await f('Контактный телефон').fill('+79991234567');await f('Что хотите обсудить?').fill('Нужна консультация по кредитной заявке');await page.getByRole('checkbox').check();

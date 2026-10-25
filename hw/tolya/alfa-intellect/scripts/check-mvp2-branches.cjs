@@ -141,7 +141,10 @@ async (page, managerCookie = null) => {
   if(managerCookie) {
     const manager=await page.context().browser().newContext();
     try {
-      await manager.addCookies([managerCookie]);
+      if(managerCookie==='qa-login') {
+        const login=await manager.request.post(base+'/api/auth/login',{data:{phone:'79990009999',password:'qa-stabilization-manager-only'}});
+        check(login.ok(),'QA manager login failed');
+      } else await manager.addCookies([managerCookie]);
       const managerPage=await manager.newPage();await managerPage.goto(base+'/bank');
       const form=managerPage.locator('form[data-application-id="'+a.id+'"]');
       await form.locator('select[name=decision]').selectOption('APPROVED');
