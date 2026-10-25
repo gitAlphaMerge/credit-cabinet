@@ -1,6 +1,7 @@
 import {
   fundingPurposes,
   fundingDetailKeys,
+  overdraftCycles,
   type FundingRequest,
   type FinancialKey,
 } from "../shared/financing";
@@ -74,9 +75,7 @@ function validate(value: unknown): FinancingDraft {
       r.amount > 1e12 ||
       (r.term !== null &&
         (!Number.isInteger(r.term) || r.term < 1 || r.term > 120)) ||
-      !Number.isInteger(r.cycleDays) ||
-      r.cycleDays < 1 ||
-      r.cycleDays > 90
+      !overdraftCycles.includes(r.cycleDays as 30 | 60 | 90)
     )
       throw new Error("Invalid request");
     const details: FundingRequest["details"] = {},

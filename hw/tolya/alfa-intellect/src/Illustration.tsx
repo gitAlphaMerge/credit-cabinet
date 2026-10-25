@@ -102,6 +102,7 @@ export const productIllustrations = {
   REFI: "products/ALFA_REFI",
   working: "products/ALFA_DELO",
   investment: neutral,
+  revolving: "products/ALFA_RCL_UNSEC",
   contract: neutral,
   overdraft: "products/ALFA_OVERDRAFT",
   refinance: "products/ALFA_REFI",

@@ -27,8 +27,11 @@ import {
   blankFundingRequest,
   financialLabels,
   fundingCatalog,
+  fundingTerms,
   fundingPurposes,
   fundingWarningRequired,
+  nearestFundingTerm,
+  preferredFundingProduct,
   type FinancialKey,
   type FundingRequest,
 } from "../shared/financing";
@@ -78,7 +81,10 @@ export function requestFrom(s: Selection): FundingRequest {
   return s.input
     ? {
         ...structuredClone(s.input),
-        cycleDays: s.assessment?.cycleDays ?? s.input.cycleDays,
+        cycleDays: nearestFundingTerm(
+          fundingCatalog.find((p) => p.id === "overdraft")!,
+          s.assessment?.cycleDays ?? s.input.cycleDays,
+        ),
       }
     : {
         ...blankFundingRequest(),
@@ -374,14 +380,23 @@ export function Financing() {
       </Button>
     </div>
   );
-  const parameters = (edit = false) => (
+  const currentProduct = fundingCatalog.find((p) => p.id === request.productId)
+    || (item ? fundingCatalog.find((p) => p.id === item.assessment?.selectedId) : undefined)
+    || preferredFundingProduct(request);
+  const parameters = () => (
     <div className="funding-fields funding-parameters">
-      {edit && (
         <Field label="Финансовый инструмент">
           <select
             aria-label="Финансовый инструмент"
-            value={request.productId || item?.assessment?.selectedId || ""}
-            onChange={(e) => update({ productId: e.target.value })}
+            value={currentProduct.id}
+            onChange={(e) => {
+              const product = fundingCatalog.find((p) => p.id === e.target.value)!;
+              update({
+                productId: product.id,
+                term: product.kind === "overdraft" ? null : request.term === null
+                  ? null : nearestFundingTerm(product, request.term),
+              });
+            }}
           >
             {fundingCatalog.map((p) => (
               <option value={p.id} key={p.id}>
@@ -390,7 +405,6 @@ export function Financing() {
             ))}
           </select>
         </Field>
-      )}
       <RangeField
         label="Запрашиваемая сумма"
         suffix="₽"
@@ -403,7 +417,7 @@ export function Financing() {
         onChange={(amount) => update({ amount })}
         hint="Ползунок до 50 млн ₽. Большую потребность можно ввести вручную — не скрываем её за лимитами продуктов."
       />
-      <div>
+      {currentProduct.kind !== "overdraft" ? <div>
         <FundingChoices
           label="Желаемый срок"
           value={request.term === null ? "auto" : "manual"}
@@ -411,20 +425,19 @@ export function Financing() {
             ["auto", "Подберите срок"],
             ["manual", "Укажу сам"],
           ]}
-          onChange={(v) => update({ term: v === "auto" ? null : 36 })}
+          onChange={(v) => update({ term: v === "auto" ? null : fundingTerms(currentProduct)[0] })}
         />
         {request.term !== null && (
-          <RangeField
-            label="Срок финансирования"
-            suffix="мес."
-            value={request.term}
-            min={1}
-            max={120}
-            clampInput={false}
-            onChange={(term) => update({ term })}
-          />
+          <Field label="Срок финансирования">
+            <select aria-label="Срок финансирования"
+              value={nearestFundingTerm(currentProduct, request.term)}
+              onChange={(e) => update({ term: Number(e.target.value) })}>
+              {fundingTerms(currentProduct).map((term) =>
+                <option key={term} value={term}>{term} месяцев</option>)}
+            </select>
+          </Field>
         )}
-      </div>
+      </div> : <p>Срок действия лимита: 12 месяцев.</p>}
       <FundingChoices
         label="Как будете использовать средства?"
         value={request.usage}
@@ -435,22 +448,18 @@ export function Financing() {
         ]}
         onChange={(usage) => update({ usage })}
       />
-      {edit && request.productId === "overdraft" && (
-        <RangeField
-          label="Цикл возврата овердрафта"
-          suffix="дн."
-          value={request.cycleDays}
-          min={1}
-          max={90}
-          clampInput={false}
-          onChange={(cycleDays) =>
-            update({
-              cycleDays,
+      {currentProduct.kind === "overdraft" && (
+        <Field label="Срок погашения задолженности">
+          <select aria-label="Срок погашения задолженности"
+            value={nearestFundingTerm(currentProduct, request.cycleDays)}
+            onChange={(e) => update({
+              cycleDays: Number(e.target.value),
               details: { ...request.details, cycleManual: true },
-            })
-          }
-          hint="Сценарная длительность одной задолженности, не срок кредитного лимита."
-        />
+            })}>
+            {fundingTerms(currentProduct).map((days) =>
+              <option key={days} value={days}>{days} дней</option>)}
+          </select>
+        </Field>
       )}
     </div>
   );
@@ -1023,7 +1032,7 @@ export function Financing() {
               Создадим новую версию этого же подбора. Все инструменты доступны
               для сравнения; ограничения будут проверены заново.
             </p>
-            {parameters(true)}
+                {parameters()}
             {error && (
               <p className="funding-error" role="alert">
                 {error}

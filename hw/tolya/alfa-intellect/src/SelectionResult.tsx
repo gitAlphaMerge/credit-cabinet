@@ -84,7 +84,9 @@ export function SelectionResult({
       <div className="funding-result-head">
         <span className="eyebrow">
           <Sparkles size={15} />{" "}
-          {a && a.selectedId !== a.recommendedId
+          {a && !a.recommendedId
+            ? "Подходящий продукт не найден"
+            : a && a.selectedId !== a.recommendedId
             ? "Выбранный вами инструмент"
             : "Рекомендуемый инструмент"}
         </span>
@@ -135,6 +137,12 @@ export function SelectionResult({
           </small>
           <b>{c.term} мес.</b>
         </div>
+        {selected?.kind === "overdraft" && a?.cycleDays && (
+          <div>
+            <small>Срок погашения задолженности</small>
+            <b>{a.cycleDays} дней</b>
+          </div>
+        )}
         <div>
           <small>Сценарная ставка</small>
           <b>{formatRate(c.rate)} годовых</b>
@@ -355,7 +363,7 @@ export function SelectionResult({
         <Button secondary onClick={onDiscuss}>
           <MessageSquare size={17} /> Обсудить с агентом
         </Button>
-        <Button onClick={onApply}>
+        <Button onClick={onApply} disabled={!!a && (!a.recommendedId || a.checks.some((check) => check.state === "unmet"))}>
           Перейти к оформлению <ArrowRight size={17} />
         </Button>
       </div>
