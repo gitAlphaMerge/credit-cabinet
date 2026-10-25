@@ -4,15 +4,19 @@ import express from "express";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { startTeamAgentProcess } from "./team-agent-process";
+import { guardJourneyPage } from "./journey";
 void startTeamAgentProcess();
 const production =
   process.env.NODE_ENV !== "development" && existsSync("dist/index.html");
 app.use("/fixtures", express.static(resolve("fixtures")));
+app.use(guardJourneyPage);
 if (production) {
   app.use(express.static(resolve("dist")));
   // Managed worktrees live below .codex; allow that ancestor only for this fixed
   // public SPA file, never for user-controlled paths or uploads.
-  app.use((_req, res) => res.sendFile(resolve("dist/index.html"), { dotfiles: "allow" }));
+  app.use((_req, res) =>
+    res.sendFile(resolve("dist/index.html"), { dotfiles: "allow" }),
+  );
 } else {
   const { createServer } = await import("vite");
   const vite = await createServer({

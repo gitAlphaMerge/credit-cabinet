@@ -1,0 +1,303 @@
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import type { Request, Response, NextFunction } from "express";
+import {
+  db,
+  initialState,
+  session,
+  sessionUser,
+  getUser,
+  stateOf,
+  saveState,
+} from "./store";
+import { onboardingSchema, questionnaireSchema } from "../shared/mvp2";
+import { createMvp } from "./mvp2";
+
+db.exec(`CREATE TABLE IF NOT EXISTS mvp2_guests(user_id TEXT PRIMARY KEY REFERENCES users(id));
+CREATE TABLE IF NOT EXISTS mvp2_journey(user_id TEXT PRIMARY KEY REFERENCES users(id),data TEXT NOT NULL);`);
+db.exec(
+  `CREATE TABLE IF NOT EXISTS mvp2_draft_buffers(application_id TEXT PRIMARY KEY REFERENCES applications(id),version INTEGER NOT NULL,data TEXT NOT NULL);`,
+);
+function ownedDraft(req: Request, res: Response) {
+  return db
+    .prepare(
+      "SELECT d.data FROM mvp2_dossiers d JOIN applications a ON a.id=d.application_id WHERE a.id=? AND a.user_id=?",
+    )
+    .get(String(req.params.id ?? req.body.applicationId), res.locals.userId);
+}
+export function readDraft(req: Request, res: Response) {
+  const owner = ownedDraft(req, res);
+  if (!owner) {
+    res.status(404).json({ error: "Заявка не найдена" });
+    return;
+  }
+  const a = JSON.parse(owner.data as string),
+    row = db
+      .prepare(
+        "SELECT version,data FROM mvp2_draft_buffers WHERE application_id=?",
+      )
+      .get(a.id);
+  res.json(
+    row && row.version === a.version ? JSON.parse(row.data as string) : null,
+  );
+}
+const draftQuestionnaire = questionnaireSchema.extend({
+  inn: z.string().regex(/^\d{0,12}$/),
+  amount: z.number().min(0).max(1e12).nullable(),
+  term: z.number().int().min(0).max(120).nullable(),
+});
+export function saveDraft(req: Request, res: Response) {
+  const value = z
+    .object({
+      applicationId: z.string().uuid(),
+      version: z.number().int().positive(),
+      questionnaire: draftQuestionnaire,
+      section: z.number().int().min(0).max(4),
+    })
+    .strict()
+    .parse(req.body);
+  const owner = ownedDraft(req, res);
+  if (!owner) {
+    res.status(404).json({ error: "Заявка не найдена" });
+    return;
+  }
+  const a = JSON.parse(owner.data as string);
+  if (
+    a.version !== value.version ||
+    !(a.lifecycle === "DRAFT" || a.decision === "ADDITIONAL_DATA_REQUIRED")
+  ) {
+    res.status(409).json({ error: "Черновик уже изменился" });
+    return;
+  }
+  db.prepare(
+    "INSERT INTO mvp2_draft_buffers VALUES(?,?,?) ON CONFLICT(application_id) DO UPDATE SET version=excluded.version,data=excluded.data",
+  ).run(a.id, value.version, JSON.stringify(value));
+  res.json({ ok: true });
+}
+export function journeyToken(req: Request) {
+  return (
+    req.headers.cookie
+      ?.split(/;\s*/)
+      .find((x) => x.startsWith("alfa_session="))
+      ?.slice(13) || ""
+  );
+}
+export function isGuest(uid: string) {
+  return !!db.prepare("SELECT 1 FROM mvp2_guests WHERE user_id=?").get(uid);
+}
+/** Never authorize service screens from mutable profile/cabinet/frontend flags. */
+export function cabinetAvailable(uid: string) {
+  const rows = db
+    .prepare(
+      `SELECT d.data FROM mvp2_dossiers d JOIN applications a ON a.id=d.application_id JOIN mvp2_disbursements x ON x.application_id=a.id WHERE a.user_id=?`,
+    )
+    .all(uid);
+  return rows.some((row) => {
+    const a = JSON.parse(row.data as string);
+    return (
+      a.lifecycle === "ACTIVE" &&
+      a.signature?.hash &&
+      a.signature.hash === a.contract?.hash &&
+      a.signature.version === a.contract?.version
+    );
+  });
+}
+export function readJourney(uid: string) {
+  const saved = db
+    .prepare("SELECT data FROM mvp2_journey WHERE user_id=?")
+    .get(uid);
+  return saved
+    ? JSON.parse(saved.data as string)
+    : {
+        onboarding: null,
+        onboardingStep: 0,
+        view: "recommendation",
+        section: 0,
+        applicationId: null,
+      };
+}
+function writeJourney(uid: string, data: unknown) {
+  db.prepare(
+    "INSERT INTO mvp2_journey VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data",
+  ).run(uid, JSON.stringify(data));
+}
+export function bootstrapJourney(req: Request, res: Response) {
+  let owner = sessionUser(journeyToken(req))?.user_id;
+  if (!owner) {
+    owner = randomUUID();
+    const state = initialState({
+      name: "Мой бизнес",
+      form: "ООО",
+      stage: "operating",
+      registered: true,
+      sector: "Не указан",
+      ageBand: "Не указан",
+      result: "Не указан",
+      debt: "Не уверен",
+      intent: "Оформление кредита",
+    });
+    state.preferences.tourDone = true;
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      // Storage owner, not a customer account: no phone, password or login step.
+      db.prepare(
+        "INSERT INTO users(id,phone,password,state) VALUES(?,?,?,?)",
+      ).run(
+        owner,
+        `anonymous:${owner}`,
+        "!anonymous-login-disabled",
+        JSON.stringify(state),
+      );
+      db.prepare("INSERT INTO mvp2_guests VALUES(?)").run(owner);
+      db.exec("COMMIT");
+    } catch (e) {
+      db.exec("ROLLBACK");
+      throw e;
+    }
+    res.cookie("alfa_session", session(owner), {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.COOKIE_SECURE === "true",
+      maxAge: 7 * 86400000,
+      path: "/",
+    });
+  }
+  res.json({ ok: true, workspaceId: owner });
+}
+const draftShape = Object.fromEntries(
+  Object.entries(onboardingSchema.shape).map(([k, v]) => [
+    k,
+    k === "term" ? v : v.or(z.literal("")),
+  ]),
+);
+const onboardingDraft = z.object(draftShape);
+export function saveOnboarding(req: Request, res: Response) {
+  const value = z
+    .object({ answers: onboardingDraft, step: z.number().int().min(0).max(2) })
+    .strict()
+    .parse(req.body);
+  const uid = res.locals.userId;
+  writeJourney(uid, {
+    ...readJourney(uid),
+    onboarding: value.answers,
+    onboardingStep: value.step,
+  });
+  res.json({ ok: true });
+}
+export function completeOnboarding(req: Request, res: Response) {
+  const answers = onboardingSchema.parse(req.body.answers),
+    uid = res.locals.userId;
+  const a = createMvp(db, uid, answers),
+    s = stateOf(uid);
+  s.profile.mvp2Answers = answers;
+  saveState(uid, s);
+  writeJourney(uid, {
+    onboarding: answers,
+    onboardingStep: 2,
+    applicationId: a.id,
+    view: "recommendation",
+    section: 0,
+  });
+  res.json(a);
+}
+export function saveJourneyPosition(req: Request, res: Response) {
+  const data = z
+    .object({
+      applicationId: z.string().uuid(),
+      view: z.enum([
+        "recommendation",
+        "catalog",
+        "intro",
+        "questionnaire",
+        "dossier",
+        "supplement",
+        "processing",
+        "decision",
+        "meeting",
+        "details",
+        "contract",
+        "receive",
+        "chat",
+        "scenario",
+      ]),
+      section: z.number().int().min(0).max(4),
+    })
+    .strict()
+    .parse(req.body);
+  if (
+    !db
+      .prepare("SELECT id FROM applications WHERE id=? AND user_id=?")
+      .get(data.applicationId, res.locals.userId)
+  ) {
+    res.status(404).json({ error: "Заявка не найдена" });
+    return;
+  }
+  writeJourney(res.locals.userId, {
+    ...readJourney(res.locals.userId),
+    ...data,
+  });
+  res.json({ ok: true });
+}
+export function guardJourneyApi(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const uid = res.locals.userId;
+  const participant =
+    isGuest(uid) ||
+    !!db
+      .prepare(
+        "SELECT a.id FROM applications a JOIN mvp2_dossiers d ON d.application_id=a.id WHERE a.user_id=? LIMIT 1",
+      )
+      .get(uid);
+  if (
+    getUser(uid)?.role === "manager" ||
+    !participant ||
+    cabinetAvailable(uid)
+  ) {
+    next();
+    return;
+  }
+  // Guests cannot manufacture an active credit through old calculator/demo/manual routes.
+  if (
+    /^\/(?:mvp2(?:\/|$)|journey(?:\/|$)|state$|config$|preferences$|chats\/[^/]+\/feedback$)/.test(
+      req.path,
+    )
+  ) {
+    next();
+    return;
+  }
+  res.status(403).json({
+    error: "Кредитный кабинет доступен после получения финансирования",
+    next: "/apply",
+  });
+}
+export function guardJourneyPage(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (req.path.startsWith("/api/") || /\.[a-z0-9]+$/i.test(req.path)) {
+    next();
+    return;
+  }
+  const uid = sessionUser(journeyToken(req))?.user_id;
+  if (req.path === "/bank" && uid && getUser(uid)?.role === "manager") {
+    next();
+    return;
+  }
+  if (["/", "/onboarding", "/apply"].includes(req.path)) {
+    next();
+    return;
+  }
+  if (
+    uid &&
+    cabinetAvailable(uid) &&
+    ["/cabinet", "/chat"].includes(req.path)
+  ) {
+    next();
+    return;
+  }
+  res.redirect(303, uid ? "/apply" : "/onboarding");
+}

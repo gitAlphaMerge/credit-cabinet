@@ -332,11 +332,6 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
     res.json(chat);
     return;
   }
-  if (!process.env.TEAM_AGENT_URL && !process.env.OPENAI_API_KEY)
-    throw new ApplicationError(
-      503,
-      "ИИ-агент сейчас не подключён. Заявка сохранена; остальные действия доступны.",
-    );
   const text = z.string().trim().min(1).max(1500).parse(req.body.text);
   chat.messages.push({
     id: randomUUID(),
@@ -345,6 +340,11 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
     createdAt: new Date().toISOString(),
   });
   saveState(uid, s);
+  if (!process.env.TEAM_AGENT_URL && !process.env.OPENAI_API_KEY)
+    throw new ApplicationError(
+      503,
+      "ИИ-агент сейчас не подключён. Вопрос сохранён; остальные действия доступны.",
+    );
   const clean = (t: string) =>
     t
       .replace(/\b\d{10,20}\b/g, "[реквизиты скрыты]")

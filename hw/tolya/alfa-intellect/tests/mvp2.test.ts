@@ -261,7 +261,7 @@ test("exactly 3m: real persisted pipeline, separate signature/activation, one di
     .post(`/api/applications/${a.id}/events`)
     .set("Idempotency-Key", "bypass")
     .send({ event: "sign", expectedVersion: a.version })
-    .expect(409);
+    .expect(403);
   a = await contract(x.agent, a);
   const unsigned = await x.agent
     .get(`/api/mvp2/applications/${a.id}/documents/contract`)

@@ -19,7 +19,11 @@ import {
 } from "./store";
 import { calculate, select, forecast, catalog } from "./finance";
 import { extract, fieldNames, readableFileName } from "./documents";
-import { confirmDocumentVersion, creditRevision, documentMetadata } from "./document-policy";
+import {
+  confirmDocumentVersion,
+  creditRevision,
+  documentMetadata,
+} from "./document-policy";
 import { createDocumentConnectorRouter } from "./document-connector";
 import { createAIProvider } from "./ai-provider";
 import { publicPreview } from "./preview";
@@ -31,6 +35,18 @@ import { fundingRouter } from "./funding-routes";
 import { applicationsRouter } from "./applications-routes";
 import { mvp2Router } from "./mvp2-routes";
 import { onboardingSchema } from "../shared/mvp2";
+import {
+  bootstrapJourney,
+  cabinetAvailable,
+  isGuest,
+  readJourney,
+  saveOnboarding,
+  completeOnboarding,
+  saveJourneyPosition,
+  guardJourneyApi,
+  readDraft,
+  saveDraft,
+} from "./journey";
 import { checksRouter } from "./checks";
 import { demoPersonasRouter } from "./demo-personas";
 import {
@@ -122,15 +138,24 @@ app.get("/api/config", (req, res) => {
   res.json({
     authenticated: !!user,
     workspaceId: user?.user_id ?? null,
-    role: user ? getUser(user.user_id)?.role ?? "client" : null,
-    aiConnected: process.env.AI_PROVIDER === "openai"
-      ? !!process.env.OPENAI_API_KEY : !!process.env.TEAM_AGENT_URL,
-    model: process.env.AI_PROVIDER === "openai"
-      ? process.env.AI_MODEL || "gpt-5.4-mini"
-      : process.env.AGENT_LLM_MODEL || "qwen3:8b",
+    role: user ? (getUser(user.user_id)?.role ?? "client") : null,
+    anonymous: user ? isGuest(user.user_id) : false,
+    cabinetAvailable: user ? cabinetAvailable(user.user_id) : false,
+    aiConnected:
+      process.env.AI_PROVIDER === "openai"
+        ? !!process.env.OPENAI_API_KEY
+        : !!process.env.TEAM_AGENT_URL,
+    model:
+      process.env.AI_PROVIDER === "openai"
+        ? process.env.AI_MODEL || "gpt-5.4-mini"
+        : process.env.AGENT_LLM_MODEL || "qwen3:8b",
     fieldNames,
     catalog,
   });
+});
+app.post("/api/journey/session", (req, res) => {
+  limit("journey:" + req.ip, 20);
+  bootstrapJourney(req, res);
 });
 app.get(["/health", "/api/health"], async (_req, res) => {
   let database = "ok";
@@ -142,9 +167,12 @@ app.get(["/health", "/api/health"], async (_req, res) => {
   let team_api = "not_configured";
   if (process.env.TEAM_API_URL) {
     try {
-      const response = await fetch(new URL("/health", process.env.TEAM_API_URL), {
-        signal: AbortSignal.timeout(2000),
-      });
+      const response = await fetch(
+        new URL("/health", process.env.TEAM_API_URL),
+        {
+          signal: AbortSignal.timeout(2000),
+        },
+      );
       team_api = response.ok ? "ok" : "down";
       await response.body?.cancel();
     } catch {
@@ -254,81 +282,191 @@ app.post("/api/auth/logout", (req, res) => {
 });
 // Cover nested slots and trace as well as the visible message text.
 export function redactExport(value: unknown): unknown {
-  if (typeof value === "string") return value
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[скрыто]")
-    .replace(/(?<!\d)(?:\d[ -]?){13,19}(?!\d)/g, "[скрыто]")
-    .replace(/(?<!\d)\d{3}[ -]?\d{3}[ -]?\d{3}[ -]?\d{2}(?!\d)/g, "[скрыто]")
-    .replace(/(?<!\d)\d{2} ?\d{2}[ -]?\d{6}(?!\d)/g, "[скрыто]")
-    .replace(/(?<!\d)(?:\d{12}|\d{10})(?!\d)/g, "[скрыто]")
-    .replace(/(?<!\d)(?:\+7|7|8)[ (.-]*\d{3}[ ) .-]*\d{3}[ .-]*\d{2}[ .-]*\d{2}(?!\d)/g, "[скрыто]");
+  if (typeof value === "string")
+    return value
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[скрыто]")
+      .replace(/(?<!\d)(?:\d[ -]?){13,19}(?!\d)/g, "[скрыто]")
+      .replace(/(?<!\d)\d{3}[ -]?\d{3}[ -]?\d{3}[ -]?\d{2}(?!\d)/g, "[скрыто]")
+      .replace(/(?<!\d)\d{2} ?\d{2}[ -]?\d{6}(?!\d)/g, "[скрыто]")
+      .replace(/(?<!\d)(?:\d{12}|\d{10})(?!\d)/g, "[скрыто]")
+      .replace(
+        /(?<!\d)(?:\+7|7|8)[ (.-]*\d{3}[ ) .-]*\d{3}[ .-]*\d{2}[ .-]*\d{2}(?!\d)/g,
+        "[скрыто]",
+      );
   if (Array.isArray(value)) return value.map(redactExport);
-  if (value && typeof value === "object") return Object.fromEntries(
-    Object.entries(value).filter(([k]) => !["phone", "statement_csv", "user_id"].includes(k))
-      .map(([k,v]) => [k, ["user","id","chat_id","message_id","created_at","updated_at","createdAt","updatedAt"].includes(k) ? v : redactExport(v)]));
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([k]) => !["phone", "statement_csv", "user_id"].includes(k))
+        .map(([k, v]) => [
+          k,
+          [
+            "user",
+            "id",
+            "chat_id",
+            "message_id",
+            "created_at",
+            "updated_at",
+            "createdAt",
+            "updatedAt",
+          ].includes(k)
+            ? v
+            : redactExport(v),
+        ]),
+    );
   return value;
 }
 function publicFeedback(row: Feedback) {
   const { user_id, reasons, rating, ...rest } = row;
-  return { ...rest, rating: row.kind === "conversation" && rating !== null ? Number(rating) : rating,
-    reasons: JSON.parse(reasons) as string[] };
+  return {
+    ...rest,
+    rating:
+      row.kind === "conversation" && rating !== null ? Number(rating) : rating,
+    reasons: JSON.parse(reasons) as string[],
+  };
 }
-async function agentTraces(ids: string[], secret: string): Promise<Record<string, unknown>> {
+async function agentTraces(
+  ids: string[],
+  secret: string,
+): Promise<Record<string, unknown>> {
   const result: Record<string, unknown> = {};
   for (let start = 0; start < ids.length; start += 200) {
     try {
-      const url = new URL("/admin/sessions", process.env.TEAM_AGENT_URL || "http://agent:8090");
-      url.searchParams.set("ids", ids.slice(start,start+200).join(","));
-      const response = await fetch(url, { headers: { Authorization: "Bearer " + secret }, signal: AbortSignal.timeout(5000) });
+      const url = new URL(
+        "/admin/sessions",
+        process.env.TEAM_AGENT_URL || "http://agent:8090",
+      );
+      url.searchParams.set("ids", ids.slice(start, start + 200).join(","));
+      const response = await fetch(url, {
+        headers: { Authorization: "Bearer " + secret },
+        signal: AbortSignal.timeout(5000),
+      });
       if (response.ok) Object.assign(result, await response.json());
-    } catch { /* Trace is optional when the agent is unavailable. */ }
+    } catch {
+      /* Trace is optional when the agent is unavailable. */
+    }
   }
   return result;
 }
-app.get(["/api/admin/feedback.jsonl", "/api/admin/history.jsonl"], async (req, res) => {
-  const secret = process.env.FEEDBACK_EXPORT_TOKEN;
-  if (!secret) { res.sendStatus(404); return; }
-  const digest = (v: string) => createHash("sha256").update(v).digest();
-  if (!timingSafeEqual(digest(req.get("Authorization") || ""), digest("Bearer " + secret))) {
-    res.sendStatus(401); return;
-  }
-  const since = req.query.since === undefined ? undefined : z.string().datetime({offset:true}).parse(req.query.since);
-  const cutoff = since ? Date.parse(since) : -Infinity;
-  const chats = (db.prepare("SELECT id,state FROM users").all() as {id:string;state:string}[])
-    .flatMap(u => (JSON.parse(u.state) as AppState).chats.map(chat => {
-      const dated = chat as typeof chat & { createdAt?: string; updatedAt?: string };
-      const feedback = feedbackOf(u.id, chat.id);
-      const created_at = dated.createdAt || chat.messages[0]?.createdAt || null;
-      const updated_at = [dated.updatedAt, created_at, ...chat.messages.map(m => m.createdAt), ...feedback.map(f => f.updated_at)]
-        .filter((v): v is string => !!v).sort((a,b) => Date.parse(a)-Date.parse(b)).at(-1) || null;
-      return { chat_id: chat.id, user: createHash("sha256").update(u.id).digest("hex"),
-        title: chat.title, created_at, updated_at, messages: chat.messages,
-        feedback: feedback.map(publicFeedback),
-        status: (chat.messages.filter(m => m.role === "assistant").at(-1) as {status?:string}|undefined)?.status || null };
-    }));
-  const history = req.path.endsWith("history.jsonl");
-  const selected = chats.filter(c => history
-    ? !since || !!c.updated_at && Date.parse(c.updated_at) > cutoff
-    : c.feedback.some(f => f.rating !== null && Date.parse(f.updated_at) > cutoff));
-  const traces = await agentTraces(selected.map(c => c.chat_id), secret);
-  const lines = selected.flatMap<unknown>(c => {
-    const agent_trace = traces[c.chat_id] ?? null;
-    if (history) return [{ ...c, agent_trace }];
-    return c.feedback.filter(f => f.rating !== null && Date.parse(f.updated_at) > cutoff).map(f => {
-      const index = c.messages.findIndex(m => m.id === f.message_id);
-      return { ...f, user:c.user, messages: f.kind === "message" ? c.messages.slice(0,index+1) : c.messages, agent_trace };
+app.get(
+  ["/api/admin/feedback.jsonl", "/api/admin/history.jsonl"],
+  async (req, res) => {
+    const secret = process.env.FEEDBACK_EXPORT_TOKEN;
+    if (!secret) {
+      res.sendStatus(404);
+      return;
+    }
+    const digest = (v: string) => createHash("sha256").update(v).digest();
+    if (
+      !timingSafeEqual(
+        digest(req.get("Authorization") || ""),
+        digest("Bearer " + secret),
+      )
+    ) {
+      res.sendStatus(401);
+      return;
+    }
+    const since =
+      req.query.since === undefined
+        ? undefined
+        : z.string().datetime({ offset: true }).parse(req.query.since);
+    const cutoff = since ? Date.parse(since) : -Infinity;
+    const chats = (
+      db.prepare("SELECT id,state FROM users").all() as {
+        id: string;
+        state: string;
+      }[]
+    ).flatMap((u) =>
+      (JSON.parse(u.state) as AppState).chats.map((chat) => {
+        const dated = chat as typeof chat & {
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        const feedback = feedbackOf(u.id, chat.id);
+        const created_at =
+          dated.createdAt || chat.messages[0]?.createdAt || null;
+        const updated_at =
+          [
+            dated.updatedAt,
+            created_at,
+            ...chat.messages.map((m) => m.createdAt),
+            ...feedback.map((f) => f.updated_at),
+          ]
+            .filter((v): v is string => !!v)
+            .sort((a, b) => Date.parse(a) - Date.parse(b))
+            .at(-1) || null;
+        return {
+          chat_id: chat.id,
+          user: createHash("sha256").update(u.id).digest("hex"),
+          title: chat.title,
+          created_at,
+          updated_at,
+          messages: chat.messages,
+          feedback: feedback.map(publicFeedback),
+          status:
+            (
+              chat.messages.filter((m) => m.role === "assistant").at(-1) as
+                { status?: string } | undefined
+            )?.status || null,
+        };
+      }),
+    );
+    const history = req.path.endsWith("history.jsonl");
+    const selected = chats.filter((c) =>
+      history
+        ? !since || (!!c.updated_at && Date.parse(c.updated_at) > cutoff)
+        : c.feedback.some(
+            (f) => f.rating !== null && Date.parse(f.updated_at) > cutoff,
+          ),
+    );
+    const traces = await agentTraces(
+      selected.map((c) => c.chat_id),
+      secret,
+    );
+    const lines = selected.flatMap<unknown>((c) => {
+      const agent_trace = traces[c.chat_id] ?? null;
+      if (history) return [{ ...c, agent_trace }];
+      return c.feedback
+        .filter((f) => f.rating !== null && Date.parse(f.updated_at) > cutoff)
+        .map((f) => {
+          const index = c.messages.findIndex((m) => m.id === f.message_id);
+          return {
+            ...f,
+            user: c.user,
+            messages:
+              f.kind === "message"
+                ? c.messages.slice(0, index + 1)
+                : c.messages,
+            agent_trace,
+          };
+        });
     });
-  });
-  res.type("application/x-ndjson").send(lines.map(line => JSON.stringify(redactExport(line))).join("\n") + (lines.length ? "\n" : ""));
-});
+    res
+      .type("application/x-ndjson")
+      .send(
+        lines.map((line) => JSON.stringify(redactExport(line))).join("\n") +
+          (lines.length ? "\n" : ""),
+      );
+  },
+);
 app.use("/api", (req, res, next) => {
   const u = sessionUser(token(req));
   if (!u) {
-    res.status(401).json({ error: "Войдите в аккаунт" });
+    res.status(401).json({ error: "Сессия недоступна. Обновите страницу." });
     return;
   }
   res.locals.userId = u.user_id;
   next();
 });
+app.use("/api", guardJourneyApi);
+app.get("/api/journey", (_req, res) =>
+  res.json(readJourney(res.locals.userId)),
+);
+app.put("/api/journey/onboarding", saveOnboarding);
+app.post("/api/journey/complete", completeOnboarding);
+app.put("/api/journey/position", saveJourneyPosition);
+app.get("/api/journey/draft/:id", readDraft);
+app.put("/api/journey/draft", saveDraft);
 app.get("/api/state", (_req, res) => {
   const s = stateOf(res.locals.userId);
   syncCabinetNotices(s);
@@ -459,7 +597,9 @@ app.post("/api/documents", upload.single("file"), async (req, res) => {
       confirmed: false,
       createdAt: new Date().toISOString(),
     };
-    Object.assign(doc, documentMetadata(doc), { creditRevision: creditRevision(s) });
+    Object.assign(doc, documentMetadata(doc), {
+      creditRevision: creditRevision(s),
+    });
     s.documents.unshift(doc);
     db.prepare("INSERT OR IGNORE INTO files VALUES(?,?,?,?,?)").run(
       id,
@@ -522,37 +662,59 @@ app.post("/api/applications/:id/disagreement", async (req, res) => {
     res.status(403).json({ error: "Возражение отправляет клиент" });
     return;
   }
-  const body = z.object({
-    expectedVersion: z.number().int().positive(),
-    client_objections: z.string().trim().min(1).max(4000),
-  }).strict().parse(req.body);
+  const body = z
+    .object({
+      expectedVersion: z.number().int().positive(),
+      client_objections: z.string().trim().min(1).max(4000),
+    })
+    .strict()
+    .parse(req.body);
   const a = visibleApplication(db, req.params.id, "client", uid);
   if (a.version !== body.expectedVersion)
     throw new ApplicationError(409, "Версия заявки изменилась");
-  res.json(await disagreeWithApplication(
-    db, a, body.client_objections, applicationsDependencies(),
-  ));
+  res.json(
+    await disagreeWithApplication(
+      db,
+      a,
+      body.client_objections,
+      applicationsDependencies(),
+    ),
+  );
 });
 app.post("/api/applications/:id/events", async (req, res, next) => {
   if (req.body.event !== "client_update") return next();
-  const body = z.object({
-    event: z.literal("client_update"),
-    expectedVersion: z.number().int().positive(),
-    reason: z.string().max(4000).optional(),
-    payload: z.record(z.string(), z.unknown()).optional(),
-  }).strict().parse(req.body);
-  const key = z.string().trim().min(1).max(200).parse(req.get("Idempotency-Key"));
+  const body = z
+    .object({
+      event: z.literal("client_update"),
+      expectedVersion: z.number().int().positive(),
+      reason: z.string().max(4000).optional(),
+      payload: z.record(z.string(), z.unknown()).optional(),
+    })
+    .strict()
+    .parse(req.body);
+  const key = z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .parse(req.get("Idempotency-Key"));
   const uid = res.locals.userId;
   const deps = applicationsDependencies();
-  const result = await executeApplicationEvent(db, {
-    applicationId: req.params.id,
-    event: body.event,
-    expectedVersion: body.expectedVersion,
-    actorRole: getUser(uid)!.role,
-    actorId: uid,
-    reason: body.reason,
-    payload: body.payload,
-  }, key, applicationRequestHash(req.path.replace(/^\/api/, ""), req.body), deps);
+  const result = await executeApplicationEvent(
+    db,
+    {
+      applicationId: req.params.id,
+      event: body.event,
+      expectedVersion: body.expectedVersion,
+      actorRole: getUser(uid)!.role,
+      actorId: uid,
+      reason: body.reason,
+      payload: body.payload,
+    },
+    key,
+    applicationRequestHash(req.path.replace(/^\/api/, ""), req.body),
+    deps,
+  );
   if (applicationOf(db, req.params.id).version === result.application.version) {
     const reviewed = await resumeDisagreedReview(db, result.application, deps);
     if (reviewed.application.version !== result.application.version) {
@@ -567,36 +729,86 @@ app.post("/api/applications/:id/events", async (req, res, next) => {
 });
 app.use("/api", applicationsRouter);
 app.use("/api/mvp2", mvp2Router);
-const feedbackSchema = z.object({
-  kind: z.enum(["message", "conversation"]),
-  message_id: z.string().min(1).max(200).nullable().optional(),
-  rating: z.union([z.enum(["up", "down"]), z.number().int().min(1).max(7)]).nullable(),
-  reasons: z.array(z.enum(["G","L","M","P","V","F","other"])).max(7).default([]),
-  text: z.string().max(1000).default(""),
-}).strict().superRefine((v, ctx) => {
-  if (v.kind === "message" ? !v.message_id || typeof v.rating === "number"
-    : !!v.message_id || typeof v.rating === "string") ctx.addIssue({code:"custom",message:"Неверный тип оценки"});
-  if (v.rating !== "down" && v.reasons.length) ctx.addIssue({code:"custom",message:"Причины доступны для плохого ответа"});
+const feedbackSchema = z
+  .object({
+    kind: z.enum(["message", "conversation"]),
+    message_id: z.string().min(1).max(200).nullable().optional(),
+    rating: z
+      .union([z.enum(["up", "down"]), z.number().int().min(1).max(7)])
+      .nullable(),
+    reasons: z
+      .array(z.enum(["G", "L", "M", "P", "V", "F", "other"]))
+      .max(7)
+      .default([]),
+    text: z.string().max(1000).default(""),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (
+      v.kind === "message"
+        ? !v.message_id || typeof v.rating === "number"
+        : !!v.message_id || typeof v.rating === "string"
+    )
+      ctx.addIssue({ code: "custom", message: "Неверный тип оценки" });
+    if (v.rating !== "down" && v.reasons.length)
+      ctx.addIssue({
+        code: "custom",
+        message: "Причины доступны для плохого ответа",
+      });
+  });
+app.get("/api/chats/:id/feedback", (req, res) => {
+  if (!stateOf(res.locals.userId).chats.some((c) => c.id === req.params.id)) {
+    res.sendStatus(404);
+    return;
+  }
+  res.json(feedbackOf(res.locals.userId, req.params.id).map(publicFeedback));
 });
-app.get("/api/chats/:id/feedback", (req,res) => {
-  if (!stateOf(res.locals.userId).chats.some(c => c.id === req.params.id)) {res.sendStatus(404); return;}
-  res.json(feedbackOf(res.locals.userId,req.params.id).map(publicFeedback));
-});
-app.post("/api/chats/:id/feedback", (req,res) => {
-  const uid = res.locals.userId, chat = stateOf(uid).chats.find(c => c.id === req.params.id);
-  if (!chat) {res.sendStatus(404); return;}
+app.post("/api/chats/:id/feedback", (req, res) => {
+  const uid = res.locals.userId,
+    chat = stateOf(uid).chats.find((c) => c.id === req.params.id);
+  if (!chat) {
+    res.sendStatus(404);
+    return;
+  }
   const value = feedbackSchema.parse(req.body);
-  const message = value.kind === "message" ? chat.messages.find(m => m.id === value.message_id && m.role === "assistant") : undefined;
-  if (value.kind === "message" && !message) {res.sendStatus(404); return;}
-  const previous = feedbackOf(uid,chat.id).find(f => f.kind === value.kind && (value.kind === "conversation" || f.message_id === value.message_id));
+  const message =
+    value.kind === "message"
+      ? chat.messages.find(
+          (m) => m.id === value.message_id && m.role === "assistant",
+        )
+      : undefined;
+  if (value.kind === "message" && !message) {
+    res.sendStatus(404);
+    return;
+  }
+  const previous = feedbackOf(uid, chat.id).find(
+    (f) =>
+      f.kind === value.kind &&
+      (value.kind === "conversation" || f.message_id === value.message_id),
+  );
   const now = new Date().toISOString();
-  const mode = message?.mode || chat.messages.filter(m => m.role === "assistant").at(-1)?.mode || null;
-  db.prepare(`INSERT INTO feedback(id,user_id,chat_id,message_id,kind,rating,reasons,text,agent_mode,created_at,updated_at)
+  const mode =
+    message?.mode ||
+    chat.messages.filter((m) => m.role === "assistant").at(-1)?.mode ||
+    null;
+  db.prepare(
+    `INSERT INTO feedback(id,user_id,chat_id,message_id,kind,rating,reasons,text,agent_mode,created_at,updated_at)
     VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO UPDATE SET rating=excluded.rating,reasons=excluded.reasons,
-    text=excluded.text,agent_mode=excluded.agent_mode,updated_at=excluded.updated_at`).run(
-    previous?.id || randomUUID(),uid,chat.id,value.message_id || null,value.kind,
-    value.rating === null ? null : String(value.rating),JSON.stringify([...new Set(value.reasons)]),value.text,mode,previous?.created_at || now,now);
-  res.json(feedbackOf(uid,chat.id).map(publicFeedback));
+    text=excluded.text,agent_mode=excluded.agent_mode,updated_at=excluded.updated_at`,
+  ).run(
+    previous?.id || randomUUID(),
+    uid,
+    chat.id,
+    value.message_id || null,
+    value.kind,
+    value.rating === null ? null : String(value.rating),
+    JSON.stringify([...new Set(value.reasons)]),
+    value.text,
+    mode,
+    previous?.created_at || now,
+    now,
+  );
+  res.json(feedbackOf(uid, chat.id).map(publicFeedback));
 });
 app.post("/api/chats", (req, res) => {
   const s = stateOf(res.locals.userId);
@@ -635,12 +847,16 @@ app.patch("/api/chats/:id", (req, res) => {
 });
 const busy = new Set<string>();
 function activeApplication(uid: string, selectionId?: string) {
-  const rows = db.prepare(
-    "SELECT * FROM applications WHERE user_id=? AND status IN ('info_requested','queued','offered') ORDER BY created_at DESC,id DESC",
-  ).all(uid) as Application[];
+  const rows = db
+    .prepare(
+      "SELECT * FROM applications WHERE user_id=? AND status IN ('info_requested','queued','offered') ORDER BY created_at DESC,id DESC",
+    )
+    .all(uid) as Application[];
   return selectionId
-    ? rows.find(a => a.selection_id === selectionId)
-    : rows.length === 1 ? rows[0] : undefined;
+    ? rows.find((a) => a.selection_id === selectionId)
+    : rows.length === 1
+      ? rows[0]
+      : undefined;
 }
 app.post("/api/chats/:id/messages", async (req, res) => {
   const uid = res.locals.userId;
@@ -667,41 +883,60 @@ app.post("/api/chats/:id/messages", async (req, res) => {
   busy.add(uid);
   try {
     const provider = createAIProvider(process.env, () => {
-          const day = new Date().toISOString().slice(0, 10);
-          const n = db
-            .prepare("SELECT calls FROM usage WHERE user_id=? AND day=?")
-            .get(uid, day) as any;
-          if ((n?.calls ?? 0) >= Number(process.env.AI_DAILY_CALL_LIMIT || 20))
-            throw new Error("Дневной лимит ИИ-запросов исчерпан");
-          db.prepare(
-            "INSERT INTO usage VALUES(?,?,1) ON CONFLICT(user_id,day) DO UPDATE SET calls=calls+1",
-          ).run(uid, day);
-        });
+      const day = new Date().toISOString().slice(0, 10);
+      const n = db
+        .prepare("SELECT calls FROM usage WHERE user_id=? AND day=?")
+        .get(uid, day) as any;
+      if ((n?.calls ?? 0) >= Number(process.env.AI_DAILY_CALL_LIMIT || 20))
+        throw new Error("Дневной лимит ИИ-запросов исчерпан");
+      db.prepare(
+        "INSERT INTO usage VALUES(?,?,1) ON CONFLICT(user_id,day) DO UPDATE SET calls=calls+1",
+      ).run(uid, day);
+    });
     // ID из авторизованной сессии, а не из профиля или тела запроса.
     const application = activeApplication(uid, chat.selectionId);
     const dossier = application && dossierOf(db, application.id);
     const core = dossier ? JSON.parse(dossier.core_result).core : undefined;
-    const context = application ? {
-        application: {
-          id: application.id,
-          status: application.status,
-          n: dossier?.readiness_n ?? undefined,
-          m: dossier?.readiness_m ?? undefined,
-          holes: dossier ? JSON.parse(dossier.holes) : [],
-          reasons: core?.reasons,
-          stops_fired: core?.stops_fired,
-          limit_now_rub: core?.limit_now_rub,
-          alternatives: dossier?.alternatives,
-        },
-        ...(application.status === "info_requested" ? { mode: "objections" as const } : {}),
-      } : undefined;
-    const answer = await provider.reply({ ...s, userId: uid }, chat.messages, chat.selectionId, context);
+    const context = application
+      ? {
+          application: {
+            id: application.id,
+            status: application.status,
+            n: dossier?.readiness_n ?? undefined,
+            m: dossier?.readiness_m ?? undefined,
+            holes: dossier ? JSON.parse(dossier.holes) : [],
+            reasons: core?.reasons,
+            stops_fired: core?.stops_fired,
+            limit_now_rub: core?.limit_now_rub,
+            alternatives: dossier?.alternatives,
+          },
+          ...(application.status === "info_requested"
+            ? { mode: "objections" as const }
+            : {}),
+        }
+      : undefined;
+    const answer = await provider.reply(
+      { ...s, userId: uid },
+      chat.messages,
+      chat.selectionId,
+      context,
+    );
     // Explicit objections work without an LLM. A model response alone cannot
     // authorize a transition or supply the customer's asserted reasons.
-    if (application?.status === "info_requested" && /не\s+соглас|не\s+подход|отказываюсь|возражаю|нуж(?:на|ен)\s+(?:вся|больш)/i.test(text)) {
+    if (
+      application?.status === "info_requested" &&
+      /не\s+соглас|не\s+подход|отказываюсь|возражаю|нуж(?:на|ен)\s+(?:вся|больш)/i.test(
+        text,
+      )
+    ) {
       const latest = applicationOf(db, application.id);
       if (latest.status === "info_requested")
-        await disagreeWithApplication(db, latest, text, applicationsDependencies());
+        await disagreeWithApplication(
+          db,
+          latest,
+          text,
+          applicationsDependencies(),
+        );
     }
     const current = stateOf(uid),
       currentChat = current.chats.find((c) => c.id === chat.id)!;
@@ -1001,7 +1236,9 @@ app.post("/api/team-score", async (req, res) => {
           !Number.isFinite(core.limit_now_rub) ||
           core.limit_now_rub < 0 ||
           !Array.isArray(core.stops_fired) ||
-          !core.stops_fired.every((code: unknown) => typeof code === "string") ||
+          !core.stops_fired.every(
+            (code: unknown) => typeof code === "string",
+          ) ||
           !Array.isArray(core.missing) ||
           !core.missing.every((code: unknown) => typeof code === "string"))
       )
@@ -1025,7 +1262,12 @@ app.use(
     res: express.Response,
     _next: express.NextFunction,
   ) => {
-    if (error && typeof error === "object" && "type" in error && error.type === "entity.too.large") {
+    if (
+      error &&
+      typeof error === "object" &&
+      "type" in error &&
+      error.type === "entity.too.large"
+    ) {
       res.status(413).json({ error: "Файл слишком большой" });
       return;
     }

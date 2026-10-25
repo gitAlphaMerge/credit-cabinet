@@ -10,6 +10,8 @@ import {
 import { api, money, date, ApiError } from "./api";
 import { Button, Brand } from "./ui";
 import { NumericInput } from "./NumericInput";
+import { OnboardingAmount } from "./OnboardingAmount";
+import { ApplicationAgent } from "./ApplicationAgent";
 import { useWorkspace, WorkspaceContext } from "./context";
 import { Chat } from "./Chat";
 import { Illustration } from "./Illustration";
@@ -18,7 +20,6 @@ import {
   managerRequestedFields,
   ages,
   purposes,
-  ranges,
   uses,
   repayments,
   initialQuestionnaire,
@@ -105,7 +106,10 @@ export function OnboardingFields({
       {(group === undefined || group === 1) && (
         <>
           {field("purpose", "Для чего нужны деньги?", purposes)}
-          {field("amountRange", "Какая сумма необходима?", ranges)}
+          <OnboardingAmount
+            value={value.amountRange}
+            onChange={(amountRange) => onChange({ ...value, amountRange })}
+          />
           <label className="field mvp-span">
             <span>
               Срок финансирования:{" "}
@@ -138,30 +142,34 @@ export function OnboardingFields({
 }
 export function MvpOnboarding({
   initial,
+  initialStep = 0,
+  onProgress,
+  busy = false,
   onDone,
   go,
 }: {
   initial?: OnboardingAnswers;
-  onDone: (v: OnboardingAnswers) => void;
+  initialStep?: number;
+  busy?: boolean;
+  onProgress?: (v: OnboardingAnswers, step: number) => void;
+  onDone: (v: OnboardingAnswers) => void | Promise<void>;
   go: (p: string) => void;
 }) {
   const [answers, setAnswers] = useState<OnboardingAnswers>(() => {
       try {
-        return (
-          initial ||
-          JSON.parse(localStorage.getItem("alfa-mvp2-onboarding") || "null") ||
-          defaults
-        );
+        return initial || defaults;
       } catch {
         return defaults;
       }
     }),
-    [step, setStep] = useState(0);
+    [step, setStep] = useState(initialStep);
+  function move(next: number) {
+    setStep(next);
+    onProgress?.(answers, next);
+  }
   function update(a: OnboardingAnswers) {
     setAnswers(a);
-    try {
-      localStorage.setItem("alfa-mvp2-onboarding", JSON.stringify(a));
-    } catch {}
+    onProgress?.(a, step);
   }
   const valid =
     step === 0
@@ -175,18 +183,15 @@ export function MvpOnboarding({
         <button className="unstyled" onClick={() => go("/")}>
           <Brand />
         </button>
-        <button className="text-button" onClick={() => go("/login")}>
-          Уже есть аккаунт? Войти
-        </button>
       </header>
       <main className="onboard-grid">
         <section className="onboard-main">
           <small>Знакомство · {step + 1} из 3</small>
-          <Illustration
-            group="docs"
-            name="questionnaire"
-            size={48}
-            decorative
+          <progress
+            className="journey-onboarding-progress"
+            max={3}
+            value={step + 1}
+            aria-label="Прогресс знакомства"
           />
           <h1>
             {
@@ -205,26 +210,19 @@ export function MvpOnboarding({
           <div className="mvp-actions">
             <Button
               secondary
-              onClick={() => (step ? setStep(step - 1) : go("/"))}
+              disabled={busy}
+              onClick={() => (step ? move(step - 1) : go("/"))}
             >
               Назад
             </Button>
             <Button
-              disabled={!valid}
-              onClick={() => (step < 2 ? setStep(step + 1) : onDone(answers))}
+              disabled={!valid || busy}
+              onClick={() => (step < 2 ? move(step + 1) : void onDone(answers))}
             >
               Продолжить <ArrowRight size={16} />
             </Button>
           </div>
         </section>
-        <aside className="onboard-aside">
-          <h2>От задачи к понятным условиям</h2>
-          <p>
-            Сохраним ответы и используем их в заявке. Повторно вводить те же
-            сведения не придётся.
-          </p>
-          <ShieldCheck size={40} />
-        </aside>
       </main>
     </div>
   );
@@ -396,8 +394,8 @@ function QuestionnaireFields({
             Найти компанию
           </Button>
           <small>
-            Синтетический реестр: 9900000001 — производство; 9900000002 —
-            компания с ограничениями; 990000000001 — IT.
+            Для учебной проверки можно использовать ИНН 9900000001. Источник —
+            синтетический реестр.
           </small>
         </div>
       )}
@@ -778,13 +776,15 @@ export function Mvp2({
     [chatSending, setChatSending] = useState(false),
     [editAnswers, setEditAnswers] = useState(false);
   const lock = useRef(false),
-    aRef = useRef(a);
+    aRef = useRef(a),
+    dirty = useRef(false);
   aRef.current = a;
   const adopt = (next: MvpApplication) => {
     aRef.current = next;
     setA(next);
     setQ(structuredClone(next.questionnaire));
     setAnswers(next.onboarding);
+    dirty.current = false;
     return next;
   };
   const derivedView = (next: MvpApplication) =>
@@ -822,11 +822,48 @@ export function Mvp2({
   async function open(next: MvpApplication) {
     adopt(next);
     setView(derivedView(next));
+    if (next.lifecycle === "ACTIVE") {
+      w.go("/cabinet");
+      return;
+    }
+    const position = await api("/journey");
+    if (position.applicationId === next.id) {
+      setSection(position.section ?? 0);
+      if (
+        next.lifecycle === "DRAFT" &&
+        [
+          "recommendation",
+          "catalog",
+          "intro",
+          "questionnaire",
+          "dossier",
+        ].includes(position.view)
+      )
+        setView(position.view);
+      else if (
+        next.decision === "ADDITIONAL_DATA_REQUIRED" &&
+        position.view === "supplement"
+      )
+        setView("supplement");
+      else if (next.decision && position.view === "chat") setView("chat");
+    }
+    const serverBuffer = await api(`/journey/draft/${next.id}`);
+    if (
+      serverBuffer &&
+      (next.lifecycle === "DRAFT" ||
+        next.decision === "ADDITIONAL_DATA_REQUIRED")
+    ) {
+      setQ(serverBuffer.questionnaire);
+      setSection(serverBuffer.section);
+      dirty.current = true;
+      setView(next.decision ? "supplement" : "questionnaire");
+    }
     try {
       const buffer = JSON.parse(
         sessionStorage.getItem(`mvp2:${next.businessId}:${next.id}`) || "null",
       );
       if (
+        !serverBuffer &&
         buffer?.version === next.version &&
         (next.lifecycle === "DRAFT" ||
           next.decision === "ADDITIONAL_DATA_REQUIRED")
@@ -836,25 +873,48 @@ export function Mvp2({
           setAnswers(buffer.onboarding);
         setSection(buffer.section ?? 0);
         setView(next.decision ? "supplement" : "questionnaire");
+        dirty.current = true;
+        await api(
+          "/journey/draft",
+          {
+            applicationId: next.id,
+            version: next.version,
+            questionnaire: buffer.questionnaire,
+            section: buffer.section ?? 0,
+          },
+          "PUT",
+        );
+        sessionStorage.removeItem(`mvp2:${next.businessId}:${next.id}`);
       }
     } catch {}
     await loadStatements(next.id);
   }
   function draftQ(value: Questionnaire) {
+    dirty.current = true;
     setQ(value);
-    if (a)
-      try {
-        sessionStorage.setItem(
-          `mvp2:${a.businessId}:${a.id}`,
-          JSON.stringify({
-            version: a.version,
-            questionnaire: value,
-            onboarding: answers,
-            section,
-          }),
-        );
-      } catch {}
   }
+  useEffect(() => {
+    if (!a || !q || !dirty.current || busy) return;
+    const timer = setTimeout(() => {
+      void api(
+        "/journey/draft",
+        { applicationId: a.id, version: a.version, questionnaire: q, section },
+        "PUT",
+      ).catch((e) => setError("Не удалось сохранить черновик: " + e.message));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q, section, busy, a?.version]);
+  useEffect(() => {
+    if (!a || busy || ["loading", "start"].includes(view)) return;
+    const timer = setTimeout(() => {
+      void api(
+        "/journey/position",
+        { applicationId: a.id, view, section },
+        "PUT",
+      ).catch((e) => setError(e.message));
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [a?.id, view, section, busy]);
   useEffect(() => {
     void run(async () => {
       const [catalog, list] = await Promise.all([
@@ -955,109 +1015,52 @@ export function Mvp2({
     });
   const openDiscussion = async () => {
     if (!a) return;
-    const chat = await api(`/mvp2/applications/${a.id}/chat`, { section });
-    setChatId(chat.id);
-    w.setActiveChatId(chat.id);
-    await w.refresh();
     setView("chat");
   };
   const discuss = () => run(openDiscussion);
   if (view === "chat" && a)
     return (
-      <WorkspaceContext.Provider
-        value={{
-          ...w,
-          activeChatId: chatId,
-          sending: chatSending ? { chatId, text: w.draft } : null,
-          sendMessage: async (text) => {
-            if (chatSending) return;
-            const value = text || w.draft;
-            if (!value.trim()) return;
-            setChatSending(true);
-            w.setDraft("");
-            try {
-              await api(`/mvp2/applications/${a.id}/chat`, { text: value });
-              await w.refresh();
-            } catch (e) {
-              w.setDraft(value);
-              w.error((e as Error).message);
-              await w.refresh();
-            } finally {
-              setChatSending(false);
-            }
-          },
-        }}
-      >
-        <div className="mvp-full-chat">
-          <Button secondary onClick={() => setView(derivedView(a))}>
-            Вернуться к решению
+      <div className="mvp-full-chat">
+        <Button secondary onClick={() => setView(derivedView(a))}>
+          Вернуться к решению
+        </Button>
+        {a.financial && !a.signature && (
+          <Button secondary onClick={() => setView("scenario")}>
+            Проверить другие условия
           </Button>
-          {a.financial && !a.signature && (
-            <Button secondary onClick={() => setView("scenario")}>
-              Проверить другие условия
-            </Button>
-          )}
-          <p>
-            {a.decision ? labels[a.decision] : sectionTitles[section]} ·{" "}
-            {money(a.questionnaire.amount)} · Контекст заявки сохранён
-          </p>
-          <Chat full />
-        </div>
-      </WorkspaceContext.Provider>
+        )}
+        <p>
+          {a.decision ? labels[a.decision] : sectionTitles[section]} ·{" "}
+          {money(a.questionnaire.amount)} · Контекст заявки сохранён
+        </p>
+        <ApplicationAgent application={a} section={section} full />
+      </div>
     );
   const p = q && products.find((p) => p.id === q.productId),
     path = a ? `/mvp2/applications/${a.id}` : "";
   return (
     <main className="financing-page page-wrap funding-mvp mvp2">
-      <header className="funding-page-heading">
-        <div>
-          <small>ФИНАНСИРОВАНИЕ ДЛЯ БИЗНЕСА</small>
-          <h1>{applicationOnly ? "Моя заявка" : "Подбор финансирования"}</h1>
-          <p>От задачи — к проверенному решению и обслуживанию кредита.</p>
-        </div>
-        <Button
-          secondary
-          disabled={busy}
-          onClick={() => {
-            setA(null);
-            setQ(null);
-            setView("start");
-          }}
-        >
-          Новая заявка
-        </Button>
+      <header className="journey-stage">
+        <small>ОФОРМЛЕНИЕ КРЕДИТА</small>
+        <h1>
+          {{
+            recommendation: "Предварительный подбор",
+            catalog: "Каталог продуктов",
+            intro: "Перед заполнением анкеты",
+            questionnaire: sectionTitles[section],
+            dossier: "Кредитное досье",
+            processing: "Рассмотрение заявки",
+            decision: "Кредитное решение",
+            supplement: "Дополнение сведений",
+            meeting: "Встреча с менеджером",
+            details: "Данные для договора",
+            contract: "Кредитный договор",
+            receive: "Получение финансирования",
+            scenario: "Новые условия",
+          }[view] || "Оформление финансирования"}
+        </h1>
+        <p>Ответы и текущий этап сохраняются автоматически в этой сессии.</p>
       </header>
-      <details className="mvp-history">
-        <summary>Предыдущие расчёты и заявки</summary>
-        <button className="text-button" onClick={() => w.go("/calculations")}>
-          Открыть прежние расчёты
-        </button>
-        <button
-          className="text-button"
-          onClick={() => w.go("/legacy-application")}
-        >
-          Открыть прежние заявки
-        </button>
-      </details>
-      {items.length > 0 && (
-        <details className="mvp-history">
-          <summary>Мои заявки · {items.length}</summary>
-          {items.map((item) => (
-            <button
-              key={item.id}
-              className="text-button"
-              onClick={() =>
-                void run(async () =>
-                  open(await api(`/mvp2/applications/${item.id}`)),
-                )
-              }
-            >
-              {date(item.createdAt)} · {money(item.questionnaire.amount)} ·{" "}
-              {item.decision ? labels[item.decision] : "Черновик"}
-            </button>
-          ))}
-        </details>
-      )}
       {error && (
         <div className="mvp-error" role="alert">
           {error}
@@ -1081,12 +1084,6 @@ export function Mvp2({
       )}
       {view === "start" && (
         <section className="funding-surface">
-          <Illustration
-            group="docs"
-            name="questionnaire"
-            size={48}
-            decorative
-          />
           <h2>Сначала задача — затем условия</h2>
           <p>
             Уточним семь ответов и подберём один из шести инструментов.
@@ -1510,53 +1507,45 @@ export function Mvp2({
                 </>
               )}
             </section>
-            <aside className="funding-surface mvp-context">
-              <MessageSquare size={28} />
-              <h3>Контекст всегда рядом</h3>
-              <p>
-                Агент видит текущий раздел и сохранённые параметры заявки. Он
-                объясняет, но не заменяет финансовую оценку.
-              </p>
-              <Button
-                secondary
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    if (
-                      a.lifecycle === "DRAFT" ||
-                      a.decision === "ADDITIONAL_DATA_REQUIRED"
-                    )
-                      await save();
-                    await openDiscussion();
-                  })
-                }
-              >
-                Задать вопрос агенту
-              </Button>
-              <p>
-                <small>
-                  ИИ может быть недоступен. Это не мешает заполнению и
-                  рассмотрению заявки.
-                </small>
-              </p>
-              <p>
-                <b>{sectionTitles[section]}</b>
-                <br />
-                {money(q.amount)} · {q.term} мес.
-                <br />
-                {p?.name}
-              </p>
+            <aside className="mvp-context">
+              <ApplicationAgent application={a} section={section} />
             </aside>
           </div>
         )}
       {a && view === "processing" && (
         <section className="funding-surface mvp-processing" aria-live="polite">
-          <Illustration
-            group="docs"
-            name="questionnaire"
-            size={64}
-            decorative
-          />
+          <div
+            className="preparation-sphere journey-sphere"
+            role="progressbar"
+            aria-label="Рассмотрение заявки"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(
+              (a.stages.filter((s) => s.status === "done").length /
+                Math.max(a.stages.length, 1)) *
+                100,
+            )}
+            style={
+              {
+                "--progress": `${(a.stages.filter((s) => s.status === "done").length / Math.max(a.stages.length, 1)) * 100}%`,
+              } as React.CSSProperties
+            }
+          >
+            <div className="sphere-liquid">
+              <i />
+              <i />
+            </div>
+            <div className="sphere-number">
+              <strong>
+                {Math.round(
+                  (a.stages.filter((s) => s.status === "done").length /
+                    Math.max(a.stages.length, 1)) *
+                    100,
+                )}
+                <small>%</small>
+              </strong>
+            </div>
+          </div>
           <h2>Рассматриваем заявку</h2>
           <p>
             Этапы выполняются на сервере. Можно обновить страницу — результат

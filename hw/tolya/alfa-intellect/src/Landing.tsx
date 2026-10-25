@@ -48,26 +48,14 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#opportunities">Возможности</a>
           <a href="#how">Как это работает</a>
           <a href="#questions">Вопросы</a>
-          <button className="text-button" onClick={() => go("/demo")}>
-            Демо
-          </button>
         </nav>
-        <button
-          className="text-button public-mobile-demo"
-          onClick={() => go("/demo")}
-        >
-          Демо
-        </button>
-        <Button secondary onClick={() => go("/login")}>
-          Войти <ArrowUpRight size={16} />
+        <Button secondary onClick={() => go("/onboarding")}>
+          Начать оформление <ArrowUpRight size={16} />
         </Button>
       </header>
       <main>
         <section className="hero wrap hero-live-pattern">
           <div className="hero-copy">
-            <Badge tone="red">
-              <Sparkles size={13} /> Финансовый помощник вашего бизнеса
-            </Badge>
             <h1>
               Большие планы.
               <br />
@@ -81,9 +69,6 @@ export function Landing({ go }: { go: (s: string) => void }) {
               <Button onClick={() => go("/onboarding")}>
                 Подобрать финансирование <ArrowRight size={19} />
               </Button>
-              <button className="text-button" onClick={() => go("/demo")}>
-                Посмотреть демо <ArrowUpRight size={17} />
-              </button>
             </div>
             <div className="hero-meta">
               <span>
@@ -94,7 +79,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
               </span>
             </div>
           </div>
-          <HeroFinance pattern={<LivePattern />} />
+          <HeroFinance minimal pattern={<LivePattern showCaption={false} />} />
         </section>
         <section className="benefit-strip wrap">
           {[
@@ -376,8 +361,8 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <br />
           Не является офертой или банковской идентификацией.
         </p>
-        <button className="text-button" onClick={() => go("/login")}>
-          Войти в кабинет <ArrowUpRight size={15} />
+        <button className="text-button" onClick={() => go("/onboarding")}>
+          Начать оформление <ArrowUpRight size={15} />
         </button>
       </footer>
     </div>
