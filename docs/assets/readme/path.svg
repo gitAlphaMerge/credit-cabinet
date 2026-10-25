@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 220" width="1280" height="220" role="img" aria-label="Путь предпринимателя из 11 шагов">
+<style>:root{--bg:#f3f4f5;--card:#fff;--ink:#0b0b0c;--ink2:#6b6b70;--line:#dcdcdd;--rs:#fbe8e7;--rt:#b8200f;--bs:#d6e8fc;--bt:#0058b8}@media (prefers-color-scheme:dark){:root{--bg:#0e0e10;--card:#18181b;--ink:#f2f2f3;--ink2:#9a9aa2;--line:#2c2c30;--rs:#3a1714;--rt:#ff7a6e;--bs:#12233a;--bt:#7fb6ff}}text{font-family:Manrope,"Segoe UI",Helvetica,Arial,sans-serif}.bg{fill:var(--bg)}.card{fill:var(--card)}.ink{fill:var(--ink)}.ink2{fill:var(--ink2)}.rt{fill:var(--rt)}.bt{fill:var(--bt)}.rs{fill:var(--rs)}.bs{fill:var(--bs)}.line{fill:var(--line)}
+.n{fill:var(--card);animation:lit 11s linear infinite}
+.run{animation:run 11s linear infinite}
+@keyframes lit{0%,8%{fill:#0072ef}14%,100%{fill:var(--card)}}
+@keyframes run{0%{transform:translateX(0)}100%{transform:translateX(1100px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<defs><filter id="sh" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity=".08"/></filter></defs>
+<rect class="bg" width="1280" height="220" rx="28"/>
+
+<text x="64" y="52" class="ink" font-size="22" font-weight="800">Путь предпринимателя</text>
+<text x="1216" y="52" class="ink2" font-size="14" font-weight="600" text-anchor="end">от первого визита до денег на счёте</text>
+<line x1="90" y1="120" x2="1190" y2="120" stroke="#dcdcdd" stroke-width="4" stroke-linecap="round"/>
+<g class="run"><circle cx="90" cy="120" r="18" fill="#ef3124" opacity=".18"/><circle cx="90" cy="120" r="8" fill="#ef3124"/></g>
+<g font-size="14" font-weight="700" text-anchor="middle"><circle class="n" cx="90" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:0s"/><text x="90" y="165" class="ink">Вход</text><circle class="n" cx="200" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:1s"/><text x="200" y="92" class="ink">Онбординг</text><circle class="n" cx="310" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:2s"/><text x="310" y="165" class="ink">Анкета</text><circle class="n" cx="420" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:3s"/><text x="420" y="92" class="ink">Документы</text><circle class="n" cx="530" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:4s"/><text x="530" y="165" class="ink">Подбор</text><circle class="n" cx="640" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:5s"/><text x="640" y="92" class="ink">Решение</text><circle class="n" cx="750" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:6s"/><text x="750" y="165" class="ink">Агент</text><circle class="n" cx="860" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:7s"/><text x="860" y="92" class="ink">Договор</text><circle class="n" cx="970" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:8s"/><text x="970" y="165" class="ink">Менеджер</text><circle class="n" cx="1080" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:9s"/><text x="1080" y="92" class="ink">Звонок</text><circle class="n" cx="1190" cy="120" r="12" stroke="#0072ef" stroke-width="3" style="animation-delay:10s"/><text x="1190" y="165" class="ink">Кабинет</text></g>
+
+</svg>
