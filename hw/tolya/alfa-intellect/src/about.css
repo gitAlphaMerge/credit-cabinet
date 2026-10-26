@@ -69,3 +69,39 @@
   .about .about-team li { animation: none; }
   .about .about-flow li { transition: none; }
 }
+
+/* Риски и сквозные пути */
+.about .about-risks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.about .about-risks li {
+  background: var(--theme-surface-soft); border: 1px solid var(--theme-line);
+  border-left: 3px solid var(--theme-red); border-radius: var(--radius-card, 20px);
+  padding: 18px; display: grid; gap: 6px; align-content: start;
+}
+.about .about-risks b { color: var(--theme-ink); font-size: 1.02rem; }
+.about .about-risks span { color: var(--theme-muted); font-size: 0.92rem; line-height: 1.45; }
+.about .about-guards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.about .about-guards article { padding: 18px; }
+.about .about-guards b { font-size: 1rem; }
+.about .about-guards p { font-size: 0.92rem; }
+.about .about-paths { display: grid; gap: 14px; }
+.about .about-paths article { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; align-items: start; padding: 20px 24px; }
+.about .about-paths header b { margin-bottom: 4px; }
+.about .about-paths header small { color: var(--theme-muted); line-height: 1.4; }
+.about .about-paths ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 6px; align-items: center; }
+.about .about-paths ol li {
+  position: relative; background: var(--theme-surface-soft); border: 1px solid var(--theme-line);
+  border-radius: var(--radius-pill, 999px); padding: 7px 14px; font-size: 0.9rem; color: var(--theme-ink); line-height: 1.3;
+}
+.about .about-paths ol li:not(:last-child)::after { content: "→"; position: absolute; right: -14px; top: 50%; transform: translateY(-52%); color: var(--theme-red); font-weight: 800; }
+.about .about-paths ol li:not(:last-child) { margin-right: 14px; }
+.about .about-paths ol li:last-child { border-color: var(--theme-red); }
+@media (max-width: 1100px) {
+  .about .about-risks, .about .about-guards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .about .about-paths article { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+@media (max-width: 700px) {
+  .about .about-risks, .about .about-guards { grid-template-columns: minmax(0, 1fr); }
+}
+.about .about-paths header { display: grid; gap: 4px; align-content: start; }
+.about .about-paths article > header > b,
+.about .about-paths article > header > small { display: block; }
