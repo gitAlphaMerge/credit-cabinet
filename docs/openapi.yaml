@@ -661,6 +661,61 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Login'
+  /api/auth/jury:
+    post:
+      summary: Вход жюри в готовую компанию
+      tags:
+      - alfa-intellect
+      description: Общий логин и пароль жюри (JURY_LOGIN, JURY_PASSWORD) плюс персона из shared/demo-personas.ts. Клиентская компания при первом входе проходит путь заявки через ядро; повторный вход открывает ту же компанию. Персона manager входит с ролью менеджера.
+      servers:
+      - *id001
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                password:
+                  type: string
+                persona:
+                  type: string
+                  description: green, gap, document, review, young или manager; без неё первая клиентская компания
+              required:
+              - login
+              - password
+      responses:
+        '200':
+          description: Сессия создана, destination — куда перейти (/cabinet, /apply или /bank)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  destination:
+                    type: string
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: alfa_session, HttpOnly, SameSite=Strict, Path=/, срок 7 дней; Secure по COOKIE_SECURE
+        '400':
+          description: Такой тестовой компании нет
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Неверный логин или пароль жюри
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/auth/demo:
     post:
       summary: Создать отдельное демо-пространство

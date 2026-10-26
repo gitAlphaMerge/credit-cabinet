@@ -12,7 +12,7 @@
 
 # Умный кредитный кабинет предпринимателя
 
-> **Для жюри за 5 минут.** Нужен только Docker: `docker compose up --build` из корня, затем http://localhost:4173. LLM не обязательна: без модели агент работает на шаблонах, ядро и весь путь клиента и менеджера доступны. Учётки создаёт сид (менеджер `79990000500`, клиенты `79990000501`..`79990000504`), шаги в разделе [Сценарий проверки жюри](#сценарий-проверки-жюри). На стенде весь стек в простое занимает около 190 МБ RAM (`docker stats`, 26.10), потолки контейнеров 1120M. Упрощения перечислены в разделе [Что настоящее, что смоделировано](#что-настоящее-что-смоделировано).
+> **Для жюри за 5 минут.** Нужен только Docker: `docker compose up --build` из корня, затем http://localhost:4173. LLM не обязательна: без модели агент работает на шаблонах, ядро и весь путь клиента и менеджера доступны. Быстрый вход без сида: на http://localhost:4173/login логин `gitmergealpha`, пароль `alphahack2026`, затем одна из пяти готовых компаний или менеджер (первый вход компании занимает до минуты: она проходит путь через ядро). Полный сценарий с учётками менеджера `79990000500` и клиентов `79990000501`..`79990000504` требует отдельной команды сида после запуска, шаги в разделе [Сценарий проверки жюри](#сценарий-проверки-жюри). На стенде весь стек в простое занимает около 190 МБ RAM (`docker stats`, 26.10), потолки контейнеров 1120M. Упрощения перечислены в разделе [Что настоящее, что смоделировано](#что-настоящее-что-смоделировано).
 
 Кредитный помощник для ИП и ООО: собирает потребность, считает выписку по правилам и объясняет готовность к финансированию.
 
@@ -159,6 +159,8 @@ OCR не используется: кабинет читает PDF только 
 
 Один процесс с двумя ролями: клиент подаёт заявку и досылает сведения, менеджер рассматривает досье, клиент получает оффер или отказ с причинами. Подробные ветки и API-проверки: [демо-сценарий](docs/demo-script.md).
 
+Быстрый вход без сида: на `http://localhost:4173/login` общий логин жюри `gitmergealpha` и пароль `alphahack2026` (меняются через `JURY_LOGIN` и `JURY_PASSWORD`), затем выбор готовой компании или менеджера (`POST /api/auth/jury`, персоны в `hw/tolya/alfa-intellect/shared/demo-personas.ts`). Компания при первом входе сама проходит путь через ядро, до минуты: green открывает кабинет с выданным кредитом, gap получает отказ, «Мебель» и «Ткани» записаны на встречу и видны менеджеру на `/bank`, young ждёт досылки. Шаги ниже описывают полный сценарий с сидом.
+
 1. Запустите Compose. Проверьте `http://localhost:8080/health` и `http://localhost:4173/health`: у кабинета `db` должен быть `ok`. Подготовьте очередь в той же SQLite, которую использует кабинет:
 
    ```bash
@@ -216,10 +218,10 @@ python data/check_golden.py --reference
 
 <table>
 <tr>
-<td align="center" width="20%"><a href="https://github.com/alexregrets"><img src="https://github.com/alexregrets.png?size=240" width="104" alt="Саша"></a><br><b>Саша</b><br><sub>капитан · агент · контракты · eval · выкатка</sub></td>
-<td align="center" width="20%"><a href="https://github.com/Elizaveta11-me"><img src="https://github.com/Elizaveta11-me.png?size=240" width="104" alt="Лиза"></a><br><b>Лиза</b><br><sub>ядро скоринга · стоп-правила · пороги · коды причин</sub></td>
-<td align="center" width="20%"><a href="https://github.com/tolyapolya2006-png"><img src="https://github.com/tolyapolya2006-png.png?size=240" width="104" alt="Толя"></a><br><b>Толя</b><br><sub>кабинет клиента и менеджера · заявка · подбор продуктов</sub></td>
-<td align="center" width="20%"><a href="https://github.com/bwr1337"><img src="https://github.com/bwr1337.png?size=240" width="104" alt="Тёма"></a><br><b>Тёма</b><br><sub>API на Go · хранилище · безопасность · Docker</sub></td>
-<td align="center" width="20%"><a href="https://github.com/nekhaevaaa"><img src="https://github.com/nekhaevaaa.png?size=240" width="104" alt="Тоня"></a><br><b>Тоня</b><br><sub>концепт · путь предпринимателя · тексты · макеты</sub></td>
+<td align="center" width="20%"><a href="https://github.com/alexregrets"><img src="https://github.com/alexregrets.png?size=240" width="104" alt="Саша"></a><br><b>Саша</b><br>капитан<br><sub>агент · контракты · eval · дизайн с Толей · выкатка</sub></td>
+<td align="center" width="20%"><a href="https://github.com/Elizaveta11-me"><img src="https://github.com/Elizaveta11-me.png?size=240" width="104" alt="Лиза"></a><br><b>Лиза</b><br>инженер<br><sub>ядро скоринга · стоп-правила · пороги · коды причин</sub></td>
+<td align="center" width="20%"><a href="https://github.com/tolyapolya2006-png"><img src="https://github.com/tolyapolya2006-png.png?size=240" width="104" alt="Толя"></a><br><b>Толя</b><br>продакт<br><sub>кабинет клиента и менеджера · заявка · подбор продуктов · дизайн</sub></td>
+<td align="center" width="20%"><a href="https://github.com/bwr1337"><img src="https://github.com/bwr1337.png?size=240" width="104" alt="Тёма"></a><br><b>Тёма</b><br>разработчик<br><sub>API на Go · хранилище · безопасность · Docker</sub></td>
+<td align="center" width="20%"><a href="https://github.com/nekhaevaaa"><img src="https://github.com/nekhaevaaa.png?size=240" width="104" alt="Тоня"></a><br><b>Тоня</b><br>исследователь<br><sub>концепт · кастдев и интервью · путь предпринимателя · тексты и питч</sub></td>
 </tr>
 </table>
