@@ -246,6 +246,15 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
             )}
           </WorkspaceContext.Provider>
         )}
+        <div className="demo-cta">
+          <p>Хотите на своих цифрах?</p>
+          <Button onClick={() => go("/onboarding")}>
+            Начать со своими данными <ArrowRight size={16} />
+          </Button>
+          <Button secondary onClick={() => go("/login")}>
+            Войти в режим тестирования
+          </Button>
+        </div>
       </main>
       {apply && (
         <Modal

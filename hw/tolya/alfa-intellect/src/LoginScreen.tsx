@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Building2, FileCheck2, Scale, Smartphone } from "lucide-react";
 import { Brand, Button, Badge } from "./ui";
 import { api } from "./api";
+import type { PersonaSummary } from "../shared/demo-personas";
+
+export const JURY_LOGIN = "gitmergealpha";
+export const JURY_PASSWORD = "alphahack2026";
 import { ThemeToggle } from "./ThemeToggle";
 import { LivePattern } from "./LivePattern";
 
@@ -17,6 +21,22 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [picked, setPicked] = useState("");
+  const [personas, setPersonas] = useState<PersonaSummary[]>([]);
+  useEffect(() => {
+    api<{ personas: PersonaSummary[] }>("/demo-personas")
+      .then((r) => setPersonas(r.personas))
+      .catch(() => setPersonas([]));
+  }, []);
+  const juryEnter = (login: string, pass: string, persona?: string) => {
+    setError("");
+    setPicked(persona ?? "phone");
+    api<{ destination: string }>("/demo-personas/login", { login, password: pass, persona })
+      .then((r) => location.assign(r.destination))
+      .catch((err: Error) => {
+        setPicked("");
+        setError(err.message || "Логин или пароль не подошли");
+      });
+  };
   const enter = (via: string) => {
     setPicked(via);
     go("/cabinet");
@@ -52,6 +72,33 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
         <section className="login-card" aria-labelledby="login-title">
           <Badge tone="blue">Демо-вход</Badge>
           <h2 id="login-title">Войти в кабинет</h2>
+          <div className="login-test" id="test">
+            <b>Режим тестирования</b>
+            <p>
+              Логин <code>{JURY_LOGIN}</code>, пароль <code>{JURY_PASSWORD}</code>.
+              Или сразу выберите компанию:
+            </p>
+            {personas.length ? (
+              <div className="login-test-list">
+                {personas.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    aria-busy={picked === p.key}
+                    onClick={() => juryEnter(JURY_LOGIN, JURY_PASSWORD, p.key)}
+                  >
+                    <span>{p.company}</span>
+                    <small>{p.description}</small>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="fine-print">
+                Тестовые компании не подготовлены: на сервере нужен
+                DEMO_PERSONAS=1 и npx tsx scripts/seed-demo.ts.
+              </p>
+            )}
+          </div>
           <div className="login-providers">
             {providers.map(([id, name, mark]) => (
               <button
@@ -75,6 +122,7 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
             className="login-phone"
             onSubmit={(e) => {
               e.preventDefault();
+              if (/[a-z]/i.test(phone)) return juryEnter(phone, password);
               setError("");
               setPicked("phone");
               api("/auth/login", { phone, password })
@@ -86,13 +134,12 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
             }}
           >
             <label className="field">
-              <span>Номер телефона</span>
+              <span>Телефон или логин</span>
               <span className="login-phone-input">
                 <Smartphone size={18} aria-hidden="true" />
                 <input
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
+                  type="text"
+                  autoComplete="username"
                   placeholder="+7 900 000-00-00"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -119,9 +166,16 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
             </Button>
           </form>
           <p className="fine-print">
-            Прототип для жюри: Госуслуги, VK ID и Яндекс ID не подключены и
-            открывают кабинет текущей сессии. По телефону и паролю вход в
-            учётку жюри на сервере.
+            Госуслуги, VK ID и Яндекс ID в прототипе не подключены и открывают
+            кабинет текущей сессии. Как подключить:{" "}
+            <a href="https://yandex.ru/dev/id/doc/ru/" target="_blank" rel="noopener noreferrer">
+              Яндекс ID
+            </a>
+            ,{" "}
+            <a href="https://id.vk.com/about/business" target="_blank" rel="noopener noreferrer">
+              VK ID для бизнеса
+            </a>
+            .
           </p>
         </section>
       </main>

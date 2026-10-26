@@ -80,6 +80,39 @@ demoPersonasRouter.post("/demo-personas/switch", (req, res) => {
       });
     return;
   }
+  enterPersona(persona, req, res);
+});
+// Общий вход жюри: логин и пароль из окружения, по умолчанию те, что в README для жюри.
+const JURY_LOGIN = () => process.env.JURY_LOGIN || "gitmergealpha";
+const JURY_PASSWORD = () => process.env.JURY_PASSWORD || "alphahack2026";
+demoPersonasRouter.post("/demo-personas/login", (req, res) => {
+  const { login, password, persona: key } = (req.body ?? {}) as Record<string, unknown>;
+  if (
+    typeof login !== "string" ||
+    typeof password !== "string" ||
+    login.trim().toLowerCase() !== JURY_LOGIN() ||
+    password !== JURY_PASSWORD()
+  ) {
+    res.status(401).json({ error: "Логин или пароль не подошли" });
+    return;
+  }
+  const persona = demoPersonas.find((p) => p.key === (key ?? demoPersonas[0].key));
+  const user =
+    persona &&
+    db.prepare("SELECT is_demo,role FROM users WHERE id=?").get(persona.userId);
+  if (!persona || user?.is_demo !== 1 || !getUser(persona.userId)) {
+    res.status(404).json({
+      error: "Демонстрационный профиль недоступен. Запустите подготовку демо.",
+    });
+    return;
+  }
+  enterPersona(persona, req, res);
+});
+function enterPersona(
+  persona: (typeof demoPersonas)[number],
+  req: { headers: { cookie?: string } },
+  res: import("express").Response,
+) {
   // Сначала создаём новую сессию, затем отзываем предыдущую. Токен не попадает в JSON.
   const nextToken = session(persona.userId);
   logout(token(req.headers.cookie));
@@ -95,4 +128,4 @@ demoPersonasRouter.post("/demo-personas/switch", (req, res) => {
     is_demo: true,
     destination: persona.role === "manager" ? "/bank" : "/application",
   });
-});
+}

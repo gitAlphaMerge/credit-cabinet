@@ -55,6 +55,15 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <button className="text-button jury-link" onClick={() => go("/jury")}>
             Режим жюри
           </button>
+          <span className="test-mode">
+            <button className="text-button jury-link" onClick={() => go("/login")}>
+              Режим тестирования
+            </button>
+            <span className="test-mode-pop" role="tooltip">
+              Пять тестовых компаний и менеджер банка. Логин и пароль на
+              экране входа, компанию можно выбрать в один клик.
+            </span>
+          </span>
           <button className="text-button" onClick={() => go("/login")}>
             Войти
           </button>

@@ -215,3 +215,38 @@
   .login-provider { transition: none; }
 }
 .login-error { margin: 0; color: #ef3124; font-size: 14px; }
+
+/* Режим тестирования: учётка жюри и пять компаний в один клик */
+.login-test { display: grid; gap: 10px; padding: 16px; border-radius: 16px; background: color-mix(in srgb, #0072ef 7%, transparent); border: 1px solid color-mix(in srgb, #0072ef 22%, transparent); }
+.login-test p { margin: 0; font-size: 15px; }
+.login-test code { padding: 1px 6px; border-radius: 6px; background: var(--theme-surface, #fff); font-weight: 700; }
+.login-test-list { display: grid; gap: 8px; }
+.login-test-list button { display: grid; gap: 2px; text-align: left; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--theme-border, #e3e3e8); background: var(--theme-surface, #fff); color: inherit; cursor: pointer; transition: border-color .2s, translate .2s; }
+.login-test-list button:hover { border-color: #0072ef; translate: 0 -1px; }
+.login-test-list span { font-weight: 700; font-size: 15px; }
+.login-test-list small { color: var(--theme-muted); font-size: 13px; }
+.login-card .fine-print a { color: #0072ef; }
+
+/* Кнопка «Режим тестирования» в шапке лендинга: при наведении показывает доступ */
+.test-mode { position: relative; }
+.test-mode-pop { position: absolute; top: calc(100% + 10px); right: 0; z-index: 30; width: 260px; padding: 14px 16px; border-radius: 14px; background: var(--theme-surface, #fff); color: var(--theme-text, #111); box-shadow: 0 18px 40px rgba(0,0,0,.16); font-size: 14px; line-height: 1.5; text-align: left; opacity: 0; translate: 0 -4px; pointer-events: none; transition: opacity .2s, translate .2s; }
+.test-mode:hover .test-mode-pop, .test-mode:focus-within .test-mode-pop { opacity: 1; translate: 0 0; pointer-events: auto; }
+.test-mode-pop code { font-weight: 700; }
+
+/* Звонок сотруднику: одна крупная кнопка сверху */
+.contact-call { display: grid; gap: 10px; padding: 18px; margin-bottom: 18px; border-radius: 16px; background: color-mix(in srgb, #ef3124 7%, transparent); }
+.contact-call h3 { margin: 0; font-size: 20px; }
+.contact-call p { margin: 0; font-size: 15px; }
+.contact-call .contact-free { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.contact-call .contact-free::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #1fa64a; box-shadow: 0 0 0 4px color-mix(in srgb, #1fa64a 25%, transparent); }
+.contact-call .button { justify-self: start; font-size: 17px; padding: 14px 22px; }
+
+/* «Посмотрите, как это работает»: крупнее текст и имя компании */
+.demo-heading p { font-size: 18px; }
+.demo-company { padding: 14px 0; }
+.demo-company b { font-size: 26px; line-height: 1.2; }
+.demo-company span { font-size: 15px; }
+.demo-main .page-tabs button { font-size: 16px; }
+.demo-main .muted, .demo-main .fine-print, .demo-main small { font-size: 14px; }
+.demo-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 28px; padding: 22px 24px; border-radius: 20px; background: color-mix(in srgb, #ef3124 8%, transparent); }
+.demo-cta p { margin: 0; font-size: 18px; font-weight: 600; }

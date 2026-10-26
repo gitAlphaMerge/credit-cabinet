@@ -438,6 +438,11 @@ export function App() {
                   .catch(() => {});
               }}
             >
+              <div className="contact-call">
+                <span className="contact-free">Свободный сотрудник на линии</span>
+                <h3>Перезвоним за 2 минуты</h3>
+                <p>Оставьте телефон и коротко напишите вопрос.</p>
+              </div>
               <p className="fine-print">
                   Вы можете обратиться на любом этапе. Здесь сохраняется только
                 локальная запись.
@@ -468,7 +473,7 @@ export function App() {
                   обращение к сотруднику.
               </label>
               <Button>
-                Сохранить обращение <ArrowRight size={16} />
+                Перезвоните мне <ArrowRight size={16} />
               </Button>
             </form>
           )}
