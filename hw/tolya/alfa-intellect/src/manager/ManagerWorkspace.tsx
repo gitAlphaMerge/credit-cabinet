@@ -33,6 +33,16 @@ function waiting(value?: string | null) {
     return "Время в очереди неизвестно";
   return `В очереди ${Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000))} мин.`;
 }
+const queuedMinutes = (value?: string | null) =>
+  value && Number.isFinite(Date.parse(value))
+    ? Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000))
+    : null;
+const waitLabel = (min: number | null) =>
+  min === null
+    ? "нет данных"
+    : min < 60
+      ? `${min} мин`
+      : `${Math.floor(min / 60)} ч ${min % 60} мин`;
 export function ManagerAccess({ role }: { role?: string }) {
   return role === "manager" ? (
     <ManagerWorkspace />
@@ -67,6 +77,11 @@ export function ManagerView(p: ViewProps) {
   const limit = d?.limit_now_rub;
   const actionable =
     p.detail?.application.status === "queued" && !p.busy && !p.detailLoading;
+  const returned = p.rows.filter((r) => r.return_to_manager).length;
+  const waits = p.rows
+    .map((r) => queuedMinutes(r.application.queued_at))
+    .filter((m): m is number => m !== null);
+  const oldest = waits.length ? Math.max(...waits) : null;
   return (
     <main className="cabinet-v2 unified-cabinet manager-workspace">
       <header className="cv-heading">
@@ -82,6 +97,26 @@ export function ManagerView(p: ViewProps) {
           Обновить очередь
         </button>
       </header>
+      {!p.loading && p.rows.length > 0 && (
+        <div className="manager-stats" aria-label="Сводка очереди">
+          <div className="manager-stat">
+            <span>{p.tab === "queue" ? "У вас в очереди" : "Отказов всего"}</span>
+            <b>{p.rows.length}</b>
+          </div>
+          {p.tab === "queue" && (
+            <div className="manager-stat">
+              <span>Вернулись после досылки</span>
+              <b>{returned}</b>
+            </div>
+          )}
+          {p.tab === "queue" && (
+            <div className="manager-stat">
+              <span>Дольше всех ждёт</span>
+              <b>{waitLabel(oldest)}</b>
+            </div>
+          )}
+        </div>
+      )}
       <nav className="manager-tabs" aria-label="Разделы заявок">
         <button
           id="manager-queue"
@@ -136,7 +171,7 @@ export function ManagerView(p: ViewProps) {
                       r.application.client_name ||
                       "Имя клиента: нет данных"}
                   </strong>
-                  <span className="manager-stop">
+                  <span className="manager-stop manager-chip">
                     {p.tab === "rejected"
                       ? "Отказ"
                       : r.return_to_manager
@@ -212,10 +247,50 @@ export function ManagerView(p: ViewProps) {
                 >
                   Подготовить записку андеррайтеру
                 </button>
-                <p>
+                <p className="manager-meta">
                   {labelCode(p.detail.application.status)}{" "}
                   · Лимит сейчас: {rub(limit)}
                 </p>
+                {d && (
+                  <div className="manager-summary">
+                    <div className="manager-kpi">
+                      <span>Просит клиент</span>
+                      <b>{rub(p.detail.application.amount)}</b>
+                    </div>
+                    <div className="manager-kpi">
+                      <span>Можно выдать</span>
+                      <b>{rub(limit)}</b>
+                    </div>
+                    {(() => {
+                      const n = d.N ?? d.readiness_n,
+                        m = d.M ?? d.readiness_m;
+                      return n != null && m != null && m > 0 && n >= 0 && n <= m ? (
+                        <div className="manager-kpi">
+                          <span>Условия банка</span>
+                          <b>
+                            {n}
+                            <small> из {m}</small>
+                          </b>
+                          <div className="cv-progress">
+                            <div>
+                              <i style={{ width: `${(100 * n) / m}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                    {(row?.red_reason || d.stops_fired?.length) && (
+                      <div className="manager-kpi manager-risk">
+                        <span>Главный риск</span>
+                        <b>
+                          {row?.red_reason
+                            ? explain(row.red_reason)
+                            : explain(d.stops_fired![0])}
+                        </b>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {!d ? (
                   <p>Досье пока нет</p>
                 ) : (
@@ -313,6 +388,8 @@ export function ManagerView(p: ViewProps) {
                         row?.client_objections ||
                         "Тезисы клиента не переданы"}
                     </p>
+                    <div className="manager-decision">
+                    <h3 className="manager-decision-title">Ваше решение</h3>
                     <h3>Альтернативы</h3>
                     {!d.alternatives?.length ? (
                       <p>Альтернативы не предоставлены</p>
@@ -471,6 +548,7 @@ export function ManagerView(p: ViewProps) {
                         Отказать
                       </button>
                     </form>
+                    </div>
                   </>
                 )}
                 <h3>Журнал событий</h3>
