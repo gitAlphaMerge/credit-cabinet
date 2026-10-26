@@ -34,3 +34,9 @@ data/hidden/
 services/agent/var/
 /var/
 /secrets/
+
+# sqlite databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3

@@ -3,10 +3,11 @@ services:
     restart: unless-stopped
     build: ./services/api
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"   # только локально: жюри и requests.http ходят сюда, снаружи порт закрыт
     environment:
       - ML_URL=http://ml-model:5000   # провод Тёмы: /score уходит в окошко
       - PORT=8080
+      - DB_PATH=/app/data/credit_cabinet.db
     depends_on:
       ml-model:
         condition: service_started   # api живёт и без ядра: отдаёт 502 JSON, а не молчит
@@ -17,6 +18,8 @@ services:
       retries: 3
       start_period: 10s
     mem_limit: 64m
+    volumes:
+      - api_data:/app/data
 
   ml-model:
     build:
@@ -123,3 +126,4 @@ volumes:
   journal:
   alfa_data:
   agent_state:
+  api_data:

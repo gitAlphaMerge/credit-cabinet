@@ -213,17 +213,32 @@ test("contract details auto-fill by registry; server rejects off-grid months and
   assert.equal(x.a.questionnaire.authority, "Устава");
   assert.match(x.a.questionnaire.receivingAccount, /^40702810\d{12}$/);
   assert.equal(x.a.questionnaire.receivingBank, "АО «Альфа-Банк»");
-  await x.agent.put(`/api/mvp2/applications/${x.a.id}`)
-    .send({ version: x.a.version, questionnaire: { ...x.a.questionnaire, overdraftRepaymentDays: 45 } })
+  await x.agent
+    .put(`/api/mvp2/applications/${x.a.id}`)
+    .send({
+      version: x.a.version,
+      questionnaire: { ...x.a.questionnaire, overdraftRepaymentDays: 45 },
+    })
     .expect(422);
-  await x.agent.put(`/api/mvp2/applications/${x.a.id}`)
-    .send({ version: x.a.version, questionnaire: { ...x.a.questionnaire, term: 6 } })
+  await x.agent
+    .put(`/api/mvp2/applications/${x.a.id}`)
+    .send({
+      version: x.a.version,
+      questionnaire: { ...x.a.questionnaire, term: 6 },
+    })
     .expect(422);
-  await x.agent.put(`/api/mvp2/applications/${x.a.id}`)
-    .send({ version: x.a.version, questionnaire: { ...x.a.questionnaire, term: 7 } })
+  await x.agent
+    .put(`/api/mvp2/applications/${x.a.id}`)
+    .send({
+      version: x.a.version,
+      questionnaire: { ...x.a.questionnaire, term: 7 },
+    })
     .expect(422);
   const ip = await draft({ inn: "990000000001", industry: "IT" });
-  assert.equal(ip.a.questionnaire.signatory, "Синтетический Алексей Примерович");
+  assert.equal(
+    ip.a.questionnaire.signatory,
+    "Синтетический Алексей Примерович",
+  );
   assert.match(ip.a.questionnaire.authority, /ЕГРИП/);
   assert.match(ip.a.questionnaire.receivingAccount, /^40802810\d{12}$/);
 });
@@ -369,6 +384,27 @@ test("3,000,001: manager route cannot sign/activate, slot persists, manager role
     (await x.agent.get(`/api/mvp2/applications/${a.id}`)).body.meeting.slotId,
     slots[0].id,
   );
+  a = (
+    await x.agent
+      .post(`/api/mvp2/applications/${a.id}/meeting`)
+      .send({ version: a.version, slotId: slots[1].id })
+      .expect(200)
+  ).body;
+  assert.equal(a.meeting?.slotId, slots[1].id);
+  a = (
+    await x.agent
+      .post(`/api/mvp2/applications/${a.id}/meeting/cancel`)
+      .send({ version: a.version })
+      .expect(200)
+  ).body;
+  assert.equal(a.meeting, undefined);
+  assert.equal(a.lifecycle, "DECIDED");
+  a = (
+    await x.agent
+      .post(`/api/mvp2/applications/${a.id}/meeting`)
+      .send({ version: a.version, slotId: slots[0].id })
+      .expect(200)
+  ).body;
   await x.agent
     .post(`/api/mvp2/manager/${a.id}/decision`)
     .send({

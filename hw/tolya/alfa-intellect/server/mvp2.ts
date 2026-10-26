@@ -1518,15 +1518,38 @@ async function processMvp(
     save(db, a, "mvp2_processing_error");
   }
 }
+export function meetingSlotTimes(now = new Date()): string[] {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Moscow",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const value = (type: string) =>
+    parts.find((part) => part.type === type)!.value;
+  const anchor = new Date(
+    `${value("year")}-${value("month")}-${value("day")}T00:00:00Z`,
+  );
+  const result: string[] = [];
+  for (let offset = 0, days = 0; days < 5; offset++) {
+    const date = new Date(anchor.getTime() + offset * 86400000);
+    if (date.getUTCDay() === 0 || date.getUTCDay() === 6) continue;
+    const before = result.length;
+    const day = date.toISOString().slice(0, 10);
+    for (let hour = 10; hour < 19; hour++)
+      for (const minute of [0, 30]) {
+        const at = `${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+03:00`;
+        if (Date.parse(at) > now.getTime()) result.push(at);
+      }
+    if (result.length > before) days++;
+  }
+  return result;
+}
 export function seedSlots(db: DatabaseSync) {
-  const anchor = day();
-  for (let d = 1; d <= 7; d++)
-    for (const hour of [10, 12, 15]) {
-      const at = `${addDays(anchor, d)}T${hour}:00:00+03:00`;
-      db.prepare(
-        "INSERT OR IGNORE INTO mvp2_slots(id,at,manager) VALUES(?,?,?)",
-      ).run(at, at, "Менеджер учебного банка");
-    }
+  for (const at of meetingSlotTimes())
+    db.prepare(
+      "INSERT OR IGNORE INTO mvp2_slots(id,at,manager) VALUES(?,?,?)",
+    ).run(at, at, "Менеджер учебного банка");
 }
 export function bookMvp(
   db: DatabaseSync,
@@ -1539,14 +1562,22 @@ export function bookMvp(
     const a = mvpGet(db, id, uid);
     if (a.meeting?.slotId === slotId) return a;
     requireVersion(a, version);
-    if (a.decision !== "MANAGER_REVIEW_REQUIRED" || a.lifecycle !== "DECIDED")
+    if (
+      a.decision !== "MANAGER_REVIEW_REQUIRED" ||
+      !["DECIDED", "MEETING_SCHEDULED"].includes(a.lifecycle)
+    )
       throw new ApplicationError(409, "Встреча для этой заявки недоступна");
     const slot = db
       .prepare(
         "SELECT * FROM mvp2_slots WHERE id=? AND application_id IS NULL AND at>?",
       )
-      .get(slotId, new Date().toISOString());
-    if (!slot) throw new ApplicationError(409, "Слот уже занят или недоступен");
+      .get(slotId, "");
+    if (!slot || !meetingSlotTimes().includes(String(slot.at)))
+      throw new ApplicationError(409, "Слот уже занят или недоступен");
+    if (a.meeting)
+      db.prepare(
+        "UPDATE mvp2_slots SET application_id=NULL WHERE id=? AND application_id=?",
+      ).run(a.meeting.slotId, id);
     db.prepare(
       "UPDATE mvp2_slots SET application_id=? WHERE id=? AND application_id IS NULL",
     ).run(id, slotId);
@@ -1554,6 +1585,27 @@ export function bookMvp(
     a.lifecycle = "MEETING_SCHEDULED";
     a.version++;
     save(db, a, "mvp2_meeting", "client");
+    return a;
+  });
+}
+export function cancelMvpMeeting(
+  db: DatabaseSync,
+  uid: string,
+  id: string,
+  version: number,
+) {
+  return transaction(db, () => {
+    const a = mvpGet(db, id, uid);
+    requireVersion(a, version);
+    if (a.lifecycle !== "MEETING_SCHEDULED" || !a.meeting)
+      throw new ApplicationError(409, "Запись для этой заявки не найдена");
+    db.prepare(
+      "UPDATE mvp2_slots SET application_id=NULL WHERE id=? AND application_id=?",
+    ).run(a.meeting.slotId, id);
+    a.meeting = undefined;
+    a.lifecycle = "DECIDED";
+    a.version++;
+    save(db, a, "mvp2_meeting_cancelled", "client");
     return a;
   });
 }

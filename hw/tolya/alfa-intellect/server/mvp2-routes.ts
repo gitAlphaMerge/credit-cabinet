@@ -20,7 +20,9 @@ import {
   skipMissingMvp,
   resumeMvp,
   seedSlots,
+  meetingSlotTimes,
   bookMvp,
+  cancelMvpMeeting,
   managerMvp,
   acceptAlternative,
   activateMvp,
@@ -206,12 +208,15 @@ mvp2Router.post("/applications/:id/alternative", (req, res) =>
 );
 mvp2Router.get("/slots", (_req, res) => {
   seedSlots(db);
+  const available = new Set(meetingSlotTimes());
   res.json(
     db
       .prepare(
-        "SELECT id,at,manager FROM mvp2_slots WHERE application_id IS NULL AND at>? ORDER BY at LIMIT 21",
+        "SELECT id,at,manager FROM mvp2_slots WHERE application_id IS NULL ORDER BY at",
       )
-      .all(new Date().toISOString()),
+      .all()
+      .filter((slot) => available.has(String(slot.at)))
+      .slice(0, 90),
   );
 });
 mvp2Router.post("/applications/:id/recalculate", (req, res) => {
@@ -262,6 +267,16 @@ mvp2Router.post("/applications/:id/meeting", (req, res) =>
       id(req),
       version.parse(req.body.version),
       z.string().parse(req.body.slotId),
+    ),
+  ),
+);
+mvp2Router.post("/applications/:id/meeting/cancel", (req, res) =>
+  res.json(
+    cancelMvpMeeting(
+      db,
+      res.locals.userId,
+      id(req),
+      version.parse(req.body.version),
     ),
   ),
 );

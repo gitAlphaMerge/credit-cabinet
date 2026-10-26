@@ -132,3 +132,228 @@ export function calendarCells(month: string): (string | null)[] {
       : month.slice(0, 8) + String(i - offset + 1).padStart(2, "0"),
   );
 }
+
+export type MeetingSlot = { id: string; at: string; manager: string };
+
+export function meetingDays(slots: MeetingSlot[], now = new Date()) {
+  const days = new Map<string, MeetingSlot[]>();
+  for (const slot of slots) {
+    const date = new Date(slot.at);
+    if (date.getTime() <= now.getTime()) continue;
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Moscow",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+    const value = (type: string) =>
+      parts.find((part) => part.type === type)!.value;
+    const key = `${value("year")}-${value("month")}-${value("day")}`;
+    const weekday = new Date(`${key}T00:00:00Z`).getUTCDay();
+    if (weekday === 0 || weekday === 6) continue;
+    if (!days.has(key)) days.set(key, []);
+    days.get(key)!.push(slot);
+  }
+  return [...days.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(0, 5);
+}
+
+export function meetingLabel(at: string, options?: Intl.DateTimeFormatOptions) {
+  return new Date(at).toLocaleString("ru-RU", {
+    timeZone: "Europe/Moscow",
+    ...options,
+  });
+}
+
+export function meetingIcs(at: string, id: string): string {
+  const stamp = (date: Date) =>
+    date
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .replace(/\.\d{3}Z$/, "Z");
+  const start = new Date(at);
+  const end = new Date(start.getTime() + 30 * 60000);
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Alfa Intellect Demo//Meeting//RU",
+    "BEGIN:VEVENT",
+    `UID:${id.replace(/[^a-zA-Z0-9-]/g, "")}@alfa-intellect-demo`,
+    `DTSTAMP:${stamp(new Date())}`,
+    `DTSTART:${stamp(start)}`,
+    `DTEND:${stamp(end)}`,
+    "SUMMARY:Звонок с менеджером",
+    "DESCRIPTION:Менеджер позвонит в назначенное время. Время МСК.",
+    "END:VEVENT",
+    "END:VCALENDAR",
+    "",
+  ].join("\r\n");
+}
+
+export function MeetingBooking({
+  slots,
+  meeting,
+  busy,
+  onBook,
+  onCancel,
+}: {
+  slots: MeetingSlot[];
+  meeting?: { slotId: string; at: string; manager: string };
+  busy: boolean;
+  onBook: (slotId: string) => Promise<void>;
+  onCancel: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [day, setDay] = useState("");
+  const [selected, setSelected] = useState("");
+  const days = meetingDays(slots);
+  const activeDay = days.some(([key]) => key === day) ? day : days[0]?.[0];
+  const activeSlots = days.find(([key]) => key === activeDay)?.[1] ?? [];
+  const chosen = activeSlots.find((slot) => slot.id === selected);
+  if (meeting && !editing)
+    return (
+      <article className="mvp-account" role="status">
+        <h2>
+          Менеджер позвонит{" "}
+          {meetingLabel(meeting.at, { day: "numeric", month: "long" })} в{" "}
+          {meetingLabel(meeting.at, { hour: "2-digit", minute: "2-digit" })} МСК
+        </h2>
+        <p>Запись сохранена в заявке.</p>
+        <div className="mvp-actions">
+          <button
+            type="button"
+            disabled={busy}
+            aria-label="Перенести звонок с менеджером"
+            onClick={() => setEditing(true)}
+          >
+            Перенести
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            aria-label="Отменить звонок с менеджером"
+            onClick={() => void onCancel()}
+          >
+            Отменить
+          </button>
+          <button
+            type="button"
+            aria-label="Добавить звонок в календарь"
+            onClick={() => {
+              const url = URL.createObjectURL(
+                new Blob([meetingIcs(meeting.at, meeting.slotId)], {
+                  type: "text/calendar;charset=utf-8",
+                }),
+              );
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = "zvonok-s-menedzherom.ics";
+              link.click();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }}
+          >
+            Добавить в календарь
+          </button>
+        </div>
+      </article>
+    );
+  return (
+    <div>
+      <p>Выберите день и время звонка. Время указано по Москве, МСК.</p>
+      <div
+        aria-label="День звонка"
+        style={{ display: "flex", gap: 8, overflowX: "auto", padding: "8px 0" }}
+      >
+        {days.map(([key]) => (
+          <button
+            key={key}
+            type="button"
+            aria-label={`Выбрать ${meetingLabel(`${key}T12:00:00+03:00`, { weekday: "long", day: "numeric", month: "long" })}`}
+            aria-pressed={activeDay === key}
+            onClick={() => {
+              setDay(key);
+              setSelected("");
+            }}
+            style={{
+              borderRadius: 999,
+              border: 0,
+              padding: "10px 16px",
+              background: activeDay === key ? "#d6e8fc" : "#f3f4f5",
+              color: "#0b0b0c",
+              cursor: "pointer",
+            }}
+          >
+            {meetingLabel(`${key}T12:00:00+03:00`, {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+            })}
+          </button>
+        ))}
+      </div>
+      <div
+        role="group"
+        aria-label="Время звонка, МСК"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))",
+          gap: 8,
+          margin: "16px 0",
+        }}
+      >
+        {activeSlots.map((slot) => (
+          <button
+            key={slot.id}
+            type="button"
+            aria-label={`Выбрать ${meetingLabel(slot.at, { hour: "2-digit", minute: "2-digit" })} МСК`}
+            aria-pressed={selected === slot.id}
+            onClick={() => setSelected(slot.id)}
+            style={{
+              borderRadius: 12,
+              border: 0,
+              padding: "12px",
+              background: selected === slot.id ? "#ef3124" : "#f3f4f5",
+              color: selected === slot.id ? "#fff" : "#0b0b0c",
+              cursor: "pointer",
+            }}
+          >
+            {meetingLabel(slot.at, { hour: "2-digit", minute: "2-digit" })}
+          </button>
+        ))}
+      </div>
+      {!days.length && <p>Свободных слотов пока нет. Попробуйте позже.</p>}
+      <button
+        type="button"
+        disabled={!chosen || busy}
+        aria-label={
+          chosen
+            ? `Записаться на ${meetingLabel(chosen.at, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} МСК`
+            : "Выберите время звонка"
+        }
+        onClick={() =>
+          chosen && void onBook(chosen.id).then(() => setEditing(false))
+        }
+        style={{
+          background: "#ef3124",
+          color: "#fff",
+          border: 0,
+          borderRadius: 12,
+          padding: "12px 20px",
+          cursor: "pointer",
+        }}
+      >
+        {chosen
+          ? `Записаться на ${meetingLabel(chosen.at, { day: "numeric", month: "long" })}, ${meetingLabel(chosen.at, { hour: "2-digit", minute: "2-digit" })} МСК`
+          : "Выберите время"}
+      </button>
+      {meeting && (
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          aria-label="Оставить текущую запись"
+        >
+          Оставить текущую запись
+        </button>
+      )}
+    </div>
+  );
+}
