@@ -29,7 +29,7 @@ import { JourneyProgress } from "./JourneyProgress";
 import { journeyView, journeySection } from "../shared/journey-view";
 import { MissingDataStep } from "./MissingDataStep";
 import { CreditContract } from "./CreditDocument";
-import { CreditMotion } from "./CreditMotion";
+import { CreditMotion, CreditTransition } from "./CreditMotion";
 import { labelCode, safeDisplayText, visibleError } from "./application-client";
 import {
   emptyOnboarding,
@@ -1091,7 +1091,9 @@ export function Mvp2({
     [chatId, setChatId] = useState(""),
     [chatSending, setChatSending] = useState(false),
     [editAnswers, setEditAnswers] = useState(false),
-    [editingDetails, setEditingDetails] = useState(false);
+    [editingDetails, setEditingDetails] = useState(false),
+    [transitionKind, setTransitionKind] = useState<"selection" | "review" | null>(null),
+    [transitionTarget, setTransitionTarget] = useState<string | null>(null);
   const lock = useRef(false),
     aRef = useRef(a),
     dirty = useRef(false),
@@ -1426,26 +1428,43 @@ export function Mvp2({
     return adopt(next);
   }
   async function create() {
+    if (lock.current) return;
+    setTransitionTarget(null);
+    setTransitionKind("selection");
     await run(async () => {
-      const next = await api<MvpApplication>("/mvp2/applications", {
-        onboarding: answers,
-      });
-      adopt(next);
-      setView("recommendation");
-      setItems([next, ...items]);
-      await w.refresh();
+      try {
+        const next = await api<MvpApplication>("/mvp2/applications", {
+          onboarding: answers,
+        });
+        adopt(next);
+        setItems([next, ...items]);
+        await w.refresh();
+        setTransitionTarget("recommendation");
+      } catch (e) {
+        setTransitionKind(null);
+        throw e;
+      }
     });
   }
-  const submit = () =>
-    run(async () => {
-      const current = dirty.current ? await save() : aRef.current!;
-      const next = await api<MvpApplication>(
-        `/mvp2/applications/${current.id}/submit`,
-        { version: current.version },
-      );
-      adopt(next);
-      setView(derivedView(next));
+  const submit = () => {
+    if (lock.current) return Promise.resolve();
+    setTransitionTarget(null);
+    setTransitionKind("review");
+    return run(async () => {
+      try {
+        const current = dirty.current ? await save() : aRef.current!;
+        const next = await api<MvpApplication>(
+          `/mvp2/applications/${current.id}/submit`,
+          { version: current.version },
+        );
+        adopt(next);
+        setTransitionTarget(derivedView(next));
+      } catch (e) {
+        setTransitionKind(null);
+        throw e;
+      }
     });
+  };
   const upload = (file: File, accountId: string) =>
     void run(async () => {
       setUploadingAccount(accountId);
@@ -1600,6 +1619,22 @@ export function Mvp2({
           full
         />
       </div>
+    );
+  if (transitionKind)
+    return (
+      <main className="financing-page page-wrap funding-mvp mvp2 mvp-transition-page">
+        <CreditTransition
+          kind={transitionKind}
+          ready={transitionTarget !== null}
+          error={error}
+          onFinish={() => {
+            if (transitionTarget === null) return;
+            setView(transitionTarget);
+            setTransitionKind(null);
+            setTransitionTarget(null);
+          }}
+        />
+      </main>
     );
   const p = q && products.find((p) => p.id === q.productId),
     path = a ? `/mvp2/applications/${a.id}` : "";

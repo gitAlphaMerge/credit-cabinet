@@ -1,19 +1,88 @@
 import { Check, Sparkles, ShieldCheck, PenLine } from "lucide-react";
+import { LivePattern } from "./LivePattern";
+import { useTransitionProgress } from "./motion";
 export type CreditStep = {
   id: string;
   label: string;
   status: "pending" | "running" | "done" | "error" | "waiting-data";
 };
 
+export const transitionSteps = {
+  selection: [
+    "Смотрим выписку",
+    "Считаем поток",
+    "Сверяем с условиями 6 продуктов",
+    "Готовим варианты",
+  ],
+  review: [
+    "Проверяем документы",
+    "Считаем готовность",
+    "Сверяем стоп-факторы",
+    "Формируем решение",
+  ],
+} as const;
+
+export function transitionStepStates(
+  kind: "selection" | "review",
+  completed: number,
+  reduced: boolean,
+): CreditStep[] {
+  return transitionSteps[kind].map((label, index) => ({
+    id: String(index),
+    label,
+    status: reduced
+      ? "pending"
+      : index < completed
+        ? "done"
+        : index === completed
+          ? "running"
+          : "pending",
+  }));
+}
+
+export function CreditTransition({
+  kind,
+  ready,
+  onFinish,
+  error,
+}: {
+  kind: "selection" | "review";
+  ready: boolean;
+  onFinish: () => void;
+  error?: string;
+}) {
+  const { completed, reduced } = useTransitionProgress(ready && !error, onFinish);
+  if (error) return null;
+  return (
+    <section
+      className="credit-transition"
+      aria-busy={!ready}
+      data-reduced-motion={reduced}
+    >
+      <div className="credit-transition-pattern" aria-hidden="true">
+        <LivePattern showCaption={false} />
+      </div>
+      <CreditMotion
+        title={kind === "selection" ? "Подбираем варианты" : "Банк рассматривает"}
+        variant={kind}
+        steps={transitionStepStates(kind, completed, reduced)}
+        staticDisplay={reduced}
+      />
+    </section>
+  );
+}
+
 /** MVP 1 sphere/orbits, driven by actual work. No clock or invented percentage. */
 export function CreditMotion({
   title,
   steps,
   variant = "review",
+  staticDisplay = false,
 }: {
   title: string;
   steps: CreditStep[];
   variant?: "selection" | "review" | "signature";
+  staticDisplay?: boolean;
 }) {
   const done = steps.filter((s) => s.status === "done").length;
   const active =
@@ -31,7 +100,7 @@ export function CreditMotion({
   return (
     <div
       className={"credit-motion credit-motion-" + variant}
-      data-running={active}
+      data-running={active && !staticDisplay}
     >
       <div className="credit-motion-visual" aria-hidden="true">
         <div className="preparation-orbit">

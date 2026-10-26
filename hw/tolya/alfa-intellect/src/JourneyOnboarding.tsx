@@ -11,7 +11,9 @@ import {
   onboardingStepValid,
   type OnboardingPosition,
 } from "../shared/onboarding-state";
-import { ProductPreparation } from "./ProductPreparation";
+import { CreditTransition } from "./CreditMotion";
+import { Brand } from "./ui";
+import { RestartJourney } from "./RestartJourney";
 
 export function JourneyOnboarding({
   go,
@@ -24,7 +26,7 @@ export function JourneyOnboarding({
     [error, setError] = useState(""),
     [moving, setMoving] = useState(false),
     [preparing, setPreparing] = useState(false),
-    [stage, setStage] = useState(0);
+    [ready, setReady] = useState(false);
   const current = useRef<OnboardingPosition | undefined>(undefined),
     queue = useRef(Promise.resolve()),
     latest = useRef<{
@@ -119,7 +121,7 @@ export function JourneyOnboarding({
     setError("");
     if (next > 2) {
       setPreparing(true);
-      setStage(0);
+      setReady(false);
     }
     try {
       // The rendered position advances only after the complete current snapshot is stored.
@@ -128,8 +130,6 @@ export function JourneyOnboarding({
         adopt({ ...current.current!, answers: value.answers, step: next });
       else {
         onboardingSchema.parse(value.answers);
-        setPreparing(true);
-        setStage(1);
         const previousOwner = workspaceHeaders()["X-Journey-Workspace"];
         const application = await api<MvpApplication>("/journey/complete", {
           answers: value.answers,
@@ -143,22 +143,38 @@ export function JourneyOnboarding({
           window.location.replace("/apply");
           return;
         }
-        setStage(2);
         await onComplete();
-        go("/apply");
+        setReady(true);
       }
     } catch (e) {
       // Keep the same form and answers; a failed save is not a completed transition.
       void persist(value.answers, value.step).catch(() => {});
       adopt({ ...current.current!, answers: value.answers, step: value.step });
       setError(visibleError(e));
+      setPreparing(false);
+      setReady(false);
     } finally {
       navigation.current = false;
       setMoving(false);
-      setPreparing(false);
     }
   }
-  if (preparing) return <ProductPreparation stage={stage} />;
+  if (preparing)
+    return (
+      <div className="onboarding journey-onboarding">
+        <header className="public-header">
+          <a href="/" aria-label="На главную"><Brand /></a>
+          <RestartJourney />
+        </header>
+        <main className="product-preparation">
+          <CreditTransition
+            kind="selection"
+            ready={ready}
+            error={error}
+            onFinish={() => go("/apply")}
+          />
+        </main>
+      </div>
+    );
   if (!model)
     return (
       <main className="loading-screen">

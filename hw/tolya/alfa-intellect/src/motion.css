@@ -895,6 +895,89 @@
   }
 }
 
+.credit-transition {
+  position: relative;
+  isolation: isolate;
+  width: min(760px, 100%);
+  min-height: min(680px, 85dvh);
+  margin: auto;
+  padding: 34px 24px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 28px;
+  background: radial-gradient(circle at 10% 90%, #d6e8fc 0, transparent 48%), #fff;
+  box-shadow: 0 18px 60px rgb(11 11 12 / 8%);
+}
+.mvp-transition-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+}
+.credit-transition-pattern {
+  position: absolute;
+  z-index: -1;
+  right: -110px;
+  top: -100px;
+  width: 460px;
+  max-width: 75%;
+  opacity: .12;
+  filter: grayscale(1);
+  pointer-events: none;
+}
+.credit-transition .credit-motion {
+  width: 100%;
+}
+.credit-transition .credit-motion-review {
+  display: block;
+  text-align: center;
+}
+.credit-transition .credit-motion-review .credit-motion-visual,
+.credit-transition .credit-motion-review .credit-motion-stages {
+  margin-left: auto;
+  margin-right: auto;
+}
+.credit-transition .credit-motion .preparation-sphere {
+  background: radial-gradient(circle at 30% 23%, #fff, #f3f4f5 62%, #d6e8fc);
+  box-shadow: inset -12px -12px 28px rgb(0 114 239 / 9%), 0 25px 65px rgb(0 114 239 / 12%);
+}
+.credit-transition .credit-motion-wave,
+.credit-transition .credit-motion-wave i {
+  background: #d6e8fc;
+}
+.credit-transition .credit-motion .sphere-number > svg,
+.credit-transition .credit-motion .preparation-orbit i::after,
+.credit-transition .credit-motion .credit-motion-stages li.running,
+.credit-transition .credit-motion .credit-motion-stages li.done {
+  color: #0058b8;
+}
+.credit-transition .credit-motion .preparation-orbit i::after {
+  background: #8fbdf7;
+  box-shadow: 0 0 13px rgb(0 114 239 / 38%);
+}
+.credit-transition .credit-motion .credit-motion-stages li.running {
+  border-color: #d6e8fc;
+  background: #d6e8fc;
+  animation: transition-pulse 1.5s ease-in-out infinite;
+}
+.credit-transition .credit-motion .credit-motion-stages li.done {
+  border-color: transparent;
+  background: transparent;
+}
+.credit-transition .done .credit-step-mark,
+.credit-transition .running .credit-step-mark {
+  color: #0072ef;
+  border-color: #0072ef;
+}
+.credit-transition[data-reduced-motion="true"] .credit-motion-stages li,
+.credit-transition[data-reduced-motion="true"] .credit-motion-wave i,
+.credit-transition[data-reduced-motion="true"] .preparation-orbit i {
+  animation: none;
+}
+@keyframes transition-pulse {
+  50% { box-shadow: 0 0 0 5px rgb(0 114 239 / 10%); }
+}
+
 /* Главная: живой узор внутри сцены Толи, карточки расчёта поверх угла узора. */
 .hero-visual.finance-theatre.with-pattern {
   min-height: 580px;
