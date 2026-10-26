@@ -16,6 +16,7 @@ import {
   attachStatement,
   removeStatement,
   submitMvp,
+  deferMvpCredit,
   skipMissingMvp,
   resumeMvp,
   seedSlots,
@@ -63,7 +64,13 @@ mvp2Router.get("/applications", (_req, res) =>
         "SELECT d.data FROM mvp2_dossiers d JOIN applications a ON a.id=d.application_id WHERE a.user_id=? ORDER BY a.created_at DESC,a.id",
       )
       .all(res.locals.userId)
-      .map((r) => mvpGet(db, (JSON.parse(r.data as string) as {id: string}).id, res.locals.userId)),
+      .map((r) =>
+        mvpGet(
+          db,
+          (JSON.parse(r.data as string) as { id: string }).id,
+          res.locals.userId,
+        ),
+      ),
   ),
 );
 mvp2Router.post("/applications", (req, res) =>
@@ -163,11 +170,26 @@ mvp2Router.post("/applications/:id/submit", (req, res) =>
       ),
     ),
 );
+mvp2Router.post("/applications/:id/defer-credit", (req, res) =>
+  res.json(
+    deferMvpCredit(
+      db,
+      res.locals.userId,
+      id(req),
+      version.parse(req.body.version),
+    ),
+  ),
+);
 mvp2Router.post("/applications/:id/missing/:missingId/skip", (req, res) =>
-  res.json(skipMissingMvp(
-    db, res.locals.userId, id(req), version.parse(req.body.version),
-    z.string().min(1).max(160).parse(req.params.missingId),
-  )),
+  res.json(
+    skipMissingMvp(
+      db,
+      res.locals.userId,
+      id(req),
+      version.parse(req.body.version),
+      z.string().min(1).max(160).parse(req.params.missingId),
+    ),
+  ),
 );
 mvp2Router.post("/applications/:id/alternative", (req, res) =>
   res
@@ -205,13 +227,19 @@ mvp2Router.post("/applications/:id/recalculate", (req, res) => {
         "OVERDRAFT",
         "REFI",
       ]),
-      overdraftRepaymentDays: z.union([z.literal(30), z.literal(60), z.literal(90)]).optional(),
+      overdraftRepaymentDays: z
+        .union([z.literal(30), z.literal(60), z.literal(90)])
+        .optional(),
     })
     .strict()
     .superRefine((terms, context) => {
       const product = products.find((item) => item.id === terms.productId)!;
       if (!productTerms(product).includes(terms.term))
-        context.addIssue({ code: "custom", path: ["term"], message: "Выберите срок из сетки продукта." });
+        context.addIssue({
+          code: "custom",
+          path: ["term"],
+          message: "Выберите срок из сетки продукта.",
+        });
     })
     .parse(req.body.terms);
   res
@@ -247,7 +275,14 @@ mvp2Router.get("/manager", (_req, res) =>
     db
       .prepare("SELECT data FROM mvp2_dossiers")
       .all()
-      .map((r) => mvpGet(db, (JSON.parse(r.data as string) as {id: string}).id, res.locals.userId, true))
+      .map((r) =>
+        mvpGet(
+          db,
+          (JSON.parse(r.data as string) as { id: string }).id,
+          res.locals.userId,
+          true,
+        ),
+      )
       .filter((a) => a.lifecycle === "MEETING_SCHEDULED"),
   ),
 );
@@ -460,6 +495,23 @@ mvp2Router.post("/applications/:id/chat", async (req, res) => {
       text: answer,
       createdAt: new Date().toISOString(),
       mode: "application-reference",
+    });
+    saveState(uid, s);
+    res.json(chat);
+    return;
+  }
+  const lastQuestion = chat.messages.at(-1)?.text ?? "";
+  if (
+    a.noCredit &&
+    /(?:дайте|дать|нужен|нужна|сколько дадут|кредит)/i.test(lastQuestion)
+  ) {
+    const estimate = a.noCredit;
+    chat.messages.push({
+      id: randomUUID(),
+      role: "assistant",
+      mode: "application-reference",
+      text: `Кредит может не понадобиться. Ваших поступлений хватит на ${estimate.amount.toLocaleString("ru-RU")} ₽ примерно за ${estimate.weeks} недель. Если брать кредит на ${estimate.term} мес., переплата составит около ${estimate.overpayment.toLocaleString("ru-RU")} ₽. Расчёт и выбор сохранены в карточке результата.`,
+      createdAt: new Date().toISOString(),
     });
     saveState(uid, s);
     res.json(chat);

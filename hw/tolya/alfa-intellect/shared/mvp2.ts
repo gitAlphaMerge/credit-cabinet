@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { day, validDate } from "./cabinet";
 import { innError } from "./inn";
-import { fundingTerms, overdraftCycles, type FundingProduct } from "./financing";
+import {
+  fundingTerms,
+  overdraftCycles,
+  type FundingProduct,
+} from "./financing";
 export const productIds = [
   "WORKING",
   "INVEST",
@@ -83,7 +87,8 @@ export const products: Product[] = [
     maxTerm: 12,
     kind: "overdraft",
     description: "Короткий кассовый разрыв до поступления выручки",
-    repayment: "Каждая задолженность погашается в выбранный срок; проценты на фактический долг",
+    repayment:
+      "Каждая задолженность погашается в выбранный срок; проценты на фактический долг",
   },
   {
     id: "REFI",
@@ -108,7 +113,10 @@ export function productTerms(product: Product): number[] {
         term: product.maxTerm,
       } as FundingProduct);
 }
-export function nearestProductTerm(product: Product, requested: number): number {
+export function nearestProductTerm(
+  product: Product,
+  requested: number,
+): number {
   return productTerms(product).reduce((best, term) =>
     Math.abs(term - requested) < Math.abs(best - requested) ? term : best,
   );
@@ -120,23 +128,33 @@ export function defaultContractDetails(
 ) {
   const ip = company.form === "ИП";
   const registry = profile?.registryRecord;
-  const director = company.director ||
+  const director =
+    company.director ||
     (typeof registry?.director === "string" ? registry.director : "");
   const ipName = company.name.match(/^ИП\s+([^«"\d]+)$/u)?.[1]?.trim() || "";
   const signatory = ip
-    ? (ipName.split(/\s+/u).length === 3 ? ipName : company.demo ? "Синтетический предприниматель" : "")
+    ? ipName.split(/\s+/u).length === 3
+      ? ipName
+      : company.demo
+        ? "Синтетический предприниматель"
+        : ""
     : director || (company.demo ? "Синтетический директор" : "");
-  const ogrnip = company.ogrnip ||
+  const ogrnip =
+    company.ogrnip ||
     (typeof registry?.ogrnip === "string" ? registry.ogrnip : "");
-  const alfaAccount = accounts.find((account) =>
-    /альфа|alfa/i.test(account.bank) && /^\d{20}$/.test(account.number),
+  const alfaAccount = accounts.find(
+    (account) =>
+      /альфа|alfa/i.test(account.bank) && /^\d{20}$/.test(account.number),
   );
-  const generatedAccount = company.demo && /^\d{10}(\d{2})?$/.test(company.inn)
-    ? `${ip ? "40802810" : "40702810"}${(BigInt(company.inn) % 1000000000000n).toString().padStart(12, "0")}`
-    : "";
+  const generatedAccount =
+    company.demo && /^\d{10}(\d{2})?$/.test(company.inn)
+      ? `${ip ? "40802810" : "40702810"}${(BigInt(company.inn) % 1000000000000n).toString().padStart(12, "0")}`
+      : "";
   return {
     signatory,
-    authority: ip ? `записи в ЕГРИП${ogrnip ? `, ОГРНИП ${ogrnip}` : ""}` : "Устава",
+    authority: ip
+      ? `записи в ЕГРИП${ogrnip ? `, ОГРНИП ${ogrnip}` : ""}`
+      : "Устава",
     receivingAccount: alfaAccount?.number || generatedAccount,
     receivingBank: alfaAccount || generatedAccount ? "АО «Альфа-Банк»" : "",
   };
@@ -290,9 +308,17 @@ export const questionnaireInputSchema = z
     purpose: z.enum(["", ...purposes]),
     purposeDetails: text.default(""),
     amount: z.number().int().min(0).max(1e12),
-    term: z.number().int().refine((term) => term === 0 || products.some((product) => productTerms(product).includes(term)), {
-      message: "Выберите срок из сетки продукта.",
-    }),
+    term: z
+      .number()
+      .int()
+      .refine(
+        (term) =>
+          term === 0 ||
+          products.some((product) => productTerms(product).includes(term)),
+        {
+          message: "Выберите срок из сетки продукта.",
+        },
+      ),
     neededAt: z.enum(["", ...neededOptions]),
     neededDate: text.default(""),
     productId: z.enum(productIds),
@@ -301,7 +327,9 @@ export const questionnaireInputSchema = z
     projectCost: rub.nullable(),
     economicEffect: rub.nullable(),
     cycleDays: z.number().int().min(1).max(365).nullable(),
-    overdraftRepaymentDays: z.union([z.literal(30), z.literal(60), z.literal(90)]).default(60),
+    overdraftRepaymentDays: z
+      .union([z.literal(30), z.literal(60), z.literal(90)])
+      .default(60),
     tranches: text,
     oldRate: z.number().min(0).max(100).nullable(),
     oldPayment: rub.nullable(),
@@ -481,7 +509,10 @@ export function questionnaireErrors(
       errors.amount = `Для этого продукта доступно от ${product.min.toLocaleString("ru-RU")} до ${product.max.toLocaleString("ru-RU")} ₽. Измените сумму или продукт.`;
     if (product && !productTerms(product).includes(q.term))
       errors.term = `Выберите срок: ${productTerms(product).join(", ")} мес.`;
-    if (q.productId === "OVERDRAFT" && !overdraftCycles.includes(q.overdraftRepaymentDays))
+    if (
+      q.productId === "OVERDRAFT" &&
+      !overdraftCycles.includes(q.overdraftRepaymentDays)
+    )
       errors.overdraftRepaymentDays = "Выберите 30, 60 или 90 дней.";
     if (q.productId === "INVEST")
       required("projectCost", "Укажите стоимость проекта.");
@@ -556,7 +587,10 @@ export function initialQuestionnaire(a: OnboardingAnswers): Questionnaire {
         : ([250000, 400000, 750000, 2000000, 4000000, 6000000, 7500000, 0][
             ranges.indexOf(a.amountRange)
           ] ?? 0),
-    term: nearestProductTerm(products.find((p) => p.id === recommend(a))!, a.term),
+    term: nearestProductTerm(
+      products.find((p) => p.id === recommend(a))!,
+      a.term,
+    ),
     neededAt: "До месяца",
     neededDate: "",
     productId: recommend(a),
@@ -700,6 +734,13 @@ export type MvpApplication = {
     uncoveredDebt: number;
     source: string;
   };
+  noCredit?: {
+    weeks: number;
+    overpayment: number;
+    amount: number;
+    term: number;
+  };
+  clientDeferred?: boolean;
   provenance: Record<
     string,
     {

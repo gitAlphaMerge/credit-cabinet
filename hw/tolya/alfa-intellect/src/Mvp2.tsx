@@ -355,7 +355,7 @@ function Summary({ a, products }: { a: MvpApplication; products: Product[] }) {
     <dl className="mvp-summary">
       <div>
         <dt>Продукт</dt>
-              <dd>{labelCode(p?.id)}</dd>
+        <dd>{labelCode(p?.id)}</dd>
       </div>
       <div>
         <dt>Сумма заявки</dt>
@@ -430,7 +430,11 @@ function QuestionnaireFields({
     if (k === "productId") {
       const product = catalog.find((item) => item.id === v);
       if (product) {
-        setQ({ ...q, productId: product.id, term: nearestProductTerm(product, q.term) });
+        setQ({
+          ...q,
+          productId: product.id,
+          term: nearestProductTerm(product, q.term),
+        });
         return;
       }
     }
@@ -861,9 +865,8 @@ function QuestionnaireFields({
         text("futurePeriod", "Период будущих операций", 3)}
       {section === 3 && (
         <small className="mvp-span">
-          Будущие операции основаны на вашей оценке. Они сохраняются
-          отдельно от выписок и сами по себе не увеличивают доступную сумму
-          кредита.
+          Будущие операции основаны на вашей оценке. Они сохраняются отдельно от
+          выписок и сами по себе не увеличивают доступную сумму кредита.
         </small>
       )}
       {section === 4 && !missing && (
@@ -879,7 +882,7 @@ function QuestionnaireFields({
               {editingRequest ? "Свернуть параметры" : "Изменить"}
             </button>
           </header>
-                  <strong>{labelCode(q.productId)}</strong>
+          <strong>{labelCode(q.productId)}</strong>
           <dl>
             <div>
               <dt>Сумма</dt>
@@ -952,11 +955,22 @@ function QuestionnaireFields({
       {number("amount", "Точная сумма", 4)}
       {show("term", 4) && (
         <label className="field">
-          <span>Срок {q.productId === "OVERDRAFT" ? "действия лимита" : "финансирования"}</span>
-          <select aria-label="Срок финансирования" value={q.term}
-            onChange={(e) => patch("term", Number(e.target.value))}>
-            {productTerms(catalog.find((item) => item.id === q.productId)!).map((term) =>
-              <option key={term} value={term}>{term} мес.</option>)}
+          <span>
+            Срок{" "}
+            {q.productId === "OVERDRAFT" ? "действия лимита" : "финансирования"}
+          </span>
+          <select
+            aria-label="Срок финансирования"
+            value={q.term}
+            onChange={(e) => patch("term", Number(e.target.value))}
+          >
+            {productTerms(catalog.find((item) => item.id === q.productId)!).map(
+              (term) => (
+                <option key={term} value={term}>
+                  {term} мес.
+                </option>
+              ),
+            )}
           </select>
           {errors.term && <small className="mvp-error">{errors.term}</small>}
         </label>
@@ -984,7 +998,7 @@ function QuestionnaireFields({
           >
             {catalog.map((p) => (
               <option key={p.id} value={p.id}>
-                    {labelCode(p.id)}
+                {labelCode(p.id)}
               </option>
             ))}
           </select>
@@ -1040,10 +1054,18 @@ function QuestionnaireFields({
       {q.productId === "OVERDRAFT" && show("overdraftRepaymentDays", 4) && (
         <label className="field">
           <span>Погасить каждую задолженность</span>
-          <select aria-label="Срок погашения овердрафта" value={q.overdraftRepaymentDays}
-            onChange={(e) => patch("overdraftRepaymentDays", Number(e.target.value))}>
-            {[30, 60, 90].map((days) =>
-              <option key={days} value={days}>{days} дней</option>)}
+          <select
+            aria-label="Срок погашения овердрафта"
+            value={q.overdraftRepaymentDays}
+            onChange={(e) =>
+              patch("overdraftRepaymentDays", Number(e.target.value))
+            }
+          >
+            {[30, 60, 90].map((days) => (
+              <option key={days} value={days}>
+                {days} дней
+              </option>
+            ))}
           </select>
         </label>
       )}
@@ -1092,7 +1114,10 @@ export function Mvp2({
     [chatSending, setChatSending] = useState(false),
     [editAnswers, setEditAnswers] = useState(false),
     [editingDetails, setEditingDetails] = useState(false),
-    [transitionKind, setTransitionKind] = useState<"selection" | "review" | null>(null),
+    [creditNeeded, setCreditNeeded] = useState(false),
+    [transitionKind, setTransitionKind] = useState<
+      "selection" | "review" | null
+    >(null),
     [transitionTarget, setTransitionTarget] = useState<string | null>(null);
   const lock = useRef(false),
     aRef = useRef(a),
@@ -1109,7 +1134,9 @@ export function Mvp2({
     formPanel = useRef<HTMLElement>(null),
     mainPanel = useRef<HTMLElement>(null),
     loaded = useRef(false);
-  const activeMissing = a?.missing.find((item) => (item.status ?? "todo") === "todo");
+  const activeMissing = a?.missing.find(
+    (item) => (item.status ?? "todo") === "todo",
+  );
   useEffect(() => {
     if (view !== "supplement") return;
     if (!activeMissing) setView("decision");
@@ -1217,7 +1244,8 @@ export function Mvp2({
       setSection(journeySection(next.id, position, serverBuffer));
       dirty.current = true;
       if (next.decision) {
-        if (position.view === "supplement") setView(journeyView(next, position));
+        if (position.view === "supplement")
+          setView(journeyView(next, position));
       } else if (position.applicationId !== next.id) setView("questionnaire");
     }
     try {
@@ -1234,7 +1262,11 @@ export function Mvp2({
         if (buffer.onboarding && next.lifecycle === "DRAFT")
           setAnswers(buffer.onboarding);
         setSection(journeySection(next.id, position, buffer));
-        setView(next.decision ? journeyView(next, { applicationId: next.id, view: "supplement" }) : "questionnaire");
+        setView(
+          next.decision
+            ? journeyView(next, { applicationId: next.id, view: "supplement" })
+            : "questionnaire",
+        );
         dirty.current = true;
         await api(
           "/journey/draft",
@@ -1325,9 +1357,7 @@ export function Mvp2({
   useEffect(() => {
     if (!a || !q || !dirty.current || busy) return;
     const timer = setTimeout(() => {
-      void flushDraft(q, section).catch((e) =>
-        setError(visibleError(e)),
-      );
+      void flushDraft(q, section).catch((e) => setError(visibleError(e)));
     }, 300);
     return () => clearTimeout(timer);
   }, [q, answers, section, busy, a?.version]);
@@ -1345,7 +1375,7 @@ export function Mvp2({
           ),
         )
         .then(() => {});
-    void positionQueue.current.catch((e) => setError(visibleError(e)));
+      void positionQueue.current.catch((e) => setError(visibleError(e)));
     }, 150);
     return () => clearTimeout(timer);
   }, [a?.id, view, section, busy]);
@@ -1396,7 +1426,7 @@ export function Mvp2({
               setView(derivedView(next));
           })
           .catch((e) => {
-        if (active) setError(visibleError(e));
+            if (active) setError(visibleError(e));
           });
       },
       view === "processing" ? 700 : 5000,
@@ -1540,7 +1570,7 @@ export function Mvp2({
         setRegistryStatus({
           status:
             e instanceof ApiError && e.status === 404 ? "not-found" : "error",
-              message: visibleError(e),
+          message: visibleError(e),
         });
     } finally {
       lock.current = false;
@@ -1609,7 +1639,7 @@ export function Mvp2({
           </Button>
         )}
         <p>
-              {a.decision ? labelCode(a.decision) : sectionTitles[section]} ·{" "}
+          {a.decision ? labelCode(a.decision) : sectionTitles[section]} ·{" "}
           {money(a.questionnaire.amount)} · Контекст заявки сохранён
         </p>
         <ApplicationAgent
@@ -1747,7 +1777,7 @@ export function Mvp2({
           </p>
           <OnboardingFields value={answers} onChange={setAnswers} />
           <div className="mvp-actions">
-          <span>Условия уточняются при рассмотрении заявки.</span>
+            <span>Условия уточняются при рассмотрении заявки.</span>
             <Button
               disabled={busy || Object.values(answers).some((v) => !v)}
               onClick={() => void create()}
@@ -1855,9 +1885,7 @@ export function Mvp2({
       {a && q && view === "catalog" && (
         <section className="funding-surface">
           <h2>Все продукты</h2>
-          <p>
-            Выбор продукта запускает проверку условий банком.
-          </p>
+          <p>Выбор продукта запускает проверку условий банком.</p>
           <div className="mvp-products">
             {products.map((product) => (
               <article className="mvp-account" key={product.id}>
@@ -2157,10 +2185,23 @@ export function Mvp2({
                     await save();
                     if (view === "supplement") {
                       const current = aRef.current!;
-                      if (!current.missing.some((item) => (item.status ?? "todo") === "todo")) {
-                        const next = adopt(await api(path + "/submit", { version: current.version }));
+                      if (
+                        !current.missing.some(
+                          (item) => (item.status ?? "todo") === "todo",
+                        )
+                      ) {
+                        const next = adopt(
+                          await api(path + "/submit", {
+                            version: current.version,
+                          }),
+                        );
                         setView(derivedView(next));
-                      } else setSection(current.missing.find((item) => (item.status ?? "todo") === "todo")!.section);
+                      } else
+                        setSection(
+                          current.missing.find(
+                            (item) => (item.status ?? "todo") === "todo",
+                          )!.section,
+                        );
                     } else if (section < 4)
                       await transition("questionnaire", section + 1);
                     else await transition("dossier");
@@ -2199,22 +2240,39 @@ export function Mvp2({
                   </div>
                 )}
                 {view === "supplement" && (
-                  <MissingDataStep items={a.missing} onSkip={(missingId) =>
-                    void run(async () => {
-                      const current = aRef.current!;
-                      const next = adopt(await api(`${path}/missing/${encodeURIComponent(missingId)}/skip`, {
-                        version: current.version,
-                      }));
-                      if (next.decision !== "ADDITIONAL_DATA_REQUIRED") setView(derivedView(next));
-                    })
-                  } />
+                  <MissingDataStep
+                    items={a.missing}
+                    onSkip={(missingId) =>
+                      void run(async () => {
+                        const current = aRef.current!;
+                        const next = adopt(
+                          await api(
+                            `${path}/missing/${encodeURIComponent(missingId)}/skip`,
+                            {
+                              version: current.version,
+                            },
+                          ),
+                        );
+                        if (next.decision !== "ADDITIONAL_DATA_REQUIRED")
+                          setView(derivedView(next));
+                      })
+                    }
+                  />
                 )}
                 <QuestionnaireFields
                   catalog={products}
                   q={q}
                   setQ={draftQ}
-                  section={view === "supplement" ? activeMissing?.section : section}
-                  missing={view === "supplement" ? activeMissing ? [activeMissing] : [] : undefined}
+                  section={
+                    view === "supplement" ? activeMissing?.section : section
+                  }
+                  missing={
+                    view === "supplement"
+                      ? activeMissing
+                        ? [activeMissing]
+                        : []
+                      : undefined
+                  }
                   upload={upload}
                   uploadingAccount={uploadingAccount}
                   removeStatement={removeFile}
@@ -2318,6 +2376,45 @@ export function Mvp2({
       )}
       {a && q && view === "decision" && (
         <section className="funding-surface">
+          {a.noCredit &&
+            !a.clientDeferred &&
+            a.lifecycle === "DECIDED" &&
+            !creditNeeded && (
+              <aside
+                className="mvp-no-credit"
+                style={{ background: "#d6e8fc", borderRadius: 16, padding: 24 }}
+              >
+                <h2>Кредит может не понадобиться</h2>
+                <p>
+                  Ваших поступлений хватит на {money(a.noCredit.amount)}{" "}
+                  примерно за {a.noCredit.weeks} недель. Если брать кредит на{" "}
+                  {a.noCredit.term} мес., переплата составит около{" "}
+                  {money(a.noCredit.overpayment)}.
+                </p>
+                <div className="mvp-actions">
+                  <Button
+                    secondary
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        adopt(
+                          await api(`/mvp2/applications/${a.id}/defer-credit`, {
+                            version: a.version,
+                          }),
+                        );
+                        await w.refresh();
+                        w.go("/cabinet");
+                      })
+                    }
+                  >
+                    Обойдусь без кредита
+                  </Button>
+                  <Button disabled={busy} onClick={() => setCreditNeeded(true)}>
+                    Всё равно нужен
+                  </Button>
+                </div>
+              </aside>
+            )}
           {a.error ? (
             <Illustration group="empty" name="network" size={64} decorative />
           ) : (
@@ -2352,11 +2449,13 @@ export function Mvp2({
             <details className="decision-details">
               <summary>Подробнее о результате</summary>
               {a.reasons.slice(3).map((r) => (
-                  <p key={r}>{safeDisplayText(r)}</p>
+                <p key={r}>{safeDisplayText(r)}</p>
               ))}
             </details>
           )}
-          {a.error && <p className="mvp-error">{visibleError(new Error(a.error))}</p>}
+          {a.error && (
+            <p className="mvp-error">{visibleError(new Error(a.error))}</p>
+          )}
           {a.financial && (
             <div className="decision-financial">
               <dl>
@@ -2420,11 +2519,17 @@ export function Mvp2({
               ) : a.decision === "ADDITIONAL_DATA_REQUIRED" ? (
                 <Button
                   disabled={busy}
-                  onClick={() => activeMissing
-                    ? void run(() => transition("supplement", activeMissing.section))
-                    : void submit()}
+                  onClick={() =>
+                    activeMissing
+                      ? void run(() =>
+                          transition("supplement", activeMissing.section),
+                        )
+                      : void submit()
+                  }
                 >
-                  {activeMissing ? "Дополнить сведения" : "Отправить на повторную проверку"}
+                  {activeMissing
+                    ? "Дополнить сведения"
+                    : "Отправить на повторную проверку"}
                 </Button>
               ) : a.decision === "MANAGER_REVIEW_REQUIRED" ? (
                 <Button
@@ -2456,7 +2561,7 @@ export function Mvp2({
               <h3>Проверенные альтернативы</h3>
               {a.alternatives.map((o) => (
                 <article className="mvp-account" key={o.id}>
-                    <h3>{labelCode(o.productId)}</h3>
+                  <h3>{labelCode(o.productId)}</h3>
                   <p>
                     {money(o.amount)} · {o.term} мес. · {o.rate}% ·{" "}
                     {money(o.payment)} в месяц
@@ -2487,9 +2592,7 @@ export function Mvp2({
       {a && q && view === "meeting" && (
         <section className="funding-surface">
           <h2>Запись на встречу</h2>
-          <p>
-            Выберите удобное время. Запись сохранится в заявке.
-          </p>
+          <p>Выберите удобное время. Запись сохранится в заявке.</p>
           <div className="mvp-products">
             {slots.map((s) => (
               <Button
@@ -2559,9 +2662,18 @@ export function Mvp2({
               </label>
               <label className="field">
                 <span>Срок нового запроса</span>
-                <select value={q.term} onChange={(e) => draftQ({ ...q, term: Number(e.target.value) })}>
-                  {p && productTerms(p).map((term) =>
-                    <option key={term} value={term}>{term} мес.</option>)}
+                <select
+                  value={q.term}
+                  onChange={(e) =>
+                    draftQ({ ...q, term: Number(e.target.value) })
+                  }
+                >
+                  {p &&
+                    productTerms(p).map((term) => (
+                      <option key={term} value={term}>
+                        {term} мес.
+                      </option>
+                    ))}
                 </select>
               </label>
               <label className="field">
@@ -2572,13 +2684,16 @@ export function Mvp2({
                     draftQ({
                       ...q,
                       productId: e.target.value as Questionnaire["productId"],
-                      term: nearestProductTerm(products.find((item) => item.id === e.target.value)!, q.term),
+                      term: nearestProductTerm(
+                        products.find((item) => item.id === e.target.value)!,
+                        q.term,
+                      ),
                     })
                   }
                 >
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                  {labelCode(p.id)}
+                      {labelCode(p.id)}
                     </option>
                   ))}
                 </select>
@@ -2586,9 +2701,21 @@ export function Mvp2({
               {q.productId === "OVERDRAFT" && (
                 <label className="field">
                   <span>Погашение каждой задолженности</span>
-                  <select value={q.overdraftRepaymentDays}
-                    onChange={(e) => draftQ({ ...q, overdraftRepaymentDays: Number(e.target.value) as 30 | 60 | 90 })}>
-                    {[30, 60, 90].map((days) => <option key={days} value={days}>{days} дней</option>)}
+                  <select
+                    value={q.overdraftRepaymentDays}
+                    onChange={(e) =>
+                      draftQ({
+                        ...q,
+                        overdraftRepaymentDays: Number(e.target.value) as
+                          30 | 60 | 90,
+                      })
+                    }
+                  >
+                    {[30, 60, 90].map((days) => (
+                      <option key={days} value={days}>
+                        {days} дней
+                      </option>
+                    ))}
                   </select>
                 </label>
               )}
@@ -2614,26 +2741,35 @@ export function Mvp2({
       {a && q && view === "details" && (
         <section className="funding-surface">
           <h2>Реквизиты для договора</h2>
-          <p>Данные подставлены из сведений о компании и счёте. Проверьте их перед подписанием.</p>
+          <p>
+            Данные подставлены из сведений о компании и счёте. Проверьте их
+            перед подписанием.
+          </p>
           {(!q.signatory || !q.receivingAccount) && (
-            <p role="status">Если сведений не хватает, проверьте ФИО руководителя в выписке ЕГРЮЛ или ЕГРИП на сайте ФНС, а расчётный счёт в кабинете Альфа-Банка. Затем нажмите «Изменить».</p>
+            <p role="status">
+              Если сведений не хватает, проверьте ФИО руководителя в выписке
+              ЕГРЮЛ или ЕГРИП на сайте ФНС, а расчётный счёт в кабинете
+              Альфа-Банка. Затем нажмите «Изменить».
+            </p>
           )}
           <form
             noValidate
             onSubmit={(e) => {
               e.preventDefault();
               void run(async () => {
-                adopt(editingDetails
-                  ? await api(path + "/contract-details", {
-                      version: a.version,
-                      details: {
-                        signatory: q.signatory,
-                        authority: q.authority,
-                        receivingAccount: q.receivingAccount,
-                        receivingBank: q.receivingBank,
-                      },
-                    })
-                  : await api(path + "/contract", { version: a.version }));
+                adopt(
+                  editingDetails
+                    ? await api(path + "/contract-details", {
+                        version: a.version,
+                        details: {
+                          signatory: q.signatory,
+                          authority: q.authority,
+                          receivingAccount: q.receivingAccount,
+                          receivingBank: q.receivingBank,
+                        },
+                      })
+                    : await api(path + "/contract", { version: a.version }),
+                );
                 setEditingDetails(false);
                 setView("contract");
               });
@@ -2651,10 +2787,15 @@ export function Mvp2({
                 <label className="field" key={k}>
                   <span>{label}</span>
                   {editingDetails ? (
-                    <input value={q[k]} maxLength={k === "receivingAccount" ? 20 : 160}
+                    <input
+                      value={q[k]}
+                      maxLength={k === "receivingAccount" ? 20 : 160}
                       aria-invalid={!!errors[k]}
-                      onChange={(e) => setQ({ ...q, [k]: e.target.value })} />
-                  ) : <strong>{q[k] || "Нет данных"}</strong>}
+                      onChange={(e) => setQ({ ...q, [k]: e.target.value })}
+                    />
+                  ) : (
+                    <strong>{q[k] || "Нет данных"}</strong>
+                  )}
                   {errors[k] && (
                     <small className="mvp-error">{errors[k]}</small>
                   )}
@@ -2663,7 +2804,13 @@ export function Mvp2({
             </div>
             <div className="mvp-actions">
               {!editingDetails && (
-                <Button type="button" secondary onClick={() => setEditingDetails(true)}>Изменить</Button>
+                <Button
+                  type="button"
+                  secondary
+                  onClick={() => setEditingDetails(true)}
+                >
+                  Изменить
+                </Button>
               )}
               <Button
                 type="button"
@@ -2710,9 +2857,7 @@ export function Mvp2({
         <section className="funding-surface">
           <StatusIllustration status="signed" size={96} decorative />
           <h2>Кредитный договор подписан</h2>
-          <p>
-            Подпись сохранена. Проверьте сведения перед получением средств.
-          </p>
+          <p>Подпись сохранена. Проверьте сведения перед получением средств.</p>
           <Summary a={a} products={products} />
           <p>
             Получатель: {a.company?.name}.{" "}
@@ -2778,7 +2923,7 @@ export function MvpManager() {
               missingKey: f.get("missingKey"),
             })
               .then(load)
-        .catch((e) => setError(visibleError(e)));
+              .catch((e) => setError(visibleError(e)));
           }}
         >
           <h3>
@@ -2801,9 +2946,16 @@ export function MvpManager() {
               <ol>
                 {a.missing.map((item) => (
                   <li key={item.id ?? item.key}>
-                    {safeDisplayText(item.title ?? item.label)}. {safeDisplayText(item.why ?? item.label)}. {safeDisplayText(item.effect ?? "Уточнит расчёт.")} {item.status === "uploaded" ? "Загружено." :
-                      item.status === "skipped" ? "Подано без этого." :
-                      item.status === "accepted" ? "Принято." : "Ожидает ответа."}
+                    {safeDisplayText(item.title ?? item.label)}.{" "}
+                    {safeDisplayText(item.why ?? item.label)}.{" "}
+                    {safeDisplayText(item.effect ?? "Уточнит расчёт.")}{" "}
+                    {item.status === "uploaded"
+                      ? "Загружено."
+                      : item.status === "skipped"
+                        ? "Подано без этого."
+                        : item.status === "accepted"
+                          ? "Принято."
+                          : "Ожидает ответа."}
                   </li>
                 ))}
               </ol>

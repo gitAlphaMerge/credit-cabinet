@@ -172,6 +172,7 @@ function save(
       lifecycle: a.lifecycle,
       decision: a.decision,
       version: a.version,
+      ...(a.clientDeferred ? { clientDeferred: true } : {}),
       ...(a.signature ? { signature: a.signature } : {}),
     }),
     a.updatedAt,
@@ -183,6 +184,29 @@ export function recordMvpTransition(
   event: string,
 ) {
   save(db, a, event, "client");
+}
+export function deferMvpCredit(
+  db: DatabaseSync,
+  uid: string,
+  id: string,
+  version: number,
+) {
+  const a = mvpGet(db, id, uid);
+  requireVersion(a, version);
+  if (!a.noCredit || a.clientDeferred || a.lifecycle !== "DECIDED")
+    throw new ApplicationError(409, "Этот расчёт нельзя отложить");
+  a.clientDeferred = true;
+  a.lifecycle = "DRAFT";
+  a.decision = undefined;
+  a.reasons = ["Клиент отложил заявку после расчёта без кредита."];
+  a.version++;
+  transaction(db, () => {
+    save(db, a, "mvp2_client_deferred", "client");
+    const s = stateFor(db, uid);
+    syncSelection(s, a);
+    saveState(db, uid, s);
+  });
+  return a;
 }
 function requireVersion(a: MvpApplication, version: number) {
   if (a.version !== version)
@@ -285,8 +309,16 @@ export function updateMvp(
 ) {
   const q = questionnaireSchema.parse(raw),
     a = mvpGet(db, id, uid);
-  if (q.term !== 0 && !productTerms(products.find((product) => product.id === q.productId)!).includes(q.term))
-    throw new ApplicationError(422, "Выберите срок из сетки выбранного продукта.");
+  if (
+    q.term !== 0 &&
+    !productTerms(
+      products.find((product) => product.id === q.productId)!,
+    ).includes(q.term)
+  )
+    throw new ApplicationError(
+      422,
+      "Выберите срок из сетки выбранного продукта.",
+    );
   const previousOnboarding = hash(a.onboarding);
   requireVersion(a, version);
   if (a.lifecycle !== "DRAFT" && a.decision !== "ADDITIONAL_DATA_REQUIRED")
@@ -311,9 +343,16 @@ export function updateMvp(
   }
   if (a.company) {
     const profile = stateFor(db, uid).profile;
-    const generated = defaultContractDetails(a.company, [], profile).receivingAccount;
+    const generated = defaultContractDetails(
+      a.company,
+      [],
+      profile,
+    ).receivingAccount;
     const current = defaultContractDetails(a.company, q.accounts, profile);
-    if ((!q.receivingAccount || q.receivingAccount === generated) && current.receivingAccount) {
+    if (
+      (!q.receivingAccount || q.receivingAccount === generated) &&
+      current.receivingAccount
+    ) {
       q.receivingAccount = current.receivingAccount;
       q.receivingBank = current.receivingBank;
     }
@@ -333,11 +372,14 @@ export function updateMvp(
   );
   const changedRequests = changedKeys.flatMap((key) =>
     key === "accounts"
-      ? q.accounts.filter((account) =>
-          !a.questionnaire.accounts.some((old) =>
-            old.id === account.id && hash(account) === hash(old),
-          ),
-        ).map((account) => `accounts:${account.id}:`)
+      ? q.accounts
+          .filter(
+            (account) =>
+              !a.questionnaire.accounts.some(
+                (old) => old.id === account.id && hash(account) === hash(old),
+              ),
+          )
+          .map((account) => `accounts:${account.id}:`)
       : [key],
   );
   a.missing = mergeMissingData(a.missing, [], changedRequests);
@@ -413,12 +455,18 @@ export async function registryMvp(
   fresh.company = company;
   Object.assign(
     fresh.questionnaire,
-    defaultContractDetails(company, fresh.questionnaire.accounts, stateFor(db, uid).profile),
+    defaultContractDetails(
+      company,
+      fresh.questionnaire.accounts,
+      stateFor(db, uid).profile,
+    ),
   );
   fresh.questionnaire.companyConfirmed = false;
   if (fresh.decision === "ADDITIONAL_DATA_REQUIRED")
     fresh.missing = mergeMissingData(
-      fresh.missing, missingFor(fresh, statementsOf(db, id)), ["inn"],
+      fresh.missing,
+      missingFor(fresh, statementsOf(db, id)),
+      ["inn"],
     );
   fresh.provenance.company = {
     source: "REGISTRY",
@@ -496,7 +544,8 @@ export function attachStatement(
       statement,
     ]);
     const uploaded = refreshed.some((item) => item.key === "accounts")
-      ? [`accounts:${s.accountId}:`] : ["accounts"];
+      ? [`accounts:${s.accountId}:`]
+      : ["accounts"];
     a.missing = mergeMissingData(a.missing, refreshed, uploaded);
   }
   a.version++;
@@ -549,8 +598,13 @@ export function removeStatement(
   for (const account of a.questionnaire.accounts)
     if (account.documentId === statementId) account.documentId = "";
   if (a.decision === "ADDITIONAL_DATA_REQUIRED")
-    a.missing = mergeMissingData(a.missing, missingFor(a,
-      statementsOf(db, id).filter((item) => item.id !== statementId)));
+    a.missing = mergeMissingData(
+      a.missing,
+      missingFor(
+        a,
+        statementsOf(db, id).filter((item) => item.id !== statementId),
+      ),
+    );
   a.version++;
   transaction(db, () => {
     db.prepare(
@@ -564,15 +618,25 @@ export function removeStatement(
   return a;
 }
 const criticalMissing = new Set([
-  "inn", "companyConfirmed", "authorized", "consents", "accounts",
+  "inn",
+  "companyConfirmed",
+  "authorized",
+  "consents",
+  "accounts",
   "debtReconciled",
 ]);
 const limitMissing = new Set([
-  "customerContractAmount", "customerContractMonths", "reconciliationReference",
-  "debt", "monthlyDebt", "monthlyLeasing",
+  "customerContractAmount",
+  "customerContractMonths",
+  "reconciliationReference",
+  "debt",
+  "monthlyDebt",
+  "monthlyLeasing",
 ]);
-const genericMissingEffect = "Сведения уточнят расчёт и помогут банку рассмотреть заявку.";
-const criticalMissingEffect = "После этого банк сможет продолжить проверку заявки.";
+const genericMissingEffect =
+  "Сведения уточнят расчёт и помогут банку рассмотреть заявку.";
+const criticalMissingEffect =
+  "После этого банк сможет продолжить проверку заявки.";
 
 /** Return the same persisted requests, with one identity and explanation per cause. */
 export function missingDataFor(a: MvpApplication): MissingDataItem[] {
@@ -580,15 +644,23 @@ export function missingDataFor(a: MvpApplication): MissingDataItem[] {
   for (const field of a.missing) {
     const id = field.id ?? `${field.key}:${hash(field.label).slice(0, 12)}`;
     const limitAfter = a.financial?.limitAfter;
-    const calculatedLimit = ["customerContractAmount", "customerContractMonths", "reconciliationReference"].includes(field.key);
+    const calculatedLimit = [
+      "customerContractAmount",
+      "customerContractMonths",
+      "reconciliationReference",
+    ].includes(field.key);
     const canUseLimit = !field.effect || field.effect === genericMissingEffect;
     const limitNow = a.financial?.limitNow ?? a.financial?.limit ?? 0;
     const effect =
-      calculatedLimit && canUseLimit && Number.isFinite(limitAfter) &&
+      calculatedLimit &&
+      canUseLimit &&
+      Number.isFinite(limitAfter) &&
       limitAfter! > limitNow
         ? `Расчётный лимит сейчас ${Math.round(limitNow).toLocaleString("ru-RU")} ₽. После подтверждения всех запрошенных сведений он может вырасти до ${Math.round(limitAfter!).toLocaleString("ru-RU")} ₽. Итог проверит банк.`
-        : field.effect ?? (criticalMissing.has(field.key)
-          ? criticalMissingEffect : genericMissingEffect);
+        : (field.effect ??
+          (criticalMissing.has(field.key)
+            ? criticalMissingEffect
+            : genericMissingEffect));
     unique.set(id, {
       ...field,
       id,
@@ -601,13 +673,23 @@ export function missingDataFor(a: MvpApplication): MissingDataItem[] {
   const priority = (item: MissingDataItem) =>
     criticalMissing.has(item.key) ? 0 : limitMissing.has(item.key) ? 1 : 2;
   const impact = (item: MissingDataItem) =>
-    ["customerContractAmount", "customerContractMonths", "reconciliationReference"].includes(item.key)
-      ? Math.max(0, (a.financial?.limitAfter ?? 0) - (a.financial?.limitNow ?? a.financial?.limit ?? 0))
+    [
+      "customerContractAmount",
+      "customerContractMonths",
+      "reconciliationReference",
+    ].includes(item.key)
+      ? Math.max(
+          0,
+          (a.financial?.limitAfter ?? 0) -
+            (a.financial?.limitNow ?? a.financial?.limit ?? 0),
+        )
       : 0;
   return [...unique.values()].sort(
     (x, y) =>
       Number(x.status !== "todo") - Number(y.status !== "todo") ||
-      priority(x) - priority(y) || impact(y) - impact(x) || x.section - y.section ||
+      priority(x) - priority(y) ||
+      impact(y) - impact(x) ||
+      x.section - y.section ||
       x.id.localeCompare(y.id),
   );
 }
@@ -621,27 +703,32 @@ export function mergeMissingData(
 ): MissingDataItem[] {
   const old = missingDataFor({ missing: previous } as MvpApplication);
   const fresh = missingDataFor({ missing: current } as MvpApplication);
-  const uploaded = (item: MissingDataItem) => uploadedKeys.some(
-    (key) => key === item.key || item.id.startsWith(key),
-  );
+  const uploaded = (item: MissingDataItem) =>
+    uploadedKeys.some((key) => key === item.key || item.id.startsWith(key));
   const byId = new Map(old.map((item) => [item.id, item]));
   const freshIds = new Set(fresh.map((item) => item.id));
   for (const item of fresh) {
     const earlier = byId.get(item.id);
     byId.set(item.id, {
       ...item,
-      status: earlier?.status === "skipped" ? "skipped" :
-        earlier && uploaded(item) ? "uploaded" : "todo",
+      status:
+        earlier?.status === "skipped"
+          ? "skipped"
+          : earlier && uploaded(item)
+            ? "uploaded"
+            : "todo",
     });
   }
   for (const item of old) {
     if (freshIds.has(item.id)) continue;
     byId.set(item.id, {
       ...item,
-      status: item.status === "skipped" || item.status === "accepted"
-        ? item.status
-        : uploaded(item) || (checked && !item.id.startsWith("manager:"))
-          ? "uploaded" : item.status,
+      status:
+        item.status === "skipped" || item.status === "accepted"
+          ? item.status
+          : uploaded(item) || (checked && !item.id.startsWith("manager:"))
+            ? "uploaded"
+            : item.status,
     });
   }
   return missingDataFor({ missing: [...byId.values()] } as MvpApplication);
@@ -655,16 +742,20 @@ export function missingFor(
     missing: MissingField[] = [];
   const add = (key: string, label: string, section: number, id?: string) =>
     missing.push({
-      key, label, section, id,
-      why: section === 0
-        ? "Эти сведения нужны для обязательных проверок компании и заявителя."
-        : section === 1
-          ? "Выписки нужны для оценки оборота и доступного лимита."
-          : section === 2
-            ? "Текущие платежи учитываются при расчёте долговой нагрузки."
-            : section === 3
-              ? "Предстоящие операции влияют на денежный поток."
-              : "Условие продукта или параметры запроса требуют уточнения.",
+      key,
+      label,
+      section,
+      id,
+      why:
+        section === 0
+          ? "Эти сведения нужны для обязательных проверок компании и заявителя."
+          : section === 1
+            ? "Выписки нужны для оценки оборота и доступного лимита."
+            : section === 2
+              ? "Текущие платежи учитываются при расчёте долговой нагрузки."
+              : section === 3
+                ? "Предстоящие операции влияют на денежный поток."
+                : "Условие продукта или параметры запроса требуют уточнения.",
     });
   if (!a.company) add("inn", "Найдите компанию по ИНН", 0);
   if (!q.companyConfirmed || q.registryError)
@@ -884,12 +975,16 @@ export function submitMvp(
     !a.error
   )
     throw new ApplicationError(409, "Заявка уже подана");
-  if (a.decision === "ADDITIONAL_DATA_REQUIRED" &&
-      a.missing.some((item) => item.status === "skipped") &&
-      !a.missing.some((item) => (item.status ?? "todo") === "todo")) {
+  if (
+    a.decision === "ADDITIONAL_DATA_REQUIRED" &&
+    a.missing.some((item) => item.status === "skipped") &&
+    !a.missing.some((item) => (item.status ?? "todo") === "todo")
+  ) {
     a.decision = "MANAGER_REVIEW_REQUIRED";
     a.lifecycle = a.meeting ? "MEETING_SCHEDULED" : "DECIDED";
-    a.reasons = ["Заявка передана с текущими данными. Недостающие сведения увидит менеджер."];
+    a.reasons = [
+      "Заявка передана с текущими данными. Недостающие сведения увидит менеджер.",
+    ];
     a.version++;
     save(db, a, "mvp2_submit_with_missing", "client");
     return a;
@@ -915,6 +1010,8 @@ export function submitMvp(
   a.reasons = [];
   a.alternatives = [];
   a.financial = undefined;
+  a.noCredit = undefined;
+  a.clientDeferred = false;
   a.version++;
   a.stages = stageLabels.map((label, i) => ({
     id: String(i),
@@ -956,7 +1053,11 @@ export async function waitMvp(id: string) {
 
 /** Record a client's explicit choice to continue without one requested item. */
 export function skipMissingMvp(
-  db: DatabaseSync, uid: string, id: string, version: number, missingId: string,
+  db: DatabaseSync,
+  uid: string,
+  id: string,
+  version: number,
+  missingId: string,
 ) {
   return transaction(db, () => {
     const a = mvpGet(db, id, uid);
@@ -970,7 +1071,9 @@ export function skipMissingMvp(
     if (!missingDataFor(a).some((field) => field.status === "todo")) {
       a.decision = "MANAGER_REVIEW_REQUIRED";
       a.lifecycle = a.meeting ? "MEETING_SCHEDULED" : "DECIDED";
-      a.reasons = ["Заявка передана с текущими данными. Недостающие сведения увидит менеджер."];
+      a.reasons = [
+        "Заявка передана с текущими данными. Недостающие сведения увидит менеджер.",
+      ];
     }
     a.version++;
     save(db, a, "mvp2_missing_skipped", "client");
@@ -993,10 +1096,14 @@ async function processMvp(
     save(db, a, "mvp2_stage");
   };
   const finish = (decision: Decision, reasons: string[]) => {
-    if (decision === "ADDITIONAL_DATA_REQUIRED" &&
-        !missingDataFor(a).some((item) => item.status === "todo")) {
+    if (
+      decision === "ADDITIONAL_DATA_REQUIRED" &&
+      !missingDataFor(a).some((item) => item.status === "todo")
+    ) {
       decision = "MANAGER_REVIEW_REQUIRED";
-      reasons = ["Сведения переданы с текущими данными. Дальше заявку рассмотрит менеджер."];
+      reasons = [
+        "Сведения переданы с текущими данными. Дальше заявку рассмотрит менеджер.",
+      ];
     }
     if (
       decision === "ADDITIONAL_DATA_REQUIRED" &&
@@ -1028,7 +1135,12 @@ async function processMvp(
     const statements = statementsOf(db, id).filter((s) =>
       q.accounts.some((x) => x.documentId === s.id),
     );
-    a.missing = mergeMissingData(a.missing, missingFor(a, statements), [], true);
+    a.missing = mergeMissingData(
+      a.missing,
+      missingFor(a, statements),
+      [],
+      true,
+    );
     stage(0, true);
     stage(1);
     if (
@@ -1067,11 +1179,13 @@ async function processMvp(
       return;
     }
     if ([aml, bankruptcy, fns, bki].some((x) => x.status === "unavailable")) {
-      a.missing = mergeMissingData(a.missing, [{
-        key: "inn",
-        label: "Уточните ИНН: синтетические проверки неполны",
-        section: 0,
-      }]);
+      a.missing = mergeMissingData(a.missing, [
+        {
+          key: "inn",
+          label: "Уточните ИНН: синтетические проверки неполны",
+          section: 0,
+        },
+      ]);
       stage(1, true);
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Недостаточно сведений для обязательных проверок.",
@@ -1092,31 +1206,36 @@ async function processMvp(
       (q.loans === "yes" ? (q.monthlyDebt ?? 0) : 0) +
       (q.leasing === "yes" ? (q.monthlyLeasing ?? 0) : 0);
     if (Math.abs(claimed - aggregate.debt) > 1 && !q.debtReconciled) {
-      a.missing = mergeMissingData(a.missing, [
-        {
-          key: "debtReconciled",
-          label: `В CSV найдено ${aggregate.debt.toLocaleString("ru-RU")} ₽ платежей в месяц; вы указали ${claimed.toLocaleString("ru-RU")} ₽. Подтвердите итоговую нагрузку.`,
-          section: 2,
-        },
-        ...(q.loans === "yes"
-          ? [
-              {
-                key: "monthlyDebt",
-                label: "Уточните платёж по кредитам при необходимости",
-                section: 2,
-              },
-            ]
-          : []),
-        ...(q.leasing === "yes"
-          ? [
-              {
-                key: "monthlyLeasing",
-                label: "Уточните платёж по лизингу при необходимости",
-                section: 2,
-              },
-            ]
-          : []),
-      ], [], true);
+      a.missing = mergeMissingData(
+        a.missing,
+        [
+          {
+            key: "debtReconciled",
+            label: `В CSV найдено ${aggregate.debt.toLocaleString("ru-RU")} ₽ платежей в месяц; вы указали ${claimed.toLocaleString("ru-RU")} ₽. Подтвердите итоговую нагрузку.`,
+            section: 2,
+          },
+          ...(q.loans === "yes"
+            ? [
+                {
+                  key: "monthlyDebt",
+                  label: "Уточните платёж по кредитам при необходимости",
+                  section: 2,
+                },
+              ]
+            : []),
+          ...(q.leasing === "yes"
+            ? [
+                {
+                  key: "monthlyLeasing",
+                  label: "Уточните платёж по лизингу при необходимости",
+                  section: 2,
+                },
+              ]
+            : []),
+        ],
+        [],
+        true,
+      );
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Сверьте долговые платежи с выписками.",
       ]);
@@ -1244,12 +1363,51 @@ async function processMvp(
       ),
       limitNow: Number(core.limit_now_rub),
       limitAfter: Number.isFinite(Number(core.limit_after_rub))
-        ? Number(core.limit_after_rub) : undefined,
+        ? Number(core.limit_after_rub)
+        : undefined,
       months: aggregate.months.length,
       debtInCsv: aggregate.debt,
       uncoveredDebt: uncovered,
       source: "Ядро Лизы /score; каталог MVP, договорный месячный расчёт",
     };
+    const needAmount = a.onboarding.amount ?? q.amount;
+    const monthlyFlow = a.financial.flow;
+    const cashWeeks =
+      monthlyFlow > 0
+        ? Math.ceil(((needAmount / monthlyFlow) * 52) / 12)
+        : Infinity;
+    const receivableMonths = q.customerContractMonths;
+    const receivableCovers =
+      q.repayment === "Оплата контракта" &&
+      q.customerContractAmount !== null &&
+      q.customerContractAmount >= needAmount &&
+      receivableMonths !== null &&
+      receivableMonths > 0 &&
+      receivableMonths <= q.term;
+    if (
+      (cashWeeks <= Math.ceil((q.term * 52) / 12) || receivableCovers) &&
+      needAmount > 0 &&
+      q.term > 0
+    ) {
+      const weeks =
+        Number.isFinite(cashWeeks) && cashWeeks <= Math.ceil((q.term * 52) / 12)
+          ? cashWeeks
+          : Math.ceil((receivableMonths! * 52) / 12);
+      const schedule = makeSchedule(
+        needAmount,
+        p.rate,
+        q.term,
+        addDays(day(), 30),
+      );
+      a.noCredit = {
+        weeks,
+        overpayment: Math.round(
+          schedule.reduce((sum, row) => sum + row.interest + row.fees, 0),
+        ),
+        amount: needAmount,
+        term: q.term,
+      };
+    } else a.noCredit = undefined;
     a.provenance.financial = {
       source: "ENGINE",
       confirmed: true,
@@ -1257,14 +1415,19 @@ async function processMvp(
     };
     const stops = core.stops_fired as string[];
     if (stops.includes("SHORT_STATEMENT")) {
-      a.missing = mergeMissingData(a.missing, [
-        {
-          key: "accounts",
-          label:
-            "Ядру нужна более полная выписка: загрузите 12 месяцев истории с операциями",
-          section: 1,
-        },
-      ], [], true);
+      a.missing = mergeMissingData(
+        a.missing,
+        [
+          {
+            key: "accounts",
+            label:
+              "Ядру нужна более полная выписка: загрузите 12 месяцев истории с операциями",
+            section: 1,
+          },
+        ],
+        [],
+        true,
+      );
       finish("ADDITIONAL_DATA_REQUIRED", [
         "Финансовая история недостаточна для расчёта ядра.",
       ]);
@@ -1441,14 +1604,17 @@ export function managerMvp(
           422,
           "Выберите конкретное поле для дозапроса",
         );
-      a.missing = mergeMissingData(a.missing, [{
-        ...field,
-        id: `manager:${randomUUID()}`,
-        title: field.label,
-        why: reason,
-        effect: "После уточнения менеджер сможет продолжить рассмотрение заявки.",
-        status: "todo",
-      }]);
+      a.missing = mergeMissingData(a.missing, [
+        {
+          ...field,
+          id: `manager:${randomUUID()}`,
+          title: field.label,
+          why: reason,
+          effect:
+            "После уточнения менеджер сможет продолжить рассмотрение заявки.",
+          status: "todo",
+        },
+      ]);
     }
     a.version++;
     save(db, a, "mvp2_manager_decision", "manager");
