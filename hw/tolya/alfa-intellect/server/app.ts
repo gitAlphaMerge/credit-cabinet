@@ -15,6 +15,8 @@ import {
   saveState,
   notify,
   verifyPassword,
+  hashPassword,
+  initialState,
   type User,
 } from "./store";
 import { calculate, select, forecast, catalog } from "./finance";
@@ -291,9 +293,28 @@ app.post("/api/auth/jury", async (req, res) => {
     res.status(401).json({ error: "Логин или пароль не подошли" });
     return;
   }
-  const persona =
-    demoPersonas.find((p) => p.key === body.persona) ??
-    demoPersonas.find((p) => p.role === "client")!;
+  const persona = body.persona
+    ? demoPersonas.find((p) => p.key === body.persona)
+    : demoPersonas.find((p) => p.role === "client");
+  if (!persona) {
+    res.status(400).json({ error: "Такой тестовой компании нет" });
+    return;
+  }
+  // Менеджер не проходит клиентский путь: заводится сразу с ролью и открывает очередь банка.
+  if (persona.role === "manager") {
+    ensureDemoSchema(db);
+    db.prepare(
+      "INSERT OR IGNORE INTO users(id,phone,password,state,role,is_demo) VALUES(?,?,?,?,'manager',1)",
+    ).run(
+      persona.userId,
+      persona.phone,
+      hashPassword(randomUUID()),
+      JSON.stringify(initialState({ name: persona.company, intent: "Рабочее место менеджера" } as any)),
+    );
+    cookie(res, session(persona.userId));
+    res.json({ ok: true, destination: "/bank" });
+    return;
+  }
   if (process.env.DEMO_PERSONAS === "1") {
     ensureDemoSchema(db);
     const seeded = db
@@ -301,21 +322,19 @@ app.post("/api/auth/jury", async (req, res) => {
       .get(persona.userId) as { is_demo: number; role: string } | undefined;
     if (seeded?.is_demo === 1 && seeded.role === persona.role) {
       cookie(res, session(persona.userId));
-      res.json({ ok: true, destination: persona.role === "manager" ? "/bank" : juryDestination(persona.userId) });
+      res.json({ ok: true, destination: juryDestination(persona.userId) });
       return;
     }
   }
-  if (persona.role === "client") {
-    try {
-      const uid = await juryCabinet(persona, `http://127.0.0.1:${req.socket.localPort}`);
-      cookie(res, session(uid));
-      res.json({ ok: true, destination: juryDestination(uid) });
-      return;
-    } catch (error) {
-      console.error("jury cabinet:", (error as Error).message);
-    }
+  try {
+    const uid = await juryCabinet(persona, `http://127.0.0.1:${req.socket.localPort}`);
+    cookie(res, session(uid));
+    res.json({ ok: true, destination: juryDestination(uid) });
+    return;
+  } catch (error) {
+    console.error("jury cabinet:", (error as Error).message);
   }
-  const client = persona.role === "client" ? persona : demoPersonas.find((p) => p.role === "client")!;
+  const client = persona;
   const id = createUser("demo-" + randomUUID(), randomUUID(), {
     name: client.company,
     form: client.form,

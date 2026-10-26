@@ -87,7 +87,7 @@ export const demoPersonas = [
     statement: "data/v3/ALFA_OVERDRAFT-001/seed_0/statement_dirty.csv",
     questionnaire: {
       purpose: "Кассовый разрыв",
-      amount: 200000,
+      amount: 300000,
       term: 12,
       repayFrom: "Текущая выручка",
       trend: "Прибыль",

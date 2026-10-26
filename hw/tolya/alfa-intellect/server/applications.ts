@@ -1367,11 +1367,22 @@ export async function executeApplicationEvent(
 export function bankQueue(db: DatabaseSync, deps: DependencyInput) {
   const now = deps.clock().getTime(),
     K = applicationConfig().PRIORITY_AGING_K;
+  // Заявки MVP2 зеркалят статус в applications, но досье у них своё; их очередь — /api/mvp2/manager.
+  const mvp2 = new Set(
+    db.prepare("SELECT 1 FROM sqlite_master WHERE name='mvp2_dossiers'").get()
+      ? (
+          db.prepare("SELECT application_id FROM mvp2_dossiers").all() as {
+            application_id: string;
+          }[]
+        ).map((row) => row.application_id)
+      : [],
+  );
   return (
     db
       .prepare("SELECT * FROM applications WHERE status='queued'")
       .all() as Application[]
   )
+    .filter((application) => !mvp2.has(application.id))
     .map((application) => {
       const dossier = dossierOf(db, application.id);
       if (!dossier || !application.queued_at)

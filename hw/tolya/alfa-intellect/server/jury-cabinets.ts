@@ -13,13 +13,28 @@ const pending = new Map<string, Promise<string>>();
 
 const answers = {
   industry: "Производство",
-  age: "Более 3 лет",
   purpose: "Текущие расходы",
-  amountRange: "1–3 млн ₽",
   term: 12,
   usage: "Всё сразу",
   repayment: "Регулярная выручка",
 };
+
+// Возраст и диапазон суммы берутся из самой персоны, а не из общего шаблона.
+function age(registeredAt: string) {
+  const months = (Date.now() - Date.parse(registeredAt)) / (30.44 * 864e5);
+  return months < 6 ? "Менее 6 месяцев" : months < 12 ? "6–12 месяцев" : months < 36 ? "1–3 года" : "Более 3 лет";
+}
+function range(amount: number) {
+  const steps: [number, string][] = [
+    [300e3, "До 300 тыс. ₽"],
+    [500e3, "300–500 тыс. ₽"],
+    [1e6, "500 тыс.–1 млн ₽"],
+    [3e6, "1–3 млн ₽"],
+    [5e6, "3–5 млн ₽"],
+    [7e6, "5–7 млн ₽"],
+  ];
+  return steps.find(([top]) => amount < top)?.[1] ?? "Более 7 млн ₽";
+}
 
 function statement(persona: DemoPersona) {
   const own = persona.statement
@@ -74,11 +89,18 @@ async function walk(persona: DemoPersona, base: string) {
   const session = await json("POST", "/api/journey/session", {});
   const uid = String(session.workspaceId);
   const q = persona.questionnaire;
-  let a = await json("POST", "/api/journey/complete", { answers: { ...answers, term: q?.term ?? 12 } });
+  const amount = q?.amount ?? 1000000;
+  let a = await json("POST", "/api/journey/complete", {
+    answers: {
+      ...answers,
+      age: age(persona.registeredAt),
+      amountRange: range(amount),
+      term: q?.term ?? 12,
+    },
+  });
   const draft = {
     ...a.questionnaire,
-    // Минимум продукта 300 000 ₽: меньшая сумма из персоны не дошла бы до ядра.
-    amount: Math.max(300000, q?.amount ?? 1000000),
+    amount,
     inn: persona.inn,
     authorized: true,
     consents: { registry: true, financial: true, bki: true },
@@ -119,6 +141,24 @@ async function walk(persona: DemoPersona, base: string) {
       confirmed: true,
     });
     await json("POST", `/api/mvp2/applications/${a.id}/activate`, {});
+  }
+  // «Документы у менеджера» и «клиент молчит»: клиент пропускает запрошенное, заявка уходит менеджеру.
+  if (
+    a.decision === "ADDITIONAL_DATA_REQUIRED" &&
+    ["manager_document", "silent"].includes(persona.branch)
+  )
+    for (const item of a.missing.filter((m: { status?: string }) => (m.status ?? "todo") === "todo"))
+      a = await json("POST", `/api/mvp2/applications/${a.id}/missing/${item.id}/skip`, {
+        version: a.version,
+      });
+  // Спорная заявка записывается на встречу: так она попадает в очередь менеджера на /bank.
+  if (a.decision === "MANAGER_REVIEW_REQUIRED" && a.lifecycle === "DECIDED") {
+    const [slot] = await call("/api/mvp2/slots");
+    if (slot)
+      await json("POST", `/api/mvp2/applications/${a.id}/meeting`, {
+        version: a.version,
+        slotId: slot.id,
+      });
   }
   const s = stateOf(uid);
   s.profile.name = persona.company;
