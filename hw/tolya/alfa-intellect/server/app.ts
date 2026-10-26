@@ -964,8 +964,13 @@ function mvpTurnContext(uid: string): AgentTurnContext | undefined {
     )
     .get(uid) as { data: string } | undefined;
   if (!row) return undefined;
-  const a = JSON.parse(row.data) as MvpApplication,
-    q = a.questionnaire;
+  let a: MvpApplication;
+  try {
+    a = JSON.parse(row.data) as MvpApplication;
+  } catch {
+    return undefined;
+  }
+  const q = a.questionnaire;
   return {
     need: {
       ...(agentPurposes[q.purpose] ? { purpose: agentPurposes[q.purpose] } : {}),
@@ -978,7 +983,7 @@ function mvpTurnContext(uid: string): AgentTurnContext | undefined {
       status: a.activatedAt ? "кредит выдан" : a.decision ?? a.lifecycle,
       reasons: a.reasons,
       limit_now_rub: a.financial?.limitNow ?? a.financial?.limit,
-      alternatives: a.alternatives.map((x) => ({
+      alternatives: (a.alternatives ?? []).map((x) => ({
         option_id: x.id,
         kind: "alternative",
         product_id: x.productId,
