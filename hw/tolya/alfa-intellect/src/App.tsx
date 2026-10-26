@@ -22,6 +22,7 @@ import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
 import { SideRail, SideRailItem } from "./SideRail";
 import { RestartJourney } from "./RestartJourney";
+import { About } from "./About";
 import "./restart-journey.css";
 import "./application-status.css";
 import "./manager/manager.css";
@@ -211,6 +212,7 @@ export function App() {
       path === "/" ||
       path === "/onboarding" ||
       path === "/jury" ||
+      path === "/about" ||
       path === "/login" ||
       (path === "/bank" && config.role === "manager") ||
       (config.cabinetAvailable && ["/cabinet", "/chat"].includes(path)) ||
@@ -268,13 +270,15 @@ export function App() {
         <p>Открываем ваш финансовый контекст…</p>
       </div>
     );
-  const publicPage = ["/", "/onboarding", "/jury", "/login"].includes(path);
+  const publicPage = ["/", "/onboarding", "/jury", "/login", "/about"].includes(path);
   const page = path.split("/")[1] || "cabinet";
   const rendered = publicPage ? (
     path === "/" ? (
       <Landing go={go} />
     ) : path === "/jury" ? (
       <DemoPage go={go} />
+    ) : path === "/about" ? (
+      <About go={go} />
     ) : path === "/login" ? (
       <LoginScreen go={go} />
     ) : (

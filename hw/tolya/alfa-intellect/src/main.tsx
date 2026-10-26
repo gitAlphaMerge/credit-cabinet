@@ -16,6 +16,7 @@ import "./graphite.css";
 import "./palettes.css";
 import "./appearance.css";
 import "./hero-title.css";
+import "./about.css";
 import "./appearance";
 import { startTabIdentity } from "./tabIdentity";
 startTabIdentity();

@@ -52,6 +52,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#opportunities">Возможности</a>
           <a href="#how">Как это работает</a>
           <a href="#questions">Вопросы</a>
+          <a href="/about" onClick={(e) => { e.preventDefault(); go("/about"); }}>О продукте</a>
         </nav>
         <div className="journey-header-tools">
           <SideRail>
