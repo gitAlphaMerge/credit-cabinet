@@ -16,7 +16,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#2a2c31}
-body{font-family:Manrope,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+body{font-family:Manrope,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .deck{display:flex;flex-direction:column;align-items:center;gap:24px;padding:24px 16px 64px}
 .slide{
   width:1280px;height:720px;flex:none;background:var(--paper);position:relative;overflow:hidden;
@@ -108,6 +108,56 @@ code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.92em;backgroun
 .team span{font-size:16px;color:var(--ink2);line-height:1.45}
 .next{margin-top:auto;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:17px;color:var(--ink2);padding-bottom:36px}
 .chip{border:1px solid var(--line);border-radius:999px;padding:6px 14px;color:var(--ink);font-weight:600}
+
+
+/* Мягче: вес заголовков 700, текст 500, блоки на подложке, фигуры узора по углам */
+h1{font-weight:750;letter-spacing:-.02em}
+h2{font-weight:700;letter-spacing:-.015em;font-size:46px}
+.lead{font-weight:500;line-height:1.5}
+.list li{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 22px}
+.slide:nth-child(even) .list li{background:var(--paper)}
+.list li b{font-weight:700;font-size:21px;margin-bottom:4px}
+.list li span,.facts span,.pipe span,.lane span,.team span{font-weight:500}
+.list{gap:14px}
+.facts div{background:var(--paper);border:0;border-radius:16px;padding:20px 24px}
+.slide:nth-child(odd) .facts div{background:var(--card)}
+.lane{background:var(--paper);border-radius:0 16px 16px 0;margin-right:16px}
+.quote{font-weight:650}
+.slide:not(.cover)::before,.slide:not(.cover)::after{content:"";position:absolute;pointer-events:none}
+.slide:not(.cover)::before{right:-70px;top:-70px;width:200px;height:200px;border-radius:50%;background:var(--red);opacity:.9}
+.slide:not(.cover)::after{right:96px;top:48px;width:56px;height:56px;border-radius:14px;background:var(--blue)}
+.slide:nth-child(3n)::before{background:none;border:14px solid var(--blue);opacity:1}
+.slide:nth-child(3n)::after{background:var(--red);border-radius:50%;width:44px;height:44px}
+.slide:nth-child(4n)::after{right:110px;top:56px;width:0;height:0;border-radius:0;background:none;border-left:26px solid transparent;border-right:26px solid transparent;border-bottom:46px solid var(--ink)}
+.eyebrow,h1,h2{position:relative;z-index:1}
+/* Команда с фото */
+.team{gap:28px;margin-top:36px}
+.team .ava{width:150px;height:150px;border-radius:50%;object-fit:cover;display:block;margin-bottom:18px;background:var(--paper)}
+.team .ini{display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:700;color:#fff}
+.team .ini.r{background:var(--red)} .team .ini.b{background:var(--blue)} .team .ini.k{background:var(--ink);border-radius:36px}
+
+
+/* Фон: точечная сетка и мягкое пятно узора снизу слева */
+.slide:not(.cover){
+  background-image:
+    radial-gradient(circle at 0 100%, var(--blue-soft) 0 260px, transparent 261px),
+    radial-gradient(rgba(20,21,24,.09) 1.2px, transparent 1.6px);
+  background-size:100% 100%, 22px 22px;
+}
+.cover{
+  background-image:radial-gradient(rgba(244,244,242,.08) 1.2px, transparent 1.6px)!important;
+  background-size:22px 22px!important;
+}
+.slide:nth-child(3n):not(.cover){
+  background-image:
+    radial-gradient(circle at 0 100%, var(--red-soft) 0 260px, transparent 261px),
+    radial-gradient(rgba(20,21,24,.09) 1.2px, transparent 1.6px);
+}
+.slide > *{position:relative;z-index:1}
+.slide > .n,.slide > .brand{position:absolute}
+.slide > .pattern{position:absolute;z-index:0}
+.answer .list li{padding:14px 20px}
+.answer .list{gap:10px}
 
 /* Экран: слайды масштабируются под ширину окна */
 @media screen and (max-width:1330px){
@@ -270,11 +320,11 @@ code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.92em;backgroun
   <div class="eyebrow">Команда</div>
   <h2>Пять человек, одна репа</h2>
   <div class="team">
-    <div><b>Саша</b><em>капитан</em><span>агент, контракты, eval, дизайн, выкатка</span></div>
-    <div><b>Лиза</b><em>инженер</em><span>ядро скоринга, стоп-правила, пороги, коды причин</span></div>
-    <div><b>Толя</b><em>продакт</em><span>кабинет клиента и менеджера, заявка, подбор, дизайн</span></div>
-    <div><b>Тёма</b><em>разработчик</em><span>API на Go, хранилище, безопасность, Docker</span></div>
-    <div><b>Тоня</b><em>исследователь</em><span>концепт, кастдев, путь предпринимателя, тексты</span></div>
+    <div><img class="ava" src="sasha.jpg" alt="Саша"><b>Саша</b><em>капитан</em><span>агент, контракты, eval, дизайн, выкатка</span></div>
+    <div><span class="ava ini r" aria-hidden="true">Л</span><b>Лиза</b><em>инженер</em><span>ядро скоринга, стоп-правила, пороги, коды причин</span></div>
+    <div><img class="ava" src="tolya.jpg" alt="Толя"><b>Толя</b><em>продакт</em><span>кабинет клиента и менеджера, заявка, подбор, дизайн</span></div>
+    <div><span class="ava ini k" aria-hidden="true">Т</span><b>Тёма</b><em>разработчик</em><span>API на Go, хранилище, безопасность, Docker</span></div>
+    <div><span class="ava ini b" aria-hidden="true">Т</span><b>Тоня</b><em>исследователь</em><span>концепт, кастдев, путь предпринимателя, тексты</span></div>
   </div>
   <div class="next"><span>Дальше:</span><span class="chip">ЦФА для бизнеса</span><span class="chip">Лента «Пульс»</span><span class="chip">Агент Омега</span><span style="margin-left:auto">alphahack.ru</span></div>
   <span class="n">10</span>
