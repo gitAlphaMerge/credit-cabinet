@@ -222,6 +222,6 @@ python data/check_golden.py --reference
 <td align="center" width="20%"><a href="https://github.com/Elizaveta11-me"><img src="docs/assets/team/liza.jpg" width="104" alt="Лиза"></a><br><b>Лиза</b><br>инженер<br><sub>ядро скоринга · стоп-правила · пороги · коды причин</sub></td>
 <td align="center" width="20%"><a href="https://github.com/tolyapolya2006-png"><img src="docs/assets/team/tolya.jpg" width="104" alt="Толя"></a><br><b>Толя</b><br>продакт<br><sub>кабинет клиента и менеджера · заявка · подбор продуктов · дизайн</sub></td>
 <td align="center" width="20%"><a href="https://github.com/bwr1337"><img src="docs/assets/team/tyoma.svg" width="104" alt="Тёма"></a><br><b>Тёма</b><br>разработчик<br><sub>API на Go · хранилище · безопасность · Docker</sub></td>
-<td align="center" width="20%"><a href="https://github.com/nekhaevaaa"><img src="docs/assets/team/tonya.svg" width="104" alt="Тоня"></a><br><b>Тоня</b><br>исследователь<br><sub>концепт · кастдев и интервью · путь предпринимателя · тексты и питч</sub></td>
+<td align="center" width="20%"><a href="https://github.com/nekhaevaaa"><img src="docs/assets/team/tonya.jpg" width="104" alt="Тоня"></a><br><b>Тоня</b><br>исследователь<br><sub>концепт · кастдев и интервью · путь предпринимателя · тексты и питч</sub></td>
 </tr>
 </table>
