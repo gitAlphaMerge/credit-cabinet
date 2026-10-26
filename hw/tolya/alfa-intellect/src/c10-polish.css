@@ -284,3 +284,12 @@
 .settings-people small { display: block; color: var(--theme-muted); }
 .settings-avatar { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--theme-red); color: #fff; font-weight: 700; }
 @media (max-width: 760px) { .settings-grid { grid-template-columns: 1fr; } }
+
+/* Тестовые ИНН под полем анкеты */
+.test-inn { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.test-inn small { color: var(--muted, #6b7280); }
+.test-inn-chip {
+  border: 1px solid var(--line, #d9dde3); background: var(--surface, #fff); color: inherit;
+  border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer;
+}
+.test-inn-chip:hover { border-color: #ef3124; }

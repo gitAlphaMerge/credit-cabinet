@@ -20,6 +20,7 @@ import { CompanyCard } from "./CompanyCard";
 import { ClientDossier } from "./ClientDossier";
 import { StatementUpload } from "./StatementUpload";
 import { innError } from "../shared/inn";
+import { demoPersonas } from "../shared/demo-personas";
 import { industryFromOkved } from "../shared/company";
 import { day, addDays } from "../shared/cabinet";
 import { ApplicationAgent } from "./ApplicationAgent";
@@ -585,6 +586,25 @@ function QuestionnaireFields({
           >
             {registryStatus.message}
           </p>
+          {/* Тестовые компании: ИНН есть в моке реестра, сведения подтягиваются сами. */}
+          {registryStatus.status !== "found" && (
+            <div className="test-inn" aria-label="Тестовые ИНН">
+              <small>Тестовые ИНН:</small>
+              {demoPersonas
+                .filter((p) => p.role === "client")
+                .map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    className="test-inn-chip"
+                    title={p.company}
+                    onClick={() => patch("inn", p.inn)}
+                  >
+                    {p.inn} · {p.company}
+                  </button>
+                ))}
+            </div>
+          )}
           {["error", "not-found"].includes(registryStatus.status) && (
             <Button
               secondary
