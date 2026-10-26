@@ -55,6 +55,9 @@
   color: var(--theme-ink);
   cursor: pointer;
 }
+.side-rail .journey-restart-label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
 .side-rail .journey-restart-button.button svg,
 .side-rail .side-rail-icon svg { width: 16px; height: 16px; }
 .side-rail .side-rail-icon.call { background: var(--theme-red); border-color: var(--theme-red); color: var(--theme-on-accent); }

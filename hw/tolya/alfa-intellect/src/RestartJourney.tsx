@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { RotateCcw } from "lucide-react";
 import { api } from "./api";
 import { Button, Modal } from "./ui";
@@ -33,38 +34,42 @@ export function RestartJourney() {
           setOpen(true);
         }}
       >
-        <RotateCcw size={16} aria-hidden="true" /> Начать сначала
+        <RotateCcw size={16} aria-hidden="true" />{" "}
+        <span className="journey-restart-label">Начать сначала</span>
       </Button>
-      {open && (
-        <Modal
-          title="Начать сначала?"
-          onClose={() => {
-            if (!lock.current) setOpen(false);
-          }}
-        >
-          <p>
-            Вы вернётесь на главную страницу и сможете пройти оформление заново,
-            с пустой анкетой.
-          </p>
-          <p className="muted">
-            Предыдущая заявка останется сохранённой отдельно. Её ответы и
-            текущий этап не перенесутся в новый проход.
-          </p>
-          {error && (
-            <p className="mvp-error" role="alert">
-              {error}
+      {open &&
+        // Окно уходит в body: внутри боковой пилюли fixed-окно зажимается её translate и наследует font-size: 0.
+        createPortal(
+          <Modal
+            title="Начать сначала?"
+            onClose={() => {
+              if (!lock.current) setOpen(false);
+            }}
+          >
+            <p>
+              Вы вернётесь на главную страницу и сможете пройти оформление
+              заново, с пустой анкетой.
             </p>
-          )}
-          <div className="modal-actions">
-            <Button secondary disabled={busy} onClick={() => setOpen(false)}>
-              Отмена
-            </Button>
-            <Button disabled={busy} onClick={() => void restart()}>
-              {busy ? "Начинаем заново…" : "Да, начать сначала"}
-            </Button>
-          </div>
-        </Modal>
-      )}
+            <p className="muted">
+              Предыдущая заявка останется сохранённой отдельно. Её ответы и
+              текущий этап не перенесутся в новый проход.
+            </p>
+            {error && (
+              <p className="mvp-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="modal-actions">
+              <Button secondary disabled={busy} onClick={() => setOpen(false)}>
+                Отмена
+              </Button>
+              <Button disabled={busy} onClick={() => void restart()}>
+                {busy ? "Начинаем заново…" : "Да, начать сначала"}
+              </Button>
+            </div>
+          </Modal>,
+          document.body,
+        )}
     </>
   );
 }
