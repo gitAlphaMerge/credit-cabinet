@@ -291,7 +291,7 @@
 }
 .manager-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 8px;
 }
@@ -809,4 +809,11 @@
   .manager-dossier-head h2 {
     font-size: 22px;
   }
+}
+
+.manager-kpi {
+  align-content: start;
+}
+.manager-summary .manager-kpi b {
+  font-size: 20px;
 }
