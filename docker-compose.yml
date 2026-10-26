@@ -2,8 +2,6 @@ services:
   api:
     restart: unless-stopped
     build: ./services/api
-    ports:
-      - "8080:8080"
     environment:
       - ML_URL=http://ml-model:5000   # провод Тёмы: /score уходит в окошко
       - PORT=8080
