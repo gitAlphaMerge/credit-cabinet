@@ -13,6 +13,7 @@ import { Landing } from "./Landing";
 import { WorkspaceContext } from "./context";
 import { WorkspaceView } from "./WorkspaceView";
 import { Chat } from "./Chat";
+import { ProfilePage } from "./Profile";
 import { Mvp2, MvpManager } from "./Mvp2";
 import { JourneyOnboarding } from "./JourneyOnboarding";
 import { DemoPage } from "./DemoPage";
@@ -213,7 +214,9 @@ export function App() {
       path === "/login" ||
       (path === "/bank" && config.role === "manager") ||
       (config.cabinetAvailable && ["/cabinet", "/chat"].includes(path)) ||
-      (path === "/apply" && !!state.profile.mvp2Answers);
+      (path === "/apply" && !!state.profile.mvp2Answers) ||
+      (path === "/profile" &&
+        (config.cabinetAvailable || !!state.profile.mvp2Answers));
     if (!allowed) {
       const target = state.profile.mvp2Answers ? "/apply" : "/onboarding";
       history.replaceState({}, "", target);
@@ -321,7 +324,9 @@ export function App() {
         sending,
       }}
     >
-      {page !== "bank" && (!config.cabinetAvailable || page === "apply") ? (
+      {page !== "bank" &&
+      page !== "profile" &&
+      (!config.cabinetAvailable || page === "apply") ? (
         <div className="origination app-shell">
           <header className="origination-header">
             <button className="unstyled" onClick={() => go("/")}>
@@ -361,6 +366,7 @@ export function App() {
               {[
                 ["cabinet", "Кредитный кабинет"],
                 ["chat", "Чат"],
+                ["profile", "Профиль"],
                 ...(config.role === "manager"
                   ? [["bank", "Рабочее место менеджера"]]
                   : []),
@@ -397,6 +403,8 @@ export function App() {
               <ManagerAccess role={config.role} />
               {config.role === "manager" && <MvpManager />}
             </>
+          ) : page === "profile" ? (
+            <ProfilePage />
           ) : page === "chat" ? (
             <div className="full-chat">
               <Chat full />
