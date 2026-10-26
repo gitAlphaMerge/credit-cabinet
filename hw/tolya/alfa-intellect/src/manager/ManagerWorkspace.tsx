@@ -220,8 +220,18 @@ export function ManagerView(p: ViewProps) {
             ) : !p.detail ? (
               <p>Выберите заявку, чтобы открыть досье</p>
             ) : (
-              <>
-                <h2><StatusIllustration status={p.detail.application.status} size={48} decorative /> Досье заявки</h2>
+              <div className="manager-dossier-body" key={p.detail.application.id}>
+                <div className="manager-dossier-head">
+                  <h2><StatusIllustration status={p.detail.application.status} size={48} decorative /> Досье заявки</h2>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={!actionable || !d}
+                    onClick={p.onMemo}
+                  >
+                    Подготовить записку андеррайтеру
+                  </button>
+                </div>
                 {d?.return_to_manager && (
                   <p className="manager-missing">вы просили вернуть</p>
                 )}
@@ -239,14 +249,6 @@ export function ManagerView(p: ViewProps) {
                     {d.age.months} мес., скоринг по реестру
                   </p>
                 )}
-                <button
-                  type="button"
-                  className="button secondary"
-                  disabled={!actionable || !d}
-                  onClick={p.onMemo}
-                >
-                  Подготовить записку андеррайтеру
-                </button>
                 <p className="manager-meta">
                   {labelCode(p.detail.application.status)}{" "}
                   · Лимит сейчас: {rub(limit)}
@@ -295,99 +297,121 @@ export function ManagerView(p: ViewProps) {
                   <p>Досье пока нет</p>
                 ) : (
                   <>
-                    <h3><Illustration group="status" name="underwriting-checks" size={48} decorative /> Проверки комплаенса</h3>
-                    {!d.checks?.length ? (
-                      <p>Нет данных о проверках</p>
-                    ) : (
-                      d.checks.map((c, i) => (
-                        <article
-                          key={i}
-                          className={
-                            c.status === "ok"
-                              ? "manager-verified"
-                              : c.status === "unavailable"
-                                ? "manager-missing"
-                                : "manager-stop"
-                          }
-                        >
-                          <strong>
-                            <CheckIllustration check={c.key} size={32} decorative />{" "}
-                            {c.status === "ok"
-                              ? "Пройдено"
-                              : c.status === "unavailable"
-                                ? "Источник недоступен"
-                                : "Не пройдено"}
-                          </strong>
-                          :{" "}
-                          {safeDisplayText(checkText(c.managerText)) ||
-                            (c.reasonCode
-                              ? explain(c.reasonCode)
-                              : "Описание отсутствует")}
-                          <small>
-                            Источник: {c.source || "нет данных"} ·{" "}
-                            {timestamp(c.checkedAt)}
-                          </small>
-                        </article>
-                      ))
+                    <section className="manager-block">
+                      <h3><Illustration group="status" name="underwriting-checks" size={48} decorative /> Проверки комплаенса</h3>
+                      {!d.checks?.length ? (
+                        <p>Нет данных о проверках</p>
+                      ) : (
+                        <div className="manager-checks">
+                          {d.checks.map((c, i) => (
+                            <article
+                              key={i}
+                              className={
+                                c.status === "ok"
+                                  ? "manager-verified"
+                                  : c.status === "unavailable"
+                                    ? "manager-missing"
+                                    : "manager-stop"
+                              }
+                            >
+                              <strong className="manager-check-state">
+                                <CheckIllustration check={c.key} size={32} decorative />{" "}
+                                {c.status === "ok"
+                                  ? "Пройдено"
+                                  : c.status === "unavailable"
+                                    ? "Источник недоступен"
+                                    : "Не пройдено"}
+                              </strong>
+                              <span className="manager-check-text">
+                                {safeDisplayText(checkText(c.managerText)) ||
+                                  (c.reasonCode
+                                    ? explain(c.reasonCode)
+                                    : "Описание отсутствует")}
+                              </span>
+                              <small>
+                                Источник: {c.source || "нет данных"} ·{" "}
+                                {timestamp(c.checkedAt)}
+                              </small>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                    <div className="manager-trio">
+                      <section className="manager-block manager-block-ok">
+                        <h3>Что сверено</h3>
+                        <div className="manager-verified">
+                          {d.verified?.length ? (
+                            d.verified.map((v) => <p key={v}>{explain(v)}</p>)
+                          ) : (
+                            <p>Отдельный список сверенных данных не предоставлен</p>
+                          )}
+                        </div>
+                      </section>
+                      <section className="manager-block manager-block-warn">
+                        <h3>Чего не хватает</h3>
+                        <div className="manager-missing">
+                          {d.holes ? (
+                            d.holes.length ? (
+                              d.holes.map((h) => <p key={h}>{explain(h)}</p>)
+                            ) : (
+                              <p>Недостающих данных нет</p>
+                            )
+                          ) : (
+                            <p>Нет данных о полноте досье</p>
+                          )}
+                        </div>
+                      </section>
+                      <section className="manager-block manager-block-stop">
+                        <h3>Стоп-факторы</h3>
+                        {d.stops_fired?.some((s) => ["BKI_OVERDUE_30_PLUS", "BKI_OVERDUE_90_PLUS"].includes(s)) && <CheckIllustration check="bki" size={32} decorative />}
+                        <div className="manager-stop">
+                          {d.stops_fired ? (
+                            d.stops_fired.length ? (
+                              d.stops_fired.map((s) => <p key={s}>{explain(s)}</p>)
+                            ) : (
+                              <p>Стоп-факторов нет</p>
+                            )
+                          ) : (
+                            <p>Нет данных о стоп-факторах</p>
+                          )}
+                        </div>
+                      </section>
+                    </div>
+                    {!!d.documents?.length && (
+                      <section className="manager-block">
+                        <h3>Документы</h3>
+                        <div className="manager-docs">
+                          {d.documents.map((doc, i) => (
+                            <p
+                              key={i}
+                              className={
+                                doc.status === "fresh"
+                                  ? "manager-verified"
+                                  : "manager-missing"
+                              }
+                            >
+                              <DocumentIllustration category={doc.category} size={32} decorative />{" "}
+                              {explain(doc.category)}:{" "}
+                              {doc.status === "fresh"
+                                ? "Актуален"
+                                : doc.status === "expired"
+                                  ? "Устарел"
+                                  : "Дата неизвестна"}{" "}
+                              · {timestamp(doc.documentDate)}
+                            </p>
+                          ))}
+                        </div>
+                      </section>
                     )}
-                    <h3>Что сверено</h3>
-                    <div className="manager-verified">
-                      {d.verified?.length ? (
-                        d.verified.map((v) => <p key={v}>{explain(v)}</p>)
-                      ) : (
-                        <p>Отдельный список сверенных данных не предоставлен</p>
-                      )}
-                    </div>
-                    <h3>Чего не хватает</h3>
-                    <div className="manager-missing">
-                      {d.holes ? (
-                        d.holes.length ? (
-                          d.holes.map((h) => <p key={h}>{explain(h)}</p>)
-                        ) : (
-                          <p>Недостающих данных нет</p>
-                        )
-                      ) : (
-                        <p>Нет данных о полноте досье</p>
-                      )}
-                    </div>
-                    {d.documents?.map((doc, i) => (
-                      <p
-                        key={i}
-                        className={
-                          doc.status === "fresh"
-                            ? "manager-verified"
-                            : "manager-missing"
-                        }
-                      >
-                        <DocumentIllustration category={doc.category} size={32} decorative />{" "}
-                        {explain(doc.category)}:{" "}
-                        {doc.status === "fresh"
-                          ? "Актуален"
-                          : doc.status === "expired"
-                            ? "Устарел"
-                            : "Дата неизвестна"}{" "}
-                        · {timestamp(doc.documentDate)}
+                    <section className="manager-block">
+                      <h3>Тезисы клиента</h3>
+                      <p className="manager-objections">
+                        {d.client_objections ||
+                          row?.client_objections ||
+                          "Тезисы клиента не переданы"}
                       </p>
-                    ))}
-                    <h3>Стоп-факторы</h3>
-                    {d.stops_fired?.some((s) => ["BKI_OVERDUE_30_PLUS", "BKI_OVERDUE_90_PLUS"].includes(s)) && <CheckIllustration check="bki" size={32} decorative />}
-                    <div className="manager-stop">
-                      {d.stops_fired ? (
-                        d.stops_fired.length ? (
-                          d.stops_fired.map((s) => <p key={s}>{explain(s)}</p>)
-                        ) : (
-                          <p>Стоп-факторов нет</p>
-                        )
-                      ) : (
-                        <p>Нет данных о стоп-факторах</p>
-                      )}
-                    </div>
-                    <h3>Тезисы клиента</h3>
-                    <p className="manager-objections">
-                      {d.client_objections ||
-                        row?.client_objections ||
-                        "Тезисы клиента не переданы"}
-                    </p>
+                    </section>
                     <div className="manager-decision">
                     <h3 className="manager-decision-title">Ваше решение</h3>
                     <h3>Альтернативы</h3>
@@ -551,6 +575,7 @@ export function ManagerView(p: ViewProps) {
                     </div>
                   </>
                 )}
+                <section className="manager-block manager-journal">
                 <h3>Журнал событий</h3>
                 {!p.detail.events.length ? (
                   <p>Журнал пока пуст</p>
@@ -579,7 +604,8 @@ export function ManagerView(p: ViewProps) {
                     ))}
                   </ol>
                 )}
-              </>
+                </section>
+              </div>
             )}
           </section>
         </div>
