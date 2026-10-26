@@ -72,7 +72,6 @@
 :root[data-palette="graphite"] svg [fill="#0072ef"] { fill: var(--theme-chart-primary); }
 :root[data-palette="graphite"] svg :is([fill="#fff"], [fill="#ffffff"]) { fill: var(--theme-surface); }
 :root[data-palette="graphite"] .live-pattern-box { filter: grayscale(1) brightness(0.82); }
-:root[data-palette="graphite"] .theme-switch-track { background: var(--theme-surface-hover); }
 
 /* Кнопка палитры рядом с ползунком темы */
 .palette-toggle {

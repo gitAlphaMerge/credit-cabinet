@@ -4744,7 +4744,7 @@ input::placeholder, textarea::placeholder { color: var(--theme-muted); opacity: 
 :where(button, a, input, select, textarea, summary):focus-visible {
   outline-color: var(--theme-red);
 }
-.theme-toggle { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+.theme-toggle:not(.theme-orb) { min-width: 44px; min-height: 44px; flex-shrink: 0; }
 /* Paint attributes from legacy chart components remain owned by their authors. */
 svg [stroke="#ef3124"], svg [stroke="#ee574b"] { stroke: var(--theme-chart-primary); }
 svg [stroke="#12865f"] { stroke: var(--theme-green); }

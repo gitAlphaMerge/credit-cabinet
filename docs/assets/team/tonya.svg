@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" role="img" aria-label="Тоня">
+  <rect width="240" height="240" rx="72" fill="#ef3124"/>
+  <circle cx="196" cy="44" r="18" fill="#ffffff" opacity=".18"/>
+  <rect x="24" y="176" width="64" height="40" rx="20" fill="#ffffff" opacity=".14"/>
+  <text x="120" y="120" dy=".35em" text-anchor="middle" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="104" font-weight="600" fill="#ffffff">Т</text>
+</svg>

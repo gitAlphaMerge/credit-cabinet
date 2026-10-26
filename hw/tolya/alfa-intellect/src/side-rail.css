@@ -37,10 +37,8 @@
 }
 .side-rail-item:hover::after,
 .side-rail-item:focus-within::after { opacity: 1; translate: 0 -50%; }
-/* Ползунок темы в узкой пилюле стоит вертикально */
-.side-rail .theme-switch { rotate: 90deg; margin: 11px -11px; }
-.side-rail .theme-switch-sun,
-.side-rail .theme-switch-moon { rotate: -90deg; }
+/* Палитра такого же размера, как остальные круглые кнопки пилюли */
+.side-rail .palette-toggle { width: 34px; height: 34px; }
 /* Текстовые кнопки в пилюле становятся круглыми иконками, подпись остаётся для экранных читалок и в подсказке */
 .side-rail .journey-restart-button.button,
 .side-rail .side-rail-icon {
@@ -74,7 +72,4 @@
 .side-rail:has(~ .side-rail) { display: none; }
 @media (max-width: 700px) {
   .side-rail { flex-direction: row; padding: 6px 10px; }
-  .side-rail .theme-switch { rotate: none; margin: 0; }
-  .side-rail .theme-switch-sun,
-  .side-rail .theme-switch-moon { rotate: none; }
 }

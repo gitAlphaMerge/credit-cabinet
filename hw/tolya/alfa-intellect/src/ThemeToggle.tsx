@@ -63,7 +63,15 @@ export function ThemeToggle() {
 
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
-    applyTheme(next, document.documentElement);
+    // На время смены темы переходы цветов выключены: иначе сотни элементов анимируют фон разом и экран лагает.
+    const root = document.documentElement;
+    root.classList?.add("theme-switching");
+    applyTheme(next, root);
+    if (typeof requestAnimationFrame === "function")
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => root.classList?.remove("theme-switching")),
+      );
+    else root.classList?.remove("theme-switching");
     try {
       window.localStorage.setItem(themeKey, next);
     } catch {
@@ -72,11 +80,11 @@ export function ThemeToggle() {
     setTheme(next);
   }
 
-  // Ползунок как у Apple: дорожка, круглый бегунок, иконки по краям.
+  // Круглая кнопка в пилюле: солнце и луна сменяют друг друга поворотом.
   return (
     <button
       type="button"
-      className="theme-toggle theme-switch"
+      className="theme-toggle theme-orb"
       aria-label="Тёмная тема"
       title={
         theme === "dark" ? "Включить светлую тему" : "Включить тёмную тему"
@@ -84,11 +92,8 @@ export function ThemeToggle() {
       aria-pressed={theme === "dark"}
       onClick={toggle}
     >
-      <span className="theme-switch-track" aria-hidden="true">
-        <Sun size={13} className="theme-switch-sun" />
-        <Moon size={13} className="theme-switch-moon" />
-        <span className="theme-switch-thumb" />
-      </span>
+      <Sun size={16} className="theme-orb-sun" aria-hidden="true" />
+      <Moon size={16} className="theme-orb-moon" aria-hidden="true" />
     </button>
   );
 }
