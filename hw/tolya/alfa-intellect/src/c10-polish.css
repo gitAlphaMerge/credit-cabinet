@@ -133,3 +133,84 @@
   .funding-choices button, .statement-upload-trigger,
   .credit-agent-panel .application-agent-prompts button { transition: none; }
 }
+
+/* Режим жюри в шапке лендинга: маленькая синяя метка. */
+.jury-link { color: #0072ef; font-size: 13px; white-space: nowrap; }
+
+/* Демо-вход: слева история кабинета с живым узором, справа карточка способов входа. */
+.login-screen { min-height: 100dvh; background: var(--theme-bg); }
+.login-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 40px;
+  max-width: 1120px;
+  margin: 24px auto 48px;
+  padding: 0 24px;
+  align-items: center;
+}
+.login-story { position: relative; padding: 32px; border-radius: 24px; background: var(--theme-surface-soft); overflow: hidden; }
+.login-pattern { width: 220px; max-width: 60%; margin-bottom: 24px; }
+.login-story h1 { font-size: clamp(28px, 3.4vw, 44px); line-height: 1.1; letter-spacing: -1px; margin: 0 0 20px; }
+.login-story ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.login-story li { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.login-story li svg { color: #ef3124; flex-shrink: 0; }
+.login-card {
+  padding: 32px;
+  border-radius: 24px;
+  background: var(--theme-surface);
+  box-shadow: 0 1px 0 var(--theme-line), 0 24px 60px rgb(0 0 0 / 0.08);
+}
+.login-card h2 { font-size: 26px; margin: 12px 0 20px; }
+.login-providers { display: grid; gap: 10px; }
+.login-provider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--theme-line);
+  border-radius: 14px;
+  background: var(--theme-bg);
+  color: var(--theme-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: translate 160ms var(--ai-ease), box-shadow 160ms, border-color 160ms;
+}
+.login-provider:hover { translate: 0 -2px; border-color: #0072ef; box-shadow: 0 8px 20px rgb(0 114 239 / 0.14); }
+.login-provider:active { translate: 0 0; scale: 0.99; }
+.login-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: #0072ef;
+}
+.login-yandex .login-mark { background: #ef3124; }
+.login-vk .login-mark { background: color-mix(in srgb, #0072ef 70%, var(--theme-ink)); }
+.login-divider { display: flex; align-items: center; gap: 12px; margin: 22px 0 14px; color: var(--theme-muted); font-size: 13px; }
+.login-divider::before, .login-divider::after { content: ""; flex: 1; height: 1px; background: var(--theme-line); }
+.login-phone { display: grid; gap: 12px; }
+.login-phone-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--theme-line);
+  border-radius: 14px;
+  background: var(--theme-bg);
+}
+.login-phone-input:focus-within { border-color: #0072ef; box-shadow: 0 0 0 3px rgb(0 114 239 / 0.15); }
+.login-phone-input input { flex: 1; min-height: 50px; border: 0; background: none; outline: none; font: inherit; color: var(--theme-ink); }
+.login-card .fine-print { margin-top: 16px; font-size: 12px; color: var(--theme-muted); }
+@media (max-width: 860px) {
+  .login-grid { grid-template-columns: 1fr; gap: 20px; padding: 0 16px; }
+  .login-story { padding: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-provider { transition: none; }
+}

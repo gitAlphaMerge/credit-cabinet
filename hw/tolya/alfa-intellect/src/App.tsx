@@ -14,6 +14,8 @@ import { WorkspaceView } from "./WorkspaceView";
 import { Chat } from "./Chat";
 import { Mvp2, MvpManager } from "./Mvp2";
 import { JourneyOnboarding } from "./JourneyOnboarding";
+import { DemoPage } from "./DemoPage";
+import { LoginScreen } from "./LoginScreen";
 import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
 import { ThemeToggle } from "./ThemeToggle";
@@ -206,6 +208,8 @@ export function App() {
     const allowed =
       path === "/" ||
       path === "/onboarding" ||
+      path === "/jury" ||
+      path === "/login" ||
       (path === "/bank" && config.role === "manager") ||
       (config.cabinetAvailable && ["/cabinet", "/chat"].includes(path)) ||
       (path === "/apply" && !!state.profile.mvp2Answers);
@@ -260,11 +264,15 @@ export function App() {
         <p>Открываем ваш финансовый контекст…</p>
       </div>
     );
-  const publicPage = path === "/" || path === "/onboarding";
+  const publicPage = ["/", "/onboarding", "/jury", "/login"].includes(path);
   const page = path.split("/")[1] || "cabinet";
   const rendered = publicPage ? (
     path === "/" ? (
       <Landing go={go} />
+    ) : path === "/jury" ? (
+      <DemoPage go={go} />
+    ) : path === "/login" ? (
+      <LoginScreen go={go} />
     ) : (
       <JourneyOnboarding go={go} onComplete={refresh} />
     )

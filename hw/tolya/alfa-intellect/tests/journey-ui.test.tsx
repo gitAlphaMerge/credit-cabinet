@@ -46,7 +46,8 @@ test("Origination uses compact onboarding and an embedded agent; no login or leg
   assert.ok(app.includes("JourneyOnboarding"));
   assert.ok(app.includes("config.cabinetAvailable"));
   assert.ok(!app.includes('from "./Onboarding"'));
-  assert.ok(!app.includes('from "./DemoPage"'));
+  // Готовые кейсы доступны только жюри по отдельному адресу, не в пути клиента.
+  assert.match(app, /path === "\/jury" \? \(\s*<DemoPage/);
   assert.ok(!app.includes("DemoProfileTools"));
   const form = readFileSync(
     new URL("../src/Mvp2.tsx", import.meta.url),

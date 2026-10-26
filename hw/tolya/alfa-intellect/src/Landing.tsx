@@ -52,6 +52,12 @@ export function Landing({ go }: { go: (s: string) => void }) {
         </nav>
         <div className="journey-header-tools">
           <ThemeToggle />
+          <button className="text-button jury-link" onClick={() => go("/jury")}>
+            Режим жюри
+          </button>
+          <button className="text-button" onClick={() => go("/login")}>
+            Войти
+          </button>
           <RestartJourney />
           <Button secondary onClick={() => go("/onboarding")}>
             Начать оформление <ArrowUpRight size={16} />
