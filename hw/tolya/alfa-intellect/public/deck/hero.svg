@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 440" width="1280" height="440" role="img" aria-label="Умный кредитный кабинет предпринимателя">
+<style>:root{--bg:#f3f4f5;--card:#fff;--ink:#0b0b0c;--ink2:#6b6b70;--line:#dcdcdd;--rs:#fbe8e7;--rt:#b8200f;--bs:#d6e8fc;--bt:#0058b8}@media (prefers-color-scheme:dark){:root{--bg:#0e0e10;--card:#18181b;--ink:#f2f2f3;--ink2:#9a9aa2;--line:#2c2c30;--rs:#3a1714;--rt:#ff7a6e;--bs:#12233a;--bt:#7fb6ff}}text{font-family:Manrope,"Segoe UI",Helvetica,Arial,sans-serif}.bg{fill:var(--bg)}.card{fill:var(--card)}.ink{fill:var(--ink)}.ink2{fill:var(--ink2)}.rt{fill:var(--rt)}.bt{fill:var(--bt)}.rs{fill:var(--rs)}.bs{fill:var(--bs)}.line{fill:var(--line)}
+.b1{animation:d1 14s ease-in-out infinite;transform-origin:1120px 60px}
+.b2{animation:d2 17s ease-in-out infinite;transform-origin:120px 400px}
+.dot{animation:pulse 3.2s ease-in-out infinite}
+.bar{animation:fill 4.8s cubic-bezier(.2,.8,.2,1) infinite;transform-origin:820px 211px}
+.after{animation:show 4.8s ease-in-out infinite}
+@keyframes d1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-40px,30px) scale(1.12)}}
+@keyframes d2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,-24px) scale(1.15)}}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:.9}}
+@keyframes fill{0%{transform:scaleX(.08)}40%,85%{transform:scaleX(.78)}100%{transform:scaleX(.08)}}
+@keyframes show{0%,35%{opacity:0}50%,85%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<defs><filter id="sh" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity=".08"/></filter></defs>
+<rect class="bg" width="1280" height="440" rx="28"/>
+
+<defs>
+<radialGradient id="r"><stop offset="0" stop-color="#ef3124" stop-opacity=".22"/><stop offset="1" stop-color="#ef3124" stop-opacity="0"/></radialGradient>
+<radialGradient id="b"><stop offset="0" stop-color="#0072ef" stop-opacity=".2"/><stop offset="1" stop-color="#0072ef" stop-opacity="0"/></radialGradient>
+</defs>
+<circle class="b1" cx="1120" cy="60" r="300" fill="url(#r)"/>
+<circle class="b2" cx="120" cy="400" r="320" fill="url(#b)"/>
+<g fill="#0072ef"><circle class="dot" cx="64" cy="70" r="3" style="animation-delay:0.0s"/><circle class="dot" cx="88" cy="70" r="3" style="animation-delay:0.4s"/><circle class="dot" cx="112" cy="70" r="3" style="animation-delay:0.8s"/><circle class="dot" cx="64" cy="94" r="3" style="animation-delay:1.2s"/><circle class="dot" cx="88" cy="94" r="3" style="animation-delay:1.6s"/><circle class="dot" cx="112" cy="94" r="3" style="animation-delay:2.0s"/></g>
+<text x="64" y="160" class="ink2" font-size="18" font-weight="600">Альфа-Хак 2026 · трек «Умный кредитный кабинет»</text>
+<text x="64" y="214" class="ink" font-size="46" font-weight="800">Умный кредитный кабинет</text>
+<text x="64" y="264" class="ink" font-size="46" font-weight="800">предпринимателя</text>
+<text x="64" y="310" class="ink2" font-size="19" font-weight="500">Выписка → готовность → инструмент и лимит сейчас и после шага.</text>
+<text x="64" y="336" class="ink2" font-size="19" font-weight="500">Агент спрашивает и объясняет, решение за банком.</text>
+<g font-size="15" font-weight="700" text-anchor="middle">
+<rect x="64" y="362" width="150" height="34" rx="17" class="rs"/><text x="139" y="384" class="rt">ИП и ООО</text>
+<rect x="226" y="362" width="190" height="34" rx="17" class="bs"/><text x="321" y="384" class="bt">6 продуктов банка</text>
+<rect x="428" y="362" width="170" height="34" rx="17" class="bs"/><text x="513" y="384" class="bt">11 шагов пути</text>
+</g>
+<g filter="url(#sh)"><rect x="792" y="108" width="424" height="252" rx="16" class="card"/></g>
+<text x="820" y="146" class="ink2" font-size="14" font-weight="600">Готовность к финансированию</text>
+<rect x="1094" y="128" width="96" height="24" rx="12" class="bs"/><text x="1142" y="145" text-anchor="middle" class="bt" font-size="12" font-weight="700">синтетика</text>
+<text x="820" y="190" class="ink" font-size="30" font-weight="800">7 из 9 условий</text>
+<rect x="820" y="206" width="368" height="10" rx="5" class="line"/>
+<rect class="bar" x="820" y="206" width="368" height="10" rx="5" fill="#0072ef"/>
+<text x="820" y="252" class="ink2" font-size="14" font-weight="600">Лимит сейчас</text>
+<text x="820" y="282" class="ink" font-size="24" font-weight="800">1 015 000 ₽</text>
+<g class="after"><text x="1010" y="252" class="ink2" font-size="14" font-weight="600">После шага</text>
+<text x="1010" y="282" class="bt" font-size="24" font-weight="800">1 523 000 ₽</text></g>
+<rect x="820" y="304" width="368" height="40" rx="12" fill="#ef3124"/>
+<text x="1004" y="330" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">Подтвердить договор с заказчиком</text>
+
+</svg>
