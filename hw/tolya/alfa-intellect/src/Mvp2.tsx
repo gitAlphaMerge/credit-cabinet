@@ -14,6 +14,7 @@ import { NumericInput } from "./NumericInput";
 import { OnboardingAmount } from "./OnboardingAmount";
 import { DataConsent } from "./DataConsent";
 import { DateInput } from "./DateInput";
+import { MeetingBooking, type MeetingSlot } from "./CalendarPicker";
 import { CompanyCard } from "./CompanyCard";
 import { ClientDossier } from "./ClientDossier";
 import { StatementUpload } from "./StatementUpload";
@@ -1109,7 +1110,7 @@ export function Mvp2({
     [activeField, setActiveField] = useState(""),
     [errors, setErrors] = useState<Record<string, string>>({}),
     [statements, setStatements] = useState<any[]>([]),
-    [slots, setSlots] = useState<any[]>([]),
+    [slots, setSlots] = useState<MeetingSlot[]>([]),
     [chatId, setChatId] = useState(""),
     [chatSending, setChatSending] = useState(false),
     [editAnswers, setEditAnswers] = useState(false),
@@ -2533,7 +2534,7 @@ export function Mvp2({
                 </Button>
               ) : a.decision === "MANAGER_REVIEW_REQUIRED" ? (
                 <Button
-                  disabled={busy || a.lifecycle === "MEETING_SCHEDULED"}
+                  disabled={busy}
                   onClick={() =>
                     void run(async () => {
                       setSlots(await api("/mvp2/slots"));
@@ -2542,8 +2543,8 @@ export function Mvp2({
                   }
                 >
                   {a.meeting
-                    ? "Вы записаны на встречу"
-                    : "Записаться на встречу"}
+                    ? "Открыть запись на звонок"
+                    : "Записаться на звонок"}
                 </Button>
               ) : a.error ? (
                 <Button disabled={busy} onClick={() => void submit()}>
@@ -2591,33 +2592,28 @@ export function Mvp2({
       )}
       {a && q && view === "meeting" && (
         <section className="funding-surface">
-          <h2>Запись на встречу</h2>
-          <p>Выберите удобное время. Запись сохранится в заявке.</p>
-          <div className="mvp-products">
-            {slots.map((s) => (
-              <Button
-                secondary
-                key={s.id}
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    adopt(
-                      await api(path + "/meeting", {
-                        version: a.version,
-                        slotId: s.id,
-                      }),
-                    );
-                    setView("decision");
-                  })
-                }
-              >
-                {new Date(s.at).toLocaleString("ru-RU", {
-                  timeZone: "Europe/Moscow",
-                })}{" "}
-                МСК
-              </Button>
-            ))}
-          </div>
+          <h2>Звонок с менеджером</h2>
+          <MeetingBooking
+            slots={slots}
+            meeting={a.meeting}
+            busy={busy}
+            onBook={(slotId) =>
+              run(async () => {
+                adopt(
+                  await api(path + "/meeting", { version: a.version, slotId }),
+                );
+                setSlots(await api("/mvp2/slots"));
+              })
+            }
+            onCancel={() =>
+              run(async () => {
+                adopt(
+                  await api(path + "/meeting/cancel", { version: a.version }),
+                );
+                setSlots(await api("/mvp2/slots"));
+              })
+            }
+          />
           <Button secondary onClick={() => setView("decision")}>
             Вернуться к решению
           </Button>
@@ -2906,7 +2902,7 @@ export function MvpManager() {
   }, []);
   return (
     <section className="funding-surface mvp-manager">
-      <h2>Встречи по заявкам</h2>
+      <h2>Звонки по заявкам</h2>
       {error && <p role="alert">{error}</p>}
       {!items.length && <p>Нет заявок, ожидающих решения после встречи.</p>}
       {items.map((a) => (
@@ -2930,11 +2926,12 @@ export function MvpManager() {
             {a.company?.name} · {money(a.questionnaire.amount)}
           </h3>
           <p>
+            Звонок с клиентом:{" "}
             {a.meeting &&
               new Date(a.meeting.at).toLocaleString("ru-RU", {
                 timeZone: "Europe/Moscow",
               })}{" "}
-            МСК
+            МСК. {a.meeting?.manager}
           </p>
           <p>
             Платёж: {money(a.financial?.payment)}; поток:{" "}
