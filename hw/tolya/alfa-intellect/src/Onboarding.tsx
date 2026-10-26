@@ -1,3 +1,4 @@
+import { ThemeToggle } from "./ThemeToggle";
 import { useRef, useState } from "react";
 import { Illustration } from "./Illustration";
 import {
@@ -359,6 +360,7 @@ export function Onboarding({
         <span className="muted">
           {login ? "С возвращением" : "Знакомство с вашим бизнесом"}
         </span>
+        <div className="journey-header-tools"><ThemeToggle />
         <button
           className="text-button"
           onClick={() => go(login ? "/onboarding" : "/login")}
@@ -366,6 +368,7 @@ export function Onboarding({
           {login ? "Регистрация" : "Уже есть аккаунт? Войти"}{" "}
           <ArrowRight size={16} />
         </button>
+        </div>
       </header>
       <main className="onboard-grid">
         <section className="onboard-main">

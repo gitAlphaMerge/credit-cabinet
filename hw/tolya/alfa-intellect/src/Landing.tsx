@@ -11,8 +11,8 @@ import {
   LockKeyhole,
   SlidersHorizontal,
   Clock3,
-  Building2,
 } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
 import { Brand, Button, Badge, SectionTitle } from "./ui";
 import { useEffect, useRef } from "react";
 import { LivePattern } from "./LivePattern";
@@ -51,6 +51,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#questions">Вопросы</a>
         </nav>
         <div className="journey-header-tools">
+          <ThemeToggle />
           <RestartJourney />
           <Button secondary onClick={() => go("/onboarding")}>
             Начать оформление <ArrowUpRight size={16} />
@@ -116,24 +117,24 @@ export function Landing({ go }: { go: (s: string) => void }) {
           ))}
         </section>
         <section id="opportunities" className="section wrap">
-          <SectionTitle
-            eyebrow="ОТ ПЕРВОГО ВОПРОСА ДО ПОГАШЕНИЯ"
-            title="Финансирование, которое работает на бизнес"
-          >
+          <SectionTitle title="Финансирование, которое работает на бизнес">
             Помогаем увидеть всю картину и принять взвешенное решение.
+            Кабинет считает, сколько бизнес может занять без риска для оборота,
+            подбирает подходящий продукт и объясняет каждую цифру. Решение о
+            кредите принимает банк.
           </SectionTitle>
           <div className="feature-grid">
             <article className="feature-card wide-feature">
               <div>
                 <span className="feature-number">01 / ПОДБОР</span>
                 <h3>
-                  Сначала ваша задача.
+                  Сначала задача.
                   <br />
-                  Потом — инструмент.
+                  Потом продукт.
                 </h3>
                 <p>
-                  Оборудование, оборотные средства или новый проект. Сравните
-                  сумму, срок и платёж, прежде чем двигаться дальше.
+                  Скажите, на что нужны деньги. Покажем сумму и срок, которые
+                  выдержит ваш оборот.
                 </p>
                 <button
                   className="text-button"
@@ -157,10 +158,10 @@ export function Landing({ go }: { go: (s: string) => void }) {
                 </div>
                 <div className="mini-metrics">
                   <span>
-                    Сумма <b>Под вашу задачу</b>
+                    Сумма <b>По вашей задаче</b>
                   </span>
                   <span>
-                    Срок <b>С учётом потока</b>
+                    Срок <b>По вашим поступлениям</b>
                   </span>
                 </div>
               </div>
@@ -169,13 +170,13 @@ export function Landing({ go }: { go: (s: string) => void }) {
               <span className="feature-number">02 / ОБЪЯСНЕНИЯ</span>
               <MessagesSquare className="feature-big-icon" />
               <h3>
-                Обсудите цифры.
+                Спросите про любую
                 <br />
-                Получите ясность.
+                цифру.
               </h3>
               <p>
-                Агент помнит контекст бизнеса. Под каждым расчётом — исходные
-                данные, формулы и ограничения.
+                Агент в чате объяснит, откуда взялась сумма или отказ, и
+                покажет, какие данные на это повлияли.
               </p>
             </article>
             <article className="feature-card">
@@ -188,8 +189,8 @@ export function Landing({ go }: { go: (s: string) => void }) {
               </div>
               <h3>Платежи под контролем.</h3>
               <p>
-                Ближайший платёж, остаток долга и сценарий «Что, если?» — без
-                перегруженных таблиц.
+                Видно ближайший платёж и остаток долга. Можно проверить, что
+                будет, если выручка упадёт.
               </p>
             </article>
             <article className="feature-card soft-feature">
@@ -204,23 +205,20 @@ export function Landing({ go }: { go: (s: string) => void }) {
                 ))}
               </div>
               <h3>
-                Больше контекста.
+                Документы
                 <br />
-                Меньше повторений.
+                один раз.
               </h3>
               <p>
-                Загрузите документ один раз. Проверьте извлечённые показатели —
-                они станут доступны в чате и подборе.
+                Загрузите выписку или отчёт. Кабинет достанет нужные цифры,
+                вы их проверите, и они пригодятся в чате и подборе.
               </p>
             </article>
           </div>
         </section>
         <section id="how" className="how-section">
           <div className="wrap">
-            <SectionTitle
-              eyebrow="ПРОСТОЙ ПУТЬ"
-              title="Три шага к понятному решению"
-            />
+            <SectionTitle title="Три шага к понятному решению" />
             <div className="steps-grid">
               {[
                 [
@@ -248,35 +246,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
                     className={"journey-illustration journey-" + n}
                     aria-hidden="true"
                   >
-                    {index === 0 ? (
-                      <>
-                        <Building2 size={32} />
-                        <span className="journey-mini-line" />
-                        <span className="journey-mini-line short" />
-                        <span className="journey-check">
-                          <Check size={15} />
-                        </span>
-                      </>
-                    ) : index === 1 ? (
-                      <>
-                        <FileCheck2 size={32} />
-                        <span className="journey-doc" />
-                        <span className="journey-doc second" />
-                        <span className="journey-check">
-                          <Check size={15} />
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <ChartNoAxesCombined size={32} />
-                        <span className="journey-bar" />
-                        <span className="journey-bar second" />
-                        <span className="journey-bar third" />
-                        <span className="journey-check">
-                          <ArrowUpRight size={15} />
-                        </span>
-                      </>
-                    )}
+                    <JourneyScene step={index} />
                   </div>
                   <span className="step-number">{n}</span>
                   <h3>{t}</h3>
@@ -301,6 +271,10 @@ export function Landing({ go }: { go: (s: string) => void }) {
               ИИ, источники видны, а решение о выдаче кредита всегда принимает
               банк.
             </p>
+            <p className="trust-open">
+              Для жюри открыт контракт API: каждый расчёт можно повторить
+              запросом и сверить с тем, что показывает кабинет.
+            </p>
             <div className="trust-tags">
               <Badge>
                 <Check size={13} /> Прозрачные формулы
@@ -312,6 +286,14 @@ export function Landing({ go }: { go: (s: string) => void }) {
                 <Check size={13} /> Без скрытых действий
               </Badge>
             </div>
+            <a
+              className="text-button trust-api"
+              href="https://github.com/gitAlphaMerge/credit-cabinet/blob/main/docs/openapi.yaml"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Открытый API для жюри <ArrowUpRight size={16} />
+            </a>
           </div>
         </section>
         <section id="questions" className="section wrap faq">
@@ -366,7 +348,68 @@ export function Landing({ go }: { go: (s: string) => void }) {
         <button className="text-button" onClick={() => go("/onboarding")}>
           Начать оформление <ArrowUpRight size={15} />
         </button>
+        <p className="footer-authors">
+          Сделали для Альфа-Хака 2026: Саша, капитан и агент · Артём, API и
+          инфраструктура · Лиза, ядро и скоркарта · Тоня, концепт и дизайн ·
+          Толя, кабинет и логика подбора.
+        </p>
       </footer>
     </div>
+  );
+}
+
+// Сцены трёх шагов в духе живого узора: красный — бизнес, синий — данные, зелёный только «готово».
+function JourneyScene({ step }: { step: number }) {
+  const red = "#ef3124",
+    blue = "#0072ef";
+  return (
+    <svg className="journey-scene" viewBox="0 0 320 160" role="presentation">
+      <path d="M260 0a60 60 0 0 1 60 60V0z" fill={blue} opacity="0.14" />
+      <circle cx="28" cy="140" r="34" fill={red} opacity="0.08" />
+      {step === 0 ? (
+        <g>
+          <circle cx="232" cy="52" r="26" fill={blue} opacity="0.85" />
+          <path d="M70 70 140 22l70 48z" fill={red} />
+          <rect x="82" y="70" width="116" height="78" rx="6" fill={red} />
+          {[0, 1, 2].map((c) =>
+            [0, 1].map((r) => (
+              <rect
+                key={c + "-" + r}
+                x={96 + c * 32}
+                y={82 + r * 24}
+                width="20"
+                height="14"
+                rx="3"
+                fill="#fff"
+                opacity="0.92"
+              />
+            )),
+          )}
+          <rect x="128" y="128" width="24" height="20" rx="3" fill="#fff" />
+          <rect x="40" y="148" width="240" height="4" rx="2" fill="currentColor" opacity="0.2" />
+        </g>
+      ) : step === 1 ? (
+        <g>
+          <rect x="118" y="28" width="104" height="124" rx="10" fill={blue} opacity="0.18" />
+          <rect x="96" y="16" width="104" height="124" rx="10" fill="#fff" stroke={blue} strokeWidth="2" />
+          <rect x="112" y="36" width="56" height="8" rx="4" fill={red} />
+          {[0, 1, 2, 3].map((i) => (
+            <rect key={i} x="112" y={56 + i * 16} width={72 - (i % 2) * 22} height="6" rx="3" fill={blue} opacity="0.35" />
+          ))}
+          <circle cx="214" cy="122" r="22" fill={blue} />
+          <path d="M204 122l7 7 13-14" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M40 40a28 28 0 0 1 28 28H40z" fill={red} />
+        </g>
+      ) : (
+        <g>
+          {[46, 70, 96, 122].map((h, i) => (
+            <rect key={i} x={70 + i * 42} y={148 - h} width="28" height={h} rx="6" fill={i === 3 ? red : blue} opacity={i === 3 ? 1 : 0.3 + i * 0.2} />
+          ))}
+          <path d="M66 96 112 72l42 10 60-50" fill="none" stroke={red} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="250" cy="28" r="16" fill="#16a34a" />
+          <path d="M243 28l5 5 9-10" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      )}
+    </svg>
   );
 }

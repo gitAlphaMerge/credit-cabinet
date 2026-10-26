@@ -12,6 +12,7 @@ import {
   type OnboardingPosition,
 } from "../shared/onboarding-state";
 import { CreditTransition } from "./CreditMotion";
+import { ThemeToggle } from "./ThemeToggle";
 import { Brand } from "./ui";
 import { RestartJourney } from "./RestartJourney";
 
@@ -163,7 +164,7 @@ export function JourneyOnboarding({
       <div className="onboarding journey-onboarding">
         <header className="public-header">
           <a href="/" aria-label="На главную"><Brand /></a>
-          <RestartJourney />
+          <div className="journey-header-tools"><ThemeToggle /><RestartJourney /></div>
         </header>
         <main className="product-preparation">
           <CreditTransition

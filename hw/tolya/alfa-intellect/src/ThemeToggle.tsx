@@ -72,10 +72,11 @@ export function ThemeToggle() {
     setTheme(next);
   }
 
+  // Ползунок как у Apple: дорожка, круглый бегунок, иконки по краям.
   return (
     <button
       type="button"
-      className="icon-button theme-toggle"
+      className="theme-toggle theme-switch"
       aria-label="Тёмная тема"
       title={
         theme === "dark" ? "Включить светлую тему" : "Включить тёмную тему"
@@ -83,7 +84,11 @@ export function ThemeToggle() {
       aria-pressed={theme === "dark"}
       onClick={toggle}
     >
-      {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+      <span className="theme-switch-track" aria-hidden="true">
+        <Sun size={13} className="theme-switch-sun" />
+        <Moon size={13} className="theme-switch-moon" />
+        <span className="theme-switch-thumb" />
+      </span>
     </button>
   );
 }
