@@ -2,6 +2,8 @@ services:
   api:
     restart: unless-stopped
     build: ./services/api
+    ports:
+      - "127.0.0.1:8080:8080"   # только локально: жюри и requests.http ходят сюда, снаружи порт закрыт
     environment:
       - ML_URL=http://ml-model:5000   # провод Тёмы: /score уходит в окошко
       - PORT=8080
