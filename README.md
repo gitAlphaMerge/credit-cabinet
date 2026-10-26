@@ -6,6 +6,7 @@
 <a href="docs/demo-script.md">Сценарий жюри</a> ·
 <a href="docs/openapi.yaml">API</a> ·
 <a href="#что-настоящее-что-смоделировано">Что настоящее</a> ·
+<a href="docs/journey.md">О проекте</a> ·
 <a href="#команда">Команда</a>
 </p>
 
@@ -189,7 +190,7 @@ OCR не используется: кабинет читает PDF только 
 
 - [Архитектура и последовательности](docs/architecture.md), [API и OpenAPI 3.1](docs/openapi.yaml), [REST Client](docs/requests.http).
 - [Состояния](docs/application-states.md), [модель данных](docs/data-model.md), [проверки и тест-учётки](docs/test-scenarios.md).
-- [Сторонние компоненты](THIRD_PARTY_NOTICES.md).
+- [О проекте: путь и выборы](docs/journey.md), [как кабинет встраивается в банк](docs/bank-integration.md), [сторонние компоненты](THIRD_PARTY_NOTICES.md).
 - [Golden](data/golden.json), [синтетические выписки и генераторы](data/synthetic/), [fixtures кабинета](hw/tolya/alfa-intellect/fixtures/).
 - [Правила ядра](context/core.md), [стоп-правила](context/stop-rules.md), [контракт](context/api-contract.md), [агент](context/agent-architecture.md).
 
