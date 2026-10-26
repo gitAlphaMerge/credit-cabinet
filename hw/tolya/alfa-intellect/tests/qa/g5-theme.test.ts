@@ -18,13 +18,16 @@ test("G5 all six palettes and actual product tokens meet contrast thresholds", (
   assert.match(result.stdout, /failures=0/);
 });
 
-test("G5 header mounts the theme switch beside the profile", () => {
-  const app = readFileSync(
-    new URL("../../src/App.tsx", import.meta.url),
-    "utf8",
-  );
-  assert.ok(/import \{ ThemeToggle \} from "\.\/ThemeToggle"/.test(app));
-  assert.ok(/className="header-tools[^"]*">\s*<ThemeToggle \/>/.test(app));
+test("G5 cabinet mounts the theme switch in the side rail", () => {
+  const read = (file: string) =>
+    readFileSync(new URL("../../src/" + file, import.meta.url), "utf8");
+  const app = read("App.tsx");
+  const rail = read("SideRail.tsx");
+  // Решение 26.10: служебные кнопки (тема, палитра, сброс) переехали из шапки в боковую панель.
+  assert.ok(/import \{ SideRail[^}]*\} from "\.\/SideRail"/.test(app));
+  assert.ok(/className="header-tools[^"]*">\s*<SideRail>/.test(app));
+  assert.ok(/import \{ ThemeToggle \} from "\.\/ThemeToggle"/.test(rail));
+  assert.ok(/<ThemeToggle \/>/.test(rail));
 });
 
 function browser(

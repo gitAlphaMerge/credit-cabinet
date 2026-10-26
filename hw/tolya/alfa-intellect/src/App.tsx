@@ -4,6 +4,7 @@ import {
   Check,
   Menu,
   MessageSquare,
+  Phone,
   WalletCards,
 } from "lucide-react";
 import { api, money, setApiWorkspace } from "./api";
@@ -18,8 +19,7 @@ import { DemoPage } from "./DemoPage";
 import { LoginScreen } from "./LoginScreen";
 import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
-import { ThemeToggle } from "./ThemeToggle";
-import { PaletteToggle } from "./PaletteToggle";
+import { SideRail, SideRailItem } from "./SideRail";
 import { RestartJourney } from "./RestartJourney";
 import "./restart-journey.css";
 import "./application-status.css";
@@ -328,17 +328,24 @@ export function App() {
               <Brand />
             </button>
             <div className="journey-header-tools">
-              <Button
-                secondary
-                onClick={() => {
-                  setContactSent(false);
-                  setContactOpen(true);
-                }}
-              >
-                Обратиться к сотруднику
-              </Button>
-              <RestartJourney />
-              <ThemeToggle /><PaletteToggle />
+              <SideRail>
+                <SideRailItem tip="Обратиться к сотруднику">
+                  <button
+                    type="button"
+                    className="side-rail-icon call"
+                    aria-label="Обратиться к сотруднику"
+                    onClick={() => {
+                      setContactSent(false);
+                      setContactOpen(true);
+                    }}
+                  >
+                    <Phone aria-hidden="true" />
+                  </button>
+                </SideRailItem>
+                <SideRailItem tip="Начать сначала">
+                  <RestartJourney />
+                </SideRailItem>
+              </SideRail>
             </div>
           </header>
           <Mvp2 />
@@ -369,8 +376,13 @@ export function App() {
               ))}
             </nav>
             <div className="header-tools g2-tools">
-              <ThemeToggle /><PaletteToggle />
-              {config.role !== "manager" && <RestartJourney />}
+              <SideRail>
+                {config.role !== "manager" && (
+                  <SideRailItem tip="Начать сначала">
+                    <RestartJourney />
+                  </SideRailItem>
+                )}
+              </SideRail>
               <IconButton
                 className="mobile-menu"
                 label="Меню"

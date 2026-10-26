@@ -1,5 +1,4 @@
-import { ThemeToggle } from "./ThemeToggle";
-import { PaletteToggle } from "./PaletteToggle";
+import { SideRail } from "./SideRail";
 import { useRef, useState } from "react";
 import { Illustration } from "./Illustration";
 import {
@@ -361,7 +360,7 @@ export function Onboarding({
         <span className="muted">
           {login ? "С возвращением" : "Знакомство с вашим бизнесом"}
         </span>
-        <div className="journey-header-tools"><ThemeToggle /><PaletteToggle />
+        <div className="journey-header-tools"><SideRail />
         <button
           className="text-button"
           onClick={() => go(login ? "/onboarding" : "/login")}

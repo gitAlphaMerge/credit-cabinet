@@ -1,5 +1,4 @@
-import { ThemeToggle } from "./ThemeToggle";
-import { PaletteToggle } from "./PaletteToggle";
+import { SideRail, SideRailItem } from "./SideRail";
 import { Brand } from "./ui";
 import { RestartJourney } from "./RestartJourney";
 import { CreditMotion } from "./CreditMotion";
@@ -16,7 +15,7 @@ export function ProductPreparation({ stage }: { stage: number }) {
         <a href="/" aria-label="На главную">
           <Brand />
         </a>
-        <div className="journey-header-tools"><ThemeToggle /><PaletteToggle /><RestartJourney /></div>
+        <div className="journey-header-tools"><SideRail><SideRailItem tip="Начать сначала"><RestartJourney /></SideRailItem></SideRail></div>
       </header>
       <main className="product-preparation" aria-live="polite" aria-busy="true">
         <CreditMotion

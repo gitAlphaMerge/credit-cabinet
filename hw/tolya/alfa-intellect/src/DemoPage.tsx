@@ -1,5 +1,4 @@
-import { ThemeToggle } from "./ThemeToggle";
-import { PaletteToggle } from "./PaletteToggle";
+import { SideRail } from "./SideRail";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, FileText } from "lucide-react";
 import { WorkspaceContext, type Workspace } from "./context";
@@ -76,7 +75,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
           <Brand />
         </button>
           <Badge tone="blue">Пример работы кабинета</Badge>
-        <div className="journey-header-tools"><ThemeToggle /><PaletteToggle />
+        <div className="journey-header-tools"><SideRail />
         <Button onClick={() => go("/onboarding")}>
           Начать со своими данными <ArrowRight size={16} />
         </Button>

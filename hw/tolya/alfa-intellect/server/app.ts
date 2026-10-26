@@ -50,6 +50,7 @@ import {
 } from "./journey";
 import { checksRouter } from "./checks";
 import { demoPersonasRouter, ensureDemoSchema } from "./demo-personas";
+import { juryCabinet, juryDestination } from "./jury-cabinets";
 import { demoPersonas } from "../shared/demo-personas";
 import {
   ApplicationError,
@@ -280,7 +281,7 @@ app.post("/api/auth/demo", (req, res) => {
 // Вход жюри: общий логин и пароль, дефисы, пробелы и регистр не важны («git-merge alpha» = «gitmergealpha»).
 // Засеянная компания (DEMO_PERSONAS=1 и scripts/seed-demo.ts) открывается как есть, иначе заводится чистая тестовая с тем же названием.
 const juryKey = (value: unknown) => String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-app.post("/api/auth/jury", (req, res) => {
+app.post("/api/auth/jury", async (req, res) => {
   limit("jury:" + req.ip, 30);
   const body = (req.body ?? {}) as Record<string, unknown>;
   if (
@@ -300,8 +301,18 @@ app.post("/api/auth/jury", (req, res) => {
       .get(persona.userId) as { is_demo: number; role: string } | undefined;
     if (seeded?.is_demo === 1 && seeded.role === persona.role) {
       cookie(res, session(persona.userId));
-      res.json({ ok: true, destination: persona.role === "manager" ? "/bank" : "/application" });
+      res.json({ ok: true, destination: persona.role === "manager" ? "/bank" : juryDestination(persona.userId) });
       return;
+    }
+  }
+  if (persona.role === "client") {
+    try {
+      const uid = await juryCabinet(persona, `http://127.0.0.1:${req.socket.localPort}`);
+      cookie(res, session(uid));
+      res.json({ ok: true, destination: juryDestination(uid) });
+      return;
+    } catch (error) {
+      console.error("jury cabinet:", (error as Error).message);
     }
   }
   const client = persona.role === "client" ? persona : demoPersonas.find((p) => p.role === "client")!;

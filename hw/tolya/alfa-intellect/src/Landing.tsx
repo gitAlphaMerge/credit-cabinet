@@ -12,8 +12,7 @@ import {
   SlidersHorizontal,
   Clock3,
 } from "lucide-react";
-import { ThemeToggle } from "./ThemeToggle";
-import { PaletteToggle } from "./PaletteToggle";
+import { SideRail, SideRailItem } from "./SideRail";
 import { Brand, Button, Badge, SectionTitle } from "./ui";
 import { useEffect, useRef } from "react";
 import { LivePattern } from "./LivePattern";
@@ -52,7 +51,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#questions">Вопросы</a>
         </nav>
         <div className="journey-header-tools">
-          <ThemeToggle /><PaletteToggle />
+          <SideRail><SideRailItem tip="Начать сначала"><RestartJourney /></SideRailItem></SideRail>
           <button className="text-button jury-link" onClick={() => go("/jury")}>
             Режим жюри
           </button>
@@ -68,7 +67,6 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <button className="text-button" onClick={() => go("/login")}>
             Войти
           </button>
-          <RestartJourney />
           <Button secondary onClick={() => go("/onboarding")}>
             Начать оформление <ArrowUpRight size={16} />
           </Button>
