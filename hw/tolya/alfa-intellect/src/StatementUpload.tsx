@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useId } from "react";
 import { Upload, CheckCircle2, FileText } from "lucide-react";
 import { money } from "./api";
@@ -75,6 +76,25 @@ export function StatementUpload({
       )}
       {!statement && !uploading && !error && (
         <small className="muted">Файл пока не добавлен · формат CSV</small>
+      )}
+      {uploading && (
+        <div className="upload-scan" aria-hidden="true">
+          <span className="upload-scan-doc">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          {["Даты", "Суммы", "Контрагенты", "Назначения"].map((t, i) => (
+            <span
+              className="upload-scan-chip"
+              key={t}
+              style={{ "--i": i } as CSSProperties}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
       )}
       {uploading && (
         <small role="status">

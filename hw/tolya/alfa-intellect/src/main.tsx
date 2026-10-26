@@ -10,6 +10,7 @@ import "./chat.css";
 import "./cabinet.css";
 import "./financing.css";
 import "./journey-workspace.css";
+import "./c10-polish.css";
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
