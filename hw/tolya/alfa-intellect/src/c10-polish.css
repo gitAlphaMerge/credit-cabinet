@@ -269,3 +269,18 @@
 .roadmap-card .badge { justify-self: start; }
 .roadmap-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--theme-red) 12%, transparent); color: var(--theme-red); }
 @media (max-width: 860px) { .roadmap-grid { grid-template-columns: 1fr; } }
+
+/* Профиль: настройки */
+.profile-settings { margin-top: 20px; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.settings-card { display: grid; gap: 10px; align-content: start; padding: 20px; border-radius: 18px; border: 1px solid var(--theme-line); background: var(--theme-surface); color: var(--theme-ink); }
+.settings-card h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 17px; }
+.settings-card p { margin: 0; color: var(--theme-muted); line-height: 1.5; font-size: 14px; }
+.settings-card .badge { justify-self: start; }
+.settings-wide { grid-column: 1 / -1; }
+.settings-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.settings-people { list-style: none; margin: 0; padding: 0; }
+.settings-people li { display: flex; gap: 12px; align-items: center; }
+.settings-people small { display: block; color: var(--theme-muted); }
+.settings-avatar { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--theme-red); color: #fff; font-weight: 700; }
+@media (max-width: 760px) { .settings-grid { grid-template-columns: 1fr; } }

@@ -165,6 +165,7 @@ async function walk(persona: DemoPersona, base: string) {
   s.profile.form = persona.form;
   s.profile.sector = persona.sector;
   s.profile.registeredAt = persona.registeredAt;
+  s.profile.inn = persona.inn;
   s.profile.source = "Синтетический демонстрационный сценарий";
   s.preferences.tourDone = true;
   saveState(uid, s);
@@ -177,7 +178,15 @@ export function juryCabinet(persona: DemoPersona, base: string) {
   const saved = db
     .prepare("SELECT user_id FROM jury_cabinets WHERE persona=?")
     .get(persona.key) as { user_id: string } | undefined;
-  if (saved) return Promise.resolve(saved.user_id);
+  if (saved) {
+    // Кабинеты, собранные до появления ИНН в профиле, дописываются при входе.
+    const s = stateOf(saved.user_id);
+    if (!s.profile.inn) {
+      s.profile.inn = persona.inn;
+      saveState(saved.user_id, s);
+    }
+    return Promise.resolve(saved.user_id);
+  }
   let run = pending.get(persona.key);
   if (!run) {
     run = walk(persona, base).finally(() => pending.delete(persona.key));

@@ -522,6 +522,7 @@ export function ProfilePage() {
           актуальности могут потребовать уточнения у банка.
         </p>
       </section>
+      <ProfileSettings />
       {candidate && (
         <Modal
           title="Подтвердите сведения о бизнесе"
@@ -585,3 +586,4 @@ export function ProfilePage() {
   );
 }
 import { visibleError } from "./application-client";
+import { ProfileSettings } from "./ProfileSettings";
