@@ -218,14 +218,14 @@
   display: grid;
   gap: 6px;
   padding: 16px 18px;
-  background: #fff;
+  background: var(--theme-surface);
   border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card);
 }
 .manager-stat span,
 .manager-kpi span {
   font-size: var(--text-sm);
-  color: var(--muted);
+  color: var(--theme-muted);
   font-weight: 500;
 }
 .manager-stat b,
@@ -240,9 +240,9 @@
   display: inline-flex;
   padding: 4px;
   gap: 4px;
-  background: #fff;
+  background: var(--theme-surface);
   border-radius: 999px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-card);
 }
 .manager-tabs .button {
   min-height: 40px;
@@ -259,14 +259,14 @@
   border: 0;
   padding: 16px 18px;
   border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card);
   transition: box-shadow 0.15s;
 }
 .manager-row:hover:not(:disabled) {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 28px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card), 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 .manager-row[aria-pressed="true"] {
-  box-shadow: inset 4px 0 0 #b8200f, 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: inset 4px 0 0 var(--theme-red), var(--shadow-card);
 }
 .manager-row b {
   font-size: var(--text-lg);
@@ -276,17 +276,17 @@
   align-self: flex-start;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #fdeceb;
-  color: #b8200f;
+  background: color-mix(in srgb, var(--theme-red) 14%, transparent);
+  color: var(--theme-red);
   font-size: 13px;
   font-weight: 500;
 }
 .manager-dossier {
   border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card);
 }
 .manager-meta {
-  color: var(--muted);
+  color: var(--theme-muted);
   margin: 8px 0 16px;
 }
 .manager-summary {
@@ -296,7 +296,7 @@
   margin-bottom: 8px;
 }
 .manager-summary .manager-kpi {
-  background: #f3f4f5;
+  background: var(--theme-surface-soft);
   box-shadow: none;
 }
 .manager-summary .manager-kpi b {
@@ -306,16 +306,16 @@
   margin: 4px 0 0;
 }
 .manager-summary .manager-risk {
-  background: #fdeceb;
+  background: color-mix(in srgb, var(--theme-red) 14%, transparent);
 }
 .manager-summary .manager-risk span,
 .manager-summary .manager-risk b {
-  color: #b8200f;
+  color: var(--theme-red);
 }
 .manager-decision {
   margin-top: 28px;
   padding: 20px;
-  background: #f3f4f5;
+  background: var(--theme-surface-soft);
   border-radius: 16px;
 }
 .manager-decision > h3:first-child {
@@ -323,7 +323,7 @@
 }
 .manager-decision .manager-form,
 .manager-decision .manager-option {
-  background: #fff;
+  background: var(--theme-surface);
   border: 0;
   border-radius: 16px;
   padding: 16px 18px;
