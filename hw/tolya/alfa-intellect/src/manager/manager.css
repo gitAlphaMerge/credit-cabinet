@@ -333,6 +333,22 @@
   min-height: 48px;
   border-radius: 18px;
 }
+/* /bank кладёт в сетку .app-shell (3 ряда) два экрана: оба живут в одном скролле, иначе второй сжимает первый до 0. */
+.app-shell > .manager-page {
+  min-height: 0;
+  overflow-y: auto;
+}
+.manager-page > .manager-workspace {
+  max-width: none;
+  padding: 24px clamp(20px, 3vw, 60px) 20px;
+}
+.manager-page > .mvp-manager {
+  margin: 0 clamp(20px, 3vw, 60px) 36px;
+  padding: 20px 24px;
+  background: var(--theme-surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
 @media (max-width: 800px) {
   .manager-stat b,
   .manager-kpi b {
