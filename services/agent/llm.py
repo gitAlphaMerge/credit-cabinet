@@ -65,6 +65,8 @@ def chat(system: str, user: str, model: str | None = None, as_json: bool = False
         if os.getenv("AGENT_LLM_PROVIDER"):
             # один провайдер = кэш префикса попадает; без закрепления OpenRouter раскидывает запросы и кэш мажет
             body["provider"] = {"order": [os.getenv("AGENT_LLM_PROVIDER")], "allow_fallbacks": True}
+    # AGENT_LLM_EXTRA: поля провайдера JSON-ом, например {"reasoning_effort": "none"} у Qwen в Yandex AI Studio
+    body.update(json.loads(os.getenv("AGENT_LLM_EXTRA") or "{}"))
     if as_json:
         body["response_format"] = {"type": "json_object"}
     headers = {"Content-Type": "application/json"}

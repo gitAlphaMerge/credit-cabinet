@@ -1,11 +1,13 @@
 <p align="center"><img src="docs/assets/readme/hero.svg" alt="Умный кредитный кабинет предпринимателя: готовность 7 из 9 условий, лимит сейчас и после шага" width="100%"></p>
 
 <p align="center">
-<a href="https://alfa.158-160-212-36.sslip.io"><b>Открыть кабинет</b></a> ·
-<a href="https://alfa.158-160-212-36.sslip.io/demo">Демо без регистрации</a> ·
+<a href="https://alphahack.ru"><b>Открыть кабинет</b></a> ·
+<a href="https://alphahack.ru/demo">Демо без регистрации</a> ·
 <a href="docs/demo-script.md">Сценарий жюри</a> ·
 <a href="docs/openapi.yaml">API</a> ·
-<a href="#что-настоящее-что-смоделировано">Что настоящее</a>
+<a href="#что-настоящее-что-смоделировано">Что настоящее</a> ·
+<a href="docs/journey.md">О проекте</a> ·
+<a href="#команда">Команда</a>
 </p>
 
 # Умный кредитный кабинет предпринимателя
@@ -18,7 +20,7 @@
 
 ## Попробовать за 2 минуты
 
-1. Откройте [кабинет](https://alfa.158-160-212-36.sslip.io) или [демо без регистрации](https://alfa.158-160-212-36.sslip.io/demo). Публичное демо показывает синтетический сценарий; для сохранения данных используйте демо-вход или регистрацию.
+1. Откройте [кабинет](https://alphahack.ru) или [демо без регистрации](https://alphahack.ru/demo). Публичное демо показывает синтетический сценарий; для сохранения данных используйте демо-вход или регистрацию.
 2. Пройдите онбординг и загрузите демо-выписку: получите статус, инструмент, лимит сейчас и после шага, причины и следующие действия.
 3. Расчёт ядра напрямую: [v2-чат](https://158-160-212-36.sslip.io/v2/chat.html), выберите демо-выписку.
 
@@ -188,7 +190,7 @@ OCR не используется: кабинет читает PDF только 
 
 - [Архитектура и последовательности](docs/architecture.md), [API и OpenAPI 3.1](docs/openapi.yaml), [REST Client](docs/requests.http).
 - [Состояния](docs/application-states.md), [модель данных](docs/data-model.md), [проверки и тест-учётки](docs/test-scenarios.md).
-- [Сторонние компоненты](THIRD_PARTY_NOTICES.md).
+- [О проекте: путь и выборы](docs/journey.md), [как кабинет встраивается в банк](docs/bank-integration.md), [сторонние компоненты](THIRD_PARTY_NOTICES.md).
 - [Golden](data/golden.json), [синтетические выписки и генераторы](data/synthetic/), [fixtures кабинета](hw/tolya/alfa-intellect/fixtures/).
 - [Правила ядра](context/core.md), [стоп-правила](context/stop-rules.md), [контракт](context/api-contract.md), [агент](context/agent-architecture.md).
 
@@ -209,3 +211,15 @@ python data/check_golden.py --reference
 Код сдаём в ветке `<имя>/<задача>` через PR. Работа каждого в `hw/<имя>/`, контекст в `context/`, инструкции в `AGENTS.md`. Репозиторий конфиденциальный, наружу не публикуем; доступ жюри и идентификатор версии на дедлайн фиксирует капитан. Сдача 26.10.2026 в 18:00 на LMS.
 
 Для команды: оценки ответов и история выгружаются командой `python scripts/pull_history.py --base http://localhost:4173` с `FEEDBACK_EXPORT_TOKEN` в окружении или `~/.config/credit-cabinet/token`. Результат сохраняется вне репозитория в `~/projects/credit-cabinet-history`, повторный запуск докачивает изменения.
+
+## Команда
+
+<table>
+<tr>
+<td align="center" width="20%"><a href="https://github.com/alexregrets"><img src="https://github.com/alexregrets.png?size=240" width="104" alt="Саша"></a><br><b>Саша</b><br><sub>капитан · агент · контракты · eval · выкатка</sub></td>
+<td align="center" width="20%"><a href="https://github.com/Elizaveta11-me"><img src="https://github.com/Elizaveta11-me.png?size=240" width="104" alt="Лиза"></a><br><b>Лиза</b><br><sub>ядро скоринга · стоп-правила · пороги · коды причин</sub></td>
+<td align="center" width="20%"><a href="https://github.com/tolyapolya2006-png"><img src="https://github.com/tolyapolya2006-png.png?size=240" width="104" alt="Толя"></a><br><b>Толя</b><br><sub>кабинет клиента и менеджера · заявка · подбор продуктов</sub></td>
+<td align="center" width="20%"><a href="https://github.com/bwr1337"><img src="https://github.com/bwr1337.png?size=240" width="104" alt="Тёма"></a><br><b>Тёма</b><br><sub>API на Go · хранилище · безопасность · Docker</sub></td>
+<td align="center" width="20%"><a href="https://github.com/nekhaevaaa"><img src="https://github.com/nekhaevaaa.png?size=240" width="104" alt="Тоня"></a><br><b>Тоня</b><br><sub>концепт · путь предпринимателя · тексты · макеты</sub></td>
+</tr>
+</table>
