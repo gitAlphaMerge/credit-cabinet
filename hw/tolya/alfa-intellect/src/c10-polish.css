@@ -226,8 +226,6 @@
 .login-test-list span { font-weight: 700; font-size: 15px; }
 .login-test-list small { color: var(--theme-muted); font-size: 13px; }
 .login-card .fine-print a { color: #0072ef; }
-.login-staff { padding: 0; border: 0; background: none; color: inherit; font: inherit; opacity: .55; cursor: pointer; text-decoration: underline dotted; }
-.login-staff:hover { opacity: 1; }
 
 /* Кнопка «Режим тестирования» в шапке лендинга: при наведении показывает доступ */
 .test-mode { position: relative; }

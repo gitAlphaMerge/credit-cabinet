@@ -78,7 +78,7 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
               Или сразу выберите компанию:
             </p>
             <div className="login-test-list">
-              {(personas.length ? personas : demoPersonas).filter((p) => p.role === "client").map((p) => (
+              {(personas.length ? personas : demoPersonas.filter((p) => p.role === "client")).map((p) => (
                 <button
                   key={p.key}
                   type="button"
@@ -168,16 +168,6 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
               VK ID для бизнеса
             </a>
             .
-          </p>
-          <p className="fine-print">
-            <button
-              type="button"
-              className="login-staff"
-              aria-busy={picked === "manager"}
-              onClick={() => juryEnter(JURY_LOGIN, JURY_PASSWORD, "manager")}
-            >
-              Вход для сотрудника банка
-            </button>
           </p>
         </section>
       </main>
