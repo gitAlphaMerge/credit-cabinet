@@ -4,9 +4,9 @@ import { useEffect, useRef } from "react";
 export const COLORS = {
   a: "#ef3124",
   s: "#fbe8e7",
-  p: "#f7a39c",
+  p: "#8fbdf7",
   k: "#0b0b0c",
-  g: "#13a463",
+  g: "#0072ef",
   n: "#e9e9eb",
   w: "#ffffff",
 };

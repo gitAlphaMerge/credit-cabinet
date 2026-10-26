@@ -530,7 +530,7 @@
   padding: 14px;
   background: var(--theme-surface-soft);
   border-radius: 10px;
-  color: var(--theme-green);
+  color: var(--blue-text);
 }
 .forecast-conclusion.warning {
   background: var(--theme-surface-soft);
@@ -1246,7 +1246,7 @@
   background: var(--theme-red);
 }
 .positive .capacity-model i {
-  background: var(--theme-green);
+  background: var(--blue);
 }
 .comparison-caption {
   font-size: var(--text-sm);

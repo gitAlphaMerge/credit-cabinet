@@ -527,7 +527,7 @@ export function ProfilePage() {
           title="Подтвердите сведения о бизнесе"
           onClose={() => setCandidate(null)}
         >
-          <Badge tone={candidate.demo ? "red" : "green"}>
+          <Badge tone={candidate.demo ? "blue" : "green"}>
             {candidate.source}
           </Badge>
           <dl className="profile-table">

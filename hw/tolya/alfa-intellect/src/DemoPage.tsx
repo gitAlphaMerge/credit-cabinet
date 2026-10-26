@@ -73,7 +73,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
         <button className="unstyled" onClick={() => go("/")}>
           <Brand />
         </button>
-          <Badge tone="red">Пример работы кабинета</Badge>
+          <Badge tone="blue">Пример работы кабинета</Badge>
         <Button onClick={() => go("/onboarding")}>
           Начать со своими данными <ArrowRight size={16} />
         </Button>
@@ -204,7 +204,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
               </>
             ) : tab === "chat" ? (
               <section className="demo-conversation panel">
-                <Badge>Пример переписки · не свободный диалог с ИИ</Badge>
+                <Badge tone="blue">Пример переписки · не свободный диалог с ИИ</Badge>
                 {state.chats[0].messages.map((m) => (
                   <article key={m.id} className={"message " + m.role}>
                     <div className="message-body">

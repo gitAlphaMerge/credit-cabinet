@@ -110,9 +110,10 @@
   white-space: nowrap;
 }
 .cv-card {
-  border: 1px solid var(--cv-line);
-  border-radius: var(--cv-radius);
+  border: 1px solid transparent;
+  border-radius: var(--radius-card);
   background: var(--theme-surface);
+  box-shadow: var(--shadow-card);
   padding: 26px;
   margin-bottom: 18px;
 }
@@ -520,7 +521,7 @@
   color: var(--theme-red);
 }
 .cv-forecast.enough > span {
-  color: var(--theme-green);
+  color: var(--blue-text);
 }
 .cv-forecast-more {
   display: flex;
@@ -1689,7 +1690,7 @@
   color: var(--theme-red);
 }
 .unified-cabinet .cv-forecast.enough > span {
-  color: var(--theme-green);
+  color: var(--blue-text);
 }
 .unified-cabinet .cv-discuss {
   font-size: var(--text-sm);
@@ -1745,15 +1746,15 @@
   height: 7px;
   margin: 0 3px;
   border-radius: 8px;
-  background: linear-gradient(90deg, var(--theme-danger-soft) 0%, var(--theme-warning-soft) 48%, var(--theme-success-soft) 100%);
+  background: linear-gradient(90deg, var(--theme-danger-soft) 0%, var(--blue-soft) 48%, var(--theme-success-soft) 100%);
 }
 .metric-scale.coverage .metric-scale-track {
   background: linear-gradient(
     90deg,
     var(--theme-danger-soft) 0%,
     var(--theme-danger-soft) 49%,
-    var(--theme-warning-soft) 50%,
-    var(--theme-warning-soft) 64%,
+    var(--blue-soft) 50%,
+    var(--blue-soft) 64%,
     var(--theme-success-soft) 65%,
     var(--theme-success-soft) 100%
   );
