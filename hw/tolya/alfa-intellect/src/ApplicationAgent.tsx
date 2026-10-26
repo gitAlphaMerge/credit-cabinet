@@ -4,7 +4,12 @@ import { api } from "./api";
 import { MarkdownText } from "./MarkdownText";
 import type { Chat } from "../shared/types";
 import type { MvpApplication } from "../shared/mvp2";
-import { helpForSection, applicationHelp } from "../shared/application-help";
+import { applicationHelp } from "../shared/application-help";
+import {
+  quickActions,
+  quickActionStage,
+  sendQuickAction,
+} from "../shared/quick-actions";
 const hints = [
   "Помогу найти ИНН, разобраться с полномочиями и согласиями.",
   "Добавьте CSV в разделе «Финансы»: по каждому расчётному счёту отдельно. Объясню формат и период выписок.",
@@ -18,12 +23,14 @@ export function ApplicationAgent({
   full = false,
   validationFields = [],
   activeField = "",
+  view = "questionnaire",
 }: {
   application: MvpApplication;
   section: number;
   full?: boolean;
   validationFields?: string[];
   activeField?: string;
+  view?: string;
 }) {
   const [chat, setChat] = useState<Chat>(),
     [draft, setDraft] = useState(""),
@@ -33,7 +40,12 @@ export function ApplicationAgent({
       text: string;
       id?: string;
       promptId?: string;
-    } | null>(null);
+    } | null>(null),
+    [sentStages, setSentStages] = useState<string[]>([]),
+    [expanded, setExpanded] = useState(false);
+  const stage = quickActionStage(view, section, application.decision);
+  const actions = quickActions[stage];
+  const collapsed = sentStages.includes(stage) && !expanded;
   const lock = useRef(false),
     messages = useRef<HTMLDivElement>(null),
     path = `/mvp2/applications/${application.id}/chat`;
@@ -91,6 +103,10 @@ export function ApplicationAgent({
   }) {
     const text = previous?.text ?? draft.trim();
     if (lock.current || !text) return;
+    setSentStages((stages) =>
+      stages.includes(stage) ? stages : [...stages, stage],
+    );
+    setExpanded(false);
     lock.current = true;
     setBusy(true);
     setError("");
@@ -226,23 +242,50 @@ export function ApplicationAgent({
           </button>
         </div>
       )}
-      <div className="application-agent-prompts">
-        {helpForSection(
-          section,
-          application.decision,
-          validationFields.length > 0,
-        ).map((prompt) => (
+      <div
+        className="application-agent-prompts"
+        aria-label="Быстрые вопросы"
+        style={{ flexWrap: "nowrap", overflowX: "auto", minWidth: 0 }}
+      >
+        {(collapsed ? actions.slice(0, 1) : actions).map((action) => (
           <button
             type="button"
-            key={prompt.id}
+            key={action.id}
             disabled={busy || !chat}
+            style={{
+              flex: "0 0 auto",
+              background: "var(--blue-soft)",
+              color: "var(--blue-text)",
+              border: 0,
+              borderRadius: 999,
+              padding: "8px 12px",
+            }}
             onClick={() =>
-              void send({ text: prompt.question, promptId: prompt.id })
+              sendQuickAction(action, (prompt) => {
+                void send({ text: prompt });
+              })
             }
           >
-            {prompt.label}
+            {action.label}
           </button>
         ))}
+        {collapsed && (
+          <button
+            type="button"
+            style={{
+              flex: "0 0 auto",
+              background: "var(--blue-soft)",
+              color: "var(--blue-text)",
+              border: 0,
+              borderRadius: 999,
+              padding: "8px 12px",
+            }}
+            onClick={() => setExpanded(true)}
+            aria-label="Показать все быстрые вопросы"
+          >
+            Ещё {actions.length - 1}
+          </button>
+        )}
       </div>
       <form
         onSubmit={(e) => {

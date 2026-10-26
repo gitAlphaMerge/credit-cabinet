@@ -1593,7 +1593,12 @@ export function Mvp2({
               {a.decision ? labelCode(a.decision) : sectionTitles[section]} ·{" "}
           {money(a.questionnaire.amount)} · Контекст заявки сохранён
         </p>
-        <ApplicationAgent application={a} section={section} full />
+        <ApplicationAgent
+          application={a}
+          section={section}
+          view={a.decision ? "decision" : "questionnaire"}
+          full
+        />
       </div>
     );
   const p = q && products.find((p) => p.id === q.productId),
@@ -1939,6 +1944,7 @@ export function Mvp2({
               <ApplicationAgent
                 application={a}
                 section={section}
+                view={view}
                 validationFields={Object.keys(errors)}
                 activeField={activeField}
               />
