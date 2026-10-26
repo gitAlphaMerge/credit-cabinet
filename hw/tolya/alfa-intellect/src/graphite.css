@@ -1,7 +1,7 @@
-/* Графит: экспериментальная чёрно-серая палитра поверх любой темы.
+/* Графит (тёмный режим): чёрно-серая основа. Светлый режим и остальные основы — palettes.css.
    Красный #ef3124 остаётся только на логотипе и главной кнопке лендинга, ошибки розоватые.
    Контраст пар посчитан по WCAG (≥4.5 для текста), в браузере проверяется глазами. */
-:root[data-palette="graphite"] {
+:root[data-palette="graphite"][data-theme="dark"] {
   color-scheme: dark;
   --theme-bg: #0e0f11;
   --theme-surface: #16181b;
@@ -34,58 +34,44 @@
   --theme-shadow: #000;
   --shadow-card: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
-:root[data-palette="graphite"] body { background: var(--theme-bg); }
+:root[data-palette] body { background: var(--theme-bg); }
 
 /* Главная кнопка лендинга: единственное красное пятно, текст тёмный (4.69:1) */
-:root[data-palette="graphite"] .landing .button:not(.secondary) {
+:root[data-palette="graphite"]:not([data-accent]) .landing .button:not(.secondary) {
   background: #ef3124;
   border-color: #ef3124;
   color: #0e0f11;
 }
-:root[data-palette="graphite"] .landing .button:not(.secondary):hover { background: #ff4a3d; }
+:root[data-palette="graphite"][data-theme="light"]:not([data-accent]) .landing .button:not(.secondary) { color: #fff; }
+:root[data-palette="graphite"]:not([data-accent]) .landing .button:not(.secondary):hover { background: #ff4a3d; }
 
 /* Прибитые цвета сегодняшних экранов → токены */
-:root[data-palette="graphite"] .funding-choices button[aria-pressed="true"] {
+:root[data-palette] .funding-choices button[aria-pressed="true"] {
   background: var(--theme-red);
   border-color: var(--theme-red);
   color: var(--theme-on-accent);
   box-shadow: none;
 }
-:root[data-palette="graphite"] .sphere-number,
-:root[data-palette="graphite"] .sphere-number * { color: var(--theme-on-accent); }
-:root[data-palette="graphite"] .finance-core > svg { filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5)); }
-:root[data-palette="graphite"] :is(.upload-scan-chip, .jury-link, .trust-api, .login-card .fine-print a) { color: var(--theme-info); }
-:root[data-palette="graphite"] :is(.login-story li svg, .login-yandex .login-mark) { color: var(--theme-ink); }
-:root[data-palette="graphite"] .login-mark { background: var(--theme-surface-hover); color: var(--theme-ink); }
-:root[data-palette="graphite"] .login-error { color: var(--theme-danger); }
-:root[data-palette="graphite"] .upload-scan-doc::after { background: var(--theme-ink); box-shadow: 0 0 12px rgba(236, 238, 241, 0.35); }
-:root[data-palette="graphite"] :is(.contact-call, .demo-cta, .login-test) { background: var(--theme-surface-soft); border-color: var(--theme-line); }
-:root[data-palette="graphite"] .credit-agent-panel .application-agent { box-shadow: 0 0 0 1px var(--theme-line); }
+:root[data-palette] .sphere-number,
+:root[data-palette] .sphere-number * { color: var(--theme-on-accent); }
+:root[data-palette] .finance-core > svg { filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5)); }
+:root[data-palette] :is(.upload-scan-chip, .jury-link, .trust-api, .login-card .fine-print a) { color: var(--theme-info); }
+:root[data-palette] :is(.login-story li svg, .login-yandex .login-mark) { color: var(--theme-ink); }
+:root[data-palette] .login-mark { background: var(--theme-surface-hover); color: var(--theme-ink); }
+:root[data-palette] .login-error { color: var(--theme-danger); }
+:root[data-palette] .upload-scan-doc::after { background: var(--theme-ink); box-shadow: 0 0 12px rgba(236, 238, 241, 0.35); }
+:root[data-palette] :is(.contact-call, .demo-cta, .login-test) { background: var(--theme-surface-soft); border-color: var(--theme-line); }
+:root[data-palette] .credit-agent-panel .application-agent { box-shadow: 0 0 0 1px var(--theme-line); }
 :root[data-palette="graphite"] .credit-agent-panel .application-agent::before { opacity: 0.08; filter: grayscale(1); }
-:root[data-palette="graphite"] .credit-agent-panel .application-message.user { background: #2f6fc4; }
-:root[data-palette="graphite"] .test-mode-pop { box-shadow: 0 0 0 1px var(--theme-line), 0 18px 40px rgb(0 0 0 / 0.5); }
-:root[data-palette="graphite"] .credit-transition { background: var(--theme-surface); color: var(--theme-ink); border-color: var(--theme-line); }
-:root[data-palette="graphite"] .mvp-no-credit { background: var(--theme-info-soft) !important; color: var(--theme-ink) !important; }
-:root[data-palette="graphite"] :is([style*="background:#fff"], [style*="background: white"]) { background: var(--theme-surface) !important; }
-:root[data-palette="graphite"] [style*="#fff6f5"] { background: var(--theme-surface-soft) !important; }
-:root[data-palette="graphite"] svg [fill="#16a34a"] { fill: var(--theme-green); }
-:root[data-palette="graphite"] svg [fill="#0072ef"] { fill: var(--theme-chart-primary); }
-:root[data-palette="graphite"] svg :is([fill="#fff"], [fill="#ffffff"]) { fill: var(--theme-surface); }
+:root[data-palette="graphite"] .credit-agent-panel .application-message.user { background: #2f6fc4; color: #fff; }
+:root[data-palette]:not([data-palette="graphite"]) .credit-agent-panel .application-message.user { background: var(--theme-red); color: var(--theme-on-accent); }
+:root[data-palette] .test-mode-pop { box-shadow: 0 0 0 1px var(--theme-line), 0 18px 40px rgb(0 0 0 / 0.5); }
+:root[data-palette] .credit-transition { background: var(--theme-surface); color: var(--theme-ink); border-color: var(--theme-line); }
+:root[data-palette] .mvp-no-credit { background: var(--theme-info-soft) !important; color: var(--theme-ink) !important; }
+:root[data-palette] :is([style*="background:#fff"], [style*="background: white"]) { background: var(--theme-surface) !important; }
+:root[data-palette] [style*="#fff6f5"] { background: var(--theme-surface-soft) !important; }
+:root[data-palette] svg [fill="#16a34a"] { fill: var(--theme-green); }
+:root[data-palette] svg [fill="#0072ef"] { fill: var(--theme-chart-primary); }
+:root[data-palette] svg :is([fill="#fff"], [fill="#ffffff"]) { fill: var(--theme-surface); }
 :root[data-palette="graphite"] .live-pattern-box { filter: grayscale(1) brightness(0.82); }
-
-/* Кнопка палитры рядом с ползунком темы */
-.palette-toggle {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid var(--theme-line);
-  background: var(--theme-surface);
-  color: var(--theme-ink);
-  cursor: pointer;
-  transition: rotate 300ms var(--ai-ease, ease), border-color 160ms;
-}
-.palette-toggle:hover { border-color: var(--theme-ink); }
-.palette-toggle[aria-pressed="true"] { rotate: 180deg; background: var(--theme-ink); color: var(--theme-bg); }
-@media (prefers-reduced-motion: reduce) { .palette-toggle { transition: none; } }
+:root[data-palette="graphite"][data-theme="light"] .live-pattern-box { filter: grayscale(1) contrast(1.05); }

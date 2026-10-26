@@ -2,7 +2,7 @@ import { Brain, Building2, FolderTree, Palette, Users } from "lucide-react";
 import { useWorkspace } from "./context";
 import { Badge } from "./ui";
 import { ThemeToggle } from "./ThemeToggle";
-import { PaletteToggle } from "./PaletteToggle";
+import { AppearanceBody } from "./AppearancePicker";
 
 // Настройки кабинета: только то, что уже есть в состоянии. Чего ещё нет, помечено «В разработке», без кнопок-пустышек.
 export function ProfileSettings() {
@@ -28,11 +28,11 @@ export function ProfileSettings() {
           <h3>
             <Palette size={18} aria-hidden="true" /> Оформление
           </h3>
-          <p>Светлая или тёмная тема и графитовая палитра. Выбор хранится в этом браузере.</p>
+          <p>Основа, акцент и светлая или тёмная тема сочетаются между собой. Выбор хранится в этом браузере.</p>
           <div className="settings-row">
             <ThemeToggle />
-            <PaletteToggle />
           </div>
+          <AppearanceBody />
         </article>
         <article className="settings-card">
           <h3>

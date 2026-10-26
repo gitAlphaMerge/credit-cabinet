@@ -13,7 +13,10 @@ import "./journey-workspace.css";
 import "./c10-polish.css";
 import "./side-rail.css";
 import "./graphite.css";
+import "./palettes.css";
+import "./appearance.css";
 import "./hero-title.css";
+import "./appearance";
 import { startTabIdentity } from "./tabIdentity";
 startTabIdentity();
 createRoot(document.getElementById("root")!).render(

@@ -1,0 +1,258 @@
+/* Основы оформления: графит (светлый режим), чертёж, бумага. Тёмный графит живёт в graphite.css.
+   Каждый блок = основа × режим и задаёт ВЕСЬ набор токенов (это проверяет tests/palettes.test.ts).
+   Акценты (data-accent) лежат ниже и подключаются после основ, поэтому перебивают их акцент.
+   Экраны красить руками не надо: они читают только --theme-*. */
+
+/* ── Графит · светлый («чёрно-белая») ───────────────────────────── */
+:root[data-palette="graphite"][data-theme="light"] {
+  color-scheme: light;
+  --theme-bg: #eceef0;
+  --theme-surface: #ffffff;
+  --theme-surface-soft: #f4f5f6;
+  --theme-surface-hover: #e1e4e7;
+  --theme-ink: #111316;
+  --theme-muted: #565c65;
+  --theme-on-ink: #ffffff;
+  --theme-line: #cfd3d8;
+  --theme-field-border: #6d747e;
+  --theme-red: #1a1d21;
+  --theme-on-accent: #ffffff;
+  --theme-accent-hover: #000000;
+  --theme-brand: #ef3124;
+  --theme-green: #2b7a57;
+  --theme-on-success: #ffffff;
+  --theme-success-soft: #e0efe7;
+  --theme-info: #24508f;
+  --theme-info-soft: #e1e8f3;
+  --theme-chart-primary: #2c5aa0;
+  --theme-chart-secondary: #8a929d;
+  --theme-danger: #a8261c;
+  --theme-danger-soft: #f6e0de;
+  --theme-warning: #434951;
+  --theme-warning-soft: #e8eaed;
+  --blue: #2c5aa0;
+  --blue-soft: #e1e8f3;
+  --blue-text: #24508f;
+  --blue-guess: #6f8fc2;
+  --theme-shadow: #000;
+  --shadow-card: 0 1px 2px rgba(17, 19, 22, 0.08), 0 8px 24px rgba(17, 19, 22, 0.08);
+}
+
+/* ── Чертёж · тёмный: тёмно-синий лист, тонкая сетка, голубые линии ── */
+:root[data-palette="blueprint"][data-theme="dark"] {
+  color-scheme: dark;
+  --theme-bg: #0a1a33;
+  --theme-surface: #0f2447;
+  --theme-surface-soft: #132c55;
+  --theme-surface-hover: #1a3866;
+  --theme-ink: #e6f1ff;
+  --theme-muted: #9bb6d9;
+  --theme-on-ink: #0a1a33;
+  --theme-line: #2a4f86;
+  --theme-field-border: #7fa6d6;
+  --theme-red: #5fd4ff;
+  --theme-on-accent: #06203d;
+  --theme-accent-hover: #a6e8ff;
+  --theme-brand: #ef3124;
+  --theme-green: #6fe0b0;
+  --theme-on-success: #06203d;
+  --theme-success-soft: #0e3a4a;
+  --theme-info: #8fd0ff;
+  --theme-info-soft: #123a66;
+  --theme-chart-primary: #5fd4ff;
+  --theme-chart-secondary: #7ea6d9;
+  --theme-danger: #ff9d94;
+  --theme-danger-soft: #3a2a3d;
+  --theme-warning: #ffd27a;
+  --theme-warning-soft: #3a3350;
+  --blue: #5fd4ff;
+  --blue-soft: #123a66;
+  --blue-text: #9ddcff;
+  --blue-guess: #8fd0ff;
+  --theme-shadow: #00060f;
+  --shadow-card: 0 0 0 1px rgba(95, 212, 255, 0.14), 0 18px 50px rgba(0, 8, 24, 0.55);
+  --grid-line: rgba(130, 190, 255, 0.075);
+  --grid-line-strong: rgba(130, 190, 255, 0.16);
+}
+
+/* ── Чертёж · светлый («калька»): бледно-голубой лист, синие линии ── */
+:root[data-palette="blueprint"][data-theme="light"] {
+  color-scheme: light;
+  --theme-bg: #eaf2fb;
+  --theme-surface: #f8fbff;
+  --theme-surface-soft: #e1ecf8;
+  --theme-surface-hover: #d3e3f5;
+  --theme-ink: #0b2a55;
+  --theme-muted: #4f6788;
+  --theme-on-ink: #f8fbff;
+  --theme-line: #a9c3e2;
+  --theme-field-border: #56789f;
+  --theme-red: #0b57d0;
+  --theme-on-accent: #ffffff;
+  --theme-accent-hover: #08409c;
+  --theme-brand: #ef3124;
+  --theme-green: #0d7a55;
+  --theme-on-success: #ffffff;
+  --theme-success-soft: #dff3ea;
+  --theme-info: #0b57d0;
+  --theme-info-soft: #d6e6fb;
+  --theme-chart-primary: #0b57d0;
+  --theme-chart-secondary: #7aa6e0;
+  --theme-danger: #b3261e;
+  --theme-danger-soft: #fbe3e1;
+  --theme-warning: #7a5000;
+  --theme-warning-soft: #fdf0d4;
+  --blue: #0b57d0;
+  --blue-soft: #d6e6fb;
+  --blue-text: #0847a8;
+  --blue-guess: #7aa6e0;
+  --theme-shadow: #0b2a55;
+  --shadow-card: 0 0 0 1px rgba(11, 87, 208, 0.12), 0 10px 30px rgba(11, 42, 85, 0.1);
+  --grid-line: rgba(11, 87, 208, 0.075);
+  --grid-line-strong: rgba(11, 87, 208, 0.15);
+}
+
+/* ── Бумага · светлая: тёплый кремовый лист, чернила, красный Альфа ── */
+:root[data-palette="paper"][data-theme="light"] {
+  color-scheme: light;
+  --theme-bg: #f4efe6;
+  --theme-surface: #fbf8f2;
+  --theme-surface-soft: #ece6da;
+  --theme-surface-hover: #e3dccd;
+  --theme-ink: #2a2420;
+  --theme-muted: #6a6157;
+  --theme-on-ink: #fbf8f2;
+  --theme-line: #d9d0c1;
+  --theme-field-border: #857a6c;
+  --theme-red: #cf2a1c;
+  --theme-on-accent: #ffffff;
+  --theme-accent-hover: #a81f13;
+  --theme-brand: #ef3124;
+  --theme-green: #2b7550;
+  --theme-on-success: #ffffff;
+  --theme-success-soft: #e3efe6;
+  --theme-info: #2f5f9e;
+  --theme-info-soft: #e1e9f2;
+  --theme-chart-primary: #3a6ea5;
+  --theme-chart-secondary: #c7b9a3;
+  --theme-danger: #b3261e;
+  --theme-danger-soft: #f7e1dc;
+  --theme-warning: #7d4f0f;
+  --theme-warning-soft: #f5e8cf;
+  --blue: #3a6ea5;
+  --blue-soft: #e1e9f2;
+  --blue-text: #2f5f9e;
+  --blue-guess: #8fb0d6;
+  --theme-shadow: #3b2a18;
+  --shadow-card: 0 1px 2px rgba(60, 40, 20, 0.08), 0 8px 24px rgba(60, 40, 20, 0.1);
+}
+
+/* ── Бумага · тёмная («ночная бумага»): тёплый уголь, коралловый акцент ── */
+:root[data-palette="paper"][data-theme="dark"] {
+  color-scheme: dark;
+  --theme-bg: #1f1c19;
+  --theme-surface: #292521;
+  --theme-surface-soft: #322d28;
+  --theme-surface-hover: #3b352f;
+  --theme-ink: #efe9de;
+  --theme-muted: #b0a698;
+  --theme-on-ink: #1f1c19;
+  --theme-line: #433c34;
+  --theme-field-border: #8f8578;
+  --theme-red: #f0594b;
+  --theme-on-accent: #1f1c19;
+  --theme-accent-hover: #ff7c70;
+  --theme-brand: #ef3124;
+  --theme-green: #7fc79b;
+  --theme-on-success: #1f1c19;
+  --theme-success-soft: #25362b;
+  --theme-info: #9bbce3;
+  --theme-info-soft: #26303d;
+  --theme-chart-primary: #8fb4e0;
+  --theme-chart-secondary: #8f8578;
+  --theme-danger: #ff9d94;
+  --theme-danger-soft: #3d2824;
+  --theme-warning: #e8c277;
+  --theme-warning-soft: #3a3022;
+  --blue: #8fb4e0;
+  --blue-soft: #26303d;
+  --blue-text: #b4cdec;
+  --blue-guess: #8fb4e0;
+  --theme-shadow: #000;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Акценты: цвет главных кнопок, ссылок и выделений. Перебивают акцент основы. ── */
+:root[data-accent="red"][data-theme="light"] { --theme-red: #d92b1e; --theme-on-accent: #ffffff; --theme-accent-hover: #a81f13; }
+:root[data-accent="red"][data-theme="dark"] { --theme-red: #ef3124; --theme-on-accent: #ffffff; --theme-accent-hover: #ff5d50; }
+:root[data-accent="blue"][data-theme="light"] { --theme-red: #0a5bd6; --theme-on-accent: #ffffff; --theme-accent-hover: #0847a8; }
+:root[data-accent="blue"][data-theme="dark"] { --theme-red: #6aa8ff; --theme-on-accent: #06152e; --theme-accent-hover: #9cc6ff; }
+:root[data-accent="mono"][data-theme="light"] { --theme-red: #1a1d21; --theme-on-accent: #ffffff; --theme-accent-hover: #000000; }
+:root[data-accent="mono"][data-theme="dark"] { --theme-red: #e4e7eb; --theme-on-accent: #0e0f11; --theme-accent-hover: #ffffff; }
+:root[data-accent="mint"][data-theme="light"] { --theme-red: #0d7a55; --theme-on-accent: #ffffff; --theme-accent-hover: #085c40; }
+:root[data-accent="mint"][data-theme="dark"] { --theme-red: #5fd6a4; --theme-on-accent: #052117; --theme-accent-hover: #8ae8c1; }
+
+/* ── Общее для всех основ ── */
+:root[data-palette] body { background: var(--theme-bg); color: var(--theme-ink); }
+:root[data-palette] .app-shell { background: transparent; }
+
+/* ── Чертёж: сетка листа, моноширинные цифры и подписи, острые углы ── */
+:root[data-palette="blueprint"] {
+  --radius-sm: 4px;
+  --radius-card: 6px;
+  --radius-lg: 10px;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+:root[data-palette="blueprint"] body {
+  background-color: var(--theme-bg);
+  background-image:
+    linear-gradient(var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 160px 160px, 160px 160px, 32px 32px, 32px 32px;
+  background-attachment: fixed;
+  font-variant-numeric: tabular-nums;
+}
+:root[data-palette="blueprint"] :is(.landing, .app-shell, .app-shell > main) { background-color: transparent; }
+:root[data-palette="blueprint"] .landing .hero-copy h1.hero-title .hero-word-brand { --depth: color-mix(in srgb, var(--theme-red) 45%, #000); color: var(--theme-red); }
+:root[data-palette="blueprint"] :is(.hero-kicker, .eyebrow, th, dt, code, kbd, .badge, .tag, .chip, input[type="number"], input[inputmode="numeric"]) {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+:root[data-palette="blueprint"] :is(.panel, .card, .settings-card, article, .manager-page section) {
+  border-color: var(--theme-line);
+}
+:root[data-palette="blueprint"] .landing .hero-copy h1.hero-title .hero-word { font-weight: 700; letter-spacing: -0.035em; }
+:root[data-palette="blueprint"] .landing .hero-copy h1.hero-title { --depth: color-mix(in srgb, var(--theme-red) 38%, var(--theme-bg)); }
+
+/* ── Бумага: засечки в заголовках, мягкие тени, тёплая зерно-вуаль ── */
+:root[data-palette="paper"] {
+  --font-serif: "Iowan Old Style", "Charter", "Source Serif 4", Georgia, "Times New Roman", serif;
+  --radius-card: 14px;
+}
+:root[data-palette="paper"] :is(h1, h2, h3) {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+:root[data-palette="paper"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(rgba(120, 90, 50, 0.07) 1px, transparent 1px);
+  background-size: 5px 5px;
+}
+:root[data-palette="paper"][data-theme="dark"] body::before { opacity: 0.25; background-image: radial-gradient(rgba(255, 235, 200, 0.05) 1px, transparent 1px); }
+:root[data-palette="paper"] .landing .hero-copy h1.hero-title .hero-word { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.03em; }
+:root[data-palette="paper"] .landing .hero-copy h1.hero-title { --depth: color-mix(in srgb, var(--theme-ink) 14%, var(--theme-bg)); }
+:root[data-palette="paper"] .landing .hero-copy h1.hero-title .hero-word-brand { --depth: color-mix(in srgb, var(--theme-red) 36%, var(--theme-bg)); }
+
+/* Бумага: засечный шрифт шире гротеска, держим заголовок в своей колонке */
+:root[data-palette="paper"] .landing .hero-copy h1.hero-title {
+  font-size: clamp(2.7rem, 5.3vw, 5.3rem);
+  letter-spacing: -0.03em;
+}
