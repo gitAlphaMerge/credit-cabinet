@@ -1,4 +1,5 @@
 import { ThemeToggle } from "./ThemeToggle";
+import { PaletteToggle } from "./PaletteToggle";
 import { useEffect, useLayoutEffect, useRef, useState, useId } from "react";
 import {
   ArrowRight,
@@ -267,7 +268,7 @@ export function MvpOnboarding({
         <button className="unstyled" onClick={() => go("/")}>
           <Brand />
         </button>
-        <div className="journey-header-tools"><ThemeToggle /><RestartJourney /></div>
+        <div className="journey-header-tools"><ThemeToggle /><PaletteToggle /><RestartJourney /></div>
       </header>
       <main className="onboard-grid">
         <JourneyProgress current={0} />

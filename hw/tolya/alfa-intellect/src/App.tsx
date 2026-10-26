@@ -19,6 +19,7 @@ import { LoginScreen } from "./LoginScreen";
 import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
 import { ThemeToggle } from "./ThemeToggle";
+import { PaletteToggle } from "./PaletteToggle";
 import { RestartJourney } from "./RestartJourney";
 import "./restart-journey.css";
 import "./application-status.css";
@@ -337,7 +338,7 @@ export function App() {
                 Обратиться к сотруднику
               </Button>
               <RestartJourney />
-              <ThemeToggle />
+              <ThemeToggle /><PaletteToggle />
             </div>
           </header>
           <Mvp2 />
@@ -368,7 +369,7 @@ export function App() {
               ))}
             </nav>
             <div className="header-tools g2-tools">
-              <ThemeToggle />
+              <ThemeToggle /><PaletteToggle />
               {config.role !== "manager" && <RestartJourney />}
               <IconButton
                 className="mobile-menu"

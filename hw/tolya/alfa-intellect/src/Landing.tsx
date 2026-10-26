@@ -13,6 +13,7 @@ import {
   Clock3,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { PaletteToggle } from "./PaletteToggle";
 import { Brand, Button, Badge, SectionTitle } from "./ui";
 import { useEffect, useRef } from "react";
 import { LivePattern } from "./LivePattern";
@@ -51,7 +52,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#questions">Вопросы</a>
         </nav>
         <div className="journey-header-tools">
-          <ThemeToggle />
+          <ThemeToggle /><PaletteToggle />
           <button className="text-button jury-link" onClick={() => go("/jury")}>
             Режим жюри
           </button>

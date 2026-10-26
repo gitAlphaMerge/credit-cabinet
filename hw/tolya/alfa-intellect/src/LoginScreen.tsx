@@ -7,6 +7,7 @@ import type { PersonaSummary } from "../shared/demo-personas";
 export const JURY_LOGIN = "gitmergealpha";
 export const JURY_PASSWORD = "alphahack2026";
 import { ThemeToggle } from "./ThemeToggle";
+import { PaletteToggle } from "./PaletteToggle";
 import { LivePattern } from "./LivePattern";
 
 // Вход: провайдеры — заглушки в кабинет текущей сессии; телефон и пароль — настоящий /api/auth/login.
@@ -48,7 +49,7 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
           <Brand />
         </a>
         <div className="journey-header-tools">
-          <ThemeToggle />
+          <ThemeToggle /><PaletteToggle />
         </div>
       </header>
       <main className="login-grid">

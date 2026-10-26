@@ -254,3 +254,9 @@
 /* Тёмная тема: тень не видна, карточку агента держит контур */
 :root[data-theme="dark"] .credit-agent-panel .application-agent { box-shadow: 0 0 0 1px var(--theme-line); }
 :root[data-theme="dark"] .test-mode-pop { box-shadow: 0 0 0 1px var(--theme-line), 0 18px 40px rgb(0 0 0 / 0.5); }
+
+/* Синий текст на тёмном фоне: #0072ef даёт 3.9:1, светлый --theme-info держит ≥4.5 */
+:root[data-theme="dark"] :is(.upload-scan-chip, .jury-link, .trust-api, .login-card .fine-print a) { color: var(--theme-info); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.upload-scan-chip, .jury-link, .trust-api, .login-card .fine-print a) { color: var(--theme-info); }
+}
