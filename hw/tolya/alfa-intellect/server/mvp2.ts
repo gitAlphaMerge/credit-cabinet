@@ -334,7 +334,9 @@ export function updateMvp(
   const changedRequests = changedKeys.flatMap((key) =>
     key === "accounts"
       ? q.accounts.filter((account) =>
-          hash(account) !== hash(a.questionnaire.accounts.find((old) => old.id === account.id)),
+          !a.questionnaire.accounts.some((old) =>
+            old.id === account.id && hash(account) === hash(old),
+          ),
         ).map((account) => `accounts:${account.id}:`)
       : [key],
   );
