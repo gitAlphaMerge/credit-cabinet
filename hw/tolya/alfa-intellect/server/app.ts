@@ -27,7 +27,7 @@ import {
   documentMetadata,
 } from "./document-policy";
 import { createDocumentConnectorRouter } from "./document-connector";
-import { createAIProvider } from "./ai-provider";
+import { createAIProvider, type AgentTurnContext } from "./ai-provider";
 import { publicPreview } from "./preview";
 import { findCompany, RegistryError } from "./registry";
 import { cabinetRouter, syncCabinetNotices } from "./cabinet";
@@ -36,7 +36,7 @@ import { russianValidationErrors } from "../shared/facility-validation";
 import { fundingRouter } from "./funding-routes";
 import { applicationsRouter } from "./applications-routes";
 import { mvp2Router } from "./mvp2-routes";
-import { onboardingSchema } from "../shared/mvp2";
+import { onboardingSchema, type MvpApplication } from "../shared/mvp2";
 import {
   bootstrapJourney,
   restartJourney,
@@ -947,6 +947,51 @@ app.patch("/api/chats/:id", (req, res) => {
   res.json(s);
 });
 const busy = new Set<string>();
+// Заявка нового пути (mvp2) тоже идёт агенту: цель, сумма, срок, решение и варианты.
+// Без этого агент в кабинете с выданным кредитом заново спрашивает «На что нужны деньги?».
+const agentPurposes: Record<string, string> = {
+  Закупки: "закупка под контракт",
+  Контракт: "закупка под контракт",
+  "Текущие расходы": "кассовый разрыв",
+  "Кассовый разрыв": "кассовый разрыв",
+  "Оборудование/транспорт": "оборудование",
+  "Ремонт/новая точка": "рост",
+};
+function mvpTurnContext(uid: string): AgentTurnContext | undefined {
+  const row = db
+    .prepare(
+      "SELECT d.data FROM mvp2_dossiers d JOIN applications a ON a.id=d.application_id WHERE a.user_id=? ORDER BY a.created_at DESC LIMIT 1",
+    )
+    .get(uid) as { data: string } | undefined;
+  if (!row) return undefined;
+  const a = JSON.parse(row.data) as MvpApplication,
+    q = a.questionnaire;
+  return {
+    need: {
+      ...(agentPurposes[q.purpose] ? { purpose: agentPurposes[q.purpose] } : {}),
+      ...(q.amount > 0 ? { amount_rub: q.amount } : {}),
+      ...(q.term ? { term_months: q.term } : {}),
+      instrument: a.recommendedProductId,
+    },
+    application: {
+      id: a.id,
+      status: a.activatedAt ? "кредит выдан" : a.decision ?? a.lifecycle,
+      reasons: a.reasons,
+      limit_now_rub: a.financial?.limitNow ?? a.financial?.limit,
+      alternatives: a.alternatives.map((x) => ({
+        option_id: x.id,
+        kind: "alternative",
+        product_id: x.productId,
+        product_name: x.productId,
+        amount_rub: x.amount,
+        term_months: x.term,
+        rate_annual_pct: x.rate,
+        monthly_payment_rub: x.payment,
+        reason: x.reason,
+      })),
+    },
+  };
+}
 function activeApplication(uid: string, selectionId?: string) {
   const rows = db
     .prepare(
@@ -1020,7 +1065,7 @@ app.post("/api/chats/:id/messages", async (req, res) => {
       { ...s, userId: uid },
       chat.messages,
       chat.selectionId,
-      context,
+      context ?? mvpTurnContext(uid),
     );
     // Explicit objections work without an LLM. A model response alone cannot
     // authorize a transition or supply the customer's asserted reasons.

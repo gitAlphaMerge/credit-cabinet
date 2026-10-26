@@ -21,7 +21,8 @@ export type AgentApplication = {
   }[];
   red_reason?: string;
 };
-export type AgentTurnContext = { application?: AgentApplication; mode?: "nudge" | "objections" };
+export type AgentNeed = { purpose?: string; amount_rub?: number; term_months?: number; instrument?: string };
+export type AgentTurnContext = { application?: AgentApplication; need?: AgentNeed; mode?: "nudge" | "objections" };
 export interface AIProvider {
   reply(
     state: AppState & { userId?: string },
@@ -95,9 +96,10 @@ export function contextOf(s: AppState, selectionId?: string) {
 }
 
 /** Sends only the cabinet facts the agent needs; never forward contextOf wholesale. */
-export function agentCard(s: AppState, selectionId?: string, application?: AgentApplication) {
+export function agentCard(s: AppState, selectionId?: string, application?: AgentApplication, need?: AgentNeed) {
   const context = contextOf(s, selectionId), selection = context.selection;
   return {
+    ...need,
     ...(selection ? {
       purpose: selection.purpose,
       amount_rub: selection.calculation.amount,
@@ -136,7 +138,7 @@ export class TeamAgentProvider implements AIProvider {
           session_id: chat?.id || "",
           ...(s.userId ? { client_id: s.userId } : {}),
           text: history.at(-1)?.text || "",
-          card: agentCard(s, selectionId, turnContext.application),
+          card: agentCard(s, selectionId, turnContext.application, turnContext.need),
           ...(turnContext.mode ? { mode: turnContext.mode } : {}),
         }),
         signal: AbortSignal.timeout(35_000),
