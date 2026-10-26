@@ -41,7 +41,14 @@ OWNER_MARKERS = ("дивиденд", "распределение прибыли"
 # context/stop-rules.md: CASH_OUT counts operations classified as cash.
 # data/realistic/from_spec.py special_events labels explicit person transfers in cash_out/transit as cash.
 CASH_MARKERS = ("снятие наличн", "выдача наличн", "под отчёт", "подотчёт", "банкомат", "выдача под", "на хозяйственные нужды", "перевод физическому лицу")
-SELF_TRANSFER_MARKERS = ("собственных средств", "между своими", "между счетами", "на свой счёт", "на счёт в другом", "своего счёта", "в другой банк")
+
+# ИСПРАВЛЕНИЕ 2: Добавлены маркеры "собственных денежных средств", "перевод собственных" и "на счет в другом"
+SELF_TRANSFER_MARKERS = (
+    "собственных средств", "собственных денежных средств", "перевод собственных",
+    "между своими", "между счетами", "на свой счёт", "на счёт в другом", "на счет в другом",
+    "своего счёта", "в другой банк"
+)
+
 LOAN_MARKERS = ("займ", "заём", "loan", "финансовая помощь")
 ENFORCE_MARKERS = ("инкассов", "исполнительн", "взыскан", "арест")
 SALARY_MARKERS = ("заработн", "оплата труда", "выплата зп", "аванс по заработ", "зп за", "перечисление зп")
@@ -65,12 +72,14 @@ def classify(amount, counterparty, purpose, client_inn=None, cp_inn=None):
     if _has_any(p, OWNER_MARKERS): return "owner"
     if _has_any(p, LOAN_MARKERS): return "financing"
     
-    if _is_government(cp) or "зарплатн" in cp or ("реестр" in p and "зарплат" in p): return "mandatory"
-    if _has_any(p, SALARY_MARKERS): return "mandatory"
-    if _has_any(p, TAX_MARKERS): return "mandatory"
-    if "аренд" in p: return "mandatory"
-    if "лизинг" in p: return "mandatory"
-    if _has_any(p, CREDIT_MARKERS): return "loan" 
+    # ИСПРАВЛЕНИЕ 1: Добавлена проверка amount < 0, чтобы приход от УФК не считался расходом.
+    # Также добавлено amount < 0 ко всем остальным обязательным расходам для надежности.
+    if amount < 0 and (_is_government(cp) or "зарплатн" in cp or ("реестр" in p and "зарплат" in p)): return "mandatory"
+    if amount < 0 and _has_any(p, SALARY_MARKERS): return "mandatory"
+    if amount < 0 and _has_any(p, TAX_MARKERS): return "mandatory"
+    if amount < 0 and "аренд" in p: return "mandatory"
+    if amount < 0 and "лизинг" in p: return "mandatory"
+    if amount < 0 and _has_any(p, CREDIT_MARKERS): return "loan" 
     
     if amount > 0: return "inflow"
     return "operating"
@@ -431,11 +440,11 @@ def calculate_scorecard(dscr, cv, debt_load, top_share, cash_gaps_count):
 
 def make_decision(score, stops, need, limit_now, limit_after, instrument, missing, reasons):
     # context/stop-rules.md: поведенческий стоп имеет приоритет над документным.
-    behavioral = {"ENFORCEMENT", "CASH_OUT", "NOT_BUSINESS", "NO_FREE_CASHFLOW", "OVERDUE_DEBT"}
+    behavioral = {"ENFORCEMENT", "CASH_OUT", "NOT_BUSINESS", "NO_FREE_CASHFLOW", "OVERDUE_DEBT", "TOO_YOUNG"}
     if behavioral.intersection(stops):
         return "нужен менеджер", missing, reasons
     # context/stop-rules.md: неподходящая цель или возраст ведут к другому продукту.
-    if "RESTRICTED_PURPOSE" in stops or "TOO_YOUNG" in stops:
+    if "RESTRICTED_PURPOSE" in stops:
         return "лучше другой инструмент", missing, reasons
     if instrument == "MANUAL":
         if not stops and not reasons:

@@ -154,7 +154,7 @@ class DecisionProperties(unittest.TestCase):
                                       now, after, instrument, list(missing), list(reasons))[0]
         self.assertEqual(decide(stops=("SHORT_STATEMENT", "ENFORCEMENT")), "нужен менеджер")
         self.assertEqual(decide(stops=("RESTRICTED_PURPOSE",)), "лучше другой инструмент")
-        self.assertEqual(decide(stops=("TOO_YOUNG",)), "лучше другой инструмент")
+        self.assertEqual(decide(stops=("TOO_YOUNG",)), "нужен менеджер")  # context/stop-rules.md: TOO_YOUNG ведёт к менеджеру
         self.assertEqual(decide(missing=("balance",), reasons=("STALE_DOC",)), "можно после шага")
         self.assertEqual(decide(missing=("schedule",), reasons=("MISSING_SCHEDULE",)), "можно после шага")
         self.assertEqual(decide(missing=("statement",), reasons=("DOCS_MISMATCH",)), "можно после шага")
