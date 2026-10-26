@@ -260,3 +260,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) :is(.upload-scan-chip, .jury-link, .trust-api, .login-card .fine-print a) { color: var(--theme-info); }
 }
+
+/* Лендинг: блок «Новые разработки» */
+.roadmap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
+.roadmap-card { position: relative; display: grid; gap: 10px; align-content: start; padding: 24px; border-radius: 20px; border: 1px dashed var(--theme-line); background: var(--theme-surface); color: var(--theme-ink); }
+.roadmap-card h3 { margin: 4px 0 0; font-size: 20px; }
+.roadmap-card p { margin: 0; color: var(--theme-muted, inherit); line-height: 1.5; }
+.roadmap-card .badge { justify-self: start; }
+.roadmap-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--theme-red) 12%, transparent); color: var(--theme-red); }
+@media (max-width: 860px) { .roadmap-grid { grid-template-columns: 1fr; } }

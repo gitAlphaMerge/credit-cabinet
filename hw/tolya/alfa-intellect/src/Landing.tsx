@@ -11,6 +11,9 @@ import {
   LockKeyhole,
   SlidersHorizontal,
   Clock3,
+  Coins,
+  Newspaper,
+  BrainCircuit,
 } from "lucide-react";
 import { SideRail, SideRailItem } from "./SideRail";
 import { Brand, Button, Badge, SectionTitle } from "./ui";
@@ -51,17 +54,24 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#questions">Вопросы</a>
         </nav>
         <div className="journey-header-tools">
-          <SideRail><SideRailItem tip="Начать сначала"><RestartJourney /></SideRailItem></SideRail>
+          <SideRail>
+            <SideRailItem tip="Начать сначала">
+              <RestartJourney />
+            </SideRailItem>
+          </SideRail>
           <button className="text-button jury-link" onClick={() => go("/jury")}>
             Режим жюри
           </button>
           <span className="test-mode">
-            <button className="text-button jury-link" onClick={() => go("/login")}>
+            <button
+              className="text-button jury-link"
+              onClick={() => go("/login")}
+            >
               Режим тестирования
             </button>
             <span className="test-mode-pop" role="tooltip">
-              Пять тестовых компаний и менеджер банка. Логин и пароль на
-              экране входа, компанию можно выбрать в один клик.
+              Пять тестовых компаний и менеджер банка. Логин и пароль на экране
+              входа, компанию можно выбрать в один клик.
             </span>
           </span>
           <button className="text-button" onClick={() => go("/login")}>
@@ -132,8 +142,8 @@ export function Landing({ go }: { go: (s: string) => void }) {
         </section>
         <section id="opportunities" className="section wrap">
           <SectionTitle title="Финансирование, которое работает на бизнес">
-            Помогаем увидеть всю картину и принять взвешенное решение.
-            Кабинет считает, сколько бизнес может занять без риска для оборота,
+            Помогаем увидеть всю картину и принять взвешенное решение. Кабинет
+            считает, сколько бизнес может занять без риска для оборота,
             подбирает подходящий продукт и объясняет каждую цифру. Решение о
             кредите принимает банк.
           </SectionTitle>
@@ -224,8 +234,8 @@ export function Landing({ go }: { go: (s: string) => void }) {
                 один раз.
               </h3>
               <p>
-                Загрузите выписку или отчёт. Кабинет достанет нужные цифры,
-                вы их проверите, и они пригодятся в чате и подборе.
+                Загрузите выписку или отчёт. Кабинет достанет нужные цифры, вы
+                их проверите, и они пригодятся в чате и подборе.
               </p>
             </article>
           </div>
@@ -315,7 +325,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
           {[
             [
               "Это банковское одобрение?",
-    "Нет. Продукт помогает предварительно оценить нагрузку и подготовить информацию. Решение о кредите принимает банк.",
+              "Нет. Продукт помогает предварительно оценить нагрузку и подготовить информацию. Решение о кредите принимает банк.",
             ],
             [
               "Нужно сразу загружать документы?",
@@ -327,7 +337,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
             ],
             [
               "Что доступно без подключения ИИ?",
-    "Подбор продукта, заполнение заявки, анализ выписок CSV и проверка условий. После решения банка можно пройти договор, подпись и получение средств.",
+              "Подбор продукта, заполнение заявки, анализ выписок CSV и проверка условий. После решения банка можно пройти договор, подпись и получение средств.",
             ],
           ].map(([q, a]) => (
             <details key={q}>
@@ -338,6 +348,43 @@ export function Landing({ go }: { go: (s: string) => void }) {
               <p>{a}</p>
             </details>
           ))}
+        </section>
+        <section id="roadmap" className="section wrap roadmap">
+          <SectionTitle
+            eyebrow="НОВЫЕ РАЗРАБОТКИ"
+            title="Что появится в кабинете"
+          />
+          <div className="roadmap-grid">
+            {[
+              [
+                Coins,
+                "ЦФА для бизнеса",
+                "Привлечение денег через выпуск цифровых финансовых активов: кабинет подскажет, когда это выгоднее кредита.",
+              ],
+              [
+                Newspaper,
+                "Пульс",
+                "Лента новостей, ставок и изменений в законах, которые касаются именно вашей отрасли и ваших платежей.",
+              ],
+              [
+                BrainCircuit,
+                "Агент Омега",
+                "Альфа отвечает быстро, Омега думает глубже: финансовая модель, сценарии и долгие задачи бизнеса.",
+              ],
+            ].map(([Icon, title, text]) => {
+              const I = Icon as typeof Coins;
+              return (
+                <article className="roadmap-card" key={title as string}>
+                  <span className="roadmap-icon">
+                    <I size={22} aria-hidden="true" />
+                  </span>
+                  <Badge>В разработке</Badge>
+                  <h3>{title as string}</h3>
+                  <p>{text as string}</p>
+                </article>
+              );
+            })}
+          </div>
         </section>
         <section className="final-cta wrap">
           <div>
@@ -364,8 +411,8 @@ export function Landing({ go }: { go: (s: string) => void }) {
         </button>
         <p className="footer-authors">
           Сделали для Альфа-Хака 2026: Саша, капитан: агент, контракты, дизайн ·
-          Толя, продакт: кабинет, заявка, подбор, дизайн · Лиза, инженер: ядро
-          и скоркарта · Артём, разработчик: API, хранилище, контейнеры · Тоня,
+          Толя, продакт: кабинет, заявка, подбор, дизайн · Лиза, инженер: ядро и
+          скоркарта · Артём, разработчик: API, хранилище, контейнеры · Тоня,
           исследователь: концепт, кастдев, тексты и питч.
         </p>
       </footer>
@@ -401,28 +448,92 @@ function JourneyScene({ step }: { step: number }) {
             )),
           )}
           <rect x="128" y="128" width="24" height="20" rx="3" fill="#fff" />
-          <rect x="40" y="148" width="240" height="4" rx="2" fill="currentColor" opacity="0.2" />
+          <rect
+            x="40"
+            y="148"
+            width="240"
+            height="4"
+            rx="2"
+            fill="currentColor"
+            opacity="0.2"
+          />
         </g>
       ) : step === 1 ? (
         <g>
-          <rect x="118" y="28" width="104" height="124" rx="10" fill={blue} opacity="0.18" />
-          <rect x="96" y="16" width="104" height="124" rx="10" fill="#fff" stroke={blue} strokeWidth="2" />
+          <rect
+            x="118"
+            y="28"
+            width="104"
+            height="124"
+            rx="10"
+            fill={blue}
+            opacity="0.18"
+          />
+          <rect
+            x="96"
+            y="16"
+            width="104"
+            height="124"
+            rx="10"
+            fill="#fff"
+            stroke={blue}
+            strokeWidth="2"
+          />
           <rect x="112" y="36" width="56" height="8" rx="4" fill={red} />
           {[0, 1, 2, 3].map((i) => (
-            <rect key={i} x="112" y={56 + i * 16} width={72 - (i % 2) * 22} height="6" rx="3" fill={blue} opacity="0.35" />
+            <rect
+              key={i}
+              x="112"
+              y={56 + i * 16}
+              width={72 - (i % 2) * 22}
+              height="6"
+              rx="3"
+              fill={blue}
+              opacity="0.35"
+            />
           ))}
           <circle cx="214" cy="122" r="22" fill={blue} />
-          <path d="M204 122l7 7 13-14" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M204 122l7 7 13-14"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
           <path d="M40 40a28 28 0 0 1 28 28H40z" fill={red} />
         </g>
       ) : (
         <g>
           {[46, 70, 96, 122].map((h, i) => (
-            <rect key={i} x={70 + i * 42} y={148 - h} width="28" height={h} rx="6" fill={i === 3 ? red : blue} opacity={i === 3 ? 1 : 0.3 + i * 0.2} />
+            <rect
+              key={i}
+              x={70 + i * 42}
+              y={148 - h}
+              width="28"
+              height={h}
+              rx="6"
+              fill={i === 3 ? red : blue}
+              opacity={i === 3 ? 1 : 0.3 + i * 0.2}
+            />
           ))}
-          <path d="M66 96 112 72l42 10 60-50" fill="none" stroke={red} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M66 96 112 72l42 10 60-50"
+            fill="none"
+            stroke={red}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
           <circle cx="250" cy="28" r="16" fill="#16a34a" />
-          <path d="M243 28l5 5 9-10" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M243 28l5 5 9-10"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </g>
       )}
     </svg>
