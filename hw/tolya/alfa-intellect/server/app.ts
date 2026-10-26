@@ -49,7 +49,8 @@ import {
   saveDraft,
 } from "./journey";
 import { checksRouter } from "./checks";
-import { demoPersonasRouter } from "./demo-personas";
+import { demoPersonasRouter, ensureDemoSchema } from "./demo-personas";
+import { demoPersonas } from "../shared/demo-personas";
 import {
   ApplicationError,
   applicationOf,
@@ -275,6 +276,54 @@ app.post("/api/auth/demo", (req, res) => {
   saveState(id, s);
   cookie(res, session(id));
   res.json({ ok: true });
+});
+// Вход жюри: общий логин и пароль, дефисы, пробелы и регистр не важны («git-merge alpha» = «gitmergealpha»).
+// Засеянная компания (DEMO_PERSONAS=1 и scripts/seed-demo.ts) открывается как есть, иначе заводится чистая тестовая с тем же названием.
+const juryKey = (value: unknown) => String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+app.post("/api/auth/jury", (req, res) => {
+  limit("jury:" + req.ip, 30);
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  if (
+    juryKey(body.login) !== juryKey(process.env.JURY_LOGIN || "gitmergealpha") ||
+    juryKey(body.password) !== juryKey(process.env.JURY_PASSWORD || "alphahack2026")
+  ) {
+    res.status(401).json({ error: "Логин или пароль не подошли" });
+    return;
+  }
+  const persona =
+    demoPersonas.find((p) => p.key === body.persona) ??
+    demoPersonas.find((p) => p.role === "client")!;
+  if (process.env.DEMO_PERSONAS === "1") {
+    ensureDemoSchema(db);
+    const seeded = db
+      .prepare("SELECT is_demo,role FROM users WHERE id=?")
+      .get(persona.userId) as { is_demo: number; role: string } | undefined;
+    if (seeded?.is_demo === 1 && seeded.role === persona.role) {
+      cookie(res, session(persona.userId));
+      res.json({ ok: true, destination: persona.role === "manager" ? "/bank" : "/application" });
+      return;
+    }
+  }
+  const client = persona.role === "client" ? persona : demoPersonas.find((p) => p.role === "client")!;
+  const id = createUser("demo-" + randomUUID(), randomUUID(), {
+    name: client.company,
+    form: client.form,
+    stage: "operating",
+    sector: client.sector,
+    registered: true,
+    ageBand: "3–5 лет",
+    result: "Прибыль",
+    debt: "Нет",
+    intent: "Подобрать финансирование",
+  });
+  const s = stateOf(id);
+  s.profile.source = "Синтетический демонстрационный сценарий";
+  s.profile.registeredAt = client.registeredAt;
+  s.preferences.tourDone = true;
+  saveState(id, s);
+  cookie(res, session(id));
+  // Чистая компания начинает с анкеты: кабинет открывается после финансирования (guardJourneyPage).
+  res.json({ ok: true, destination: "/apply" });
 });
 // Учётки жюри из JURY_ACCOUNTS="79000000001:пароль;79000000002:пароль": заводятся при старте, если их ещё нет.
 for (const [index, pair] of (process.env.JURY_ACCOUNTS ?? "").split(";").filter(Boolean).entries()) {

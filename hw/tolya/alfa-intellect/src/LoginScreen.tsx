@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Building2, FileCheck2, Scale, Smartphone } from "lucide-react";
 import { Brand, Button, Badge } from "./ui";
 import { api } from "./api";
-import type { PersonaSummary } from "../shared/demo-personas";
+import { demoPersonas, type PersonaSummary } from "../shared/demo-personas";
 
 export const JURY_LOGIN = "gitmergealpha";
 export const JURY_PASSWORD = "alphahack2026";
@@ -27,11 +27,12 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
     api<{ personas: PersonaSummary[] }>("/demo-personas")
       .then((r) => setPersonas(r.personas))
       .catch(() => setPersonas([]));
+    // Без засеянной базы те же компании открываются чистыми тестовыми: сервер заведёт их при входе.
   }, []);
   const juryEnter = (login: string, pass: string, persona?: string) => {
     setError("");
     setPicked(persona ?? "phone");
-    api<{ destination: string }>("/demo-personas/login", { login, password: pass, persona })
+    api<{ destination: string }>("/auth/jury", { login, password: pass, persona })
       .then((r) => location.assign(r.destination))
       .catch((err: Error) => {
         setPicked("");
@@ -79,26 +80,19 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
               Логин <code>{JURY_LOGIN}</code>, пароль <code>{JURY_PASSWORD}</code>.
               Или сразу выберите компанию:
             </p>
-            {personas.length ? (
-              <div className="login-test-list">
-                {personas.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    aria-busy={picked === p.key}
-                    onClick={() => juryEnter(JURY_LOGIN, JURY_PASSWORD, p.key)}
-                  >
-                    <span>{p.company}</span>
-                    <small>{p.description}</small>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="fine-print">
-                Тестовые компании не подготовлены: на сервере нужен
-                DEMO_PERSONAS=1 и npx tsx scripts/seed-demo.ts.
-              </p>
-            )}
+            <div className="login-test-list">
+              {(personas.length ? personas : demoPersonas.filter((p) => p.role === "client")).map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  aria-busy={picked === p.key}
+                  onClick={() => juryEnter(JURY_LOGIN, JURY_PASSWORD, p.key)}
+                >
+                  <span>{p.company}</span>
+                  <small>{p.description}</small>
+                </button>
+              ))}
+            </div>
           </div>
           <div className="login-providers">
             {providers.map(([id, name, mark]) => (
