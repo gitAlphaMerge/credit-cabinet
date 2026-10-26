@@ -106,6 +106,7 @@ services:
       TEAM_AGENT_URL: http://agent:8090
       FEEDBACK_EXPORT_TOKEN: ${FEEDBACK_EXPORT_TOKEN:-}
       EGR_PROVIDER: mock   # ЕГРЮЛ/ЕГРИП без платных ключей: синтетические компании с пометкой «мок»
+      DEMO_DATA_ROOT: /app/demo-data   # выписки компаний жюри (data/v3/*/seed_0), см. server/jury-cabinets.ts
     depends_on:
       api:
         condition: service_started
@@ -120,6 +121,7 @@ services:
     volumes:
       - alfa_data:/app/var
       - ./data/catalog:/app/catalog:ro
+      - ./data/v3:/app/demo-data/v3:ro
     mem_limit: 512m   # пик 278 MiB при 200 клиентах (docs/qa/LOAD.md), 256 под жюри мало
 
 volumes:
