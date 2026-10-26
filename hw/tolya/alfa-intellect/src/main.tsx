@@ -13,6 +13,9 @@ import "./journey-workspace.css";
 import "./c10-polish.css";
 import "./side-rail.css";
 import "./graphite.css";
+import "./hero-title.css";
+import { startTabIdentity } from "./tabIdentity";
+startTabIdentity();
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>

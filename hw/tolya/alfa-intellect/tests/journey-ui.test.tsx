@@ -9,7 +9,8 @@ test("Landing restores the original HeroFinance pattern and infographic without 
   const html = renderToStaticMarkup(<Landing go={() => {}} />);
   assert.match(html, /Большие планы/);
   assert.match(html, /Подобрать финансирование/);
-  assert.match(html, /Решение по кредиту — без звонков/);
+  assert.match(html, /Умный кредитный кабинет/);
+  assert.ok(!html.includes("Решение по кредиту — без звонков"));
   assert.ok(!html.includes("Без банковских заявок"));
   assert.match(html, /finance-theatre with-pattern/);
   assert.match(html, /finance-scene-card/);

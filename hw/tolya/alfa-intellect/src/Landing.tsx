@@ -85,27 +85,16 @@ export function Landing({ go }: { go: (s: string) => void }) {
       <main>
         <section className="hero wrap hero-live-pattern">
           <div className="hero-copy">
-            <h1>
-              Большие планы.
-              <br />
-              Понятные <span>финансы.</span>
+            <div className="hero-kicker">Большие планы. Понятные финансы.</div>
+            <h1 className="hero-title" aria-label="Умный кредитный кабинет">
+              <span className="hero-word" aria-hidden="true">Умный</span>
+              <span className="hero-word" aria-hidden="true">кредитный</span>
+              <span className="hero-word hero-word-brand" aria-hidden="true">кабинет</span>
             </h1>
-            <p>
-              От подбора финансирования до последнего платежа — с вниманием к
-              вашему бизнесу.
-            </p>
             <div className="hero-actions">
               <Button onClick={() => go("/onboarding")}>
                 Подобрать финансирование <ArrowRight size={19} />
               </Button>
-            </div>
-            <div className="hero-meta">
-              <span>
-                <Check size={15} /> Решение по кредиту — без звонков
-              </span>
-              <span>
-                <Clock3 size={15} /> Начните с семи вопросов
-              </span>
             </div>
           </div>
           <HeroFinance pattern={<LivePattern showCaption={false} />} />
