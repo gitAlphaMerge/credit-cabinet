@@ -4,6 +4,7 @@ import { App } from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
 import "./styles.css";
 import "./redesign.css";
+import "./vendor/animate-keyframes.css";
 import "./motion.css";
 import "./chat.css";
 import "./cabinet.css";

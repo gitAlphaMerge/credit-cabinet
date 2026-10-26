@@ -29,7 +29,9 @@ import {
   clearFinancingDraft,
   type FinancingDraft,
 } from "./financing-draft";
+import { useScreenReveal } from "./motion";
 export function App() {
+  useScreenReveal();
   const [path, setPath] = useState(() => cabinetRoute(location.pathname)),
     [state, setState] = useState<AppState | null>(null),
     [config, setConfig] = useState<any>({}),

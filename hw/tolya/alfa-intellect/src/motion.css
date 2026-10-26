@@ -1018,3 +1018,69 @@
     width: 100%;
   }
 }
+
+/* Появление экранов (useScreenReveal, useReveal). Кейфреймы ai-* — src/vendor/animate-keyframes.css.
+   Двигаем через translate и scale, а не transform: у карточек свои transform и hover. */
+:root {
+  --ai-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ai-dur: 340ms;
+}
+[data-ai-reveal="wait"] {
+  opacity: 0;
+}
+[data-ai-reveal="in"] {
+  animation: ai-rise var(--ai-dur) var(--ai-ease) var(--ai-d, 0ms) both;
+}
+@keyframes ai-rise {
+  from {
+    opacity: 0;
+    translate: var(--ai-dx, 0px) 14px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.ai-reveal {
+  opacity: 0;
+}
+.ai-reveal.ai-in {
+  animation: ai-fadeIn var(--ai-dur) var(--ai-ease) both;
+}
+/* Заголовок по словам: слово поднимается на свою высоту; внутри ждущего блока стоит на паузе. */
+.ai-word {
+  display: inline-block;
+  animation: ai-fadeInUp 360ms var(--ai-ease) calc(var(--ai-d, 0ms) + var(--ai-w, 0) * 50ms) both;
+}
+[data-ai-reveal="wait"] .ai-word {
+  animation-play-state: paused;
+}
+/* Живой узор: фигуры по одной, построчно, слева направо. */
+.live-pattern-box.ai-in [data-lp-tile] {
+  animation: ai-fadeIn 280ms var(--ai-ease) calc(var(--ai-t, 0) * 35ms) both;
+}
+.live-pattern-box.ai-reveal:not(.ai-in) [data-lp-tile] {
+  opacity: 0;
+}
+.live-pattern-box.ai-reveal {
+  opacity: 1;
+}
+/* Зерно: статичное, поверх фона, не ловит клики. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ai-reveal],
+  .ai-reveal,
+  .ai-word,
+  .live-pattern-box [data-lp-tile] {
+    opacity: 1 !important;
+    translate: none !important;
+  }
+}

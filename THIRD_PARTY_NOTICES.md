@@ -59,6 +59,7 @@ Overrides package.json: exceljs → uuid 11.1.1; mammoth → argparse 2.0.1. Э�
 | DejaVu Sans и DejaVu Sans Bold 2.37 | `hw/tolya/alfa-intellect/server/assets/fonts/` | Шрифт PDF договора и графика. Лицензия Bitstream Vera Fonts / DejaVu (свободная, разрешает распространение и встраивание); файлы взяты из дистрибутива matplotlib |
 | Системные шрифты кабинета | CSS кабинета | системные шрифты не поставляются как активы |
 | Локальные SVG/PNG и бренд Альфа | `services/frontend/`, `v2/img`, favicon кабинета | Не npm-пакеты; права на бренд и происхождение изображений не определены package-lock. Требуется подтверждение владельца, см. CLEANUP |
+| animate.css 4.1.1 (подмножество keyframes: fadeIn, fadeInUp, zoomIn, backInUp, префикс `ai-`) | `hw/tolya/alfa-intellect/src/vendor/animate-keyframes.css` | MIT, © 2020 Animate.css / Daniel Eden; источник https://github.com/animate-css/animate.css (тег v4.1.1, файл с jsDelivr `animate.css@4.1.1`). Шапка лицензии сохранена в файле, npm-пакет не ставится |
 | dc-lite.js | `services/frontend/v2/dc-lite.js` | Локальный мост классов экрана к petite-vue, отдельного стороннего пакета в коде не указано |
 
 Лицензии petite-vue, Mermaid и Manrope названы на уровне проектов; локальные полные тексты и подтверждённые версии для всех ассетов не собраны. Лицензии npm далее отражают только metadata lock-файла; сохраните тексты LICENSE/NOTICE из поставляемых пакетов при финальной комплектации.

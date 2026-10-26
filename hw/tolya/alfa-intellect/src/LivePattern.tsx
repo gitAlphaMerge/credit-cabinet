@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { useReveal } from "./motion";
 
 // Данные сцен и геометрия: services/frontend/live-pattern.js.
 export const COLORS = {
@@ -279,6 +280,7 @@ export function LivePattern({
 }: { showCaption?: boolean } = {}) {
   const svg = useRef<SVGSVGElement>(null);
   const caption = useRef<HTMLParagraphElement>(null);
+  const reveal = useReveal<HTMLDivElement>();
   useEffect(() => {
     if (svg.current && caption.current)
       return animateLivePattern(svg.current, caption.current, showCaption);
@@ -288,7 +290,7 @@ export function LivePattern({
       className="live-pattern"
       aria-label="Живой узор: магазин, кофейня, грузоперевозки и развитие бизнеса"
     >
-      <div className="live-pattern-box">
+      <div ref={reveal.ref} className={"live-pattern-box " + reveal.className}>
         <svg ref={svg} viewBox="0 0 384 384" aria-hidden="true">
           <g>
             {grids[0].map((t, i) => (
@@ -307,6 +309,7 @@ export function LivePattern({
               <g
                 key={i}
                 data-lp-tile={i}
+                style={{ "--ai-t": i } as CSSProperties}
                 transform={`translate(${(i % 6) * 64} ${Math.floor(i / 6) * 64})`}
               >
                 <path
