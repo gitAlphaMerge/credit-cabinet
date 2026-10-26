@@ -276,6 +276,23 @@ app.post("/api/auth/demo", (req, res) => {
   cookie(res, session(id));
   res.json({ ok: true });
 });
+// Учётки жюри из JURY_ACCOUNTS="79000000001:пароль;79000000002:пароль": заводятся при старте, если их ещё нет.
+for (const [index, pair] of (process.env.JURY_ACCOUNTS ?? "").split(";").filter(Boolean).entries()) {
+  const [phone, password] = pair.split(":").map((x) => x.trim());
+  if (!/^7\d{10}$/.test(phone) || !password || password.length < 8) continue;
+  if (db.prepare("SELECT id FROM users WHERE phone=?").get(phone)) continue;
+  createUser(phone, password, {
+    name: "ООО «Жюри " + (index + 1) + "»",
+    form: "ООО",
+    stage: "operating",
+    sector: "Производство",
+    registered: true,
+    ageBand: "3–5 лет",
+    result: "Прибыль",
+    debt: "Нет",
+    intent: "Подобрать финансирование",
+  });
+}
 app.post("/api/auth/logout", (req, res) => {
   logout(token(req));
   cookie(res, "", 0);

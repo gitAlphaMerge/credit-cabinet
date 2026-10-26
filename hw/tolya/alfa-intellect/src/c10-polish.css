@@ -214,3 +214,4 @@
 @media (prefers-reduced-motion: reduce) {
   .login-provider { transition: none; }
 }
+.login-error { margin: 0; color: #ef3124; font-size: 14px; }

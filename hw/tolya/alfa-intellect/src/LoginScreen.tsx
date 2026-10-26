@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { ArrowRight, Building2, FileCheck2, Scale, Smartphone } from "lucide-react";
 import { Brand, Button, Badge } from "./ui";
+import { api } from "./api";
 import { ThemeToggle } from "./ThemeToggle";
 import { LivePattern } from "./LivePattern";
 
-// Демо-экран входа: внешние провайдеры не подключены, любой способ ведёт в кабинет текущей сессии.
+// Вход: провайдеры — заглушки в кабинет текущей сессии; телефон и пароль — настоящий /api/auth/login.
 const providers = [
   ["gosuslugi", "Госуслуги", "Г"],
   ["vk", "VK ID", "VK"],
@@ -13,6 +14,8 @@ const providers = [
 
 export function LoginScreen({ go }: { go: (p: string) => void }) {
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [picked, setPicked] = useState("");
   const enter = (via: string) => {
     setPicked(via);
@@ -72,7 +75,14 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
             className="login-phone"
             onSubmit={(e) => {
               e.preventDefault();
-              enter("phone");
+              setError("");
+              setPicked("phone");
+              api("/auth/login", { phone, password })
+                .then(() => location.assign("/cabinet"))
+                .catch((err: Error) => {
+                  setPicked("");
+                  setError(err.message || "Телефон или пароль не подошли");
+                });
             }}
           >
             <label className="field">
@@ -89,13 +99,29 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
                 />
               </span>
             </label>
-            <Button>
-              Получить код <ArrowRight size={18} />
+            <label className="field">
+              <span>Пароль</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            {error && (
+              <p className="login-error" role="alert">
+                {error}
+              </p>
+            )}
+            <Button disabled={picked === "phone"}>
+              Войти <ArrowRight size={18} />
             </Button>
           </form>
           <p className="fine-print">
-            Прототип для жюри: внешние сервисы не подключены, данные никуда не
-            передаются. Вход открывает кабинет текущей сессии.
+            Прототип для жюри: Госуслуги, VK ID и Яндекс ID не подключены и
+            открывают кабинет текущей сессии. По телефону и паролю вход в
+            учётку жюри на сервере.
           </p>
         </section>
       </main>
