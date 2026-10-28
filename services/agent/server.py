@@ -277,9 +277,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._turn(session_id, text, _card(payload.get("card")), mode=mode)
 
     def _turn(self, session_id, text, card, client_id=None, mode=None):
+        # сессию создаёт один клиент и только он её продолжает: UUID без владельца не пропуск к чужому диалогу
+        fresh = session_id not in SESSIONS and not _session_path(session_id).exists()
         if session_id not in SESSIONS:
             SESSIONS[session_id] = _load_session(session_id, card)
         state = SESSIONS[session_id]
+        owner = state.get("_owner")
+        if owner is None and client_id and fresh:
+            state["_owner"] = owner = client_id
+        if owner != client_id and (owner or client_id):
+            self._json(403, {"error": "forbidden"})
+            return
         if card.get("_privacy_profile"):
             state["_privacy_name_hashes"] = sorted(set(state.get("_privacy_name_hashes", [])) |
                 {privacy.name_hash(name) for name in privacy.name_values(card["_privacy_profile"])})

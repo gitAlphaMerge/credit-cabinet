@@ -110,9 +110,12 @@ def check(text: str, view: dict | None, need: dict, expect_question: bool = True
     # Rates and durations have distinct provenance, even when their values coincide.
     rate_values = [float(v.replace(",", ".")) for v in re.findall(
         r"(?:ставка|комиссия|страховка)\s+(\d+(?:[.,]\d+)?)\s*(?:%|процент)", numeric)]
-    rate_allowed = numbers(client_text)
-    if view and isinstance(view.get("numbers", {}).get("rate_used"), (int, float)):
-        rate_allowed.append(view["numbers"]["rate_used"] * 100)
+    # Ставка банка только из расчёта; слова клиента её не подтверждают, пока расчёта нет.
+    bank_rates = [v * 100 for v in [(view or {}).get("numbers", {}).get("rate_used")]
+                  if isinstance(v, (int, float))]
+    bank_rates += [float(v) for v in (view or {}).get("rates", []) if isinstance(v, (int, float))]
+    # Карточка заявки (ключ rates) авторитетна и без ставок: слова клиента ставку не задают.
+    rate_allowed = bank_rates if (bank_rates or "rates" in (view or {})) else numbers(client_text)
     if any(not _match(v, rate_allowed) for v in rate_values):
         bad.append("ставка не из расчёта или слов клиента")
     if re.search(r"(?:выдача|деньги поступят|перевед[её]м|перечислим).{0,30}(?:завтра|сегодня|недели)", text, re.I):

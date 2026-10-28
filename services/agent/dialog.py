@@ -60,7 +60,9 @@ def application_turn(state: dict, text: str, application: dict, mode: str | None
     for option in application.get("alternatives", []):
         values.extend(v for v in option.values() if isinstance(v, (int, float)) and not isinstance(v, bool))
     view = {"status": "need_manager" if application.get("stops_fired") else "application",
-            "numbers": dict(enumerate(values))}
+            "numbers": dict(enumerate(values)),
+            "rates": [o["rate_annual_pct"] for o in application.get("alternatives", [])
+                      if isinstance(o.get("rate_annual_pct"), (int, float))]}
     violations = guard.check(reply, view, {})
     if violations:
         logging.getLogger(__name__).warning("application template rejected: %s", violations)

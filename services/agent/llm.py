@@ -56,11 +56,16 @@ def available() -> bool:
 USAGE: list = []  # usage вызовов хода, server.py пишет в лог и чистит
 
 
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+
+
 def chat(system: str, user: str, model: str | None = None, as_json: bool = False, temperature: float = 0.0,
          max_tokens: int = 600) -> str:
     url = base_url()
     if not url:
         raise RuntimeError("LLM disabled")
+    # единственная граница к внешней модели: email клиента не уходит, откуда бы он ни пришёл (история, память, реплика)
+    system, user = _EMAIL.sub("[email]", system), _EMAIL.sub("[email]", user)
     body = {"model": model or os.getenv("AGENT_LLM_MODEL", MODEL), "temperature": temperature, "max_tokens": max_tokens,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
     if "openrouter.ai" in base_url():
