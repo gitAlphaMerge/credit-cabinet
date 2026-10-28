@@ -54,6 +54,7 @@
 .about .about-team em { font-style: normal; font-weight: 700; color: var(--theme-red); font-size: 0.95rem; }
 .about .about-school { color: var(--theme-ink); font-size: 0.9rem; font-weight: 600; margin-top: 6px; line-height: 1.35; }
 .about .about-built { color: var(--theme-muted); font-size: 0.9rem; line-height: 1.45; margin-top: 4px; }
+.about .about-cv { color: var(--theme-ink); display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-size: 0.9rem; margin-top: 8px; }
 .about .about-foot { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--theme-muted); border-top: 1px solid var(--theme-line); padding-top: 20px; }
 .about .about-foot a { color: var(--theme-ink); display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
 @keyframes about-rise { from { opacity: 0; transform: translateY(18px); } }

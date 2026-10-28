@@ -451,9 +451,7 @@ export function Chat({
                   </div>
                 )}
               {!!chat?.messages.length && !busy && feedbackLoaded && <ConversationFeedback key={chat.id}
-                eligible={chat.messages.some(m => m.role === "assistant" &&
-                  typeof (m as typeof m & {status?:string}).status === "string" &&
-                  (m as typeof m & {status?:string}).status !== "collecting")}
+                eligible={false}
                 done={feedback.some(f => f.kind === "conversation")} disabled={feedbackSaving} save={saveFeedback} />}
             </div>
           </div>

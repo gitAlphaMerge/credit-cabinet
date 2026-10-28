@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { money } from "../api";
 import { formatRate } from "../format-rate";
 import { Illustration, StatusIllustration, ProductIllustration, DocumentIllustration, CheckIllustration } from "../Illustration";
@@ -52,7 +52,85 @@ export function ManagerAccess({ role }: { role?: string }) {
     </main>
   );
 }
+type StatsDay = {
+  date: string;
+  forwarded: number;
+  rejected: number;
+  requested: number;
+};
+// Панель продуктивности: решения менеджера за 7 дней из журнала заявок, ничего не дорисовывается.
+function ManagerStats({ revision }: { revision: number }) {
+  const [data, setData] = useState<{
+    days: StatsDay[];
+    avgMinutes: number | null;
+  } | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/bank/stats", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => live && setData(d))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [revision]);
+  if (!data) return null;
+  const sum = (key: "forwarded" | "rejected" | "requested") =>
+    data.days.reduce((n, d) => n + d[key], 0);
+  const forwarded = sum("forwarded"),
+    rejected = sum("rejected"),
+    requested = sum("requested"),
+    decided = forwarded + rejected + requested,
+    peak = Math.max(1, ...data.days.map((d) => d.forwarded + d.rejected + d.requested));
+  return (
+    <section className="manager-productivity" aria-label="Продуктивность за неделю">
+      <div className="manager-prod-head">
+        <h2>Моя продуктивность</h2>
+        <small>решения за 7 дней</small>
+      </div>
+      {decided === 0 && (
+        <p className="manager-prod-empty">
+          Пока нет решений за неделю: график появится после первого решения по заявке.
+        </p>
+      )}
+      <div className="manager-prod-body">
+        <div className="manager-prod-bars" role="img" aria-label={`Решений за неделю: ${decided}`}>
+          {data.days.map((d) => {
+            const all = d.forwarded + d.rejected + d.requested;
+            return (
+              <div key={d.date} className="manager-prod-day" title={`${d.date}: ${all}`}>
+                <div className="manager-prod-stack" style={{ height: `${(all / peak) * 100}%` }}>
+                  <i className="fwd" style={{ flex: d.forwarded }} />
+                  <i className="req" style={{ flex: d.requested }} />
+                  <i className="rej" style={{ flex: d.rejected }} />
+                </div>
+                <span>{d.date.slice(8)}.{d.date.slice(5, 7)}</span>
+              </div>
+            );
+          })}
+        </div>
+        <dl className="manager-prod-kpi">
+          <div>
+            <dt>Решено</dt>
+            <dd>{decided}</dd>
+          </div>
+          <div>
+            <dt>Передано / отказ</dt>
+            <dd>
+              {forwarded} / {rejected}
+            </dd>
+          </div>
+          <div>
+            <dt>Среднее до решения</dt>
+            <dd>{data.avgMinutes === null ? "нет данных" : waitLabel(data.avgMinutes)}</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+  );
+}
 type ViewProps = {
+  stats?: ReactNode;
   rows: QueueItem[];
   selected: string;
   detail: ApplicationDetail | null;
@@ -97,6 +175,7 @@ export function ManagerView(p: ViewProps) {
           Обновить очередь
         </button>
       </header>
+      {p.stats}
       {!p.loading && p.rows.length > 0 && (
         <div className="manager-stats" aria-label="Сводка очереди">
           <div className="manager-stat">
@@ -723,6 +802,7 @@ export function ManagerWorkspace() {
           />
         )}
       <ManagerView
+        stats={<ManagerStats revision={revision} />}
         rows={rows}
         selected={selected}
         detail={detail}

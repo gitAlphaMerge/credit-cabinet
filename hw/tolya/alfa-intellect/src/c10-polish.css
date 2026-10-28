@@ -272,6 +272,100 @@
 .roadmap-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--theme-red) 12%, transparent); color: var(--theme-red); }
 @media (max-width: 860px) { .roadmap-grid { grid-template-columns: 1fr; } }
 
+/* Решение: фон и чернила всегда берутся из одной палитры. */
+.mvp-no-credit {
+  margin-bottom: 24px;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--theme-info-soft);
+  color: var(--theme-ink);
+}
+.mvp-no-credit h2 { color: inherit; }
+.mvp-decision-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  margin: 0 0 16px;
+}
+.mvp-decision-heading .illustration { display: block; margin: 0; }
+.mvp-decision-heading small { color: var(--theme-muted); font-weight: 700; letter-spacing: .08em; }
+
+/* Шапка лендинга: единая геометрия кнопок и компактный вход в демо. */
+.brand-mark { flex: none; width: 32px; height: 40px; padding: 0; color: var(--theme-ink); }
+.landing .public-header { gap: 20px; }
+.landing .public-header nav { gap: 22px; }
+.landing .journey-header-tools { gap: 8px; }
+.landing .journey-header-tools > .button {
+  min-height: 42px;
+  padding: 9px 15px;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+.landing .journey-header-tools > .button.secondary {
+  border-color: var(--theme-line);
+  background: transparent;
+}
+.landing-demo-menu { position: relative; }
+.landing-demo-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 42px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  color: var(--theme-ink);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+.landing-demo-menu > summary::-webkit-details-marker { display: none; }
+.landing-demo-menu[open] > summary,
+.landing-demo-menu > summary:hover { background: var(--theme-surface-soft); }
+.landing-demo-menu[open] > summary svg { rotate: 180deg; }
+.landing-demo-options {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 260px;
+  padding: 8px;
+  border: 1px solid var(--theme-line);
+  border-radius: 14px;
+  background: var(--theme-surface);
+  color: var(--theme-ink);
+  box-shadow: var(--shadow-card);
+}
+.landing-demo-options button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.landing-demo-options button:hover,
+.landing-demo-options button:focus-visible { background: var(--theme-surface-soft); }
+.landing-demo-options small { display: block; padding: 8px 12px 4px; color: var(--theme-muted); line-height: 1.4; }
+@media (max-width: 1120px) { .landing .public-header nav { display: none; } }
+@media (max-width: 620px) {
+  .landing .public-header { padding-inline: 16px; gap: 8px; }
+  .landing .public-header .brand { gap: 0; }
+  .landing .public-header .brand > span:last-child { display: none; }
+  .landing .journey-header-tools { gap: 4px; }
+  .landing .journey-header-tools > .button { min-height: 40px; padding: 8px 10px; }
+  .landing .journey-header-tools > .button svg { display: none; }
+  .landing-demo-menu > summary { min-height: 40px; padding-inline: 8px; }
+}
+
 /* Профиль: настройки */
 .profile-settings { margin-top: 20px; }
 .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }

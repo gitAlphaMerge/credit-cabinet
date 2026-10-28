@@ -9,6 +9,7 @@ type Member = {
   school: string;
   built: string;
   photo?: string;
+  cv?: string;
 };
 
 // Вуз Артёма: резюме от 16.09 (ростер case-champion). Подпись «колледж» оставлена как в резюме.
@@ -16,21 +17,22 @@ const TEAM: Member[] = [
   {
     name: "Саша",
     role: "Капитан",
-    school: "Финансовый университет",
+    school: "Финансовый университет · 3 курс · управление рисками и страхованием",
     built: "Агент, контракты, золотые сценарии, дизайн и выкатка",
     photo: "/team/sasha.jpg",
+    cv: "/team/cv/sasha.pdf",
   },
   {
     name: "Лиза",
     role: "Ядро скоринга",
-    school: "НИУ ВШЭ · прикладное машинное обучение",
+    school: "НИУ ВШЭ · 3 курс · прикладное машинное обучение (ПМО)",
     built: "Ядро, ступеньки, скоркарта, пороги и коды причин",
     photo: "/team/liza.jpg",
   },
   {
     name: "Толя",
     role: "Кабинет и продукт",
-    school: "Финансовый университет · УФРС-24.1",
+    school: "Финансовый университет · 3 курс · управление финансовыми рисками",
     built:
       "Кабинет alfa-intellect, концепт, инструменты, логика скоркарты, документы, финмодель",
     photo: "/team/tolya.jpg",
@@ -38,15 +40,17 @@ const TEAM: Member[] = [
   {
     name: "Артём",
     role: "Бэкенд",
-    school: "МГУТУ · колледж",
+    school: "МГУТУ · 4 курс · информационные технологии и программирование, веб-разработка",
     built: "API на Go, провода между сервисами, хранилище, безопасность, Docker",
+    cv: "/team/cv/artem.pdf",
   },
   {
     name: "Тоня",
     role: "Концепт и тексты",
-    school: "Финансовый университет · ФРФТ, 3 курс",
+    school: "Финансовый университет · 3 курс · финансовые рынки и финансовые технологии",
     built: "Концепт, сценарий разговора, тексты, питч",
     photo: "/team/tonya.jpg",
+    cv: "/team/cv/tonya.pdf",
   },
 ];
 
@@ -293,13 +297,18 @@ export function About({ go }: { go: (p: string) => void }) {
                 <em>{m.role}</em>
                 <span className="about-school">{m.school}</span>
                 <span className="about-built">{m.built}</span>
+                {m.cv && (
+                  <a className="about-cv" href={m.cv} target="_blank" rel="noreferrer">
+                    Резюме <ArrowUpRight size={14} />
+                  </a>
+                )}
               </li>
             ))}
           </ul>
         </section>
 
         <footer className="about-foot">
-          <span>Альфа-Хак 2026 · команда gitAlphaMerge</span>
+          <span>Альфа-Хак 2026 · команда git merge alpha</span>
           <a href="https://github.com/gitAlphaMerge/credit-cabinet" target="_blank" rel="noreferrer">
             Код на GitHub <ArrowUpRight size={14} />
           </a>

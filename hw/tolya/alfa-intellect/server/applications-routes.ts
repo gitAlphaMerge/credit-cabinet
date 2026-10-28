@@ -151,6 +151,48 @@ applicationsRouter.get("/bank/rejected", (_req, res) => {
     }),
   );
 });
+// Продуктивность менеджера: только реальные события журнала за 7 дней (по Москве), без подмешанных цифр.
+applicationsRouter.get("/bank/stats", (_req, res) => {
+  const DAY = 86_400_000,
+    day = (ms: number) =>
+      new Date(ms).toLocaleDateString("sv-SE", { timeZone: "Europe/Moscow" });
+  const now = Date.now(),
+    keys = Array.from({ length: 7 }, (_, i) => day(now - (6 - i) * DAY));
+  const rows = db
+    .prepare(
+      `SELECT e.event, e.at, a.queued_at FROM application_events e
+       JOIN applications a ON a.id=e.application_id
+       WHERE e.actor_role='manager' AND e.at>=?
+         AND e.event IN ('send_to_underwriting','reject','request_info')`,
+    )
+    .all(new Date(now - 8 * DAY).toISOString()) as {
+    event: string;
+    at: string;
+    queued_at: string | null;
+  }[];
+  const days = keys.map((date) => ({
+    date,
+    forwarded: 0,
+    rejected: 0,
+    requested: 0,
+  }));
+  const waits: number[] = [];
+  for (const r of rows) {
+    const bucket = days.find((d) => d.date === day(Date.parse(r.at)));
+    if (!bucket) continue;
+    if (r.event === "send_to_underwriting") bucket.forwarded++;
+    else if (r.event === "reject") bucket.rejected++;
+    else bucket.requested++;
+    const wait = r.queued_at ? Date.parse(r.at) - Date.parse(r.queued_at) : NaN;
+    if (Number.isFinite(wait) && wait >= 0) waits.push(wait / 60_000);
+  }
+  res.json({
+    days,
+    avgMinutes: waits.length
+      ? Math.round(waits.reduce((a, b) => a + b, 0) / waits.length)
+      : null,
+  });
+});
 // Keep application errors local; the legacy app error handler maps generic failures to 400.
 applicationsRouter.use(
   (

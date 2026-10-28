@@ -1,5 +1,5 @@
 import type { ReactNode, ButtonHTMLAttributes } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -181,7 +181,7 @@ export function Modal({
 export function LineChart({
   values,
   labels = [],
-  color = "#ef3124",
+  color = "var(--theme-red)",
   height = 150,
   description = "Динамика остатка основного долга",
 }: {
@@ -191,6 +191,7 @@ export function LineChart({
   height?: number;
   description?: string;
 }) {
+  const gradientId = useId().replace(/:/g, "");
   const min = Math.min(0, ...values),
     max = Math.max(1, ...values),
     range = max - min;
@@ -205,7 +206,7 @@ export function LineChart({
       <svg viewBox={`0 0 600 ${height}`} role="img" aria-label={description}>
         <defs>
           <linearGradient
-            id={"fade" + color.slice(1)}
+            id={"fade" + gradientId}
             x1="0"
             y1="0"
             x2="0"
@@ -222,13 +223,13 @@ export function LineChart({
             x2="580"
             y1={height * v}
             y2={height * v}
-            stroke="#e9ecf1"
+            stroke="var(--theme-line)"
             strokeDasharray="4 5"
           />
         ))}
         <polygon
           points={`20,${height - 15} ${points} 580,${height - 15}`}
-          fill={`url(#fade${color.slice(1)})`}
+          fill={`url(#fade${gradientId})`}
         />
         <polyline
           points={points}
