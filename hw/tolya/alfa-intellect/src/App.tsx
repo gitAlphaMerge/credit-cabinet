@@ -400,7 +400,7 @@ export function App() {
             </div>
           </header>
           {page === "bank" ? (
-            <>
+            <div className="manager-page">
               <ManagerAccess role={config.role} />
               {config.role === "manager" && <MvpManager />}
             </div>

@@ -33,6 +33,16 @@ function waiting(value?: string | null) {
     return "Время в очереди неизвестно";
   return `В очереди ${Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000))} мин.`;
 }
+const queuedMinutes = (value?: string | null) =>
+  value && Number.isFinite(Date.parse(value))
+    ? Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000))
+    : null;
+const waitLabel = (min: number | null) =>
+  min === null
+    ? "нет данных"
+    : min < 60
+      ? `${min} мин`
+      : `${Math.floor(min / 60)} ч ${min % 60} мин`;
 export function ManagerAccess({ role }: { role?: string }) {
   return role === "manager" ? (
     <ManagerWorkspace />
@@ -145,6 +155,11 @@ export function ManagerView(p: ViewProps) {
   const limit = d?.limit_now_rub;
   const actionable =
     p.detail?.application.status === "queued" && !p.busy && !p.detailLoading;
+  const returned = p.rows.filter((r) => r.return_to_manager).length;
+  const waits = p.rows
+    .map((r) => queuedMinutes(r.application.queued_at))
+    .filter((m): m is number => m !== null);
+  const oldest = waits.length ? Math.max(...waits) : null;
   return (
     <main className="cabinet-v2 unified-cabinet manager-workspace">
       <header className="cv-heading">
@@ -235,7 +250,7 @@ export function ManagerView(p: ViewProps) {
                       r.application.client_name ||
                       "Имя клиента: нет данных"}
                   </strong>
-                  <span className="manager-stop">
+                  <span className="manager-stop manager-chip">
                     {p.tab === "rejected"
                       ? "Отказ"
                       : r.return_to_manager
@@ -284,8 +299,18 @@ export function ManagerView(p: ViewProps) {
             ) : !p.detail ? (
               <p>Выберите заявку, чтобы открыть досье</p>
             ) : (
-              <>
-                <h2><StatusIllustration status={p.detail.application.status} size={48} decorative /> Досье заявки</h2>
+              <div className="manager-dossier-body" key={p.detail.application.id}>
+                <div className="manager-dossier-head">
+                  <h2><StatusIllustration status={p.detail.application.status} size={48} decorative /> Досье заявки</h2>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={!actionable || !d}
+                    onClick={p.onMemo}
+                  >
+                    Подготовить записку андеррайтеру
+                  </button>
+                </div>
                 {d?.return_to_manager && (
                   <p className="manager-missing">вы просили вернуть</p>
                 )}
@@ -303,115 +328,171 @@ export function ManagerView(p: ViewProps) {
                     {d.age.months} мес., скоринг по реестру
                   </p>
                 )}
-                <button
-                  type="button"
-                  className="button secondary"
-                  disabled={!actionable || !d}
-                  onClick={p.onMemo}
-                >
-                  Подготовить записку андеррайтеру
-                </button>
-                <p>
+                <p className="manager-meta">
                   {labelCode(p.detail.application.status)}{" "}
                   · Лимит сейчас: {rub(limit)}
                 </p>
+                {d && (
+                  <div className="manager-summary">
+                    <div className="manager-kpi">
+                      <span>Просит клиент</span>
+                      <b>{rub(p.detail.application.amount)}</b>
+                    </div>
+                    <div className="manager-kpi">
+                      <span>Можно выдать</span>
+                      <b>{rub(limit)}</b>
+                    </div>
+                    {(() => {
+                      const n = d.N ?? d.readiness_n,
+                        m = d.M ?? d.readiness_m;
+                      return n != null && m != null && m > 0 && n >= 0 && n <= m ? (
+                        <div className="manager-kpi">
+                          <span>Условия банка</span>
+                          <b>
+                            {n}
+                            <small> из {m}</small>
+                          </b>
+                          <div className="cv-progress">
+                            <div>
+                              <i style={{ width: `${(100 * n) / m}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                    {(row?.red_reason || d.stops_fired?.length) && (
+                      <div className="manager-kpi manager-risk">
+                        <span>Главный риск</span>
+                        <b>
+                          {row?.red_reason
+                            ? explain(row.red_reason)
+                            : explain(d.stops_fired![0])}
+                        </b>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {!d ? (
                   <p>Досье пока нет</p>
                 ) : (
                   <>
-                    <h3><Illustration group="status" name="underwriting-checks" size={48} decorative /> Проверки комплаенса</h3>
-                    {!d.checks?.length ? (
-                      <p>Нет данных о проверках</p>
-                    ) : (
-                      d.checks.map((c, i) => (
-                        <article
-                          key={i}
-                          className={
-                            c.status === "ok"
-                              ? "manager-verified"
-                              : c.status === "unavailable"
-                                ? "manager-missing"
-                                : "manager-stop"
-                          }
-                        >
-                          <strong>
-                            <CheckIllustration check={c.key} size={32} decorative />{" "}
-                            {c.status === "ok"
-                              ? "Пройдено"
-                              : c.status === "unavailable"
-                                ? "Источник недоступен"
-                                : "Не пройдено"}
-                          </strong>
-                          :{" "}
-                          {safeDisplayText(checkText(c.managerText)) ||
-                            (c.reasonCode
-                              ? explain(c.reasonCode)
-                              : "Описание отсутствует")}
-                          <small>
-                            Источник: {c.source || "нет данных"} ·{" "}
-                            {timestamp(c.checkedAt)}
-                          </small>
-                        </article>
-                      ))
+                    <section className="manager-block">
+                      <h3><Illustration group="status" name="underwriting-checks" size={48} decorative /> Проверки комплаенса</h3>
+                      {!d.checks?.length ? (
+                        <p>Нет данных о проверках</p>
+                      ) : (
+                        <div className="manager-checks">
+                          {d.checks.map((c, i) => (
+                            <article
+                              key={i}
+                              className={
+                                c.status === "ok"
+                                  ? "manager-verified"
+                                  : c.status === "unavailable"
+                                    ? "manager-missing"
+                                    : "manager-stop"
+                              }
+                            >
+                              <strong className="manager-check-state">
+                                <CheckIllustration check={c.key} size={32} decorative />{" "}
+                                {c.status === "ok"
+                                  ? "Пройдено"
+                                  : c.status === "unavailable"
+                                    ? "Источник недоступен"
+                                    : "Не пройдено"}
+                              </strong>
+                              <span className="manager-check-text">
+                                {safeDisplayText(checkText(c.managerText)) ||
+                                  (c.reasonCode
+                                    ? explain(c.reasonCode)
+                                    : "Описание отсутствует")}
+                              </span>
+                              <small>
+                                Источник: {c.source || "нет данных"} ·{" "}
+                                {timestamp(c.checkedAt)}
+                              </small>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                    <div className="manager-trio">
+                      <section className="manager-block manager-block-ok">
+                        <h3>Что сверено</h3>
+                        <div className="manager-verified">
+                          {d.verified?.length ? (
+                            d.verified.map((v) => <p key={v}>{explain(v)}</p>)
+                          ) : (
+                            <p>Отдельный список сверенных данных не предоставлен</p>
+                          )}
+                        </div>
+                      </section>
+                      <section className="manager-block manager-block-warn">
+                        <h3>Чего не хватает</h3>
+                        <div className="manager-missing">
+                          {d.holes ? (
+                            d.holes.length ? (
+                              d.holes.map((h) => <p key={h}>{explain(h)}</p>)
+                            ) : (
+                              <p>Недостающих данных нет</p>
+                            )
+                          ) : (
+                            <p>Нет данных о полноте досье</p>
+                          )}
+                        </div>
+                      </section>
+                      <section className="manager-block manager-block-stop">
+                        <h3>Стоп-факторы</h3>
+                        {d.stops_fired?.some((s) => ["BKI_OVERDUE_30_PLUS", "BKI_OVERDUE_90_PLUS"].includes(s)) && <CheckIllustration check="bki" size={32} decorative />}
+                        <div className="manager-stop">
+                          {d.stops_fired ? (
+                            d.stops_fired.length ? (
+                              d.stops_fired.map((s) => <p key={s}>{explain(s)}</p>)
+                            ) : (
+                              <p>Стоп-факторов нет</p>
+                            )
+                          ) : (
+                            <p>Нет данных о стоп-факторах</p>
+                          )}
+                        </div>
+                      </section>
+                    </div>
+                    {!!d.documents?.length && (
+                      <section className="manager-block">
+                        <h3>Документы</h3>
+                        <div className="manager-docs">
+                          {d.documents.map((doc, i) => (
+                            <p
+                              key={i}
+                              className={
+                                doc.status === "fresh"
+                                  ? "manager-verified"
+                                  : "manager-missing"
+                              }
+                            >
+                              <DocumentIllustration category={doc.category} size={32} decorative />{" "}
+                              {explain(doc.category)}:{" "}
+                              {doc.status === "fresh"
+                                ? "Актуален"
+                                : doc.status === "expired"
+                                  ? "Устарел"
+                                  : "Дата неизвестна"}{" "}
+                              · {timestamp(doc.documentDate)}
+                            </p>
+                          ))}
+                        </div>
+                      </section>
                     )}
-                    <h3>Что сверено</h3>
-                    <div className="manager-verified">
-                      {d.verified?.length ? (
-                        d.verified.map((v) => <p key={v}>{explain(v)}</p>)
-                      ) : (
-                        <p>Отдельный список сверенных данных не предоставлен</p>
-                      )}
-                    </div>
-                    <h3>Чего не хватает</h3>
-                    <div className="manager-missing">
-                      {d.holes ? (
-                        d.holes.length ? (
-                          d.holes.map((h) => <p key={h}>{explain(h)}</p>)
-                        ) : (
-                          <p>Недостающих данных нет</p>
-                        )
-                      ) : (
-                        <p>Нет данных о полноте досье</p>
-                      )}
-                    </div>
-                    {d.documents?.map((doc, i) => (
-                      <p
-                        key={i}
-                        className={
-                          doc.status === "fresh"
-                            ? "manager-verified"
-                            : "manager-missing"
-                        }
-                      >
-                        <DocumentIllustration category={doc.category} size={32} decorative />{" "}
-                        {explain(doc.category)}:{" "}
-                        {doc.status === "fresh"
-                          ? "Актуален"
-                          : doc.status === "expired"
-                            ? "Устарел"
-                            : "Дата неизвестна"}{" "}
-                        · {timestamp(doc.documentDate)}
+                    <section className="manager-block">
+                      <h3>Тезисы клиента</h3>
+                      <p className="manager-objections">
+                        {d.client_objections ||
+                          row?.client_objections ||
+                          "Тезисы клиента не переданы"}
                       </p>
-                    ))}
-                    <h3>Стоп-факторы</h3>
-                    {d.stops_fired?.some((s) => ["BKI_OVERDUE_30_PLUS", "BKI_OVERDUE_90_PLUS"].includes(s)) && <CheckIllustration check="bki" size={32} decorative />}
-                    <div className="manager-stop">
-                      {d.stops_fired ? (
-                        d.stops_fired.length ? (
-                          d.stops_fired.map((s) => <p key={s}>{explain(s)}</p>)
-                        ) : (
-                          <p>Стоп-факторов нет</p>
-                        )
-                      ) : (
-                        <p>Нет данных о стоп-факторах</p>
-                      )}
-                    </div>
-                    <h3>Тезисы клиента</h3>
-                    <p className="manager-objections">
-                      {d.client_objections ||
-                        row?.client_objections ||
-                        "Тезисы клиента не переданы"}
-                    </p>
+                    </section>
+                    <div className="manager-decision">
+                    <h3 className="manager-decision-title">Ваше решение</h3>
                     <h3>Альтернативы</h3>
                     {!d.alternatives?.length ? (
                       <p>Альтернативы не предоставлены</p>
@@ -570,8 +651,10 @@ export function ManagerView(p: ViewProps) {
                         Отказать
                       </button>
                     </form>
+                    </div>
                   </>
                 )}
+                <section className="manager-block manager-journal">
                 <h3>Журнал событий</h3>
                 {!p.detail.events.length ? (
                   <p>Журнал пока пуст</p>
@@ -600,7 +683,8 @@ export function ManagerView(p: ViewProps) {
                     ))}
                   </ol>
                 )}
-              </>
+                </section>
+              </div>
             )}
           </section>
         </div>
