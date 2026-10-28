@@ -82,7 +82,7 @@ class ApplicationModelTests(unittest.TestCase):
 
     def test_legacy_mode_is_unchanged(self):
         with patch.object(server.llm, "available", return_value=True), patch.object(server.llm, "chat") as model:
-            code, result = self.request("info_requested")
+            code, result = self.request("closed")  # info_requested теперь свободный чат через модель; шаблон держат неизвестные статусы
             self.assertEqual(code, 200)
             self.assertEqual(result["source"], "template")
             model.assert_not_called()
