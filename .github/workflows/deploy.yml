@@ -1,6 +1,6 @@
 # Деплой: каждый пуш в main → код уезжает на сервер (Yandex Cloud) и пересобирается docker compose.
 # Сервер в GitHub не ходит: Actions сам заливает архив по SSH. Секреты: DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_USER.
-# Живой адрес: https://158-160-212-36.sslip.io (Caddy на сервере, вне репо; /api/* → api:8080).
+# Живой адрес: https://alphahack.ru (Caddy на сервере, вне репо). Старый sslip.io закрыт 410 после аудита 28.10.
 name: deploy
 
 on:
@@ -87,5 +87,5 @@ jobs:
       - name: Проверка, что поднялось
         run: |
           sleep 5
-          curl -sf --retry 5 --retry-delay 3 https://158-160-212-36.sslip.io/api/health
+          curl -sf --retry 5 --retry-delay 3 https://alphahack.ru/api/health
           curl -sf --retry 5 --retry-delay 3 --retry-connrefused http://158.160.212.36:4173/health
