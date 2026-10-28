@@ -1,0 +1,75 @@
+/* Главная: название продукта как объёмный заголовок. Глубина строится слоями text-shadow, без картинок. */
+.landing .hero-copy .hero-kicker {
+  margin: 0 0 6px;
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--theme-muted);
+}
+.landing .hero-copy h1.hero-title {
+  --depth: color-mix(in srgb, var(--theme-ink) 26%, var(--theme-bg));
+  display: grid;
+  gap: 0;
+  margin: 8px 0 34px;
+  font-size: clamp(3.1rem, 6.6vw, 6.4rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  color: var(--theme-ink);
+  perspective: 900px;
+}
+.landing .hero-copy h1.hero-title .hero-word {
+  display: block;
+  width: fit-content;
+  padding-bottom: 0.04em;
+  color: var(--theme-ink);
+  text-shadow:
+    1px 1px 0 var(--depth), 2px 2px 0 var(--depth), 3px 3px 0 var(--depth),
+    4px 4px 0 var(--depth), 5px 5px 0 var(--depth), 6px 6px 0 var(--depth),
+    7px 7px 0 var(--depth), 8px 8px 0 var(--depth), 9px 9px 0 var(--depth),
+    10px 10px 0 var(--depth), 18px 26px 34px rgba(0, 0, 0, 0.28);
+  transform-origin: left bottom;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: hero-word-in 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.landing .hero-copy h1.hero-title .hero-word:nth-child(2) {
+  margin-left: 0.28em;
+  animation-delay: 0.09s;
+}
+.landing .hero-copy h1.hero-title .hero-word-brand {
+  --depth: color-mix(in srgb, var(--theme-brand, #ef3124) 52%, #000);
+  margin-left: 0.56em;
+  color: var(--theme-brand, #ef3124);
+  animation-delay: 0.18s;
+}
+.landing .hero-copy h1.hero-title:hover .hero-word {
+  transform: translate(-2px, -3px);
+}
+.landing .hero-copy h1.hero-title:hover .hero-word:nth-child(2) {
+  transform: translate(-4px, -6px);
+}
+.landing .hero-copy h1.hero-title:hover .hero-word-brand {
+  transform: translate(-6px, -9px);
+}
+@keyframes hero-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) rotateX(-24deg);
+    text-shadow: 0 0 0 transparent, 0 0 0 transparent;
+  }
+}
+@media (max-width: 800px) {
+  .landing .hero-copy h1.hero-title .hero-word {
+    text-shadow:
+      1px 1px 0 var(--depth), 2px 2px 0 var(--depth), 3px 3px 0 var(--depth),
+      4px 4px 0 var(--depth), 5px 5px 0 var(--depth), 6px 6px 0 var(--depth),
+      10px 14px 20px rgba(0, 0, 0, 0.26);
+  }
+  .landing .hero-copy h1.hero-title .hero-word:nth-child(2) { margin-left: 0.16em; }
+  .landing .hero-copy h1.hero-title .hero-word-brand { margin-left: 0.32em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing .hero-copy h1.hero-title .hero-word { animation: none; transition: none; }
+  .landing .hero-copy h1.hero-title:hover .hero-word { transform: none; }
+}

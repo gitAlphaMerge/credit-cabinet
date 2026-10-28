@@ -19,7 +19,7 @@ def test_custom_endpoint_model_and_optional_key(monkeypatch, key):
     class Opener:
         def open(self, request, timeout):
             requests.append(request)
-            assert timeout >= 30
+            assert timeout >= 29  # бюджет вызова минус микросекунды на разбор запроса
             return io.BytesIO(b'{"choices":[{"message":{"content":"ok"}}]}')
 
     monkeypatch.setattr(llm, "_opener", Opener)
@@ -60,3 +60,9 @@ def test_openrouter_extras_stay_opt_in(monkeypatch):
     llm.chat("system", "user")
     assert seen[0]["reasoning"] == {"enabled": False}
     assert seen[0]["provider"]["order"] == ["provider"]
+
+
+def test_speak_dash_is_normalized_before_guard():
+    import llm
+    assert llm._no_long_dash("Лимит сейчас — 800 тысяч — после шага больше") == "Лимит сейчас, 800 тысяч, после шага больше"
+    assert llm._no_long_dash("Срок 10–12 месяцев") == "Срок 10-12 месяцев"

@@ -52,6 +52,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
           <a href="#opportunities">Возможности</a>
           <a href="#how">Как это работает</a>
           <a href="#questions">Вопросы</a>
+          <a href="/about" onClick={(e) => { e.preventDefault(); go("/about"); }}>О продукте</a>
         </nav>
         <div className="journey-header-tools">
           <SideRail>
@@ -59,25 +60,16 @@ export function Landing({ go }: { go: (s: string) => void }) {
               <RestartJourney />
             </SideRailItem>
           </SideRail>
-          <button className="text-button jury-link" onClick={() => go("/jury")}>
-            Режим жюри
-          </button>
-          <span className="test-mode">
-            <button
-              className="text-button jury-link"
-              onClick={() => go("/login")}
-            >
-              Режим тестирования
-            </button>
-            <span className="test-mode-pop" role="tooltip">
-              Пять тестовых компаний и менеджер банка. Логин и пароль на экране
-              входа, компанию можно выбрать в один клик.
-            </span>
-          </span>
-          <button className="text-button" onClick={() => go("/login")}>
-            Войти
-          </button>
-          <Button secondary onClick={() => go("/onboarding")}>
+          <details className="landing-demo-menu">
+            <summary>Демо <ChevronDown size={15} aria-hidden="true" /></summary>
+            <div className="landing-demo-options">
+              <button type="button" onClick={() => go("/jury")}>Режим жюри</button>
+              <button type="button" onClick={() => go("/login")}>Режим тестирования</button>
+              <small>Пять тестовых компаний и менеджер банка. Данные входа на экране.</small>
+            </div>
+          </details>
+          <Button secondary onClick={() => go("/login")}>Войти</Button>
+          <Button onClick={() => go("/onboarding")}>
             Начать оформление <ArrowUpRight size={16} />
           </Button>
         </div>
@@ -85,27 +77,16 @@ export function Landing({ go }: { go: (s: string) => void }) {
       <main>
         <section className="hero wrap hero-live-pattern">
           <div className="hero-copy">
-            <h1>
-              Большие планы.
-              <br />
-              Понятные <span>финансы.</span>
+            <div className="hero-kicker">Большие планы. Понятные финансы.</div>
+            <h1 className="hero-title" aria-label="Умный кредитный кабинет">
+              <span className="hero-word" aria-hidden="true">Умный</span>
+              <span className="hero-word" aria-hidden="true">кредитный</span>
+              <span className="hero-word hero-word-brand" aria-hidden="true">кабинет</span>
             </h1>
-            <p>
-              От подбора финансирования до последнего платежа — с вниманием к
-              вашему бизнесу.
-            </p>
             <div className="hero-actions">
               <Button onClick={() => go("/onboarding")}>
                 Подобрать финансирование <ArrowRight size={19} />
               </Button>
-            </div>
-            <div className="hero-meta">
-              <span>
-                <Check size={15} /> Решение по кредиту — без звонков
-              </span>
-              <span>
-                <Clock3 size={15} /> Начните с семи вопросов
-              </span>
             </div>
           </div>
           <HeroFinance pattern={<LivePattern showCaption={false} />} />
@@ -422,8 +403,8 @@ export function Landing({ go }: { go: (s: string) => void }) {
 
 // Сцены трёх шагов в духе живого узора: красный — бизнес, синий — данные, зелёный только «готово».
 function JourneyScene({ step }: { step: number }) {
-  const red = "#ef3124",
-    blue = "#0072ef";
+  const red = "var(--theme-red)",
+    blue = "var(--theme-chart-primary)";
   return (
     <svg className="journey-scene" viewBox="0 0 320 160" role="presentation">
       <path d="M260 0a60 60 0 0 1 60 60V0z" fill={blue} opacity="0.14" />
@@ -442,12 +423,12 @@ function JourneyScene({ step }: { step: number }) {
                 width="20"
                 height="14"
                 rx="3"
-                fill="#fff"
+                fill="var(--theme-surface)"
                 opacity="0.92"
               />
             )),
           )}
-          <rect x="128" y="128" width="24" height="20" rx="3" fill="#fff" />
+          <rect x="128" y="128" width="24" height="20" rx="3" fill="var(--theme-surface)" />
           <rect
             x="40"
             y="148"
@@ -475,7 +456,7 @@ function JourneyScene({ step }: { step: number }) {
             width="104"
             height="124"
             rx="10"
-            fill="#fff"
+            fill="var(--theme-surface)"
             stroke={blue}
             strokeWidth="2"
           />
@@ -496,7 +477,7 @@ function JourneyScene({ step }: { step: number }) {
           <path
             d="M204 122l7 7 13-14"
             fill="none"
-            stroke="#fff"
+            stroke="var(--theme-surface)"
             strokeWidth="4"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -525,11 +506,11 @@ function JourneyScene({ step }: { step: number }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <circle cx="250" cy="28" r="16" fill="#16a34a" />
+          <circle cx="250" cy="28" r="16" fill="var(--theme-green)" />
           <path
             d="M243 28l5 5 9-10"
             fill="none"
-            stroke="#fff"
+            stroke="var(--theme-surface)"
             strokeWidth="3.5"
             strokeLinecap="round"
             strokeLinejoin="round"

@@ -28,6 +28,14 @@ RETRY_QUESTIONS = {
 }
 MANAGER_OFFER = "Похоже, я не понял ответ. Могу позвать менеджера, чтобы обсудить задачу с вами. Позвать?"
 DONE = ("сделаю", "загрузил договор", "вот договор")
+NON_ANSWER = re.compile(r"не знаю|без разницы|любо[йе]|пока не решил|не определил|хз|затрудня", re.I)
+VAGUE_PURPOSE = re.compile(r"^(?:(?:на|для)\s+)?(?:бизнес(?:а|у)?|дел(?:а|о)|работ(?:ы|у))\s*[.!?]*$", re.I)
+FILLED_QUESTIONS = {
+    "purpose": r"(?:на что|какая цель|что (?:хотите|нужно) (?:оплатить|купить))",
+    "amount_rub": r"(?:сколько (?:нужно|понадобится)|какая сумма|о какой сумме)",
+    "repay_from": r"(?:из каких (?:денег|поступлений)|источник возврата)",
+    "term_months": r"(?:на какой срок|на сколько месяцев|какой срок)",
+}
 
 
 def new_state(questionnaire: dict) -> dict:
@@ -52,7 +60,9 @@ def application_turn(state: dict, text: str, application: dict, mode: str | None
     for option in application.get("alternatives", []):
         values.extend(v for v in option.values() if isinstance(v, (int, float)) and not isinstance(v, bool))
     view = {"status": "need_manager" if application.get("stops_fired") else "application",
-            "numbers": dict(enumerate(values))}
+            "numbers": dict(enumerate(values)),
+            "rates": [o["rate_annual_pct"] for o in application.get("alternatives", [])
+                      if isinstance(o.get("rate_annual_pct"), (int, float))]}
     violations = guard.check(reply, view, {})
     if violations:
         logging.getLogger(__name__).warning("application template rejected: %s", violations)
@@ -213,6 +223,42 @@ def _answer(text: str, slot: str | None) -> str:
     return reply + (" " + QUESTIONS[slot][0] if slot else "")
 
 
+SLOT_WORDS = {"purpose": "на что", "amount": "сумм", "repay": "из каких|выручк|вернёте|вернете",
+              "term": "срок|на сколько", "statement": "выписк"}
+SLOT_NAMES = {"purpose": "цель", "amount": "сумму", "repay": "источник возврата", "term": "срок",
+              "statement": "выписку по счёту"}
+SLOT_WITH = {"purpose": "целью", "amount": "суммой", "repay": "источником возврата", "term": "сроком",
+             "statement": "выпиской по счёту"}
+
+
+def _recap(state: dict, slot: str | None) -> str:
+    """Клиент злится на повторы: не переспрашиваем, а показываем, что уже записано."""
+    need = state["need"]
+    known = []
+    if need.get("purpose"):
+        known.append(f"цель: {need.get('purpose_text') or need['purpose']}")
+    if need.get("amount_rub"):
+        known.append(f"сумма: {int(need['amount_rub']):,} ₽".replace(",", " "))
+    if need.get("term_months"):
+        known.append(f"срок: {need['term_months']} мес")
+    if state.get("statement_csv"):
+        known.append("выписка получена")
+    head = "Простите, что кручусь на месте. "
+    if known:
+        head += "Записано: " + "; ".join(known) + ". "
+    if slot:
+        return head + f"Не хватает только: {SLOT_NAMES[slot]}. Если отвечать не хочется, позову менеджера, он добавит остальное сам. Позвать?"
+    return head + "Для расчёта у меня всё есть. Если нужны детали, позову менеджера. Позвать?"
+
+
+def _nagging(history: list, reply: str, slot: str | None) -> bool:
+    """Тот же вопрос уже звучал в двух из трёх последних реплик помощника."""
+    if not slot or not re.search(SLOT_WORDS[slot], reply, re.I) or "?" not in reply:
+        return False
+    recent = [h["text"] for h in history if h.get("role") == "assistant"][-3:]
+    return sum(bool(re.search(SLOT_WORDS[slot], t, re.I)) for t in recent) >= 2
+
+
 def _different(reply: str, fallback: str, goal: str, history: list) -> str:
     previous = next((h["text"] for h in reversed(history) if h.get("role") == "assistant"), None)
     if reply != previous:
@@ -233,6 +279,7 @@ def turn(state: dict, text: str, attachment: dict | None = None,
     history = state.setdefault("history", [])
     history[:] = history[-8:]
     fields = dict(intake(text, state["asking"]))
+    old_need = dict(state["need"])
     rule_intent = intake_rules.intent(text, state["asking"])
     detected = fields.pop("intent", None)
     intent = "pii" if rule_intent == "pii" else (
@@ -242,11 +289,24 @@ def turn(state: dict, text: str, attachment: dict | None = None,
         fields = intake_rules.parse(privacy.redact(text, state["questionnaire"]), state["asking"])
     if fields and intent == "smalltalk":
         intent = "answer_slot"
+    # A business is the applicant, not the purchase to finance. Do not turn a
+    # generic answer into a filled purpose (including a model's guessed label).
+    if state["asking"] == "purpose" and VAGUE_PURPOSE.fullmatch(text.strip()):
+        fields.pop("purpose", None)
+        fields.pop("purpose_text", None)
+    if state["asking"] == "purpose" and NON_ANSWER.search(text):
+        fields.pop("purpose", None)
+        fields.pop("purpose_text", None)
     if (state["asking"] == "purpose" and intent == "answer_slot"
-            and not fields and any(char.isalpha() for char in text)):
+            and not fields and not NON_ANSWER.search(text) and any(char.isalpha() for char in text)
+            and not VAGUE_PURPOSE.fullmatch(text.strip())):
         fields = {"purpose": "другое", "purpose_text": text[:200]}
     slot = next_slot(state)
-    special = intent in {"identity", "manager_request", "pii", "side_question", "smalltalk"}
+    special = intent in {"identity", "manager_request", "pii", "side_question", "smalltalk", "frustrated"}
+    if (intent in {"side_question", "smalltalk"} and state["view"] is not None
+            and any(key in fields and fields[key] != old_need.get(key)
+                    for key in ("amount_rub", "term_months"))):
+        special = False
     # A greeting must not postpone a calculation when all its inputs are ready.
     if intent == "smalltalk" and slot is None and state["view"] is None:
         special = False
@@ -260,9 +320,10 @@ def turn(state: dict, text: str, attachment: dict | None = None,
             state["confirmed_fields"]["contract_main_customer"] = attachment["contract_main_customer"]
         slot = next_slot(state)
         acknowledgement = _acknowledge(fields, old_need, attachment)
-        goal = "manager" if intent == "manager_request" else "answer"
+        goal = "manager" if intent in {"manager_request", "frustrated"} else "answer"
         reply = (PII if intent == "pii" else IDENTITY if intent == "identity" else
-                 MANAGER if intent == "manager_request" else _answer(text, slot))
+                 MANAGER if intent == "manager_request" else
+                 _recap(state, slot) if intent == "frustrated" else _answer(text, slot))
         if intent in {"identity", "pii"} and slot:
             reply += " " + QUESTIONS[slot][0]
         if acknowledgement:
@@ -306,11 +367,21 @@ def turn(state: dict, text: str, attachment: dict | None = None,
            "need": state["need"], "view": state["view"], "memory": client_memory or [],
            "return_slot": state["asking"], "intent": intent,
            "documents_received": documents_received}
-    if speak is not None and trace["kind"] != "core_error":
+    accepted_candidate = None
+    if speak is not None and trace["kind"] != "core_error" and intent != "frustrated":
         try:
             candidate = speak(goal, ctx)
             client_text = " ".join(h["text"] for h in ctx["history"] if h["role"] == "user") + " " + memory_text
             violations = guard.check(candidate, state["view"], state["need"], client_text=client_text)
+            if "?" in candidate and any(
+                key in state["need"] and re.search(pattern, candidate, re.I)
+                for key, pattern in FILLED_QUESTIONS.items()
+            ):
+                violations.append("повторный вопрос о заполненном поле")
+            if any(key in old_need and fields.get(key) != old_need[key]
+                   for key in ("amount_rub", "term_months") if key in fields):
+                # Keep the deterministic acknowledgement of a changed parameter.
+                violations.append("изменение параметров требует подтверждения")
             if intent == "identity" and "ии-помощник" not in candidate.lower():
                 violations.append("нечестная идентичность")
             if intent == "pii" and not guard.pii_warning_safe(candidate, client_text):
@@ -322,11 +393,20 @@ def turn(state: dict, text: str, attachment: dict | None = None,
             trace["violations"].extend(violations)
             if not violations:
                 reply = candidate
+                accepted_candidate = candidate
         except Exception as error:
             logging.getLogger(__name__).warning("agent speak failed (%s)", type(error).__name__)
             trace["violations"].append("speak_error:" + type(error).__name__)
+    changed_now = any(old_need.get(key) != value for key, value in fields.items())
+    if intent != "frustrated" and not changed_now and _nagging(history, reply, state["asking"]):
+        # Третий раз подряд про то же: не давим, а предлагаем выход.
+        accepted_candidate = None
+        reply = (f"Без этого точный расчёт не сделаю, а давить не буду. Могу позвать менеджера: он поможет "
+                 f"с {SLOT_WITH[state['asking']]} и разберёт всё сам. Позвать?")
+        goal = "manager"
     reply = _different(reply, fallback, goal, history)
-    trace.update(goal=goal, intent=intent, reply=reply)
+    trace.update(goal=goal, intent=intent, reply=reply,
+                 source="llm" if accepted_candidate is not None and reply == accepted_candidate else "template")
     history.extend([{"role": "user", "text": text}, {"role": "assistant", "text": reply}])
     history[:] = history[-8:]
     return reply

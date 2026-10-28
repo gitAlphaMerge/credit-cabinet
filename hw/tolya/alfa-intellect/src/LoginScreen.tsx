@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight, Building2, FileCheck2, Scale, Smartphone } from "lucide-react";
 import { Brand, Button, Badge } from "./ui";
 import { api } from "./api";
-import { demoPersonas, type PersonaSummary } from "../shared/demo-personas";
+import { demoPersonas } from "../shared/demo-personas";
 
 export const JURY_LOGIN = "gitmergealpha";
 export const JURY_PASSWORD = "alphahack2026";
@@ -21,18 +21,15 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [picked, setPicked] = useState("");
-  const [personas, setPersonas] = useState<PersonaSummary[]>([]);
-  useEffect(() => {
-    api<{ personas: PersonaSummary[] }>("/demo-personas")
-      .then((r) => setPersonas(r.personas))
-      .catch(() => setPersonas([]));
-    // Без засеянной базы те же компании открываются чистыми тестовыми: сервер заведёт их при входе.
-  }, []);
+  // Список компаний статичный: без засеянной базы сервер заводит их чистыми тестовыми при входе.
   const juryEnter = (login: string, pass: string, persona?: string) => {
     setError("");
     setPicked(persona ?? "phone");
     api<{ destination: string }>("/auth/jury", { login, password: pass, persona })
-      .then((r) => location.assign(r.destination))
+      .then(async (r) => {
+        const config = await api<{ cabinetAvailable: boolean }>("/config");
+        location.assign(r.destination !== "/bank" && config.cabinetAvailable ? "/cabinet" : r.destination);
+      })
       .catch((err: Error) => {
         setPicked("");
         setError(err.message || "Логин или пароль не подошли");
@@ -77,8 +74,21 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
               Логин <code>{JURY_LOGIN}</code>, пароль <code>{JURY_PASSWORD}</code>.
               Или сразу выберите компанию:
             </p>
+            <button
+              type="button"
+              className="button login-manager"
+              aria-busy={picked === "manager"}
+              onClick={() => juryEnter(JURY_LOGIN, JURY_PASSWORD, "manager")}
+            >
+              <Building2 size={20} aria-hidden="true" />
+              <span>
+                Зайти как менеджер банка
+                <small>Очередь заявок, досье и решения</small>
+              </span>
+              <ArrowRight size={18} aria-hidden="true" />
+            </button>
             <div className="login-test-list">
-              {(personas.length ? personas : demoPersonas.filter((p) => p.role === "client")).map((p) => (
+              {demoPersonas.filter((p) => p.role === "client").map((p) => (
                 <button
                   key={p.key}
                   type="button"

@@ -2400,10 +2400,7 @@ export function Mvp2({
             !a.clientDeferred &&
             a.lifecycle === "DECIDED" &&
             !creditNeeded && (
-              <aside
-                className="mvp-no-credit"
-                style={{ background: "#d6e8fc", borderRadius: 16, padding: 24 }}
-              >
+              <aside className="mvp-no-credit">
                 <h2>Кредит может не понадобиться</h2>
                 <p>
                   Ваших поступлений хватит на {money(a.noCredit.amount)}{" "}
@@ -2435,25 +2432,27 @@ export function Mvp2({
                 </div>
               </aside>
             )}
-          {a.error ? (
-            <Illustration group="empty" name="network" size={64} decorative />
-          ) : (
-            <StatusIllustration
-              status={
-                a.lifecycle === "ACTIVE"
-                  ? "disbursed"
-                  : {
-                      APPROVED: "approved",
-                      MANAGER_REVIEW_REQUIRED: "queued",
-                      ADDITIONAL_DATA_REQUIRED: "info_requested",
-                      DECLINED: "rejected",
-                    }[a.decision ?? "DECLINED"]
-              }
-              size={64}
-              decorative
-            />
-          )}
-          <small>РЕЗУЛЬТАТ РАССМОТРЕНИЯ</small>
+          <div className="mvp-decision-heading">
+            {a.error ? (
+              <Illustration group="empty" name="network" size={64} decorative />
+            ) : (
+              <StatusIllustration
+                status={
+                  a.lifecycle === "ACTIVE"
+                    ? "disbursed"
+                    : {
+                        APPROVED: "approved",
+                        MANAGER_REVIEW_REQUIRED: "queued",
+                        ADDITIONAL_DATA_REQUIRED: "info_requested",
+                        DECLINED: "rejected",
+                      }[a.decision ?? "DECLINED"]
+                }
+                size={64}
+                decorative
+              />
+            )}
+            <small>РЕЗУЛЬТАТ РАССМОТРЕНИЯ</small>
+          </div>
           <h2>
             {a.lifecycle === "ACTIVE"
               ? "Финансирование оформлено"
@@ -2472,6 +2471,16 @@ export function Mvp2({
                 <p key={r}>{safeDisplayText(r)}</p>
               ))}
             </details>
+          )}
+          {a.decision === "DECLINED" && a.lifecycle !== "ACTIVE" && (
+            <section className="decision-next" aria-label="Что можно сделать">
+              <h3>Что можно сделать</h3>
+              <ol>
+                <li>Исправьте причину из списка выше: уточните данные компании или закройте задолженность.</li>
+                <li>Загрузите свежую выписку, когда ситуация изменится.</li>
+                <li>Спросите агента, что именно повлияло, и подайте новую заявку.</li>
+              </ol>
+            </section>
           )}
           {a.error && (
             <p className="mvp-error">{visibleError(new Error(a.error))}</p>

@@ -277,9 +277,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._turn(session_id, text, _card(payload.get("card")), mode=mode)
 
     def _turn(self, session_id, text, card, client_id=None, mode=None):
+        # сессию создаёт один клиент и только он её продолжает: UUID без владельца не пропуск к чужому диалогу
+        fresh = session_id not in SESSIONS and not _session_path(session_id).exists()
         if session_id not in SESSIONS:
             SESSIONS[session_id] = _load_session(session_id, card)
         state = SESSIONS[session_id]
+        owner = state.get("_owner")
+        if owner is None and client_id and fresh:
+            state["_owner"] = owner = client_id
+        if owner != client_id and (owner or client_id):
+            self._json(403, {"error": "forbidden"})
+            return
         if card.get("_privacy_profile"):
             state["_privacy_name_hashes"] = sorted(set(state.get("_privacy_name_hashes", [])) |
                 {privacy.name_hash(name) for name in privacy.name_values(card["_privacy_profile"])})
@@ -332,11 +340,24 @@ class Handler(BaseHTTPRequestHandler):
                     "DECIDED", "MEETING_SCHEDULED", "MANAGER_APPROVED", "MANAGER_DECLINED",
                     "CONTRACT_READY", "SIGNED_DEMO", "ACTIVE",
                 })
+                # Кабинет шлёт статусы строчными (queued, approved…): свободная реплика клиента
+                # идёт к модели через страж, иначе на «привет» каждый раз выходит карточка.
+                free_chat = bool(application and mode is None and application.get("status") in {
+                    "draft", "queued", "info_requested", "underwriting", "approved", "offered",
+                    "signed", "disbursed", "rejected", "expired", "withdrawn",
+                })
+                need = {k: card[k] for k in ("amount_rub", "term_months") if k in card}
                 if contextual:
                     reply = dialog.application_turn(
                         state, text, application, mode,
-                        speak=speak_slot if use_llm else None, require_llm=True,
-                        need={k: card[k] for k in ("amount_rub", "term_months") if k in card})
+                        speak=speak_slot if use_llm else None, require_llm=True, need=need)
+                elif free_chat and use_llm:
+                    try:
+                        reply = dialog.application_turn(
+                            state, text, application, mode, speak=speak_slot, require_llm=True, need=need)
+                    except dialog.ApplicationAgentUnavailable:
+                        _log({"event": "application_free_chat_fallback"})
+                        reply = dialog.application_turn(state, text, application, mode)
                 else:
                     reply = dialog.application_turn(state, text, application or {}, mode)
             else:
@@ -348,8 +369,8 @@ class Handler(BaseHTTPRequestHandler):
             llm_name = _llm_name()
             if state.get("trace"):
                 fallback = fallback or bool(state["trace"][-1].get("violations"))
-            source = "llm" if use_llm and application is None and mode is None and not fallback else "template"
-            if application is not None and state.get("trace"):
+            source = "template"
+            if state.get("trace") and (application is not None or mode is None):
                 source = state["trace"][-1].get("source", "template")
             with _TURN_LOCK:
                 global TURNS

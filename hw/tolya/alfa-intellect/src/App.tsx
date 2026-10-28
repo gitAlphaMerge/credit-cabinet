@@ -22,9 +22,13 @@ import { cabinetRoute } from "./metric-scale";
 import { ManagerAccess } from "./manager/ManagerWorkspace";
 import { SideRail, SideRailItem } from "./SideRail";
 import { RestartJourney } from "./RestartJourney";
+import { About } from "./About";
+import { CabinetHome, CabinetProfileMenu } from "./CabinetHome";
+import "./cabinet-home.css";
 import "./restart-journey.css";
 import "./application-status.css";
 import "./manager/manager.css";
+import "./manager-compact.css";
 import type { AppState, Doc } from "../shared/types";
 import { labelCode, visibleError } from "./application-client";
 import {
@@ -36,7 +40,7 @@ import {
 import { useScreenReveal } from "./motion";
 export function App() {
   useScreenReveal();
-  const [path, setPath] = useState(() => cabinetRoute(location.pathname)),
+  const [path, setPath] = useState(() => location.pathname === "/cabinet" && location.hash === "#credit" ? "/credit" : cabinetRoute(location.pathname)),
     [state, setState] = useState<AppState | null>(null),
     [config, setConfig] = useState<any>({}),
     [loading, setLoading] = useState(true),
@@ -96,7 +100,7 @@ export function App() {
   }
   function go(p: string) {
     p = cabinetRoute(p);
-    history.pushState({}, "", p);
+    history.pushState({}, "", p === "/credit" ? "/cabinet#credit" : p);
     setPath(p);
     setMobileNav(false);
     if (p === "/chat" && !chatPageVisited.current) {
@@ -176,8 +180,8 @@ export function App() {
   }
   useEffect(() => {
     const pop = () => {
-      const p = cabinetRoute(location.pathname);
-      if (p !== location.pathname) history.replaceState({}, "", p);
+      const p = location.pathname === "/cabinet" && location.hash === "#credit" ? "/credit" : cabinetRoute(location.pathname);
+      if (p !== "/credit" && p !== location.pathname) history.replaceState({}, "", p);
       setPath(p);
     };
     pop();
@@ -211,9 +215,10 @@ export function App() {
       path === "/" ||
       path === "/onboarding" ||
       path === "/jury" ||
+      path === "/about" ||
       path === "/login" ||
       (path === "/bank" && config.role === "manager") ||
-      (config.cabinetAvailable && ["/cabinet", "/chat"].includes(path)) ||
+      (config.cabinetAvailable && ["/credit", "/cabinet", "/chat"].includes(path)) ||
       (path === "/apply" && !!state.profile.mvp2Answers) ||
       (path === "/profile" &&
         (config.cabinetAvailable || !!state.profile.mvp2Answers));
@@ -268,13 +273,15 @@ export function App() {
         <p>Открываем ваш финансовый контекст…</p>
       </div>
     );
-  const publicPage = ["/", "/onboarding", "/jury", "/login"].includes(path);
+  const publicPage = ["/", "/onboarding", "/jury", "/login", "/about"].includes(path);
   const page = path.split("/")[1] || "cabinet";
   const rendered = publicPage ? (
     path === "/" ? (
       <Landing go={go} />
     ) : path === "/jury" ? (
       <DemoPage go={go} />
+    ) : path === "/about" ? (
+      <About go={go} />
     ) : path === "/login" ? (
       <LoginScreen go={go} />
     ) : (
@@ -364,9 +371,9 @@ export function App() {
             </button>
             <nav className={mobileNav ? "open" : ""}>
               {[
-                ["cabinet", "Кредитный кабинет"],
+                ["cabinet", "Главная"],
+                ["credit", "Кредитный кабинет"],
                 ["chat", "Чат"],
-                ["profile", "Профиль"],
                 ...(config.role === "manager"
                   ? [["bank", "Рабочее место менеджера"]]
                   : []),
@@ -382,13 +389,6 @@ export function App() {
               ))}
             </nav>
             <div className="header-tools g2-tools">
-              <SideRail>
-                {config.role !== "manager" && (
-                  <SideRailItem tip="Начать сначала">
-                    <RestartJourney />
-                  </SideRailItem>
-                )}
-              </SideRail>
               <IconButton
                 className="mobile-menu"
                 label="Меню"
@@ -396,13 +396,16 @@ export function App() {
               >
                 <Menu size={20} />
               </IconButton>
+              <CabinetProfileMenu name={state.profile.name} onProfile={() => go("/profile")} onLogout={() => void signOut()} />
             </div>
           </header>
           {page === "bank" ? (
-            <>
+            <div className="manager-page">
               <ManagerAccess role={config.role} />
               {config.role === "manager" && <MvpManager />}
-            </>
+            </div>
+          ) : page === "cabinet" ? (
+            <CabinetHome />
           ) : page === "profile" ? (
             <ProfilePage />
           ) : page === "chat" ? (

@@ -1,7 +1,11 @@
 """Optional OpenAI-compatible language layer. Empty URL disables all LLM traffic."""
 import json
 import os
+import random
 import re
+import threading
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -52,11 +56,16 @@ def available() -> bool:
 USAGE: list = []  # usage вызовов хода, server.py пишет в лог и чистит
 
 
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+
+
 def chat(system: str, user: str, model: str | None = None, as_json: bool = False, temperature: float = 0.0,
          max_tokens: int = 600) -> str:
     url = base_url()
     if not url:
         raise RuntimeError("LLM disabled")
+    # единственная граница к внешней модели: email клиента не уходит, откуда бы он ни пришёл (история, память, реплика)
+    system, user = _EMAIL.sub("[email]", system), _EMAIL.sub("[email]", user)
     body = {"model": model or os.getenv("AGENT_LLM_MODEL", MODEL), "temperature": temperature, "max_tokens": max_tokens,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
     if "openrouter.ai" in base_url():
@@ -73,11 +82,40 @@ def chat(system: str, user: str, model: str | None = None, as_json: bool = False
     if key := _key():
         headers["Authorization"] = f"Bearer {key}"
     req = urllib.request.Request(url, json.dumps(body).encode("utf-8"), headers)
-    # CPU inference can be slow; the cabinet falls back if its own deadline expires.
-    with _opener().open(req, timeout=float(os.getenv("AGENT_LLM_TIMEOUT", "30"))) as r:
-        data = json.load(r)
+    data = _post(req)
     USAGE.append(data.get("usage") or {})
     return data["choices"][0]["message"]["content"]
+
+
+# Квота провайдера на одновременные генерации (у Yandex AI Studio 429 ResourceExhausted) и обрывы через egress-прокси
+# раньше сразу отдавали ход шаблону. Короткая попытка и повтор дешевле, чем 30 секунд ожидания: кабинет ждёт весь ход 35 с.
+_SLOTS = threading.BoundedSemaphore(int(os.getenv("AGENT_LLM_CONCURRENCY", "4")))
+_RETRY_HTTP = {429, 500, 502, 503, 504}
+
+
+def _post(req) -> dict:
+    attempt_s = float(os.getenv("AGENT_LLM_TIMEOUT", "30"))
+    budget_s = float(os.getenv("AGENT_LLM_BUDGET", str(attempt_s)))  # на сервере: TIMEOUT=8, BUDGET=14
+    started = time.monotonic()
+    attempts = int(os.getenv("AGENT_LLM_ATTEMPTS", "3"))
+    for attempt in range(1, attempts + 1):
+        left = budget_s - (time.monotonic() - started)
+        try:
+            with _SLOTS:
+                with _opener().open(req, timeout=max(1.0, min(attempt_s, left))) as r:
+                    return json.load(r)
+        except urllib.error.HTTPError as error:
+            if error.code not in _RETRY_HTTP or attempt == attempts:
+                raise
+            pause = 1.0 * attempt
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt == attempts:
+                raise
+            pause = 0.3 * attempt
+        pause += random.random() * 0.4
+        if budget_s - (time.monotonic() - started) <= pause + 1:
+            raise TimeoutError("llm budget exhausted")
+        time.sleep(pause)
 
 
 # приёмщику голос не нужен, он отдаёт JSON: без AGENT.md вызов в разы дешевле
@@ -183,4 +221,10 @@ def speak(goal: str, ctx: dict) -> str:
               + "\nНе начинайте ответ теми же тремя словами, что предыдущий: " + json.dumps(" ".join(previous.split()[:3]), ensure_ascii=False)
               + "\nНе округляйте суммы и платежи. Используйте точное число из разрешённых или не называйте его. Не добавляйте условия, сроки и документы от себя."
               + "\nЕсли это первый ход и есть память, коротко уточните актуальность известной задачи в рамках цели хода.")
-    return chat(system, ctx.get("text", ""), temperature=0.7, max_tokens=300).strip()
+    return _no_long_dash(chat(system, ctx.get("text", ""), temperature=0.7, max_tokens=300).strip())
+
+
+def _no_long_dash(text: str) -> str:
+    # Qwen ставит «—» почти в каждом ответе, страж его не пропускает и весь ход уходил в шаблон. Чиним знак, а не ответ.
+    text = re.sub(r"(?<=\d)\s*[—–]\s*(?=\d)", "-", text)
+    return re.sub(r"\s*[—–]\s*", ", ", text)

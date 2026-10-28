@@ -1,0 +1,85 @@
+/* 28.10: экраны банка плотнее и читаемее; панель продуктивности; крупная кнопка менеджера на входе. */
+.login-manager {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  margin: 4px 0 12px;
+  padding: 12px 18px;
+  text-align: left;
+  border-radius: 16px;
+}
+.login-manager > span { flex: 1; display: grid; gap: 2px; font-size: 17px; font-weight: 700; }
+.login-manager small { font-size: 13px; font-weight: 500; opacity: .8; }
+
+/* 390 px: колонки входа не должны шире экрана (раньше scrollWidth 443) */
+.login-grid > *, .login-test > * { min-width: 0; }
+.login-test code { overflow-wrap: anywhere; }
+
+.manager-workspace { font-size: 15px; }
+.app-shell > .manager-workspace,
+.manager-page > .manager-workspace { padding: 16px clamp(16px, 2.5vw, 40px) 24px; }
+.manager-workspace > .cv-heading h1 { font-size: 26px; }
+.manager-columns { grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.8fr); gap: 16px; }
+.manager-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.manager-stat, .manager-kpi { padding: 10px 14px; gap: 2px; border-radius: 12px; }
+.manager-stat b, .manager-kpi b { font-size: 20px; }
+.manager-summary .manager-kpi b { font-size: 18px; }
+.manager-summary { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.manager-tabs .button { min-height: 34px; padding: 0 16px; }
+.manager-queue { gap: 6px; }
+.manager-row { padding: 10px 14px; border-radius: 12px; }
+
+.manager-dossier { padding: 16px 18px; }
+.manager-dossier-body { gap: 10px; }
+.manager-dossier-head h2 { font-size: 20px; gap: 10px; }
+.manager-dossier-head h2 :is(svg, img) { width: 28px; height: 28px; }
+.manager-block { padding: 12px 14px; border-radius: 12px; }
+.manager-block h3 { margin: 0 0 8px; font-size: 14px; gap: 8px; }
+.manager-block h3 :is(svg, img) { width: 20px; height: 20px; }
+.manager-block p { line-height: 1.45; }
+.manager-dossier .manager-checks { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 8px; }
+.manager-dossier .manager-checks article { padding: 10px 12px; gap: 6px; }
+.manager-trio { gap: 8px; }
+.manager-decision .button { min-height: 40px; border-radius: 12px; }
+.manager-decision .manager-option { padding: 12px 14px; }
+.manager-memo-block { padding: 12px; }
+.manager-memo-block p { line-height: 1.45; }
+.mvp-manager { font-size: 15px; }
+.mvp-manager form { padding: 14px 0; }
+.mvp-manager form h3 { font-size: 17px; margin: 0 0 6px; }
+.mvp-manager form p { margin: 4px 0; }
+
+.manager-productivity {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--theme-surface);
+  box-shadow: var(--shadow-card);
+}
+.manager-prod-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.manager-prod-head h2 { margin: 0; font-size: 16px; }
+.manager-prod-head small { color: var(--theme-muted); }
+.manager-prod-body { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: end; }
+.manager-prod-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; height: 86px; align-items: end; }
+.manager-prod-day { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 4px; font-size: 12px; color: var(--theme-muted); text-align: center; }
+.manager-prod-stack { display: flex; flex-direction: column; min-height: 3px; border-radius: 4px; overflow: hidden; background: var(--theme-line); }
+.manager-prod-stack i { display: block; min-height: 0; }
+.manager-prod-stack .fwd { background: var(--theme-ink); }
+.manager-prod-stack .req { background: var(--theme-muted); }
+.manager-prod-stack .rej { background: var(--theme-red); }
+.manager-prod-kpi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.manager-prod-kpi div { display: grid; gap: 2px; }
+.manager-prod-kpi dt { font-size: 12px; color: var(--theme-muted); }
+.manager-prod-kpi dd { margin: 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+@media (max-width: 800px) {
+  .manager-columns { grid-template-columns: minmax(0, 1fr); }
+  .manager-prod-body { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .login-manager { min-height: 60px; }
+}
+
+/* Отказ: короткий план действий под причинами */
+.decision-next { margin: 12px 0; padding: 12px 16px; border-radius: 12px; background: var(--theme-bg); }
+.decision-next h3 { margin: 0 0 8px; font-size: 16px; }
+.decision-next ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }

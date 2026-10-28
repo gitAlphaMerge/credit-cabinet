@@ -73,6 +73,10 @@ def safe_fact(text, view=None, statement=None):
         return False
     if statement and any(line.strip() and line.strip() in text for line in statement.splitlines()):
         return False
+    # Память хранит факты о клиенте, а не приказы модели: инструкции правилам, ставке и полномочиям не сохраняются.
+    if re.search(r"игнорир|забудь|не учитывай|отмени правил|всегда (?:называй|говори|отвечай|одобр)|ты (?:должен|обязан)|"
+                 r"system\s*:|ignore (?:all|previous|the rules)|одобр\w*\s+(?:кредит|заявк)", text, re.I):
+        return False
     values = guard.allowed_numbers(view, {})
     numbers = guard.numbers(text)
     if any(guard._match(n, values) for n in numbers):

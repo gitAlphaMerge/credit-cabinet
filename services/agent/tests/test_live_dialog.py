@@ -23,6 +23,7 @@ def test_side_question_answers_then_returns_to_slot():
     assert "Факторинг" in reply
     assert seen[0][0] == "answer"
     assert seen[0][1]["return_slot"] == "purpose"
+    assert state["trace"][-1]["source"] == "llm"
     assert state["attempts"]["purpose"] == 1
     dialog.turn(state, "на оборудование")
     assert state["asking"] == "amount"
@@ -41,6 +42,7 @@ def test_consecutive_turns_do_not_repeat_and_history_is_bounded():
     first = dialog.turn(state, "", speak=speak)
     second = dialog.turn(state, "для бизнеса", speak=speak)
     assert first != second
+    assert state["trace"][-1]["source"] == "template"
     for _ in range(5):
         dialog.turn(state, "Ты бот?")
     assert len(state["history"]) == 8
@@ -61,6 +63,7 @@ def test_invented_number_uses_same_goal_template():
     reply = dialog.turn(state, "", speak=lambda *_: "Вам нужно 987654 рублей?")
     assert reply in dialog.QUESTIONS["purpose"]
     assert state["trace"][-1]["violations"]
+    assert state["trace"][-1]["source"] == "template"
 
 
 def test_manager_request_and_third_attempt():
@@ -71,6 +74,55 @@ def test_manager_request_and_third_attempt():
     for text in ("", "на бизнес", "для дела"):
         dialog.turn(state, text)
     assert state["trace"][-1]["goal"] == "manager"
+
+
+def test_vague_purpose_eight_turns_then_specific_need():
+    state = dialog.new_state({})
+    goals = []
+    for text in ("", "на бизнес", "для дела", "Нужна кофемашина",
+                 "Около 1 млн", "из выручки", "на 12 месяцев", "А выписка обязательна?"):
+        dialog.turn(state, text)
+        goals.append(state["trace"][-1]["goal"])
+    assert goals == ["ask:purpose", "ask:purpose", "manager", "ask:amount",
+                     "ask:repay", "ask:term", "ask:statement", "answer"]
+    assert state["need"]["purpose"] == "оборудование"
+    assert state["need"]["amount_rub"] == 1000000
+    assert state["asking"] == "statement"
+
+
+def test_long_dialog_does_not_repeat_answered_questions_and_updates_parameters():
+    state = dialog.new_state({})
+    replies = []
+    inputs = ("", "Нужна кофемашина", "1 млн", "из выручки", "12 месяцев",
+              "Что такое факторинг?", "Хочу изменить сумму на 2 млн", "Теперь срок 18 месяцев",
+              "Объясните, зачем выписка?", "Спасибо", "Когда можно загрузить?", "Хорошо")
+    for text in inputs:
+        replies.append(dialog.turn(state, text, speak=lambda *_: "На что нужны деньги?"))
+    assert all(a != b for a, b in zip(replies, replies[1:]))
+    assert all("На что нужны деньги?" not in reply for reply in replies[2:])
+    assert state["need"]["amount_rub"] == 2000000
+    assert state["need"]["term_months"] == 18
+    assert "Сумму записал" in replies[6]
+    assert "Срок записал" in replies[7]
+
+
+def test_changed_parameters_recalculate_existing_view():
+    state = dialog.new_state({})
+    state.update(need={"purpose": "оборудование", "amount_rub": 1000000,
+                       "repay_from": "выручка", "term_months": 12},
+                 statement_csv="csv", view={"status_text": "старый расчёт"})
+    calls = []
+
+    def decide(_statement, need, _questionnaire, _confirmed):
+        calls.append(dict(need))
+        return {"view": {"status_text": "новый расчёт"}}
+
+    dialog.turn(state, "А если изменить сумму на 2 млн?", decide=decide,
+                explain=lambda *_: "Расчёт обновлён.")
+    dialog.turn(state, "Теперь срок 18 месяцев", decide=decide,
+                explain=lambda *_: "Расчёт обновлён.")
+    assert [(row["amount_rub"], row["term_months"]) for row in calls] == [
+        (2000000, 12), (2000000, 18)]
 
 
 def test_prompt_has_voice_permissions_history_memory_and_goal(monkeypatch):
@@ -115,3 +167,20 @@ def test_client_utterances_on_templates(case):
         assert "ии-помощник" in reply.lower()
     if case["category"] == "pii":
         assert "в чат это не нужно" in reply.lower()
+
+
+def test_frustration_gets_recap_not_the_same_question():
+    state = dialog.new_state({})
+    for text in ("Нужна кофемашина", "1 млн"):
+        dialog.turn(state, text)
+    reply = dialog.turn(state, "ну сколько можно, я же сказал", speak=lambda *_: "Какая сумма нужна?")
+    assert "Записано" in reply and "1 000 000" in reply
+    assert "Какая сумма нужна?" not in reply
+
+
+def test_same_slot_is_not_asked_three_times_in_a_row():
+    state = dialog.new_state({})
+    state["need"].update(purpose="оборудование", amount_rub=500000, repay_from="выручка", term_months=12)
+    ask = lambda *_: "Загрузите выписку по счёту, получится выгрузить?"
+    replies = [dialog.turn(state, text, speak=ask) for text in ("ага", "хм", "ок", "ну да")]
+    assert "менеджер" in replies[-1].lower()

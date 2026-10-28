@@ -37,8 +37,6 @@
 }
 .side-rail-item:hover::after,
 .side-rail-item:focus-within::after { opacity: 1; translate: 0 -50%; }
-/* Палитра такого же размера, как остальные круглые кнопки пилюли */
-.side-rail .palette-toggle { width: 34px; height: 34px; }
 /* Текстовые кнопки в пилюле становятся круглыми иконками, подпись остаётся для экранных читалок и в подсказке */
 .side-rail .journey-restart-button.button,
 .side-rail .side-rail-icon {

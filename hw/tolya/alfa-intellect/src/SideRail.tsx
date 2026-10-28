@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ThemeToggle } from "./ThemeToggle";
-import { PaletteToggle } from "./PaletteToggle";
+import { AppearancePicker } from "./AppearancePicker";
 
 // Служебные кнопки экрана (тема, палитра, сброс, связь) живут в боковой пилюле, а не в шапке.
 export function SideRail({ children }: { children?: ReactNode }) {
@@ -13,8 +13,8 @@ export function SideRail({ children }: { children?: ReactNode }) {
       <span className="side-rail-item" data-tip="Светлая или тёмная тема">
         <ThemeToggle />
       </span>
-      <span className="side-rail-item" data-tip="Палитра «Графит»">
-        <PaletteToggle />
+      <span className="side-rail-item" data-tip="Оформление: основа и акцент">
+        <AppearancePicker />
       </span>
       {children}
     </aside>,
