@@ -92,8 +92,46 @@ def test_source_with_openai_server(monkeypatch, tmp_path, fake_llm, status, repl
         httpd.server_close()
 
 
-@pytest.mark.parametrize("extra", [{"card": {"application": {"status": "info_requested"}}},
-                                   {"mode": "nudge"}, {"mode": "objections"}])
+@pytest.mark.parametrize("status,reply,source,calls_made", [
+    (200, "Привет! Заявка у менеджера, по ней пока ничего не нужно.", "llm", True),
+    (500, "", "template", True),
+    (200, "Гарантирую, кредит одобрено!", "template", True),
+])
+def test_application_free_chat_goes_to_model_with_template_fallback(
+        monkeypatch, tmp_path, fake_llm, status, reply, source, calls_made):
+    config, calls = fake_llm
+    config.update(status=status, reply=reply)
+    monkeypatch.setattr(server, "AGENT_LOG", tmp_path / "agent.log")
+    httpd = run_server()
+    try:
+        result = post(httpd, {"session_id": "free-chat", "text": "привет",
+                              "card": {"application": {"id": "a1", "status": "queued", "n": 3, "m": 5}}})
+        assert result["text"]
+        assert result["source"] == source
+        assert bool(calls) is calls_made
+        if source == "llm":
+            assert result["text"] == reply
+        else:
+            assert "менеджер" in result["text"].lower()
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_application_free_chat_without_model_stays_template(monkeypatch, tmp_path):
+    monkeypatch.setenv("AGENT_LLM_URL", "")
+    monkeypatch.setattr(server, "AGENT_LOG", tmp_path / "agent.log")
+    httpd = run_server()
+    try:
+        result = post(httpd, {"session_id": "free-chat-off", "text": "привет",
+                              "card": {"application": {"id": "a1", "status": "queued"}}})
+        assert result["source"] == "template"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+@pytest.mark.parametrize("extra", [{"mode": "nudge"}, {"mode": "objections"}])
 def test_source_application_modes_are_templates(monkeypatch, tmp_path, fake_llm, extra):
     _, calls = fake_llm
     monkeypatch.setattr(server, "AGENT_LOG", tmp_path / "agent.log")

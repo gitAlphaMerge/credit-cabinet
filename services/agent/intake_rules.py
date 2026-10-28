@@ -6,7 +6,7 @@ LLM-приёмщик обязан обыграть его на тех же фр�
 import re
 from difflib import SequenceMatcher
 
-INTENTS = {"answer_slot", "side_question", "identity", "manager_request", "pii", "smalltalk"}
+INTENTS = {"answer_slot", "side_question", "identity", "manager_request", "pii", "smalltalk", "frustrated"}
 PII_DIGITS = re.compile(r"(?<!\d)(?:\d[ \u00a0-]*){10,19}(?!\d)")
 
 
@@ -30,6 +30,10 @@ def intent(text: str, asking: str | None = None) -> str:
                  r"(перенес|перенос|сдвин|измен|пониже).{0,35}(плат|график|ставк|услов)[а-яё]*|"
                  r"(ставк|график).{0,35}(пониже|сдвин|измен)[а-яё]*|как физик)(?![а-яё])", low):
         return "manager_request"
+    if re.search(r"сколько можно|я же (?:уже )?(?:сказал|писал|говорил|ответил)|уже (?:сказал|писал|говорил|отвечал)|"
+                 r"опять|снова (?:то же|одно)|заново|одно и то же|зациклил|заело|повторя[а-яё]*|"
+                 r"ты (?:что|чё|че) тупишь|не слышишь|не понима[а-яё]*", low):
+        return "frustrated"
     if "?" in text or re.search(r"(?<![а-яё])(?:что такое|чем .+отлич[а-яё]*|какая ставк[а-яё]*|какие порог[а-яё]*|сколько ждать|факторинг)(?![а-яё])", low):
         return "side_question"
     if re.search(r"(?<![а-яё])(?:привет|здравств[а-яё]*|спасибо|на связи|я подумаю|не до кредит[а-яё]*|ты спишь)(?![а-яё])", low):
@@ -141,7 +145,8 @@ def parse(text: str, asking: str | None) -> dict:
     deal = contract(text)
     if deal:
         out["contract_with_main_customer"] = deal
-    if asking in (None, "purpose", "amount"):
+    if asking in (None, "purpose", "amount") or re.search(
+            r"(?:сумм|кредит|нужно|понадоб|измен|вместо)", text, re.I):
         sums = money(_CONTRACT.sub("", text) if deal else text)
         if sums:
             out["amount_rub"] = round(sums[0])

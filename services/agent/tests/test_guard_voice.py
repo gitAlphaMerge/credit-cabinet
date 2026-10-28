@@ -29,6 +29,15 @@ def test_numbers_from_client_and_view():
     assert guard.check("800 тысяч?", None, {}, client_text="Нужно 800 тысяч") == []
 
 
+def test_client_request_is_not_an_authorized_loan_limit():
+    view = {"numbers": {"available_now": 600000}}
+    need = {"amount_rub": 1000000}
+    assert guard.check("Вам доступен лимит 1 млн рублей.", view, need,
+                       client_text="Мне нужен 1 млн")
+    assert guard.check("Вы запросили 1 млн рублей.", view, need,
+                       client_text="Мне нужен 1 млн") == []
+
+
 def test_pii_is_forbidden_even_if_client_provided_it():
     assert guard.check("4509 123456", None, {}, client_text="паспорт 4509 123456")
 

@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pytest
+pytest.importorskip("inspect_ai")
 from metrics import beats_baseline, loops, pass3, percentile, slot_matches
 from runtime import ACTIVE, Bridge, Budget, BudgetExceeded, install_bridge
 import llm

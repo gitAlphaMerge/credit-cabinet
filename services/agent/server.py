@@ -332,11 +332,24 @@ class Handler(BaseHTTPRequestHandler):
                     "DECIDED", "MEETING_SCHEDULED", "MANAGER_APPROVED", "MANAGER_DECLINED",
                     "CONTRACT_READY", "SIGNED_DEMO", "ACTIVE",
                 })
+                # Кабинет шлёт статусы строчными (queued, approved…): свободная реплика клиента
+                # идёт к модели через страж, иначе на «привет» каждый раз выходит карточка.
+                free_chat = bool(application and mode is None and application.get("status") in {
+                    "draft", "queued", "info_requested", "underwriting", "approved", "offered",
+                    "signed", "disbursed", "rejected", "expired", "withdrawn",
+                })
+                need = {k: card[k] for k in ("amount_rub", "term_months") if k in card}
                 if contextual:
                     reply = dialog.application_turn(
                         state, text, application, mode,
-                        speak=speak_slot if use_llm else None, require_llm=True,
-                        need={k: card[k] for k in ("amount_rub", "term_months") if k in card})
+                        speak=speak_slot if use_llm else None, require_llm=True, need=need)
+                elif free_chat and use_llm:
+                    try:
+                        reply = dialog.application_turn(
+                            state, text, application, mode, speak=speak_slot, require_llm=True, need=need)
+                    except dialog.ApplicationAgentUnavailable:
+                        _log({"event": "application_free_chat_fallback"})
+                        reply = dialog.application_turn(state, text, application, mode)
                 else:
                     reply = dialog.application_turn(state, text, application or {}, mode)
             else:
@@ -348,8 +361,8 @@ class Handler(BaseHTTPRequestHandler):
             llm_name = _llm_name()
             if state.get("trace"):
                 fallback = fallback or bool(state["trace"][-1].get("violations"))
-            source = "llm" if use_llm and application is None and mode is None and not fallback else "template"
-            if application is not None and state.get("trace"):
+            source = "template"
+            if state.get("trace") and (application is not None or mode is None):
                 source = state["trace"][-1].get("source", "template")
             with _TURN_LOCK:
                 global TURNS

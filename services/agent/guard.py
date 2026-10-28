@@ -13,6 +13,8 @@ STOP_REASON = ("исполнительн", "арест", "пристав")  # с
 _INN = re.compile(r"(?<!\d)(\d{10}|\d{12})(?!\d)")
 _BARE = re.compile(r"(?<![\d.,])(-?\d+(?:[.,]\d+)?)(?![\d])")  # минус: у ядра бывает DSCR −0.38
 TOLERANCE = 0.005  # «141 800» вместо 141 839: округление до сотен допустимо
+_LIMIT_CLAIM = re.compile(r"\b(?:лимит|доступн[а-яё]*|можно\s+(?:взять|получить|брать))\b", re.I)
+_LIMIT_KEYS = ("available_now", "available_after", "limit_delta", "limit_now_rub", "limit_after_rub")
 
 
 def _promise_text(text):
@@ -133,6 +135,16 @@ def check(text: str, view: dict | None, need: dict, expect_question: bool = True
     if not text.strip():
         bad.append("пустой ответ")
     allowed = allowed_numbers(view, need, client_text)
+    # Requested and quoted amounts may be repeated, but they are not a bank
+    # limit. A limit claim needs a number from the decision snapshot itself.
+    limit_values = [float(view["numbers"][key]) for key in _LIMIT_KEYS
+                    if view and isinstance(view.get("numbers", {}).get(key), (int, float))]
+    if limit_values:
+        for claim in _LIMIT_CLAIM.finditer(text):
+            clause = re.split(r"[;!?]|(?<!\d)\.(?!\d)|,(?=\s+[а-яё])",
+                              text[claim.end():], maxsplit=1, flags=re.I)[0]
+            if any(not _match(value, limit_values) for value in numbers(clause)):
+                bad.append("лимит не из ответа ядра")
     for number in numbers(text):
         if not _match(number, allowed):
             display = f"{number:,.0f}".replace(",", " ") if abs(number) >= 1000 else str(number)
