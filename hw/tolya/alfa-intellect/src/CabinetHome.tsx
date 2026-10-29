@@ -1,4 +1,5 @@
 import { CabinetOmega } from "./CabinetOmega";
+import { CompanyInsights } from "./CompanyInsights";
 import { LoadingScreen } from "./LoadingScreen";
 import { useEffect, useRef, useState } from "react";
 import { cabinetSnapshot, validDate } from "../shared/cabinet";
@@ -72,6 +73,7 @@ export function CabinetHome({ preview = false }: { preview?: boolean }) {
       <section className="home-card"><h2>Главные риски</h2>{risks.length ? risks.map((risk,i) => <p key={i}>{risk}</p>) : <p>Стресс −30% и кассовый разрыв: данных для оценки нет.</p>}</section>
       <section className="home-card home-next"><h2>Следующий шаг</h2><p>{next ? next : !statement ? "Подтвердите банковскую выписку для анализа." : detail ? "Откройте заявку, чтобы проверить её состояние." : "Проверьте данные бизнеса в профиле."}</p><button onClick={() => go(next || detail ? "/apply" : "/profile")}>{next || detail ? "К заявке" : "Открыть профиль"} →</button></section>
     </div>
+    <CompanyInsights/>
     <CabinetOmega/>
   </main>;
 }

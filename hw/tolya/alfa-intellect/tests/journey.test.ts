@@ -287,6 +287,20 @@ test("anonymous approval: signature does not unlock cabinet; activation does, on
   const {juryDestination,preparedJuryCabinet}=await import("../server/jury-cabinets");
   assert.equal(juryDestination(x.uid),"/apply");
   assert.equal(preparedJuryCabinet(x.uid),true);
+  db.prepare("INSERT OR REPLACE INTO jury_cabinets VALUES(?,?)").run("green",x.uid);
+  const reporting=(await x.client.get("/api/state").expect(200)).body;
+  const reportingDoc=reporting.documents.find((d:any)=>d.name==="Демо: ОФР и сравнение лет.csv");
+  assert.ok(reportingDoc);
+  await x.client.get(`/api/documents/${reportingDoc.id}/download`).expect(200);
+  const outsider=request.agent(app);await outsider.post("/api/auth/demo").send({}).expect(200);
+  await outsider.get(`/api/documents/${reportingDoc.id}/download`).expect(404);
+  const count=db.prepare("SELECT COUNT(*) n FROM files WHERE user_id=?").get(x.uid)!.n;
+  await x.client.get("/api/state").expect(200);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM files WHERE user_id=?").get(x.uid)!.n,count);
+  const zoned=(await x.client.post("/api/chats").send({businessArea:"Бухгалтерия"}).expect(200)).body;
+  assert.equal(zoned.businessArea,"Бухгалтерия");
+  assert.equal((await x.client.get("/api/state")).body.chats.find((c:any)=>c.id===zoned.id).businessArea,"Бухгалтерия");
+  await x.client.post("/api/chats").send({businessArea:"x".repeat(65)}).expect(422);
   // Exercise the real cabinet -> provider boundary after issuance. Localized
   // display labels must never replace the agent's machine-readable status.
   const originalFetch = globalThis.fetch;

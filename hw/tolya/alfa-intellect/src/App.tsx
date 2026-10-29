@@ -1,4 +1,6 @@
 import { CfaPreview } from "./CfaPreview";
+import { AppearancePicker } from "./AppearancePicker";
+import { ThemeToggle } from "./ThemeToggle";
 import { LoadingScreen } from "./LoadingScreen";
 import { LOADING_HOLD_MS, useMinimumLoading } from "./loading-hold";
 import { useEffect, useState, useRef } from "react";
@@ -402,6 +404,7 @@ export function App() {
               ))}
             </nav>
             <div className="header-tools g2-tools">
+              <div className="cabinet-appearance"><span>Оформление</span><ThemeToggle/><AppearancePicker/></div>
               <IconButton
                 className="mobile-menu"
                 label="Меню"

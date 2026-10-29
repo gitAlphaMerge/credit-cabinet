@@ -108,7 +108,7 @@ export function ChatComposer({ chatId }: { chatId: string }) {
             disabled={w.uploading || busy}
             onClick={() => input.current?.click()}
           >
-            <Paperclip size={20} />
+            <Paperclip size={25} />
           </IconButton>
           <input
             ref={input}

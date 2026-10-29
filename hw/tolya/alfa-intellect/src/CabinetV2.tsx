@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Illustration } from "./Illustration";
+import { CompanyInsights, ForecastTimeline } from "./CompanyInsights";
 import { CreditArchive } from "./CreditArchive";
 import {
   ArrowRight,
@@ -147,8 +148,8 @@ export function DebtChart({ facility }: { facility: Facility | null }) {
             className="cv-chart-plan"
             d={path}
             fill="none"
-            stroke="#c5cbd5"
-            strokeWidth="2.5"
+              stroke="var(--theme-chart-primary, #ef3124)"
+              strokeWidth="4"
           />
           {fact.length > 1 && (
             <path
@@ -898,6 +899,7 @@ export function CabinetV2({
     [editor, setEditor] = useState<EditorKind | null>(null);
   return (
     <div className="cabinet-v2 unified-cabinet">
+      {!preview && <CompanyInsights/>}
       {training && (
         <div className="cv-training-label">
           Данные кабинета обновляются по мере поступления сведений
@@ -1197,6 +1199,7 @@ export function CabinetV2({
             <ArrowRight size={14} />
           </button>
         </div>
+        {v.forecast.available && <ForecastTimeline timeline={v.forecast.timeline}/>}
         <FinancialIndicators metrics={v.metrics} />
       </section>
       <section className="cv-recommendations" data-tour="recommendations">

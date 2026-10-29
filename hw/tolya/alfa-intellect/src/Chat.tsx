@@ -104,6 +104,8 @@ export function Chat({
     [title, setTitle] = useState("");
   const [mobile, setMobile] = useState(() => innerWidth <= 760);
   const [confirmingFunding, setConfirmingFunding] = useState(false);
+  const [identity,setIdentity]=useState<{model:string;core:string}|null>(null);
+  useEffect(()=>{let live=true;fetch("/api/model-identity").then(r=>r.ok?r.json():null).then(v=>{if(live&&v&&typeof v.model==="string"&&typeof v.core==="string")setIdentity(v);}).catch(()=>{});return()=>{live=false;};},[]);
   const root = useRef<HTMLElement>(null),
     messages = useRef<HTMLDivElement>(null),
     newChatLock = useRef(false),
@@ -168,11 +170,11 @@ export function Chat({
         ?.querySelector<HTMLButtonElement>(".history-toggle")
         ?.focus({ preventScroll: true });
   }, [w.historyOpen]);
-  async function newChat() {
+  async function newChat(businessArea?:string) {
     if (newChatLock.current || busy) return;
     newChatLock.current = true;
     try {
-      const c = await w.act("/chats", {});
+      const c = await w.act("/chats", businessArea ? {businessArea} : {});
       w.setActiveChatId(c.id);
       if (drawer) w.setHistoryOpen(false);
     } catch {
@@ -207,7 +209,7 @@ export function Chat({
         <ChatHistory
           drawer={drawer}
           activeId={chat?.id || ""}
-          onNew={() => void newChat()}
+          onNew={area => void newChat(area)}
           onRename={rename}
         />
         <div
@@ -223,7 +225,7 @@ export function Chat({
             >
               <PanelLeftOpen size={19} />
             </IconButton>
-            <div className="chat-header-title"><span className="omega-label"><OmegaMark size={15}/>Агент Омега</span>
+            <div className="chat-header-title"><span className="omega-label"><OmegaMark size={18}/>Агент Омега{chat?.businessArea ? ` · ${chat.businessArea}` : ""}</span><small className="agent-model-label" title={identity?.core}>{identity ? `${identity.model} · ядро Лизы` : "Уточняем модель…"}</small>
               <button
                 className="unstyled"
                 aria-label={

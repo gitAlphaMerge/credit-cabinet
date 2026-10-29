@@ -1,6 +1,7 @@
 import { PublicNavigation } from "./PublicNavigation";
 import { ApplicationKnowledge } from "./ApplicationKnowledge";
 import { FundingComplete } from "./FundingComplete";
+import { CompanyInsights } from "./CompanyInsights";
 import { LoadingScreen } from "./LoadingScreen";
 import { SideRail, SideRailItem } from "./SideRail";
 import { useEffect, useLayoutEffect, useRef, useState, useId } from "react";
@@ -2637,6 +2638,7 @@ export function Mvp2({
         </section>
       )}
       {a && view === "funded" && <FundingComplete application={a} onCredit={() => w.go("/credit")} onBusiness={() => w.go("/cabinet")}/>}
+      {a && ["funded","decision","meeting"].includes(view) && <CompanyInsights/>}
       {a && q && view === "scenario" && (
         <section className="funding-surface">
           <h2>Проверить другие условия</h2>

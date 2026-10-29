@@ -90,6 +90,7 @@ export type Message = {
   proposal?: { field: string; value: number };
 };
 export type Chat = {
+  businessArea?: string;
   mvp2Context?: {
     applicationId: string;
     section: number;

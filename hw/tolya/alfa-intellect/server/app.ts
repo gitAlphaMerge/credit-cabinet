@@ -54,6 +54,8 @@ import { checksRouter } from "./checks";
 import { demoPersonasRouter, ensureDemoSchema } from "./demo-personas";
 import { juryCabinet, juryDestination } from "./jury-cabinets";
 import { demoPersonas } from "../shared/demo-personas";
+import { agentIdentity } from "./agent-identity";
+import { ensureJuryReporting } from "./jury-cabinets";
 import {
   ApplicationError,
   applicationOf,
@@ -138,6 +140,7 @@ function cookie(res: express.Response, value: string, maxAge = 7 * 86400000) {
     path: "/",
   });
 }
+app.get("/api/model-identity", async (_req,res) => res.json(await agentIdentity()));
 app.get("/api/config", (req, res) => {
   const user = sessionUser(token(req));
   res.json({
@@ -569,6 +572,7 @@ app.put("/api/journey/position", saveJourneyPosition);
 app.get("/api/journey/draft/:id", readDraft);
 app.put("/api/journey/draft", saveDraft);
 app.get("/api/state", (_req, res) => {
+  ensureJuryReporting(res.locals.userId);
   const s = stateOf(res.locals.userId);
   syncCabinetNotices(s);
   saveState(res.locals.userId, s);
@@ -929,6 +933,7 @@ app.post("/api/chats", (req, res) => {
       title: selectionId ? "Обсуждение подбора" : "Новый диалог",
       selectionId,
       messages: [],
+      businessArea: req.body.businessArea === undefined ? undefined : z.string().trim().min(1).max(64).parse(req.body.businessArea),
     };
     s.chats.unshift(chat);
     saveState(res.locals.userId, s);

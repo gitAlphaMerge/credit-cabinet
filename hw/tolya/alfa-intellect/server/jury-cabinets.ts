@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { DemoPersona } from "../shared/demo-personas";
 import { db, stateOf, saveState } from "./store";
+import { demoReporting } from "../shared/demo-reporting";
 
 // Компания жюри проходит настоящий путь через свой же сервер и ядро: анкета → реестр → выписка → решение,
 // при одобрении договор и выдача. Второй вход открывает ту же компанию, а не новую заявку.
@@ -167,7 +168,7 @@ async function walk(persona: DemoPersona, base: string) {
   s.profile.inn = persona.inn;
   s.profile.source = "Синтетический демонстрационный сценарий";
   s.preferences.tourDone = true;
-  saveState(uid, s);
+  saveReporting(uid, persona.key, s);
   db.prepare("INSERT OR REPLACE INTO jury_cabinets VALUES(?,?)").run(persona.key, uid);
   return uid;
 }
@@ -184,6 +185,7 @@ export function juryCabinet(persona: DemoPersona, base: string) {
       s.profile.inn = persona.inn;
       saveState(saved.user_id, s);
     }
+    saveReporting(saved.user_id, persona.key, stateOf(saved.user_id));
     return Promise.resolve(saved.user_id);
   }
   let run = pending.get(persona.key);
@@ -202,3 +204,25 @@ export function preparedJuryCabinet(uid: string) {
 
 /** Reopen the saved result, including a booked call or completed demo disbursement. */
 export const juryDestination = (_uid: string) => "/apply";
+
+/** Only the explicitly selected synthetic jury workspace receives example reports. */
+function saveReporting(uid:string,key:string,state:ReturnType<typeof stateOf>) {
+  const next=demoReporting(state,key);
+  if(next===state)return;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    for(const doc of next.documents.filter(d=>d.id.startsWith(`demo-reporting-${key}-`))){
+      const csv=doc.records ? "date,amount,balance,purpose\n"+doc.records.map(r=>[r.date,r.amount,r.balance,r.purpose].join(",")).join("\n") : "field,value\n"+Object.entries(doc.fields).map(([k,v])=>`${k},${v}`).join("\n");
+      db.prepare("INSERT OR REPLACE INTO files(id,user_id,name,mime,data) VALUES(?,?,?,?,?)").run(doc.id+"-"+uid,uid,doc.name,doc.mime,Buffer.from(csv));
+      doc.id+="-"+uid;
+    }
+    // Keep fixture IDs stable per owner and day, avoiding cross-company document access.
+    saveState(uid,next);db.exec("COMMIT");
+  }catch(e){db.exec("ROLLBACK");throw e;}
+}
+
+/** Ordinary users are untouched; only an existing jury mapping authorizes fixture refresh. */
+export function ensureJuryReporting(uid:string){
+  const mapping=db.prepare("SELECT persona FROM jury_cabinets WHERE user_id=?").get(uid);
+  if(mapping)saveReporting(uid,String(mapping.persona),stateOf(uid));
+}

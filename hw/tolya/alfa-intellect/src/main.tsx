@@ -50,3 +50,4 @@ import "./ui-scale.css";
 import "./cfa-preview.css";
 
 import "./public-navigation.css";
+import "./accounting-workspace.css";
