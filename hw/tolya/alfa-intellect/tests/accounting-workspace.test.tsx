@@ -27,6 +27,7 @@ test("current demo reports supply finite cash, growth and margin while forecast 
   const base=trainingCabinet(publicPreview());delete base.cabinet!.plan;delete base.cabinet!.coverage;base.documents=[];
   const s=demoReporting(base,"green"),snapshot=cabinetSnapshot(s,undefined,true);
   assert.notEqual(snapshot.cash.net,null);
+  assert.equal(s.cabinet!.plan!.balance,s.documents.find(d=>d.category==="statement")!.records!.at(-1)!.balance);
   assert.ok(snapshot.metrics.filter(m=>m.value!==null).length>=3);
   assert.equal(snapshot.forecast.available,true);
   assert.ok(snapshot.forecast.timeline.every(p=>Number.isFinite(p.balance)));
