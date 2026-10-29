@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "./motion";
-export const LOADING_HOLD_MS = 720;
-export const TRANSITION_HOLD_MS = 900;
+import { LOADING_HOLD_MS } from "./loading-timing";
+export { LOADING_HOLD_MS, TRANSITION_HOLD_MS } from "./loading-timing";
 /** Keep the illustration visible after fast work; actual request/error states stay intact. */
 export function useMinimumLoading(active: boolean, minimum = LOADING_HOLD_MS) {
   const reduced = useReducedMotion();

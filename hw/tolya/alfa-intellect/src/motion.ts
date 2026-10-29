@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { TRANSITION_HOLD_MS } from "./loading-timing";
 export function useReducedMotion() {
   const [reduced, setReduced] = useState(
     () =>
@@ -15,7 +16,7 @@ export function useReducedMotion() {
   return reduced;
 }
 
-/** Four visible checks with a short 900 ms minimum; the request controls completion. */
+/** Four visible checks with a short minimum; the request controls completion. */
 export function useTransitionProgress(ready: boolean, onFinish: () => void) {
   const reduced = useReducedMotion();
   const [completed, setCompleted] = useState(0);
@@ -31,7 +32,7 @@ export function useTransitionProgress(ready: boolean, onFinish: () => void) {
   }, [completed, ready, reduced]);
   useEffect(() => {
     if ((!reduced && completed !== 4) || !ready || finished.current) return;
-    const delay = reduced ? 0 : Math.max(0, 900 - (Date.now() - transitionStarted.current));
+    const delay = reduced ? 0 : Math.max(0, TRANSITION_HOLD_MS - (Date.now() - transitionStarted.current));
     const timer = setTimeout(() => {finished.current = true; onFinish();}, delay);
     return () => clearTimeout(timer);
   }, [completed, onFinish, ready, reduced, finished]);

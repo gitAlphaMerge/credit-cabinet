@@ -1,5 +1,6 @@
 import { LoadingScreen } from "./LoadingScreen";
 import { useMinimumLoading } from "./loading-hold";
+import { JOURNEY_RESTORE_HOLD_MS } from "./loading-timing";
 import { useEffect, useRef, useState } from "react";
 import { MvpOnboarding } from "./Mvp2";
 import { api, workspaceHeaders, setApiWorkspace } from "./api";
@@ -161,7 +162,7 @@ export function JourneyOnboarding({
       setMoving(false);
     }
   }
-  const restoring = useMinimumLoading(!model && !error, 420);
+  const restoring = useMinimumLoading(!model && !error, error ? 0 : JOURNEY_RESTORE_HOLD_MS);
   if (preparing)
     return (
       <div className="onboarding journey-onboarding">

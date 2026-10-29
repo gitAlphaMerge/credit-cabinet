@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LoadingScreen } from "./LoadingScreen";
+import { LOADING_HOLD_MS } from "./loading-timing";
 /** One shared indicator also catches actions that previously had only disabled buttons. */
 export function RequestActivity() {
   const requests = useRef(new Map<number, string>());
@@ -24,7 +25,7 @@ export function RequestActivity() {
       if (!shownAt && hasAnotherLoader()) return;
       if (!shownAt) {shownAt = Date.now();}
       setView({label: ok ? "Готово" : "Не удалось завершить действие", state: ok ? "done" : "error"});
-      hide = setTimeout(() => {shownAt = 0; setView(null);}, Math.max(420, 720 - (Date.now() - shownAt)));
+      hide = setTimeout(() => {shownAt = 0; setView(null);}, Math.max(420, LOADING_HOLD_MS - (Date.now() - shownAt)));
     };
     window.addEventListener("alfa-request-start", start); window.addEventListener("alfa-request-end", end);
     return () => {clearTimeout(reveal); clearTimeout(hide); requests.current.clear(); window.removeEventListener("alfa-request-start", start); window.removeEventListener("alfa-request-end", end);};

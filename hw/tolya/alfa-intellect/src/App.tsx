@@ -1,6 +1,6 @@
 import { CfaPreview } from "./CfaPreview";
 import { LoadingScreen } from "./LoadingScreen";
-import { useMinimumLoading } from "./loading-hold";
+import { LOADING_HOLD_MS, useMinimumLoading } from "./loading-hold";
 import { useEffect, useState, useRef } from "react";
 import {
   ArrowLeft,
@@ -58,7 +58,7 @@ export function App() {
     [uploading, setUploading] = useState(false),
     [bell, setBell] = useState(false),
     [mobileNav, setMobileNav] = useState(false);
-  const visibleLoading = useMinimumLoading(loading, toast ? 0 : 720);
+  const visibleLoading = useMinimumLoading(loading, toast ? 0 : LOADING_HOLD_MS);
   const [contactOpen, setContactOpen] = useState(false),
     [contactPhone, setContactPhone] = useState(""),
     [contactNote, setContactNote] = useState(""),
