@@ -54,7 +54,8 @@ test("feedback ownership, validation, upsert, dismissal and incremental redacted
     assert.equal(row.status,"ready"); assert.equal(row.agent_trace,null);
     assert.equal(row.messages.length,3); assert.equal(row.feedback.length,2);
     assert.ok(rows.some(c=>c.feedback.length===0));
-    for(const pii of ["45 08 123456","7712345678","123-456-789 01","4111 1111","999","test@example.ru",uid]) assert.ok(!history.text.includes(pii),pii);
+    // Check the submitted phone, not a three-digit fragment that can occur in a random UUID.
+    for(const pii of ["45 08 123456","7712345678","123-456-789 01","4111 1111","+7 (999) 123-45-67","test@example.ru",uid]) assert.ok(!history.text.includes(pii),pii);
     assert.ok(history.text.includes("[скрыто]"));
     const feedback=parse((await get("feedback").expect(200)).text);
     assert.equal(feedback.find(f=>f.id===first.id).messages.length,2);

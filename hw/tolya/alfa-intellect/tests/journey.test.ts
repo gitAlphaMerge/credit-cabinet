@@ -280,6 +280,10 @@ test("anonymous approval: signature does not unlock cabinet; activation does, on
     .expect(200);
   assert.equal(cabinetAvailable(x.uid), true);
   assert.equal((await x.client.get("/api/config")).body.cabinetAvailable, true);
+  await x.client.put("/api/journey/position").send({applicationId:a.id,section:0,view:"funded"}).expect(200);
+  assert.equal((await x.client.get("/api/journey")).body.view,"funded");
+  const {juryDestination}=await import("../server/jury-cabinets");
+  assert.equal(juryDestination(x.uid),"/apply");
   // Exercise the real cabinet -> provider boundary after issuance. Localized
   // display labels must never replace the agent's machine-readable status.
   const originalFetch = globalThis.fetch;

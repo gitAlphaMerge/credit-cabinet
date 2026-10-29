@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { DemoPersona } from "../shared/demo-personas";
 import { db, stateOf, saveState } from "./store";
-import { cabinetAvailable } from "./journey";
 
 // Компания жюри проходит настоящий путь через свой же сервер и ядро: анкета → реестр → выписка → решение,
 // при одобрении договор и выдача. Второй вход открывает ту же компанию, а не новую заявку.
@@ -145,7 +144,7 @@ async function walk(persona: DemoPersona, base: string) {
   // «Документы у менеджера» и «клиент молчит»: клиент пропускает запрошенное, заявка уходит менеджеру.
   if (
     a.decision === "ADDITIONAL_DATA_REQUIRED" &&
-    ["manager_document", "silent"].includes(persona.branch)
+    ["manager_document", "silent", "young"].includes(persona.branch)
   )
     for (const item of a.missing.filter((m: { status?: string }) => (m.status ?? "todo") === "todo"))
       a = await json("POST", `/api/mvp2/applications/${a.id}/missing/${item.id}/skip`, {
@@ -195,4 +194,5 @@ export function juryCabinet(persona: DemoPersona, base: string) {
   return run;
 }
 
-export const juryDestination = (uid: string) => (cabinetAvailable(uid) ? "/cabinet" : "/apply");
+/** Reopen the saved result, including a booked call or completed demo disbursement. */
+export const juryDestination = (_uid: string) => "/apply";

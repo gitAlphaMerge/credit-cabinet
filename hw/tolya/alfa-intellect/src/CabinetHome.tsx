@@ -1,4 +1,4 @@
-import { OmegaMark, OmegaMicrophone } from "./OmegaIdentity";
+import { CabinetOmega } from "./CabinetOmega";
 import { LoadingScreen } from "./LoadingScreen";
 import { useEffect, useRef, useState } from "react";
 import { cabinetSnapshot, validDate } from "../shared/cabinet";
@@ -26,7 +26,7 @@ export function CabinetProfileMenu({ name, onProfile, onLogout }: { name: string
 }
 
 export function CabinetHome({ preview = false }: { preview?: boolean }) {
-  const { state, go, draft, setDraft } = useWorkspace();
+  const { state, go } = useWorkspace();
   const snapshot = cabinetSnapshot(state, undefined, preview);
   const [detail, setDetail] = useState<ClientDetail | null>(null);
   const [mvp, setMvp] = useState<MvpApplication | null>(null);
@@ -34,7 +34,7 @@ export function CabinetHome({ preview = false }: { preview?: boolean }) {
   useEffect(() => {
     if (preview) { setApplicationState("ready"); return; }
     let live = true;
-    api<MvpApplication[]>("/mvp2/applications").then(list => { if (live) setMvp(list[0] ?? null); }).catch(() => {});
+    Promise.all([api<MvpApplication[]>("/mvp2/applications"), api<{applicationId?:string}>("/journey")]).then(([list, position]) => { if (live) setMvp(list.find(item => item.id === position.applicationId) ?? list[0] ?? null); }).catch(() => {});
     loadOwnApplications().then(async list => list.length ? loadOwnApplication(list[0].id) : null)
       .then(value => { if (live) { setDetail(value); setApplicationState("ready"); } })
       .catch(() => { if (live) setApplicationState("error"); });
@@ -68,11 +68,11 @@ export function CabinetHome({ preview = false }: { preview?: boolean }) {
         {months.length ? <div className="home-months">{months.map(([m,n]) => <div key={m}><span>{new Date(m + "-01T00:00:00").toLocaleDateString("ru-RU", {month:"short", year:"2-digit"})}</span><strong>{money(n)}</strong></div>)}</div> : <p>Подтвердите выписку, чтобы увидеть движение денег.</p>}</section>
       <section className="home-card"><h2>Остаток на счёте</h2><strong className="home-number">{last ? money(Number(last.balance)) : "Нет данных"}</strong><p>{last ? `На ${fmtDate(String(last.date))}` : "В подтверждённой выписке нет остатка."}</p>{last && previous && <p>Изменение с {fmtDate(String(previous.date))}: {money(Number(last.balance) - Number(previous.balance))}</p>}</section>
       <section className="home-card"><h2>Ближайшие платежи</h2>{payments.length ? payments.map(p => <div className="home-row" key={p.id}><span>{fmtDate(p.date)}</span><strong>{money(p.principal + p.interest + p.fees)}</strong></div>) : <p>Подтверждённого графика ближайших платежей нет.</p>}<button onClick={() => go("/credit")}>Кредитный кабинет →</button></section>
-      <section className="home-card"><h2>Заявка и лимит</h2>{applicationState === "loading" ? <LoadingScreen compact title="Загружаем заявку" message="Пуш уточняет текущий лимит" /> : <p>{applicationState === "error" ? "Не удалось загрузить заявку." : detail ? labelCode(detail.application.status) : "Заявок пока нет."}</p>}<div className="home-row"><span>Лимит сейчас</span><strong>{money(mvp?.financial?.limitNow ?? dossier?.limit_now_rub)}</strong></div><div className="home-row"><span>После шага</span><strong>{money(after)}</strong></div>{detail && <button onClick={() => go("/apply")}>Открыть заявку →</button>}</section>
+      <section className="home-card"><h2>Заявка и лимит</h2>{applicationState === "loading" ? <LoadingScreen compact title="Загружаем заявку" message="Пуш уточняет текущий лимит" /> : <p>{mvp ? labelCode(mvp.lifecycle) : applicationState === "error" ? "Не удалось загрузить заявку." : detail ? labelCode(detail.application.status) : "Заявок пока нет."}</p>}<div className="home-row"><span>Лимит сейчас</span><strong>{money(mvp?.financial?.limitNow ?? dossier?.limit_now_rub)}</strong></div><div className="home-row"><span>После шага</span><strong>{money(after)}</strong></div>{(detail || mvp) && <button onClick={() => go("/apply")}>{mvp?.lifecycle === "ACTIVE" ? "Подтверждение выдачи" : mvp?.lifecycle === "MEETING_SCHEDULED" ? "Запись на звонок" : "Открыть заявку"} →</button>}</section>
       <section className="home-card"><h2>Главные риски</h2>{risks.length ? risks.map((risk,i) => <p key={i}>{risk}</p>) : <p>Стресс −30% и кассовый разрыв: данных для оценки нет.</p>}</section>
       <section className="home-card home-next"><h2>Следующий шаг</h2><p>{next ? next : !statement ? "Подтвердите банковскую выписку для анализа." : detail ? "Откройте заявку, чтобы проверить её состояние." : "Проверьте данные бизнеса в профиле."}</p><button onClick={() => go(next || detail ? "/apply" : "/profile")}>{next || detail ? "К заявке" : "Открыть профиль"} →</button></section>
     </div>
-    <form className="omega-dock" aria-label="Быстрый вопрос агенту Омега" onSubmit={event => {event.preventDefault();go("/chat");}}><div className="omega-dock-heading"><OmegaMark size={28}/><div><strong>Агент Омега</strong><small>Документы, расчёты и вопросы по кабинету</small></div></div><input aria-label="Черновик вопроса агенту Омега" placeholder="Что происходит с деньгами бизнеса?" value={draft} onChange={event => setDraft(event.target.value)} maxLength={4000}/><OmegaMicrophone onText={text => setDraft([draft,text].filter(Boolean).join(" ").slice(0,4000))}/><button type="submit" className="omega-open">Открыть чат →</button></form>
+    <CabinetOmega/>
   </main>;
 }
 

@@ -1,5 +1,6 @@
 import { PublicNavigation } from "./PublicNavigation";
 import { ApplicationKnowledge } from "./ApplicationKnowledge";
+import { FundingComplete } from "./FundingComplete";
 import { LoadingScreen } from "./LoadingScreen";
 import { SideRail, SideRailItem } from "./SideRail";
 import { useEffect, useLayoutEffect, useRef, useState, useId } from "react";
@@ -1241,10 +1242,6 @@ export function Mvp2({
   }
   async function open(next: MvpApplication) {
     adopt(next);
-    if (next.lifecycle === "ACTIVE") {
-      w.go("/cabinet");
-      return;
-    }
     const position = await api("/journey");
     setView(journeyView(next, position));
     if (journeyView(next, position) === "meeting")
@@ -1431,7 +1428,7 @@ export function Mvp2({
     if (
       !a ||
       (view !== "processing" &&
-        !(view === "decision" && a.lifecycle === "MEETING_SCHEDULED"))
+        !(["decision", "meeting"].includes(view) && a.lifecycle === "MEETING_SCHEDULED"))
     )
       return;
     const id = a.id;
@@ -1448,7 +1445,7 @@ export function Mvp2({
               return;
             adopt(next);
             if (!["SUBMITTED", "PROCESSING"].includes(next.lifecycle))
-              setView(derivedView(next));
+              setView(journeyView(next, {applicationId: id, view}));
           })
           .catch((e) => {
             if (active) setError(visibleError(e));
@@ -1737,6 +1734,7 @@ export function Mvp2({
                   "details",
                   "contract",
                   "receive",
+                  "funded",
                 ].includes(view)
               ? 3
               : ["recommendation", "catalog", "start", "loading"].includes(view)
@@ -1766,6 +1764,7 @@ export function Mvp2({
               details: "Данные для договора",
               contract: "Кредитный договор",
               receive: "Получение финансирования",
+              funded: "Финансирование получено",
               scenario: "Новые условия",
             }[view] || "Оформление финансирования"}
           </h1>
@@ -2523,7 +2522,7 @@ export function Mvp2({
             </Button>
             <div>
               {a.lifecycle === "ACTIVE" ? (
-                <Button onClick={() => w.go("/cabinet")}>
+                <Button onClick={() => w.go("/credit")}>
                   В кредитный кабинет
                 </Button>
               ) : a.decision === "APPROVED" ? (
@@ -2636,6 +2635,7 @@ export function Mvp2({
           </Button>
         </section>
       )}
+      {a && view === "funded" && <FundingComplete application={a} onCredit={() => w.go("/credit")} onBusiness={() => w.go("/cabinet")}/>}
       {a && q && view === "scenario" && (
         <section className="funding-surface">
           <h2>Проверить другие условия</h2>
@@ -2893,7 +2893,7 @@ export function Mvp2({
                 void run(async () => {
                   adopt(await api(path + "/activate", {}));
                   await w.refresh();
-                  w.go("/cabinet");
+                  await transition("funded");
                 })
               }
             >

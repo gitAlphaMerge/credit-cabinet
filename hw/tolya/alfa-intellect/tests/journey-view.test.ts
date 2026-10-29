@@ -105,3 +105,19 @@ test("draft resumes the explicit screen and ignores another application's positi
     "recommendation",
   );
 });
+
+test("a funded application restores confirmation instead of skipping to another workspace", () => {
+  const funded = {...approved,lifecycle:"ACTIVE" as const};
+  for (const saved of [undefined,position("receive"),position("contract"),position("decision")])
+    assert.equal(journeyView(funded,saved),"funded");
+  assert.notEqual(journeyView({...approved,lifecycle:"SIGNED_DEMO"}),"funded");
+});
+
+test("a booked manager call restores its card while explicit return to decision remains available", () => {
+  const booked = {...approved,contract:undefined,lifecycle:"MEETING_SCHEDULED" as const,decision:"MANAGER_REVIEW_REQUIRED" as const,meeting:{slotId:"s",at:"2026-10-30T12:00:00+03:00",manager:"Менеджер"}};
+  assert.equal(journeyView(booked),"meeting");
+  assert.equal(journeyView(booked,position("processing")),"meeting");
+  assert.equal(journeyView(booked,position("decision")),"decision");
+  assert.equal(journeyView({...booked,meeting:undefined}),"decision");
+  assert.equal(journeyView({...booked,decision:"APPROVED",lifecycle:"MANAGER_APPROVED"}),"decision");
+});

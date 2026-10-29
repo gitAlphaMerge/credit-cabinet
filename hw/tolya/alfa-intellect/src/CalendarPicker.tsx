@@ -213,11 +213,13 @@ export function MeetingBooking({
     return (
       <article className="mvp-account" role="status">
         <h2>
-          Менеджер позвонит{" "}
+          {Date.parse(meeting.at) < Date.now() ? "Звонок был назначен на" : "Менеджер позвонит"}{" "}
           {meetingLabel(meeting.at, { day: "numeric", month: "long" })} в{" "}
           {meetingLabel(meeting.at, { hour: "2-digit", minute: "2-digit" })} МСК
         </h2>
         <p>Запись сохранена в заявке.</p>
+        <p>Ваш менеджер: {meeting.manager}.</p>
+        {Date.parse(meeting.at) < Date.now() && <p>Время записи прошло. Решение появится после обновления заявки менеджером; при необходимости перенесите звонок.</p>}
         <div className="mvp-actions">
           <button
             type="button"

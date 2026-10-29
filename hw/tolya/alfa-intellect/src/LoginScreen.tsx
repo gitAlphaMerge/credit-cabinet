@@ -27,10 +27,7 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
     setError("");
     setPicked(persona ?? "phone");
     api<{ destination: string }>("/auth/jury", { login, password: pass, persona })
-      .then(async (r) => {
-        const config = await api<{ cabinetAvailable: boolean }>("/config");
-        location.assign(r.destination !== "/bank" && config.cabinetAvailable ? "/cabinet" : r.destination);
-      })
+      .then((r) => location.assign(r.destination))
       .catch((err: Error) => {
         setPicked("");
         setError(err.message || "Логин или пароль не подошли");

@@ -368,6 +368,7 @@ export function saveJourneyPosition(req: Request, res: Response) {
         "details",
         "contract",
         "receive",
+        "funded",
         "chat",
         "scenario",
       ]),
