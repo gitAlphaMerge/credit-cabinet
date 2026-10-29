@@ -280,6 +280,27 @@ test("anonymous approval: signature does not unlock cabinet; activation does, on
     .expect(200);
   assert.equal(cabinetAvailable(x.uid), true);
   assert.equal((await x.client.get("/api/config")).body.cabinetAvailable, true);
+  // Exercise the real cabinet -> provider boundary after issuance. Localized
+  // display labels must never replace the agent's machine-readable status.
+  const originalFetch = globalThis.fetch;
+  const previousAgentUrl = process.env.TEAM_AGENT_URL;
+  let sent: any;
+  process.env.TEAM_AGENT_URL = "http://agent.test";
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    sent = JSON.parse(String(init?.body));
+    return Response.json({ text: "Помогу разобраться с вашим финансированием.", status: "ACTIVE" });
+  }) as typeof fetch;
+  try {
+    const chat = stateOf(x.uid).chats[0];
+    await x.client.post(`/api/chats/${chat.id}/messages`).send({ text: "Здравствуйте" }).expect(200);
+    assert.equal(sent.card.application.status, "ACTIVE");
+    assert.equal(sent.card.application.id, a.id);
+    assert.equal(sent.client_id, x.uid);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousAgentUrl === undefined) delete process.env.TEAM_AGENT_URL;
+    else process.env.TEAM_AGENT_URL = previousAgentUrl;
+  }
   assert.equal(stateOf(x.uid).cabinet?.facility?.applicationId, a.id);
   assert.equal(
     db

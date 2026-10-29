@@ -72,10 +72,10 @@ import {
 export const app = express();
 export const stopSilenceSweep = startSilenceSweep(db, applicationsDependencies);
 app.disable("x-powered-by");
-app.use((_req, res, next) => {
+app.use((req, res, next) => {
   res.set({
     "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
+    "X-Frame-Options": req.path === "/v2/zagruzka.html" ? "SAMEORIGIN" : "DENY",
     "Referrer-Policy": "same-origin",
   });
   next();
@@ -980,7 +980,7 @@ function mvpTurnContext(uid: string): AgentTurnContext | undefined {
     },
     application: {
       id: a.id,
-      status: a.activatedAt ? "кредит выдан" : a.decision ?? a.lifecycle,
+      status: a.activatedAt ? "ACTIVE" : a.decision ?? a.lifecycle,
       reasons: a.reasons,
       limit_now_rub: a.financial?.limitNow ?? a.financial?.limit,
       alternatives: (a.alternatives ?? []).map((x) => ({

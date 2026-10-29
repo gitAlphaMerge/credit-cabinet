@@ -12,8 +12,14 @@ test("экраны ожидания показывают четыре конкр
     const html = renderToStaticMarkup(
       <CreditTransition kind={kind} ready={false} onFinish={() => {}} />,
     );
-    for (const label of transitionSteps[kind]) assert.ok(html.includes(label));
-    assert.match(html, /credit-transition-pattern/);
+    if (kind === "selection") {
+      for (const label of transitionSteps[kind]) assert.ok(html.includes(label));
+      assert.match(html, /push-loading-pattern/);
+    } else {
+      assert.match(html, /src="\/v2\/img\/push.png"/);
+      assert.match(html, /Заявка отправляется на рассмотрение/);
+      assert.doesNotMatch(html, /class="running"/);
+    }
     assert.match(html, /aria-busy="true"/);
     assert.deepEqual(
       transitionStepStates(kind, 3, false).map((step) => step.status),

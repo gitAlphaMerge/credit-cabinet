@@ -1,3 +1,5 @@
+import { OmegaMark, OmegaMicrophone } from "./OmegaIdentity";
+import { LoadingScreen } from "./LoadingScreen";
 import { useEffect, useRef, useState } from "react";
 import { MessageSquare, ArrowUp, RotateCw } from "lucide-react";
 import { api } from "./api";
@@ -163,9 +165,9 @@ export function ApplicationAgent({
       aria-label="Контекстный ИИ-агент"
     >
       <header>
-        <MessageSquare size={22} />
+        <OmegaMark size={26} />
         <div>
-          <h2>ИИ-помощник</h2>
+          <h2>Агент Омега</h2>
           <small>
             {application.decision
               ? "Обсуждение решения"
@@ -202,22 +204,18 @@ export function ApplicationAgent({
         {chat?.messages.map((m) => (
           <article className={`application-message ${m.role}`} key={m.id}>
             <small>
+              {m.role !== "user" && <OmegaMark size={14}/>}
               {m.role === "user"
                 ? "Вы"
                 : m.mode === "application-reference"
                   ? "Справочное пояснение"
-                  : "ИИ-помощник"}
+                  : "Агент Омега"}
             </small>
             <MarkdownText text={m.text} />
           </article>
         ))}
         {busy && (
-          <p className="agent-typing" role="status">
-            <i />
-            <i />
-            <i />
-            <span className="visually-hidden">Готовим ответ…</span>
-          </p>
+          <LoadingScreen compact title="Готовим ответ" message="Пуш проверяет сведения заявки" />
         )}
       </div>
       {error && (
@@ -315,6 +313,7 @@ export function ApplicationAgent({
             }
           }}
         />
+        <OmegaMicrophone disabled={busy} onText={text => setDraft(value => [value,text].filter(Boolean).join(" ").slice(0,1500))}/>
         <button
           aria-label="Отправить сообщение"
           disabled={busy || !chat || !draft.trim()}

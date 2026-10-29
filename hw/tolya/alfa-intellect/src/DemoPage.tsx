@@ -1,3 +1,6 @@
+import { PublicNavigation } from "./PublicNavigation";
+import { CabinetHome } from "./CabinetHome";
+import { LoadingScreen } from "./LoadingScreen";
 import { SideRail } from "./SideRail";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, FileText } from "lucide-react";
@@ -14,6 +17,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
   const [kind, setKind] = useState<"ooo" | "ip" | "idea">("ooo"),
     [state, setState] = useState<AppState>(),
     [tab, setTab] = useState("cabinet"),
+    [draft, setDraft] = useState(""),
     [error, setError] = useState(""),
     [editing, setEditing] = useState(false),
     [amount, setAmount] = useState(3000000),
@@ -38,7 +42,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
   }, [kind]);
   const navigate = (p: string) => {
     setTab(
-      p.replace("/", "") === "financing" ? "selection" : p.replace("/", ""),
+      p === "/credit" ? "cabinet" : p.replace("/", "") === "financing" ? "selection" : p.replace("/", ""),
     );
   };
   const context: Workspace | undefined = state
@@ -51,8 +55,8 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
         error: setError,
         activeChatId: "preview-chat",
         setActiveChatId: () => {},
-        draft: "",
-        setDraft: () => {},
+        draft,
+        setDraft,
         historyOpen: false,
         setHistoryOpen: () => {},
         upload: async () => {},
@@ -81,6 +85,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
         </Button>
         </div>
       </header>
+      <PublicNavigation go={go} current="/jury"/>
       <main className="demo-main">
         <div className="demo-heading">
           <div>
@@ -115,6 +120,7 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
             aria-label="Экраны примера"
         >
           {[
+            ["overview", "Обзор бизнеса"],
             ["cabinet", "Кредитный кабинет"],
             ["selection", "Подбор и расчёт"],
             ["chat", "Чат"],
@@ -136,14 +142,14 @@ export function DemoPage({ go }: { go: (p: string) => void }) {
             {error}
           </div>
         ) : !state || !context ? (
-          <p role="status">Загружаем пример…</p>
+          <LoadingScreen title="Загружаем пример" message="Пуш открывает демонстрационный кабинет" />
         ) : (
           <WorkspaceContext.Provider value={context}>
             <div className="demo-company">
               <b>{state.profile.name}</b>
               <span>{state.profile.source}</span>
             </div>
-            {tab === "cabinet" ? (
+            {tab === "overview" ? <CabinetHome preview/> : tab === "cabinet" ? (
               <CabinetV2 preview={state} onDiscuss={() => setTab("chat")} />
             ) : tab === "selection" ? (
               <>

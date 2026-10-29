@@ -1,3 +1,4 @@
+import { PublicNavigation } from "./PublicNavigation";
 import { useState } from "react";
 import { ArrowRight, Building2, FileCheck2, Scale, Smartphone } from "lucide-react";
 import { Brand, Button, Badge } from "./ui";
@@ -45,8 +46,10 @@ export function LoginScreen({ go }: { go: (p: string) => void }) {
         <a href="/" aria-label="На главную">
           <Brand />
         </a>
+        <button type="button" className="cabinet-return" onClick={() => go("/")}>← На главную</button>
         <SideRail />
       </header>
+      <PublicNavigation go={go} current="/login"/>
       <main className="login-grid">
         <section className="login-story">
           <div className="login-pattern" aria-hidden="true">

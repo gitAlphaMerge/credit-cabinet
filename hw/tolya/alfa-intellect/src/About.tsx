@@ -1,3 +1,5 @@
+import { NavigationLink } from "./NavigationLink";
+import { PublicNavigation } from "./PublicNavigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { Brand, Button } from "./ui";
 import { SideRail } from "./SideRail";
@@ -134,18 +136,19 @@ export function About({ go }: { go: (p: string) => void }) {
   return (
     <div className="landing about">
       <header className="public-header">
-        <a href="/" aria-label="Умный кредитный кабинет — главная">
+        <a href="/" aria-label="Альфа и Омега, главная">
           <Brand />
         </a>
         <div className="journey-header-tools">
           <button className="text-button" onClick={() => go("/")}>
             <ArrowLeft size={16} /> На главную
           </button>
-          <Button secondary onClick={() => go("/onboarding")}>
+          <NavigationLink className="button secondary" to="/onboarding" go={go}>
             Начать оформление <ArrowUpRight size={16} />
-          </Button>
+          </NavigationLink>
         </div>
       </header>
+      <PublicNavigation go={go} current="/about"/>
       <main className="wrap about-main">
         <section className="about-hero">
           <div className="hero-kicker">О продукте</div>

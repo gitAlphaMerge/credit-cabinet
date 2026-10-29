@@ -1,3 +1,4 @@
+import { LoadingScreen } from "./LoadingScreen";
 import { useEffect, useState, type ReactNode } from "react";
 import { Download, FileText } from "lucide-react";
 import { workspaceHeaders } from "./api";
@@ -61,10 +62,7 @@ export function CreditDocument({
   return (
     <div className="credit-document-viewer" aria-busy={loading}>
       {loading && (
-        <p className="document-loading" role="status">
-          <FileText />
-          Загружаем {title.toLowerCase()}…
-        </p>
+        <LoadingScreen compact title={"Загружаем " + title.toLowerCase()} message="Пуш готовит документ к просмотру" />
       )}
       {error && (
         <div className="document-failure">

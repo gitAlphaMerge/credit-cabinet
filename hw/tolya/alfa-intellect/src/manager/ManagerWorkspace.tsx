@@ -1,3 +1,4 @@
+import { LoadingScreen } from "../LoadingScreen";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { money } from "../api";
 import { formatRate } from "../format-rate";
@@ -221,7 +222,7 @@ export function ManagerView(p: ViewProps) {
         </p>
       )}
       {p.loading ? (
-        <p role="status">Загружаем очередь…</p>
+        <LoadingScreen title="Загружаем очередь" message="Пуш собирает заявки для рассмотрения" />
       ) : !p.rows.length ? (
         <p className="cv-card">
           <Illustration group="empty" name="ready" size={64} decorative />{" "}
@@ -295,7 +296,7 @@ export function ManagerView(p: ViewProps) {
             className="cv-card manager-dossier"
           >
             {p.detailLoading ? (
-              <p role="status">Загружаем досье…</p>
+              <LoadingScreen compact title="Загружаем досье" message="Пуш собирает документы заявки" />
             ) : !p.detail ? (
               <p>Выберите заявку, чтобы открыть досье</p>
             ) : (

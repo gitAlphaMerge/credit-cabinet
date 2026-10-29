@@ -465,7 +465,7 @@ export function guardJourneyPage(
     next();
     return;
   }
-  if (["/", "/onboarding", "/apply", "/jury", "/login", "/about"].includes(req.path)) {
+  if (["/", "/onboarding", "/apply", "/jury", "/login", "/about", "/cfa"].includes(req.path)) {
     next();
     return;
   }

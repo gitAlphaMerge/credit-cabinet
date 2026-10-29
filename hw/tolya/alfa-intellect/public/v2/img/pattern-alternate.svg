@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 384">
+
+  <g id="tile-1-1" transform="translate(0 0)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#EF3124" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"></path></g>
+  <g id="tile-1-2" transform="translate(64 0)"><rect fill="#F3F4F5" width="64" height="64"></rect><circle fill="#EF3124" cx="32" cy="32" r="22"></circle></g>
+  <g id="tile-1-3" transform="translate(128 0)"><rect fill="#FBE8E7" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(90 32 32)" d="M0 0 H64 L0 64 Z"></path></g>
+  <g id="tile-1-4" transform="translate(192 0)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(180 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"></path></g>
+  <g id="tile-1-5" transform="translate(256 0)"><rect fill="#F3F4F5" width="64" height="64"></rect><circle fill="none" stroke="#EF3124" stroke-width="8" cx="32" cy="32" r="20"></circle></g>
+  <g id="tile-1-6" transform="translate(320 0)"><rect fill="#FFFFFF" width="64" height="64"></rect><rect fill="#0B0B0C" x="8" y="26" width="48" height="12" rx="6"></rect></g>
+  <g id="tile-2-1" transform="translate(0 64)"><rect fill="#FBE8E7" width="64" height="64"></rect><path fill="#FBE8E7" transform="rotate(90 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"></path></g>
+  <g id="tile-2-2" transform="translate(64 64)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(180 32 32)" d="M0 0 H64 L0 64 Z"></path></g>
+  <g id="tile-2-3" transform="translate(128 64)"><rect fill="#F3F4F5" width="64" height="64"></rect><rect fill="#EF3124" x="8" y="26" width="48" height="12" rx="6"></rect></g>
+  <g id="tile-2-4" transform="translate(192 64)"><rect fill="#FBE8E7" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(180 32 32)" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"></path></g>
+  <g id="tile-2-5" transform="translate(256 64)"><rect fill="#FFFFFF" width="64" height="64"></rect><circle fill="#FBE8E7" cx="32" cy="32" r="22"></circle></g>
+  <g id="tile-2-6" transform="translate(320 64)"><rect fill="#F3F4F5" width="64" height="64"></rect><circle fill="none" stroke="#EF3124" stroke-width="8" cx="32" cy="32" r="20"></circle></g>
+  <g id="tile-3-1" transform="translate(0 128)"><rect fill="#F3F4F5" width="64" height="64"></rect><circle fill="none" stroke="#0B0B0C" stroke-width="8" cx="32" cy="32" r="20"></circle></g>
+  <g id="tile-3-2" transform="translate(64 128)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(270 32 32)" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"></path></g>
+  <g id="tile-3-3" transform="translate(128 128)"><rect fill="#FBE8E7" width="64" height="64"></rect><circle fill="#EF3124" cx="32" cy="32" r="22"></circle></g>
+  <g id="tile-3-4" transform="translate(192 128)"><rect fill="#F3F4F5" width="64" height="64"></rect><path fill="#EF3124" d="M0 32 A32 32 0 0 1 64 32 Z"></path></g>
+  <g id="tile-3-5" transform="translate(256 128)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#0B0B0C" d="M0 0 H64 L0 64 Z"></path></g>
+  <g id="tile-3-6" transform="translate(320 128)"><rect fill="#FBE8E7" width="64" height="64"></rect><rect fill="#EF3124" x="8" y="26" width="48" height="12" rx="6"></rect></g>
+  <g id="tile-4-1" transform="translate(0 192)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(270 32 32)" d="M0 0 H64 L0 64 Z"></path></g>
+  <g id="tile-4-2" transform="translate(64 192)"><rect fill="#F3F4F5" width="64" height="64"></rect><circle fill="#FBE8E7" cx="32" cy="32" r="22"></circle></g>
+  <g id="tile-4-3" transform="translate(128 192)"><rect fill="#FFFFFF" width="64" height="64"></rect><circle fill="none" stroke="#EF3124" stroke-width="8" cx="32" cy="32" r="20"></circle></g>
+  <g id="tile-4-4" transform="translate(192 192)"><rect fill="#FBE8E7" width="64" height="64"></rect><path fill="#FBE8E7" transform="rotate(90 32 32)" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"></path></g>
+  <g id="tile-4-5" transform="translate(256 192)"><rect fill="#F3F4F5" width="64" height="64"></rect><rect fill="#0B0B0C" x="8" y="26" width="48" height="12" rx="6"></rect></g>
+  <g id="tile-4-6" transform="translate(320 192)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(270 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"></path></g>
+  <g id="tile-5-1" transform="translate(0 256)"><rect fill="#FBE8E7" width="64" height="64"></rect><path fill="#EF3124" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"></path></g>
+  <g id="tile-5-2" transform="translate(64 256)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(90 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"></path></g>
+  <g id="tile-5-3" transform="translate(128 256)"><rect fill="#F3F4F5" width="64" height="64"></rect><circle fill="none" stroke="#EF3124" stroke-width="8" cx="32" cy="32" r="20"></circle></g>
+  <g id="tile-5-4" transform="translate(192 256)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#FBE8E7" d="M0 0 H64 L0 64 Z"></path></g>
+  <g id="tile-5-5" transform="translate(256 256)"><rect fill="#FBE8E7" width="64" height="64"></rect><circle fill="#EF3124" cx="32" cy="32" r="22"></circle></g>
+  <g id="tile-5-6" transform="translate(320 256)"><rect fill="#F3F4F5" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(180 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"></path></g>
+  <g id="tile-6-1" transform="translate(0 320)"><rect fill="#F3F4F5" width="64" height="64"></rect><rect fill="#EF3124" x="8" y="26" width="48" height="12" rx="6"></rect></g>
+  <g id="tile-6-2" transform="translate(64 320)"><rect fill="#FBE8E7" width="64" height="64"></rect><circle fill="#EF3124" cx="32" cy="32" r="22"></circle></g>
+  <g id="tile-6-3" transform="translate(128 320)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#FBE8E7" transform="rotate(270 32 32)" d="M32 0 A32 32 0 0 1 64 32 L32 32 Z"></path></g>
+  <g id="tile-6-4" transform="translate(192 320)"><rect fill="#F3F4F5" width="64" height="64"></rect><circle fill="none" stroke="#EF3124" stroke-width="8" cx="32" cy="32" r="20"></circle></g>
+  <g id="tile-6-5" transform="translate(256 320)"><rect fill="#FFFFFF" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(180 32 32)" d="M0 0 H64 L0 64 Z"></path></g>
+  <g id="tile-6-6" transform="translate(320 320)"><rect fill="#FBE8E7" width="64" height="64"></rect><path fill="#EF3124" transform="rotate(90 32 32)" d="M0 32 A32 32 0 0 1 64 32 Z"></path></g>
+</svg>

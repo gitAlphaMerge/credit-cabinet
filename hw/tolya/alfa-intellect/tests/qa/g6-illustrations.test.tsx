@@ -1,3 +1,4 @@
+import { ProfilePage } from "../../src/Profile";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -118,7 +119,8 @@ test("G6 every registry path exists and accessible names exactly match SVG title
     assert.match(decorative, /alt=""/);
     assert.match(decorative, /aria-hidden="true"/);
     assert.ok(decorative.includes(`width="${size}" height="${size}"`));
-    assert.match(decorative, /background:#fff/);
+    assert.match(decorative, /background:transparent/);
+    assert.doesNotMatch(decorative, /background:#fff/);
     assert.match(decorative, /flex-shrink:0/);
   }
 });
@@ -277,7 +279,7 @@ test("G6 client empty, upload and profile states use decorative images beside ex
   assert.match(empty, /Заявок пока нет/);
   const history = render("src/Financing.tsx", "Financing", { 0: "history" });
   assert.ok(images(history).includes("/icons/empty/applications.svg"));
-  const profile = render("src/Profile.tsx", "ProfilePage");
+  const profile = renderToStaticMarkup(<WorkspaceContext.Provider value={w}><ProfilePage/></WorkspaceContext.Provider>);
   for (const name of [
     "statement",
     "balance",

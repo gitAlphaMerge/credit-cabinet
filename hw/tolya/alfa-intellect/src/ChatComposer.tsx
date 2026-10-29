@@ -1,3 +1,4 @@
+import { OmegaMicrophone } from "./OmegaIdentity";
 import { useLayoutEffect, useRef } from "react";
 import {
   ArrowRight,
@@ -91,7 +92,7 @@ export function ChatComposer({ chatId }: { chatId: string }) {
             })}
             {w.uploading && w.uploadName && (
               <div className="composer-file loading" role="status">
-                <LoaderCircle size={17} className="chat-spinner" />
+                <img src="/v2/img/push.png" className="push-loading-mark" width="22" height="22" alt="" />
                 <span>
                   {w.uploadName}
                   <small>Извлекаем данные…</small>
@@ -140,6 +141,7 @@ export function ChatComposer({ chatId }: { chatId: string }) {
               }
             }}
           />
+          <OmegaMicrophone disabled={busy || w.uploading} onText={text => w.setDraft([w.draft, text].filter(Boolean).join(" ").slice(0,4000))}/>
           <button
             className="send-button"
             type="submit"
@@ -147,7 +149,7 @@ export function ChatComposer({ chatId }: { chatId: string }) {
             disabled={busy || w.uploading || !w.draft.trim()}
           >
             {busy ? (
-              <LoaderCircle size={19} className="chat-spinner" />
+              <img src="/v2/img/push.png" className="push-loading-mark" width="22" height="22" alt="" />
             ) : (
               <ArrowUp size={20} />
             )}

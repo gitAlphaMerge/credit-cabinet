@@ -56,12 +56,12 @@ class ApplicationModelTests(unittest.TestCase):
         with patch.object(server.llm, "available", return_value=True), patch.object(
             server.llm, "chat", return_value="Платёж сопоставлен с поступлениями бизнеса. Обсудим условия?"
         ) as model:
-            for status in ("APPROVED", "MANAGER_REVIEW_REQUIRED", "ADDITIONAL_DATA_REQUIRED", "DECLINED"):
+            for status in ("APPROVED", "MANAGER_REVIEW_REQUIRED", "ADDITIONAL_DATA_REQUIRED", "DECLINED", "ACTIVE"):
                 code, result = self.request(status)
                 self.assertEqual(code, 200)
                 self.assertEqual(result["source"], "llm")
                 self.assertIn(status, model.call_args.args[0])
-            self.assertEqual(model.call_count, 4)
+            self.assertEqual(model.call_count, 5)
             self.assertIn("Последние реплики", model.call_args.args[0])
             self.assertEqual(len(server.SESSIONS["mvp2-test"]["history"]), 8)
 

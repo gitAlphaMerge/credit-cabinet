@@ -1,3 +1,5 @@
+import { OmegaMark } from "./OmegaIdentity";
+import { LoadingScreen } from "./LoadingScreen";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Plus,
@@ -221,7 +223,7 @@ export function Chat({
             >
               <PanelLeftOpen size={19} />
             </IconButton>
-            <div className="chat-header-title">
+            <div className="chat-header-title"><span className="omega-label"><OmegaMark size={15}/>Агент Омега</span>
               <button
                 className="unstyled"
                 aria-label={
@@ -296,7 +298,7 @@ export function Chat({
               {!chat?.messages.length && !busy ? (
                 <div className="chat-welcome">
                   <span className="welcome-orb">
-                    <Sparkles size={25} strokeWidth={1.6} />
+                    <OmegaMark size={25} />
                   </span>
                   <h1>Чем помочь вашему бизнесу?</h1>
                   <p>
@@ -327,7 +329,7 @@ export function Chat({
                   >
                     {m.role === "assistant" && (
                       <div className="message-agent" aria-hidden="true">
-                        <Sparkles size={17} strokeWidth={1.6} />
+                        <OmegaMark size={17} />
                       </div>
                     )}
                     <div className="message-body">
@@ -428,12 +430,9 @@ export function Chat({
               {busy && (
                 <div className="message assistant">
                   <div className="message-agent">
-                    <Sparkles size={17} />
+                    <OmegaMark size={17} />
                   </div>
-                  <div className="thinking" role="status">
-                    <span className="chat-spinner" />
-                    <span>Готовим ответ…</span>
-                  </div>
+                  <LoadingScreen compact title="Готовим ответ" message="Пуш разбирается в вашем вопросе" />
                 </div>
               )}
               {!!chat?.messages.length &&

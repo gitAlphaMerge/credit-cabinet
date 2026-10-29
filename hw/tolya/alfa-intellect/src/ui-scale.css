@@ -1,0 +1,26 @@
+/* Shared readable scale. Layout still uses each screen's existing scroll owner. */
+:root[data-design-system="kk3"]{--text-xs:.75rem;--text-sm:.875rem;--text-base:1rem;--text-lg:1.125rem;--text-xl:1.5rem;--text-2xl:2rem;--text-3xl:3rem;--ui-page-width:1280px}
+:root[data-design-system="kk3"] body{font-size:var(--text-base);line-height:1.5}
+:root[data-design-system="kk3"] body :is(input[type=text],input[type=tel],input[type=password],input[type=email],input[type=number],input[type=date],input:not([type]),textarea,select){font-size:16px}
+:root[data-design-system="kk3"] :is(.field,.credit-field,.login-card,.onboarding) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=file]),select){min-height:48px}
+:root[data-design-system="kk3"] .button{min-height:48px;font-size:15px;line-height:1.35}
+:root[data-design-system="kk3"] :is(.funding-surface,.credit-form-scroll,.client-dossier,.application-agent,.login-card){font-size:16px}
+:root[data-design-system="kk3"] :is(.funding-surface>p,.credit-intro p,.credit-form-header p,.application-message p,.login-card>p){font-size:16px;line-height:1.65}
+:root[data-design-system="kk3"] :is(.journey-stage h1,.home-heading h1,.credit-form-header h1){font-size:clamp(26px,2.3vw,34px);line-height:1.2}
+:root[data-design-system="kk3"] .funding-surface>h2{font-size:clamp(26px,2.3vw,34px);line-height:1.2}
+:root[data-design-system="kk3"] .origination .mvp2:not(.mvp-workspace)>.funding-surface{width:100%;max-width:1120px}
+:root[data-design-system="kk3"] :is(.home-grid,.home-heading,.home-summary-strip,.omega-dock){max-width:var(--ui-page-width)}
+:root[data-design-system="kk3"] .credit-form-header{padding-top:24px;padding-bottom:20px}
+.landing .hero-copy{--hero-display-size:clamp(100px,10.8vw,174px)}
+:root:root[data-design-system="kk3"] .landing .hero-copy :is(h1.hero-title,h2.hero-omega-label){font-size:var(--hero-display-size);letter-spacing:-.065em;line-height:.98;text-shadow:none}
+@media(min-width:1000px){.landing .hero-copy{--hero-display-size:clamp(112px,10.8vw,174px)}}
+@media(max-width:999px) and (min-width:761px){.landing .hero-copy{--hero-display-size:clamp(82px,11vw,112px)}}
+@media(max-width:760px){.landing .hero-copy{--hero-display-size:clamp(86px,18.5vw,138px)}:root[data-design-system="kk3"] .button{min-height:46px}:root[data-design-system="kk3"] .credit-form-header{padding:20px 18px}:root[data-design-system="kk3"] :is(.home-card,.dossier-card){padding:18px}}
+@media(max-width:380px){.landing .hero-copy{--hero-display-size:80px}}
+@media(hover:none){:root[data-design-system="kk3"] :is(.icon-button,.omega-mic){min-width:44px;min-height:44px}}
+
+.journey-return-row{display:flex;flex-shrink:0;width:100%;max-width:1120px;margin:0 auto 12px}
+:root[data-design-system="kk3"] .cabinet-return{min-height:40px;font-size:14px}
+:root[data-design-system="kk3"] .public-header .cabinet-return{margin-left:auto}
+/* The default Alfa palette uses the saturated brand red requested by the owner. */
+:root:root[data-design-system="kk3"]:not([data-palette]):not([data-accent])[data-theme]{--theme-red:#ef3124;--theme-brand:#ef3124;--theme-on-accent:#171923;--theme-accent-hover:#ff5146}
