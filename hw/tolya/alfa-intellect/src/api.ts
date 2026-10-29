@@ -1,3 +1,4 @@
+import { trackedFetch } from "./request-activity";
 let workspaceId: string | null = null;
 export function setApiWorkspace(value: string | null) {
   workspaceId = value;
@@ -21,9 +22,11 @@ export async function api<T = any>(
   body?: unknown,
   method?: string,
 ): Promise<T> {
-  const response = await fetch("/api" + path, {
-    method: method || (body === undefined ? "GET" : "POST"),
+  const requestMethod = (method || (body === undefined ? "GET" : "POST")).toUpperCase();
+  const response = await trackedFetch("/api" + path, {
+    method: requestMethod,
     credentials: "same-origin",
+    signal: typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(/messages|\/turn|documents/.test(path) ? 90000 : 30000) : undefined,
     headers: {
       ...workspaceHeaders(),
       ...(body instanceof FormData
@@ -36,7 +39,9 @@ export async function api<T = any>(
         : body instanceof FormData
           ? body
           : JSON.stringify(body),
-  }).catch(() => {
+  }).catch((error) => {
+    if (error?.name === "TimeoutError" || error?.name === "AbortError")
+      throw new ApiError("Сервер отвечает дольше обычного. Действие могло продолжиться: проверьте статус перед повтором.");
     throw new ApiError(
       "Не удалось связаться с сервером. Проверьте соединение и попробуйте ещё раз.",
     );

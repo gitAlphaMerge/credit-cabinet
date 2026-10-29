@@ -1,3 +1,4 @@
+import { ApplicationKnowledge } from "./ApplicationKnowledge";
 import type { ReactNode } from "react";
 import type { MvpApplication, Product, Questionnaire } from "../shared/mvp2";
 import { money, date } from "./api";
@@ -196,6 +197,7 @@ export function ClientDossier({
   ];
   return (
     <div className="client-dossier">
+      <ApplicationKnowledge application={a} editable={editable} onEdit={onEdit}/>
       {editable && q.accounts.some((account) => !account.documentId) && (
         <section className="dossier-incomplete" role="status">
           <div>

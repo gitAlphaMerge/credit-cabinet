@@ -148,7 +148,7 @@ function Image({
         objectFit: "contain",
         flexShrink: 0,
         verticalAlign: "middle",
-        background: "#fff",
+        background: "transparent",
         borderRadius: 8,
       }}
     />

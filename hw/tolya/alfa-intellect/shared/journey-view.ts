@@ -5,10 +5,10 @@ export function journeyView(
   a: Pick<
     MvpApplication,
     "id" | "lifecycle" | "decision" | "contract" | "error"
-  > & { missing?: MvpApplication["missing"] },
+  > & { missing?: MvpApplication["missing"]; meeting?: MvpApplication["meeting"] },
   position?: { applicationId?: string; view?: string },
 ): string {
-  if (a.lifecycle === "ACTIVE") return "decision";
+  if (a.lifecycle === "ACTIVE") return "funded";
   if (["SUBMITTED", "PROCESSING"].includes(a.lifecycle)) return "processing";
   const saved = position?.applicationId === a.id ? position.view : undefined;
   if (a.error) return saved === "chat" ? "chat" : "decision";
@@ -32,12 +32,17 @@ export function journeyView(
       (!("missing" in a) || a.missing?.some((item) => item.status !== "uploaded" && item.status !== "accepted" && item.status !== "skipped"))
       ? "supplement" : "decision";
   if (a.decision === "MANAGER_REVIEW_REQUIRED")
-    return saved === "meeting" ? "meeting" : "decision";
+    return saved === "meeting" || (a.lifecycle === "MEETING_SCHEDULED" && a.meeting) ? "meeting" : "decision";
   if (a.decision === "APPROVED") {
     if (a.contract) return "contract";
     if (saved === "details") return "details";
   }
   return "decision";
+}
+
+/** Entry follows the saved bank state; local back navigation can still open the decision. */
+export function journeyEntryView(a: Parameters<typeof journeyView>[0], position?: Parameters<typeof journeyView>[1]) {
+  return a.lifecycle === "MEETING_SCHEDULED" && a.meeting && !a.error ? "meeting" : journeyView(a, position);
 }
 
 /** Autosaves carry answers; explicit committed navigation owns the form section. */

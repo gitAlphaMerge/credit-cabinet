@@ -1,3 +1,4 @@
+import { LoadingScreen } from "./LoadingScreen";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowRight, Check, Sparkles, RotateCcw } from "lucide-react";
 import { Brand, Button } from "./ui";
@@ -70,89 +71,16 @@ export function Preparation({
   );
   return (
     <main className="preparation-screen" data-testid="preparation">
-      <header>
-        <Brand />
-        <span className="preparation-header-note">
-          ВАШЕ НОВОЕ РАБОЧЕЕ ПРОСТРАНСТВО
-        </span>
-      </header>
-      <div className="preparation-content">
-        <div className="preparation-orbit" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </div>
-        <div
-          className="preparation-sphere"
-          role="progressbar"
-          aria-label="Подготовка кабинета"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress}
-          style={{ "--progress": progress + "%" } as CSSProperties}
-        >
-          <div
-            className="sphere-liquid"
-            style={{ opacity: progress === 0 ? 0 : 1 }}
-          >
-            <i />
-            <i />
-          </div>
-          <span className="sphere-shine" aria-hidden="true" />
-          <div className="sphere-number">
-            <Sparkles size={24} />
-            <strong>
-              {progress}
-              <small>%</small>
-            </strong>
-          </div>
-        </div>
-        <div className="preparation-copy">
-          <span className="eyebrow">ЗНАКОМСТВО ЗАВЕРШЕНО</span>
-          <h1 key={stage} role="status" aria-live="polite">
-            {error ? "Осталось открыть кабинет" : preparationStages[stage]}
-          </h1>
-          <p>
-            Ваш профиль уже сохранён. Всё остальное можно уточнить в кабинете.
-          </p>
-        </div>
-        <div className="preparation-stages" aria-label="Этапы подготовки">
-          {preparationStages.map((label, i) => (
-            <span
-              key={label}
-              className={
-                i < stage || progress === 100
-                  ? "done"
-                  : i === stage
-                    ? "current"
-                    : ""
-              }
-              aria-label={label}
-            >
-              {i < stage || progress === 100 ? <Check size={12} /> : <i />}
-            </span>
-          ))}
-        </div>
-        {error ? (
-          <div className="preparation-error">
-            <p role="alert">{error}</p>
-            <Button onClick={() => void open()}>
-              <RotateCcw size={16} /> Повторить открытие
-            </Button>
-          </div>
-        ) : progress < 100 ? (
-          <button
-            className="text-button preparation-skip"
-            onClick={() => void open()}
-          >
-            Перейти сразу <ArrowRight size={15} />
-          </button>
-        ) : (
-          <p className="preparation-opening" role="status">
-            Открываем кабинет…
-          </p>
-        )}
-      </div>
+      <header><Brand /><span className="preparation-header-note">ВАШЕ НОВОЕ РАБОЧЕЕ ПРОСТРАНСТВО</span></header>
+      <LoadingScreen
+        title={error ? "Осталось открыть кабинет" : preparationStages[stage]}
+        message="Ваш профиль сохранён. Пуш готовит рабочее пространство."
+        steps={preparationStages.map((label, i) => ({id: String(i), label, status: progress === 100 || i < stage ? "done" : i === stage ? "running" : "pending"}))}
+      >
+        {error ? <div className="preparation-error"><p role="alert">{error}</p><Button onClick={() => void open()}><RotateCcw size={16} /> Повторить открытие</Button></div>
+          : progress < 100 ? <button className="text-button" onClick={() => void open()}>Перейти сразу <ArrowRight size={15} /></button>
+          : <p role="status">Открываем кабинет…</p>}
+      </LoadingScreen>
       <footer>Финансы с ясной перспективой</footer>
     </main>
   );

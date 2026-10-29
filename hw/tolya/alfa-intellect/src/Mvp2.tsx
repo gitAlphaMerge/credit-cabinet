@@ -1,3 +1,8 @@
+import { PublicNavigation } from "./PublicNavigation";
+import { ApplicationKnowledge } from "./ApplicationKnowledge";
+import { FundingComplete } from "./FundingComplete";
+import { CompanyInsights } from "./CompanyInsights";
+import { LoadingScreen } from "./LoadingScreen";
 import { SideRail, SideRailItem } from "./SideRail";
 import { useEffect, useLayoutEffect, useRef, useState, useId } from "react";
 import {
@@ -29,10 +34,11 @@ import {
   sectionDescriptions,
 } from "./ApplicationWorkspace";
 import { JourneyProgress } from "./JourneyProgress";
-import { journeyView, journeySection } from "../shared/journey-view";
+import { journeyView, journeyEntryView, journeySection } from "../shared/journey-view";
 import { MissingDataStep } from "./MissingDataStep";
 import { CreditContract } from "./CreditDocument";
 import { CreditMotion, CreditTransition } from "./CreditMotion";
+import { ApplicationLoading } from "./ApplicationLoading";
 import { labelCode, safeDisplayText, visibleError } from "./application-client";
 import {
   emptyOnboarding,
@@ -269,8 +275,9 @@ export function MvpOnboarding({
         <button className="unstyled" onClick={() => go("/")}>
           <Brand />
         </button>
-        <div className="journey-header-tools"><SideRail><SideRailItem tip="Начать сначала"><RestartJourney /></SideRailItem></SideRail></div>
+        <div className="journey-header-tools"><button type="button" className="cabinet-return" disabled={busy} onClick={() => go("/")}>← На главную</button><SideRail><SideRailItem tip="Начать сначала"><RestartJourney /></SideRailItem></SideRail></div>
       </header>
+      <PublicNavigation go={go} current="/onboarding"/>
       <main className="onboard-grid">
         <JourneyProgress current={0} />
         <section className="onboard-main">
@@ -1236,13 +1243,10 @@ export function Mvp2({
   }
   async function open(next: MvpApplication) {
     adopt(next);
-    if (next.lifecycle === "ACTIVE") {
-      w.go("/cabinet");
-      return;
-    }
     const position = await api("/journey");
-    setView(journeyView(next, position));
-    if (journeyView(next, position) === "meeting")
+    const restoredView = journeyEntryView(next, position);
+    setView(restoredView);
+    if (restoredView === "meeting")
       setSlots(await api("/mvp2/slots"));
     if (position.applicationId === next.id) {
       setSection(position.section ?? 0);
@@ -1426,7 +1430,7 @@ export function Mvp2({
     if (
       !a ||
       (view !== "processing" &&
-        !(view === "decision" && a.lifecycle === "MEETING_SCHEDULED"))
+        !(["decision", "meeting"].includes(view) && a.lifecycle === "MEETING_SCHEDULED"))
     )
       return;
     const id = a.id;
@@ -1443,7 +1447,7 @@ export function Mvp2({
               return;
             adopt(next);
             if (!["SUBMITTED", "PROCESSING"].includes(next.lifecycle))
-              setView(derivedView(next));
+              setView(journeyView(next, {applicationId: id, view}));
           })
           .catch((e) => {
             if (active) setError(visibleError(e));
@@ -1676,6 +1680,7 @@ export function Mvp2({
         <CreditTransition
           kind={transitionKind}
           ready={transitionTarget !== null}
+          reviewSteps={a?.stages}
           error={error}
           onFinish={() => {
             if (transitionTarget === null) return;
@@ -1720,6 +1725,7 @@ export function Mvp2({
           />
         </div>
       )}
+      <div className="journey-return-row"><button type="button" className="cabinet-return" disabled={busy} onClick={() => void run(async () => {if (dirty.current) await flushDraft(); await draftQueue.current; await positionQueue.current; w.go("/");})}>← На главную</button></div>
       <JourneyProgress
         current={
           ["processing"].includes(view)
@@ -1730,6 +1736,7 @@ export function Mvp2({
                   "details",
                   "contract",
                   "receive",
+                  "funded",
                 ].includes(view)
               ? 3
               : ["recommendation", "catalog", "start", "loading"].includes(view)
@@ -1759,6 +1766,7 @@ export function Mvp2({
               details: "Данные для договора",
               contract: "Кредитный договор",
               receive: "Получение финансирования",
+              funded: "Финансирование получено",
               scenario: "Новые условия",
             }[view] || "Оформление финансирования"}
           </h1>
@@ -1784,9 +1792,7 @@ export function Mvp2({
           </div>
         )}
       {view === "loading" && (
-        <section className="funding-surface" role="status">
-          Загружаем сохранённую заявку…
-        </section>
+        <LoadingScreen title="Загружаем сохранённую заявку" message="Пуш восстанавливает данные и документы" />
       )}
       {view === "start" && (
         <section className="funding-surface">
@@ -1814,6 +1820,7 @@ export function Mvp2({
           <h2>{labelCode(p?.id)}</h2>
           <p>{p?.description}</p>
           <Summary a={a} products={products} />
+          <details className="decision-details"><summary>Что известно по заявке</summary><ApplicationKnowledge application={a}/></details>
           <p>
             {p?.repayment}. Диапазон: {money(p?.min)}–{money(p?.max)},{" "}
             {p?.minTerm}–{p?.maxTerm} мес. Требуются ИП/ООО, подтверждённый
@@ -2358,23 +2365,7 @@ export function Mvp2({
         )}
       {a && view === "processing" && (
         <section className="funding-surface mvp-processing" aria-live="polite">
-          <CreditMotion
-            title="Рассматриваем заявку"
-            steps={a.stages.map((s) => ({
-              ...s,
-              label:
-                (
-                  {
-                    Скоринг: "Финансовая оценка",
-                    "Комплаенс, антифрод и БКИ":
-                      "Проверка компании и кредитной истории",
-                    "Финансовый анализ CSV": "Анализ выписок",
-                    Андеррайтинг: "Проверка условий",
-                    "Маршрутизация решения": "Подготовка результата",
-                  } as Record<string, string>
-                )[s.label] ?? s.label,
-            }))}
-          />
+          <ApplicationLoading steps={a.stages} />
           <p>
             Заявка и документы сохранены. Можно обновить страницу, рассмотрение
             продолжится на сервере.
@@ -2461,6 +2452,7 @@ export function Mvp2({
                 : "Рассмотрение не завершено"}
           </h2>
           <Summary a={a} products={products} />
+          <details className="decision-details"><summary>Что известно по заявке</summary><ApplicationKnowledge application={a}/></details>
           {a.reasons.slice(0, 3).map((r) => (
             <p key={r}>{safeDisplayText(r)}</p>
           ))}
@@ -2532,7 +2524,7 @@ export function Mvp2({
             </Button>
             <div>
               {a.lifecycle === "ACTIVE" ? (
-                <Button onClick={() => w.go("/cabinet")}>
+                <Button onClick={() => w.go("/credit")}>
                   В кредитный кабинет
                 </Button>
               ) : a.decision === "APPROVED" ? (
@@ -2586,15 +2578,13 @@ export function Mvp2({
             </div>
           </div>
           {a.alternatives.length > 0 && (
-            <div>
+            <div className="counteroffer-options">
               <h3>Проверенные альтернативы</h3>
+              <p>Можно запросить другие условия. Выбор отправит заявку на новую проверку, это ещё не согласие с договором.</p>
               {a.alternatives.map((o) => (
                 <article className="mvp-account" key={o.id}>
                   <h3>{labelCode(o.productId)}</h3>
-                  <p>
-                    {money(o.amount)} · {o.term} мес. · {o.rate}% ·{" "}
-                    {money(o.payment)} в месяц
-                  </p>
+                  <table className="counteroffer-comparison"><caption className="visually-hidden">Сравнение запроса и альтернативы</caption><thead><tr><th scope="col">Условия</th><th scope="col">Ваш запрос</th><th scope="col">Альтернатива</th></tr></thead><tbody><tr><th scope="row">Сумма</th><td>{money(q.amount)}</td><td>{money(o.amount)}</td></tr><tr><th scope="row">Срок</th><td>{q.term} мес.</td><td>{o.term} мес.</td></tr><tr><th scope="row">Продукт</th><td>{labelCode(q.productId)}</td><td>{labelCode(o.productId)}</td></tr><tr><th scope="row">Платёж в месяц</th><td>{a.financial ? money(a.financial.payment) : "Нет расчёта"}</td><td>{money(o.payment)}</td></tr><tr><th scope="row">Ставка</th><td>По условиям запроса</td><td>{o.rate}%</td></tr></tbody></table>
                   <p>{safeDisplayText(o.reason)}. Условия проверит банк.</p>
                   <Button
                     disabled={busy}
@@ -2647,6 +2637,8 @@ export function Mvp2({
           </Button>
         </section>
       )}
+      {a && view === "funded" && <FundingComplete application={a} onCredit={() => w.go("/credit")} onBusiness={() => w.go("/cabinet")}/>}
+      {a && ["funded","decision","meeting"].includes(view) && <CompanyInsights/>}
       {a && q && view === "scenario" && (
         <section className="funding-surface">
           <h2>Проверить другие условия</h2>
@@ -2883,6 +2875,7 @@ export function Mvp2({
           <h2>Кредитный договор подписан</h2>
           <p>Подпись сохранена. Проверьте сведения перед получением средств.</p>
           <Summary a={a} products={products} />
+          <details className="decision-details"><summary>Что известно по заявке</summary><ApplicationKnowledge application={a}/></details>
           <p>
             Получатель: {a.company?.name}.{" "}
             {p?.kind === "loan"
@@ -2903,7 +2896,7 @@ export function Mvp2({
                 void run(async () => {
                   adopt(await api(path + "/activate", {}));
                   await w.refresh();
-                  w.go("/cabinet");
+                  await transition("funded");
                 })
               }
             >

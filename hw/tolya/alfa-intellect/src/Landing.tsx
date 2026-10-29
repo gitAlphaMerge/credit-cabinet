@@ -1,3 +1,6 @@
+import { NavigationLink } from "./NavigationLink";
+import { PublicNavigation } from "./PublicNavigation";
+import { FutureProducts } from "./FutureProducts";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -45,14 +48,14 @@ export function Landing({ go }: { go: (s: string) => void }) {
   return (
     <div className="landing" ref={root}>
       <header className="public-header">
-        <a href="/" aria-label="Умный кредитный кабинет — главная">
+        <a href="/" aria-label="Альфа и Омега, главная">
           <Brand />
         </a>
         <nav>
           <a href="#opportunities">Возможности</a>
           <a href="#how">Как это работает</a>
           <a href="#questions">Вопросы</a>
-          <a href="/about" onClick={(e) => { e.preventDefault(); go("/about"); }}>О продукте</a>
+          <NavigationLink to="/about" go={go}>О продукте</NavigationLink>
         </nav>
         <div className="journey-header-tools">
           <SideRail>
@@ -68,25 +71,23 @@ export function Landing({ go }: { go: (s: string) => void }) {
               <small>Пять тестовых компаний и менеджер банка. Данные входа на экране.</small>
             </div>
           </details>
-          <Button secondary onClick={() => go("/login")}>Войти</Button>
-          <Button onClick={() => go("/onboarding")}>
+          <NavigationLink className="button secondary" to="/login" go={go}>Войти</NavigationLink>
+          <NavigationLink className="button" to="/onboarding" go={go}>
             Начать оформление <ArrowUpRight size={16} />
-          </Button>
+          </NavigationLink>
         </div>
       </header>
+      <PublicNavigation go={go} current="/" mobileOnly/>
       <main>
         <section className="hero wrap hero-live-pattern">
           <div className="hero-copy">
             <div className="hero-kicker">Большие планы. Понятные финансы.</div>
-            <h1 className="hero-title" aria-label="Умный кредитный кабинет">
-              <span className="hero-word" aria-hidden="true">Умный</span>
-              <span className="hero-word" aria-hidden="true">кредитный</span>
-              <span className="hero-word hero-word-brand" aria-hidden="true">кабинет</span>
-            </h1>
+            <h1 className="hero-title" aria-label="Альфа">Aльфа<span className="hero-title-dot" aria-hidden="true">.</span></h1>
+            <div className="hero-product-description"><p>Умный кредитный<br className="hero-description-break"/> кабинет</p><div className="hero-connection" aria-hidden="true"><span className="hero-link-square"/><i/><b>+</b><i/><span className="hero-link-ring"/></div><h2 className="hero-omega-label" aria-label="Агент Омега"><span className="hero-agent-word">Агент</span><span className="hero-omega-word">Oмега</span></h2></div>
             <div className="hero-actions">
-              <Button onClick={() => go("/onboarding")}>
+              <NavigationLink className="button" to="/onboarding" go={go}>
                 Подобрать финансирование <ArrowRight size={19} />
-              </Button>
+              </NavigationLink>
             </div>
           </div>
           <HeroFinance pattern={<LivePattern showCaption={false} />} />
@@ -223,8 +224,8 @@ export function Landing({ go }: { go: (s: string) => void }) {
         </section>
         <section id="how" className="how-section">
           <div className="wrap">
-            <SectionTitle title="Три шага к понятному решению" />
-            <div className="steps-grid">
+            <SectionTitle eyebrow="КАК ЭТО РАБОТАЕТ" title="Три шага к понятному решению">От задачи бизнеса до расчёта и следующего действия. Омега поможет разобраться на каждом шаге.</SectionTitle>
+            <ol className="steps-grid" aria-label="Путь от задачи к решению">
               {[
                 [
                   "01",
@@ -242,23 +243,24 @@ export function Landing({ go }: { go: (s: string) => void }) {
                   "Изучите расчёт, обсудите альтернативы и подготовьте досье.",
                 ],
               ].map(([n, t, d], index) => (
-                <article
+                <li
                   className="journey-step"
                   key={n}
                   style={{ transitionDelay: `${index * 140}ms` }}
                 >
+                  <span className="step-number" aria-hidden="true">{n}<small> / 03</small></span>
                   <div
                     className={"journey-illustration journey-" + n}
                     aria-hidden="true"
                   >
                     <JourneyScene step={index} />
                   </div>
-                  <span className="step-number">{n}</span>
                   <h3>{t}</h3>
                   <p>{d}</p>
-                </article>
+                </li>
               ))}
-            </div>
+            </ol>
+            <div className="how-next"><p>Вы проверяете сведения и подтверждаете действия.<br/>Окончательное решение о финансировании принимает банк.</p><NavigationLink className="button" to="/onboarding" go={go}>Начать с задачи бизнеса <ArrowRight size={17}/></NavigationLink></div>
           </div>
         </section>
         <section className="trust-section wrap">
@@ -330,43 +332,7 @@ export function Landing({ go }: { go: (s: string) => void }) {
             </details>
           ))}
         </section>
-        <section id="roadmap" className="section wrap roadmap">
-          <SectionTitle
-            eyebrow="НОВЫЕ РАЗРАБОТКИ"
-            title="Что появится в кабинете"
-          />
-          <div className="roadmap-grid">
-            {[
-              [
-                Coins,
-                "ЦФА для бизнеса",
-                "Привлечение денег через выпуск цифровых финансовых активов: кабинет подскажет, когда это выгоднее кредита.",
-              ],
-              [
-                Newspaper,
-                "Пульс",
-                "Лента новостей, ставок и изменений в законах, которые касаются именно вашей отрасли и ваших платежей.",
-              ],
-              [
-                BrainCircuit,
-                "Агент Омега",
-                "Альфа отвечает быстро, Омега думает глубже: финансовая модель, сценарии и долгие задачи бизнеса.",
-              ],
-            ].map(([Icon, title, text]) => {
-              const I = Icon as typeof Coins;
-              return (
-                <article className="roadmap-card" key={title as string}>
-                  <span className="roadmap-icon">
-                    <I size={22} aria-hidden="true" />
-                  </span>
-                  <Badge>В разработке</Badge>
-                  <h3>{title as string}</h3>
-                  <p>{text as string}</p>
-                </article>
-              );
-            })}
-          </div>
-        </section>
+        <FutureProducts go={go} />
         <section className="final-cta wrap">
           <div>
             <span className="eyebrow">СЛЕДУЮЩИЙ ШАГ — ЗА ВАМИ</span>
@@ -377,9 +343,9 @@ export function Landing({ go }: { go: (s: string) => void }) {
             </h2>
             <p>Начните с нескольких вопросов о бизнесе.</p>
           </div>
-          <Button onClick={() => go("/onboarding")}>
+          <NavigationLink className="button" to="/onboarding" go={go}>
             Начать знакомство <ArrowRight size={20} />
-          </Button>
+          </NavigationLink>
         </section>
       </main>
       <footer className="public-footer wrap">
@@ -387,9 +353,9 @@ export function Landing({ go }: { go: (s: string) => void }) {
         <p>
           Иллюстративные данные, не предложение банка. Решение принимает банк
         </p>
-        <button className="text-button" onClick={() => go("/onboarding")}>
+        <NavigationLink className="text-button" to="/onboarding" go={go}>
           Начать оформление <ArrowUpRight size={15} />
-        </button>
+        </NavigationLink>
         <p className="footer-authors">
           Сделали для Альфа-Хака 2026: Саша, капитан: агент, контракты, дизайн ·
           Толя, продакт: кабинет, заявка, подбор, дизайн · Лиза, инженер: ядро и

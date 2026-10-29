@@ -36,4 +36,5 @@ export function metricScale(m: Pick<Metric, "id" | "value">) {
   };
 }
 export const cabinetRoute = (path: string) =>
+  path === "/financing" ? "/onboarding" :
   ["/cabinet-v2", "/efficiency"].includes(path) ? "/cabinet" : path;

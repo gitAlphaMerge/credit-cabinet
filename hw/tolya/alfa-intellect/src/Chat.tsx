@@ -1,3 +1,5 @@
+import { OmegaMark } from "./OmegaIdentity";
+import { LoadingScreen } from "./LoadingScreen";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Plus,
@@ -102,6 +104,8 @@ export function Chat({
     [title, setTitle] = useState("");
   const [mobile, setMobile] = useState(() => innerWidth <= 760);
   const [confirmingFunding, setConfirmingFunding] = useState(false);
+  const [identity,setIdentity]=useState<{model:string;core:string}|null>(null);
+  useEffect(()=>{let live=true;fetch("/api/model-identity").then(r=>r.ok?r.json():null).then(v=>{if(live&&v&&typeof v.model==="string"&&typeof v.core==="string")setIdentity(v);}).catch(()=>{});return()=>{live=false;};},[]);
   const root = useRef<HTMLElement>(null),
     messages = useRef<HTMLDivElement>(null),
     newChatLock = useRef(false),
@@ -166,11 +170,11 @@ export function Chat({
         ?.querySelector<HTMLButtonElement>(".history-toggle")
         ?.focus({ preventScroll: true });
   }, [w.historyOpen]);
-  async function newChat() {
+  async function newChat(businessArea?:string) {
     if (newChatLock.current || busy) return;
     newChatLock.current = true;
     try {
-      const c = await w.act("/chats", {});
+      const c = await w.act("/chats", businessArea ? {businessArea} : {});
       w.setActiveChatId(c.id);
       if (drawer) w.setHistoryOpen(false);
     } catch {
@@ -205,7 +209,7 @@ export function Chat({
         <ChatHistory
           drawer={drawer}
           activeId={chat?.id || ""}
-          onNew={() => void newChat()}
+          onNew={area => void newChat(area)}
           onRename={rename}
         />
         <div
@@ -221,7 +225,7 @@ export function Chat({
             >
               <PanelLeftOpen size={19} />
             </IconButton>
-            <div className="chat-header-title">
+            <div className="chat-header-title"><span className="omega-label"><OmegaMark size={18}/>Агент Омега{chat?.businessArea ? ` · ${chat.businessArea}` : ""}</span><small className="agent-model-label" title={identity?.core}>{identity ? `${identity.model} · ядро Лизы` : "Уточняем модель…"}</small>
               <button
                 className="unstyled"
                 aria-label={
@@ -296,7 +300,7 @@ export function Chat({
               {!chat?.messages.length && !busy ? (
                 <div className="chat-welcome">
                   <span className="welcome-orb">
-                    <Sparkles size={25} strokeWidth={1.6} />
+                    <OmegaMark size={25} />
                   </span>
                   <h1>Чем помочь вашему бизнесу?</h1>
                   <p>
@@ -327,7 +331,7 @@ export function Chat({
                   >
                     {m.role === "assistant" && (
                       <div className="message-agent" aria-hidden="true">
-                        <Sparkles size={17} strokeWidth={1.6} />
+                        <OmegaMark size={17} />
                       </div>
                     )}
                     <div className="message-body">
@@ -428,12 +432,9 @@ export function Chat({
               {busy && (
                 <div className="message assistant">
                   <div className="message-agent">
-                    <Sparkles size={17} />
+                    <OmegaMark size={17} />
                   </div>
-                  <div className="thinking" role="status">
-                    <span className="chat-spinner" />
-                    <span>Готовим ответ…</span>
-                  </div>
+                  <LoadingScreen compact title="Готовим ответ" message="Пуш разбирается в вашем вопросе" />
                 </div>
               )}
               {!!chat?.messages.length &&

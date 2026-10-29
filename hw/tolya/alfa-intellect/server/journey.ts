@@ -368,6 +368,7 @@ export function saveJourneyPosition(req: Request, res: Response) {
         "details",
         "contract",
         "receive",
+        "funded",
         "chat",
         "scenario",
       ]),
@@ -465,7 +466,7 @@ export function guardJourneyPage(
     next();
     return;
   }
-  if (["/", "/onboarding", "/apply", "/jury", "/login", "/about"].includes(req.path)) {
+  if (["/", "/onboarding", "/apply", "/jury", "/login", "/about", "/cfa"].includes(req.path)) {
     next();
     return;
   }

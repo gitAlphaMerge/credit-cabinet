@@ -1,0 +1,10 @@
+/* Native cursor rendering: no pointer tracking, animation or extra DOM. */
+@media(hover:hover) and (pointer:fine){
+  :root:root body,:root:root body *{cursor:url('/cursors/alfa-arrow.svg') 4 4,auto}
+  :root:root body :is(a,button,summary,label[for],[role=button],[role=tab],[role=checkbox],select,input[type=checkbox],input[type=radio]){cursor:url('/cursors/alfa-arrow.svg') 4 4,pointer}
+  :root:root body :is(textarea,input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),[contenteditable=true]){cursor:text}
+  :root:root body :is(:disabled,[aria-disabled=true]){cursor:not-allowed}
+  :root:root body :is([role=separator],input[type=range]){cursor:ew-resize}
+  :root:root body [draggable=true]{cursor:grab}
+  :root:root body [draggable=true]:active{cursor:grabbing}
+}

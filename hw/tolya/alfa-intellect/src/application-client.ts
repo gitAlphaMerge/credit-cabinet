@@ -6,6 +6,13 @@ export type ClientDetail = Omit<ApplicationDetail, "events"> & {
 };
 // Единый словарь экранных названий для клиента и менеджера.
 export const uiLabels: Record<string, string> = {
+  DRAFT: "Черновик заявки",
+  SUBMITTED: "Заявка отправлена",
+  PROCESSING: "Заявка на проверке",
+  MEETING_SCHEDULED: "Звонок с менеджером запланирован",
+  MANAGER_DECLINED: "По заявке получен отказ",
+  CONTRACT_READY: "Договор готов к подписанию",
+  ACTIVE: "Финансирование получено",
   draft: "Черновик заявки",
   queued: "Заявка у менеджера",
   info_requested: "Нужны дополнительные сведения",

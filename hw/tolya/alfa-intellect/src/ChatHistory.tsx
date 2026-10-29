@@ -12,7 +12,7 @@ export function ChatHistory({
 }: {
   drawer: boolean;
   activeId: string;
-  onNew: () => void;
+  onNew: (area?:string) => void;
   onRename: (chat: Chat) => void;
 }) {
   const w = useWorkspace(),
@@ -20,6 +20,8 @@ export function ChatHistory({
     input = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState(""),
     [searchOpen, setSearchOpen] = useState(false);
+  const [area,setArea]=useState(""),[custom,setCustom]=useState(""),[adding,setAdding]=useState(false);
+  const areas=[...new Set(["Бухгалтерия","Денежный поток","Кредиты","Инвестиции",...w.state.chats.map(c=>c.businessArea).filter((v):v is string=>!!v)])];
   useEffect(() => {
     if (searchOpen && w.historyOpen) input.current?.focus();
   }, [searchOpen, w.historyOpen]);
@@ -32,7 +34,7 @@ export function ChatHistory({
       if (previous?.isConnected) previous.focus();
     };
   }, [drawer, w.historyOpen]);
-  const chats = filterChats(w.state.chats, search);
+  const chats = filterChats(w.state.chats, search).filter(c=>!area||c.businessArea===area);
   return (
     <aside
       ref={root}
@@ -66,7 +68,7 @@ export function ChatHistory({
       }}
     >
       <div className="history-toolbar">
-        <button className="history-new" disabled={!!w.sending} onClick={onNew}>
+        <button className="history-new" disabled={!!w.sending} onClick={()=>onNew(area||undefined)}>
           <Plus size={18} />
           <span>Новый диалог</span>
         </button>
@@ -111,7 +113,8 @@ export function ChatHistory({
           )}
         </div>
       )}
-      <span className="history-caption">Ваши диалоги</span>
+      <div className="business-areas"><div><strong>Зоны бизнеса</strong><button type="button" aria-label="Добавить зону бизнеса" onClick={()=>setAdding(!adding)}>+</button></div><button type="button" aria-pressed={!area} onClick={()=>setArea("")}>Все диалоги <span>{w.state.chats.length}</span></button>{areas.map(name=><button type="button" key={name} aria-pressed={area===name} onClick={()=>setArea(name)}>{name}<span>{w.state.chats.filter(c=>c.businessArea===name).length}</span></button>)}{adding&&<form onSubmit={e=>{e.preventDefault();if(custom.trim()){setArea(custom.trim());onNew(custom.trim());setCustom("");setAdding(false);}}}><input aria-label="Название зоны бизнеса" maxLength={64} value={custom} onChange={e=>setCustom(e.target.value)} placeholder="Например, новый филиал"/><button type="submit" disabled={!custom.trim()||!!w.sending}>Создать диалог в зоне</button></form>}</div>
+      <span className="history-caption">{area||"Ваши диалоги"}</span>
       <div className="history-list">
         {chats.map((chat) => (
           <div

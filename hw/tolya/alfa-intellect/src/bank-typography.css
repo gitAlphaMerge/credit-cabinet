@@ -1,0 +1,7 @@
+/* Styrene UI: Alfa-Laboratory typography guide, with the bank's public service CDN. */
+@font-face{font-family:"Styrene UI";src:local("Styrene UI Regular"),url("https://alfabank.servicecdn.ru/media/fonts/styrene-ui/styrene-ui_regular.woff2") format("woff2");font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:"Styrene UI";src:local("Styrene UI Medium"),url("https://alfabank.servicecdn.ru/media/fonts/styrene-ui/styrene-ui_medium.woff2") format("woff2");font-style:normal;font-weight:500;font-display:swap}
+@font-face{font-family:"Styrene UI";src:local("Styrene UI Bold"),url("https://alfabank.servicecdn.ru/media/fonts/styrene-ui/styrene-ui_bold.woff2") format("woff2");font-style:normal;font-weight:700;font-display:swap}
+:root{--font-family-bank:"Styrene UI",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Helvetica,sans-serif}
+:root:root[data-design-system="kk3"],html:root body,html:root :is(button,input,select,textarea){font-family:var(--font-family-bank);font-feature-settings:"ss01";-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.omega-code-sample :is(pre,code){font-family:ui-monospace,"SFMono-Regular",Consolas,monospace;font-feature-settings:normal}

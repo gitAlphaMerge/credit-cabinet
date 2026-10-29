@@ -1,0 +1,11 @@
+/* Preserve the existing central animation and give its neighbouring cards lift. */
+@media(min-width:761px){
+  .landing .finance-theatre.with-pattern{min-height:620px}
+  .landing .finance-theatre.with-pattern .finance-pattern{width:72%;max-width:540px}
+}
+.landing .finance-scene-card{animation:scene-arrive .65s cubic-bezier(.2,.75,.2,1) both,hero-card-drift 7.8s ease-in-out .65s infinite}
+.landing .finance-insight{animation:insight-arrive .7s ease both,hero-insight-drift 6.4s ease-in-out .7s infinite}
+.landing .finance-theatre[data-playing=false] .finance-scene-card,.landing .finance-theatre[data-playing=false] .finance-insight{animation-play-state:running,paused}
+@keyframes hero-card-drift{0%,100%{translate:0 0;rotate:-.35deg}50%{translate:3px -12px;rotate:.55deg}}
+@keyframes hero-insight-drift{0%,100%{translate:0 -3px;rotate:.3deg}50%{translate:-3px 8px;rotate:-.5deg}}
+@media(prefers-reduced-motion:reduce){.landing .finance-scene-card,.landing .finance-insight{animation:none!important;translate:none;rotate:none}}

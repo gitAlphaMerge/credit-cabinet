@@ -213,11 +213,13 @@ export function MeetingBooking({
     return (
       <article className="mvp-account" role="status">
         <h2>
-          Менеджер позвонит{" "}
+          {Date.parse(meeting.at) < Date.now() ? "Звонок был назначен на" : "Менеджер позвонит"}{" "}
           {meetingLabel(meeting.at, { day: "numeric", month: "long" })} в{" "}
           {meetingLabel(meeting.at, { hour: "2-digit", minute: "2-digit" })} МСК
         </h2>
         <p>Запись сохранена в заявке.</p>
+        <p>Ваш менеджер: {meeting.manager}.</p>
+        {Date.parse(meeting.at) < Date.now() && <p>Время записи прошло. Решение появится после обновления заявки менеджером; при необходимости перенесите звонок.</p>}
         <div className="mvp-actions">
           <button
             type="button"
@@ -261,7 +263,7 @@ export function MeetingBooking({
       <p>Выберите день и время звонка. Время указано по Москве, МСК.</p>
       <div
         aria-label="День звонка"
-        style={{ display: "flex", gap: 8, overflowX: "auto", padding: "8px 0" }}
+        className="meeting-days"
       >
         {days.map(([key]) => (
           <button
@@ -273,14 +275,7 @@ export function MeetingBooking({
               setDay(key);
               setSelected("");
             }}
-            style={{
-              borderRadius: 999,
-              border: 0,
-              padding: "10px 16px",
-              background: activeDay === key ? "#d6e8fc" : "#f3f4f5",
-              color: "#0b0b0c",
-              cursor: "pointer",
-            }}
+            className="meeting-day"
           >
             {meetingLabel(`${key}T12:00:00+03:00`, {
               weekday: "short",
@@ -293,12 +288,7 @@ export function MeetingBooking({
       <div
         role="group"
         aria-label="Время звонка, МСК"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))",
-          gap: 8,
-          margin: "16px 0",
-        }}
+        className="meeting-times"
       >
         {activeSlots.map((slot) => (
           <button
@@ -307,14 +297,7 @@ export function MeetingBooking({
             aria-label={`Выбрать ${meetingLabel(slot.at, { hour: "2-digit", minute: "2-digit" })} МСК`}
             aria-pressed={selected === slot.id}
             onClick={() => setSelected(slot.id)}
-            style={{
-              borderRadius: 12,
-              border: 0,
-              padding: "12px",
-              background: selected === slot.id ? "#ef3124" : "#f3f4f5",
-              color: selected === slot.id ? "#fff" : "#0b0b0c",
-              cursor: "pointer",
-            }}
+            className="meeting-time"
           >
             {meetingLabel(slot.at, { hour: "2-digit", minute: "2-digit" })}
           </button>
@@ -332,14 +315,7 @@ export function MeetingBooking({
         onClick={() =>
           chosen && void onBook(chosen.id).then(() => setEditing(false))
         }
-        style={{
-          background: "#ef3124",
-          color: "#fff",
-          border: 0,
-          borderRadius: 12,
-          padding: "12px 20px",
-          cursor: "pointer",
-        }}
+        className="meeting-book"
       >
         {chosen
           ? `Записаться на ${meetingLabel(chosen.at, { day: "numeric", month: "long" })}, ${meetingLabel(chosen.at, { hour: "2-digit", minute: "2-digit" })} МСК`

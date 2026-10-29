@@ -73,15 +73,18 @@ function write(key: string, value: string) {
 }
 
 export function currentMode(): Theme {
+  if (typeof document === "undefined") return "dark";
   return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
 }
 
 export function currentPalette(): Palette {
+  if (typeof document === "undefined") return "";
   const v = document.documentElement.getAttribute("data-palette") ?? "";
   return (palettes.has(v) ? v : "") as Palette;
 }
 
 export function currentAccent(): Accent {
+  if (typeof document === "undefined") return "";
   const v = document.documentElement.getAttribute("data-accent") ?? "";
   return (accents.has(v) ? v : "") as Accent;
 }

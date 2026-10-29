@@ -1,5 +1,11 @@
+import { CfaPreview } from "./CfaPreview";
+import { AppearancePicker } from "./AppearancePicker";
+import { ThemeToggle } from "./ThemeToggle";
+import { LoadingScreen } from "./LoadingScreen";
+import { LOADING_HOLD_MS, useMinimumLoading } from "./loading-hold";
 import { useEffect, useState, useRef } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   Menu,
@@ -54,6 +60,7 @@ export function App() {
     [uploading, setUploading] = useState(false),
     [bell, setBell] = useState(false),
     [mobileNav, setMobileNav] = useState(false);
+  const visibleLoading = useMinimumLoading(loading, toast ? 0 : LOADING_HOLD_MS);
   const [contactOpen, setContactOpen] = useState(false),
     [contactPhone, setContactPhone] = useState(""),
     [contactNote, setContactNote] = useState(""),
@@ -99,16 +106,23 @@ export function App() {
     setFinancingDraftStored(saved);
   }
   function go(p: string) {
-    p = cabinetRoute(p);
-    history.pushState({}, "", p === "/credit" ? "/cabinet#credit" : p);
+    const [pathname, anchor] = p.split("#");
+    p = cabinetRoute(pathname);
+    history.pushState({alfaNavigated:true,alfaPrevious:location.pathname+location.hash}, "", p === "/credit" ? "/cabinet#credit" : p + (anchor ? "#" + anchor : ""));
     setPath(p);
     setMobileNav(false);
     if (p === "/chat" && !chatPageVisited.current) {
       setHistoryOpen(innerWidth > 760);
       chatPageVisited.current = true;
     }
-    window.scrollTo(0, 0);
+    if (anchor && p === path) requestAnimationFrame(() => document.getElementById(decodeURIComponent(anchor))?.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"}));
+    else window.scrollTo(0, 0);
   }
+  useEffect(() => {
+    if (visibleLoading || !location.hash || location.hash === "#credit") return;
+    const frame = requestAnimationFrame(() => document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"}));
+    return () => cancelAnimationFrame(frame);
+  }, [path, visibleLoading]);
   async function refresh() {
     const [s, c] = await Promise.all([api<AppState>("/state"), api("/config")]);
     setConfig(c);
@@ -216,6 +230,7 @@ export function App() {
       path === "/onboarding" ||
       path === "/jury" ||
       path === "/about" ||
+      path === "/cfa" ||
       path === "/login" ||
       (path === "/bank" && config.role === "manager") ||
       (config.cabinetAvailable && ["/credit", "/cabinet", "/chat"].includes(path)) ||
@@ -265,21 +280,19 @@ export function App() {
       setUploadName("");
     }
   }
-  if (loading)
+  if (visibleLoading)
     return (
-      <div className="loading-screen">
-        <Brand />
-        <span className="spinner" />
-        <p>Открываем ваш финансовый контекст…</p>
-      </div>
+      <LoadingScreen fullPage title="Открываем ваш финансовый контекст" message="Пуш готовит рабочее пространство" />
     );
-  const publicPage = ["/", "/onboarding", "/jury", "/login", "/about"].includes(path);
+  const publicPage = ["/", "/onboarding", "/jury", "/login", "/about", "/cfa"].includes(path);
   const page = path.split("/")[1] || "cabinet";
   const rendered = publicPage ? (
     path === "/" ? (
       <Landing go={go} />
     ) : path === "/jury" ? (
       <DemoPage go={go} />
+    ) : path === "/cfa" ? (
+      <CfaPreview go={go}/>
     ) : path === "/about" ? (
       <About go={go} />
     ) : path === "/login" ? (
@@ -341,17 +354,17 @@ export function App() {
             </button>
             <div className="journey-header-tools">
               <SideRail>
-                <SideRailItem tip="Обратиться к сотруднику">
+                <SideRailItem tip="Помощь и поддержка">
                   <button
                     type="button"
                     className="side-rail-icon call"
-                    aria-label="Обратиться к сотруднику"
+                    aria-label="Помощь и поддержка"
                     onClick={() => {
                       setContactSent(false);
                       setContactOpen(true);
                     }}
                   >
-                    <Phone aria-hidden="true" />
+                    <MessageSquare aria-hidden="true" />
                   </button>
                 </SideRailItem>
                 <SideRailItem tip="Начать сначала">
@@ -369,11 +382,13 @@ export function App() {
             <button onClick={() => go("/cabinet")} className="unstyled">
               <Brand />
             </button>
+            {page !== "cabinet" && <button className="cabinet-return" type="button" onClick={() => go("/cabinet")}><ArrowLeft size={16}/><span>На главную</span></button>}
             <nav className={mobileNav ? "open" : ""}>
               {[
                 ["cabinet", "Главная"],
                 ["credit", "Кредитный кабинет"],
                 ["chat", "Чат"],
+                ...(config.role !== "manager" ? [["onboarding", "Новая заявка"]] : []),
                 ...(config.role === "manager"
                   ? [["bank", "Рабочее место менеджера"]]
                   : []),
@@ -389,6 +404,7 @@ export function App() {
               ))}
             </nav>
             <div className="header-tools g2-tools">
+              <div className="cabinet-appearance"><span>Оформление</span><ThemeToggle/><AppearancePicker/></div>
               <IconButton
                 className="mobile-menu"
                 label="Меню"
@@ -438,7 +454,7 @@ export function App() {
       {rendered}
       {contactOpen && (
         <Modal
-          title="Обратиться к сотруднику"
+          title="Поддержка кабинета"
           onClose={() => setContactOpen(false)}
         >
           {contactSent ? (
@@ -463,9 +479,9 @@ export function App() {
               }}
             >
               <div className="contact-call">
-                <span className="contact-free">Свободный сотрудник на линии</span>
-                <h3>Перезвоним за 2 минуты</h3>
-                <p>Оставьте телефон и коротко напишите вопрос.</p>
+                <span className="contact-free">Помощь по работе с кабинетом</span>
+                <h3>Оставьте обращение</h3>
+                <p>Укажите телефон и вопрос. В этом прототипе обращение сохраняется локально.</p>
               </div>
               <p className="fine-print">
                   Вы можете обратиться на любом этапе. Здесь сохраняется только
@@ -497,7 +513,7 @@ export function App() {
                   обращение к сотруднику.
               </label>
               <Button>
-                Перезвоните мне <ArrowRight size={16} />
+                Сохранить обращение <ArrowRight size={16} />
               </Button>
             </form>
           )}

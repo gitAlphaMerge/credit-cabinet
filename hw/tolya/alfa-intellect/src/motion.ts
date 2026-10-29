@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { TRANSITION_HOLD_MS } from "./loading-timing";
 export function useReducedMotion() {
   const [reduced, setReduced] = useState(
     () =>
@@ -15,11 +16,12 @@ export function useReducedMotion() {
   return reduced;
 }
 
-/** Four visible checks: about 2.4 seconds for a normal request, faster once ready. */
+/** Four visible checks with a short minimum; the request controls completion. */
 export function useTransitionProgress(ready: boolean, onFinish: () => void) {
   const reduced = useReducedMotion();
   const [completed, setCompleted] = useState(0);
   const finished = useRef(false);
+  const transitionStarted = useRef(Date.now());
   useEffect(() => {
     if (reduced || completed === 4) return;
     const timer = setTimeout(
@@ -30,13 +32,13 @@ export function useTransitionProgress(ready: boolean, onFinish: () => void) {
   }, [completed, ready, reduced]);
   useEffect(() => {
     if ((!reduced && completed !== 4) || !ready || finished.current) return;
-    finished.current = true;
-    onFinish();
+    const delay = reduced ? 0 : Math.max(0, TRANSITION_HOLD_MS - (Date.now() - transitionStarted.current));
+    const timer = setTimeout(() => {finished.current = true; onFinish();}, delay);
+    return () => clearTimeout(timer);
   }, [completed, onFinish, ready, reduced, finished]);
   return { completed, reduced };
 }
 
-const EASE_OUT = (t: number) => 1 - (1 - t) ** 3;
 const REDUCED = "(prefers-reduced-motion: reduce)";
 const prefersReduced = () =>
   typeof matchMedia !== "undefined" && matchMedia(REDUCED).matches;
@@ -74,54 +76,8 @@ const BLOCKS = [
   ".panel, .cv-card, .feature-card, .dossier-card, .document-card, .company-card, .forecast-card, .guided-card",
   ".credit-form-panel, .credit-agent-panel, article.message, .starter-prompts > *, .welcome-orb",
 ].join(", ");
-const HEADINGS = "h1, h2";
 const SKIP = ".live-pattern, .modal, .toast, [data-ai-static]";
-const SUM = /^\d{1,3}(?:[\s  ]\d{3})*[\s  ]?₽$/;
 const STEP = 50;
-
-function countUp(node: Text) {
-  const final = node.nodeValue ?? "";
-  if (!SUM.test(final.trim())) return;
-  const target = Number(final.replace(/\D/g, ""));
-  const tail = final.slice(final.search(/\d[^\d]*$/) + 1);
-  if (!target) return;
-  const format = new Intl.NumberFormat("ru-RU");
-  const start = performance.now();
-  let written = final;
-  const frame = (now: number) => {
-    // React переписал текст сам: свою анимацию бросаем.
-    if (node.nodeValue !== written) return;
-    const p = Math.min(1, (now - start) / 600);
-    written = p === 1 ? final : format.format(Math.round(target * EASE_OUT(p))) + tail;
-    node.nodeValue = written;
-    if (p < 1) requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
-}
-
-function splitWords(heading: HTMLElement) {
-  // Безопасно только для заголовка из одной строки: React обновит его целиком через textContent.
-  const only = heading.childNodes;
-  if (heading.closest("[aria-live], [role=status]")) return;
-  if (only.length !== 1 || only[0].nodeType !== Node.TEXT_NODE) return;
-  const words = (only[0].nodeValue ?? "").split(/(\s+)/);
-  if (words.filter((w) => w.trim()).length < 2) return;
-  heading.setAttribute("aria-label", heading.textContent ?? "");
-  heading.textContent = "";
-  let index = 0;
-  for (const word of words) {
-    if (!word.trim()) {
-      heading.append(word);
-      continue;
-    }
-    const span = document.createElement("span");
-    span.className = "ai-word";
-    span.setAttribute("aria-hidden", "true");
-    span.style.setProperty("--ai-w", String(index++));
-    span.textContent = word;
-    heading.append(span);
-  }
-}
 
 /**
  * Все экраны сразу: новые блоки встают в очередь, на входе в экран выезжают каскадом.
@@ -139,9 +95,7 @@ export function useScreenReveal() {
       el.style.setProperty("--ai-dx", (Math.max(-0.5, Math.min(0.5, offset)) * 24).toFixed(1) + "px");
       el.style.setProperty("--ai-d", Math.min(order, 10) * STEP + "ms");
       el.dataset.aiReveal = "in";
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      for (let n = walker.nextNode(); n; n = walker.nextNode())
-        if (!(n.parentElement?.closest("table, input, textarea, select"))) countUp(n as Text);
+
     };
     const observer = new IntersectionObserver((entries) => {
       let order = 0;
@@ -152,11 +106,10 @@ export function useScreenReveal() {
       }
     });
     const scan = (scope: ParentNode) => {
-      for (const el of scope.querySelectorAll<HTMLElement>(`${BLOCKS}, ${HEADINGS}`)) {
+      for (const el of scope.querySelectorAll<HTMLElement>(BLOCKS)) {
         if (seen.has(el) || el.closest(SKIP)) continue;
         seen.add(el);
-        if (el.matches(HEADINGS)) splitWords(el);
-        if (!el.matches(BLOCKS) || el.parentElement?.closest('[data-ai-reveal="wait"]'))
+        if (el.parentElement?.closest('[data-ai-reveal="wait"]'))
           continue;
         el.dataset.aiReveal = "wait";
         observer.observe(el);

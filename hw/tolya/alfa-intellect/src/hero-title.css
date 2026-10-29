@@ -1,75 +1,25 @@
-/* Главная: название продукта как объёмный заголовок. Глубина строится слоями text-shadow, без картинок. */
-.landing .hero-copy .hero-kicker {
-  margin: 0 0 6px;
-  font-size: var(--text-base);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--theme-muted);
-}
-.landing .hero-copy h1.hero-title {
-  --depth: color-mix(in srgb, var(--theme-ink) 26%, var(--theme-bg));
-  display: grid;
-  gap: 0;
-  margin: 8px 0 34px;
-  font-size: clamp(3.1rem, 6.6vw, 6.4rem);
-  font-weight: 800;
-  line-height: 0.98;
-  letter-spacing: -0.045em;
-  color: var(--theme-ink);
-  perspective: 900px;
-}
-.landing .hero-copy h1.hero-title .hero-word {
-  display: block;
-  width: fit-content;
-  padding-bottom: 0.04em;
-  color: var(--theme-ink);
-  text-shadow:
-    1px 1px 0 var(--depth), 2px 2px 0 var(--depth), 3px 3px 0 var(--depth),
-    4px 4px 0 var(--depth), 5px 5px 0 var(--depth), 6px 6px 0 var(--depth),
-    7px 7px 0 var(--depth), 8px 8px 0 var(--depth), 9px 9px 0 var(--depth),
-    10px 10px 0 var(--depth), 18px 26px 34px rgba(0, 0, 0, 0.28);
-  transform-origin: left bottom;
-  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
-  animation: hero-word-in 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-}
-.landing .hero-copy h1.hero-title .hero-word:nth-child(2) {
-  margin-left: 0.28em;
-  animation-delay: 0.09s;
-}
-.landing .hero-copy h1.hero-title .hero-word-brand {
-  --depth: color-mix(in srgb, var(--theme-brand, #ef3124) 52%, #000);
-  margin-left: 0.56em;
-  color: var(--theme-brand, #ef3124);
-  animation-delay: 0.18s;
-}
-.landing .hero-copy h1.hero-title:hover .hero-word {
-  transform: translate(-2px, -3px);
-}
-.landing .hero-copy h1.hero-title:hover .hero-word:nth-child(2) {
-  transform: translate(-4px, -6px);
-}
-.landing .hero-copy h1.hero-title:hover .hero-word-brand {
-  transform: translate(-6px, -9px);
-}
-@keyframes hero-word-in {
-  from {
-    opacity: 0;
-    transform: translateY(28px) rotateX(-24deg);
-    text-shadow: 0 0 0 transparent, 0 0 0 transparent;
-  }
-}
-@media (max-width: 800px) {
-  .landing .hero-copy h1.hero-title .hero-word {
-    text-shadow:
-      1px 1px 0 var(--depth), 2px 2px 0 var(--depth), 3px 3px 0 var(--depth),
-      4px 4px 0 var(--depth), 5px 5px 0 var(--depth), 6px 6px 0 var(--depth),
-      10px 14px 20px rgba(0, 0, 0, 0.26);
-  }
-  .landing .hero-copy h1.hero-title .hero-word:nth-child(2) { margin-left: 0.16em; }
-  .landing .hero-copy h1.hero-title .hero-word-brand { margin-left: 0.32em; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .landing .hero-copy h1.hero-title .hero-word { animation: none; transition: none; }
-  .landing .hero-copy h1.hero-title:hover .hero-word { transform: none; }
-}
+/* A large, flat wordmark. The original hero illustration remains alongside it. */
+.landing .hero-copy{min-width:0}
+.landing .hero-copy .hero-kicker{margin:0 0 20px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--theme-muted);max-width:34em;line-height:1.6}
+.landing .hero-copy h1.hero-title{display:block;font-size:clamp(100px,10.8vw,174px);font-weight:700;line-height:.98;letter-spacing:-.075em;margin:0 0 24px;padding:0 0 .06em;color:var(--theme-ink);text-shadow:none;perspective:none;transform:none;overflow:visible}
+.landing .hero-copy h1.hero-title .hero-title-dot{color:var(--theme-brand,var(--theme-red));letter-spacing:-.08em;text-shadow:none}
+.landing .hero-copy .hero-product-description{display:grid;gap:20px;margin:0 0 34px}
+.landing .hero-copy .hero-product-description>p{font-size:clamp(26px,2.65vw,39px);line-height:1.18;letter-spacing:-.035em;font-weight:500;color:var(--theme-ink);margin:0}
+.landing .hero-copy .hero-omega-label{display:flex;align-items:center;gap:12px;font-size:20px;line-height:1.4;letter-spacing:-.02em;color:var(--theme-muted)}
+.landing .hero-copy .hero-omega-label .omega-mark{color:var(--theme-red)}
+.landing .hero-copy .hero-actions{margin-top:0}
+@media(min-width:1000px){.landing .hero{grid-template-columns:1fr 1fr;gap:36px}.landing .hero-copy h1.hero-title{font-size:clamp(112px,10.8vw,174px)}}
+@media(max-width:999px) and (min-width:761px){.landing .hero-copy h1.hero-title{font-size:clamp(82px,11vw,112px)}.landing .hero-copy .hero-product-description>p{font-size:26px}.landing .hero-copy .hero-kicker{font-size:11px}}
+@media(max-width:760px){.landing .hero-copy h1.hero-title{font-size:clamp(86px,18.5vw,138px);margin-bottom:20px}.landing .hero-copy .hero-product-description{gap:16px;margin-bottom:26px}.landing .hero-copy .hero-product-description>p{font-size:30px}.landing .hero-copy .hero-omega-label{font-size:18px}.landing .hero-copy .hero-kicker{margin-bottom:16px;font-size:11px}}
+@media(max-width:380px){.landing .hero-copy h1.hero-title{font-size:80px}.landing .hero-copy .hero-product-description>p{font-size:26px}}
+
+/* Alfa and Omega have equal display size, with an explicit wrap for the agent name. */
+.landing .hero-copy .hero-product-description .hero-omega-label{display:grid;gap:0;margin:4px 0 0;font-size:clamp(100px,10.8vw,174px);font-weight:700;line-height:.98;letter-spacing:-.075em;color:var(--theme-ink)}
+.landing .hero-copy .hero-omega-label>span{display:block;overflow-wrap:normal}
+.landing .hero-copy .hero-omega-word{color:var(--theme-red)}
+@media(min-width:1000px){.landing .hero-copy .hero-product-description .hero-omega-label{font-size:clamp(112px,10.8vw,174px)}}
+@media(max-width:999px) and (min-width:761px){.landing .hero-copy .hero-product-description .hero-omega-label{font-size:clamp(82px,11vw,112px)}}
+@media(max-width:760px){.landing .hero-copy .hero-product-description .hero-omega-label{font-size:clamp(86px,18.5vw,138px)}}
+@media(max-width:380px){.landing .hero-copy .hero-product-description .hero-omega-label{font-size:80px}}
+
+.landing .hero-copy .hero-omega-label>.hero-agent-word{font-size:.6em;line-height:1.2;letter-spacing:-.045em;margin-bottom:6px}

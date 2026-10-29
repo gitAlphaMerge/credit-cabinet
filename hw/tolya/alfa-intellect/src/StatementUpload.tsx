@@ -1,3 +1,4 @@
+import { LoadingScreen } from "./LoadingScreen";
 import type { CSSProperties } from "react";
 import { useId } from "react";
 import { Upload, CheckCircle2, FileText } from "lucide-react";
@@ -78,23 +79,7 @@ export function StatementUpload({
         <small className="muted">Файл пока не добавлен · формат CSV</small>
       )}
       {uploading && (
-        <div className="upload-scan" aria-hidden="true">
-          <span className="upload-scan-doc">
-            <i />
-            <i />
-            <i />
-            <i />
-          </span>
-          {["Даты", "Суммы", "Контрагенты", "Назначения"].map((t, i) => (
-            <span
-              className="upload-scan-chip"
-              key={t}
-              style={{ "--i": i } as CSSProperties}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
+        <LoadingScreen compact title="Пуш проверяет выписку" message="Передаём файл и проверяем операции" />
       )}
       {uploading && (
         <small role="status">

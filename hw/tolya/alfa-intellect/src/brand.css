@@ -1,0 +1,16 @@
+.brand .brand-mark{display:block;width:62px;height:40px;flex:none;overflow:visible}
+.brand .brand-alpha,.brand .brand-bridge{color:var(--theme-brand,var(--theme-red))}
+.brand .brand-omega{color:var(--theme-ink)}
+.brand .brand-name{max-width:none;white-space:nowrap;font-size:20px;line-height:1.2;font-weight:700;letter-spacing:-.5px}
+.brand>span{min-width:0;text-align:left}.brand small{font-size:10px;letter-spacing:1.7px;margin-top:5px}
+.app-header .brand .brand-mark{width:50px;height:34px}.app-header .brand .brand-name{font-size:17px}
+.public-footer .brand .brand-name{font-size:19px}
+@media(max-width:760px){.brand{gap:8px}.brand .brand-mark{width:48px;height:34px}.brand .brand-name{font-size:17px}.brand small{font-size:8px;letter-spacing:1.3px}.app-header .brand .brand-mark{width:38px;height:30px}.app-header .brand .brand-name{font-size:14px}}
+@media(max-width:380px){.public-header .brand .brand-mark{width:42px}.public-header .brand .brand-name{font-size:15px}}
+
+
+
+/* The icon set has charcoal outlines and red accents. Remove white plates,
+   lighten the outlines in dark themes, and keep the red hue recognisable. */
+:root[data-theme="dark"] img.illustration{filter:invert(.9) hue-rotate(180deg)}
+:root[data-theme="light"] img.illustration{filter:none}

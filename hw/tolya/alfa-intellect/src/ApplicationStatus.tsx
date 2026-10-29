@@ -1,3 +1,4 @@
+import { LoadingScreen } from "./LoadingScreen";
 import { useEffect, useRef, useState } from "react";
 import { Illustration, StatusIllustration, ProductIllustration, DocumentIllustration } from "./Illustration";
 import { useWorkspace } from "./context";
@@ -566,9 +567,7 @@ export function ApplicationStatus() {
         </p>
       )}
       {loading ? (
-        <p role="status" className="application-toolbar">
-          Загружаем заявку…
-        </p>
+        <LoadingScreen compact title="Загружаем заявку" message="Пуш проверяет её текущий статус" />
       ) : detail && detail.application.id === selected ? (
         <ApplicationStatusView
           detail={detail}

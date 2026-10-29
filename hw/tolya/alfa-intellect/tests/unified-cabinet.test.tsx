@@ -13,6 +13,10 @@ test("Legacy URLs resolve to one cabinet, unrelated routes remain unchanged", ()
     assert.equal(cabinetRoute(p), "/cabinet");
   assert.equal(cabinetRoute("/chat"), "/chat");
 });
+test("New financing starts onboarding instead of reopening the issued application", () => {
+  assert.equal(cabinetRoute("/financing"), "/onboarding");
+  assert.equal(cabinetRoute("/onboarding"), "/onboarding");
+});
 test("DSCR bands retain the agreed 1.0 and 1.3 boundaries", () => {
   assert.equal(metricScale({ id: "dscr", value: 1 }).position, 50);
   assert.equal(metricScale({ id: "dscr", value: 1.3 }).position, 65);

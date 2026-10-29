@@ -26,7 +26,8 @@ test("ICS uses the correct UTC instant and a thirty-minute duration", () => {
   assert.match(ics, /DTEND:20261026T080000Z\r\n/);
 });
 
-test("returning with a persisted booking shows confirmation", () => {
+test("returning with a persisted booking shows confirmation", (t) => {
+  t.mock.method(Date, "now", () => Date.parse("2026-10-26T07:00:00Z"));
   const at = "2026-10-26T10:30:00+03:00";
   const html = renderToStaticMarkup(
     <MeetingBooking

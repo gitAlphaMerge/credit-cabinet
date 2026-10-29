@@ -1,3 +1,6 @@
+import { LoadingScreen } from "./LoadingScreen";
+import { useMinimumLoading } from "./loading-hold";
+import { JOURNEY_RESTORE_HOLD_MS } from "./loading-timing";
 import { useEffect, useRef, useState } from "react";
 import { MvpOnboarding } from "./Mvp2";
 import { api, workspaceHeaders, setApiWorkspace } from "./api";
@@ -159,6 +162,7 @@ export function JourneyOnboarding({
       setMoving(false);
     }
   }
+  const restoring = useMinimumLoading(!model && !error, error ? 0 : JOURNEY_RESTORE_HOLD_MS);
   if (preparing)
     return (
       <div className="onboarding journey-onboarding">
@@ -176,10 +180,10 @@ export function JourneyOnboarding({
         </main>
       </div>
     );
-  if (!model)
+  if (!model || restoring)
     return (
-      <main className="loading-screen">
-        <p role="status">{error || "Восстанавливаем ответы…"}</p>
+      <main className={error ? "loading-screen" : "journey-loading"}>
+        {error ? <p role="status">{error}</p> : <LoadingScreen fullPage title="Восстанавливаем ответы" message="Пуш возвращает вас к сохранённому шагу" />}
         {error && (
           <button onClick={() => location.reload()}>Повторить загрузку</button>
         )}
@@ -190,7 +194,12 @@ export function JourneyOnboarding({
       <MvpOnboarding
         value={model.answers}
         step={model.step}
-        go={go}
+        go={path => {
+          if (navigation.current || !current.current) return;
+          navigation.current = true;
+          setMoving(true);
+          void persist(current.current.answers, current.current.step).then(() => go(path)).catch(e => setError(visibleError(e))).finally(() => {navigation.current = false;setMoving(false);});
+        }}
         busy={moving}
         onChange={update}
         onMove={move}

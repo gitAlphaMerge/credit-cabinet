@@ -208,6 +208,8 @@ test("old direct page URLs and cabinet/manual API paths are closed before activa
 test("private draft and current section survive reload, remain owner-scoped and are not a decision", async () => {
   const x = await guest();
   let a = (await x.client.post("/api/journey/complete").send({ answers })).body;
+  const {preparedJuryCabinet}=await import("../server/jury-cabinets");
+  assert.equal(preparedJuryCabinet(x.uid),false);
   await x.client
     .put("/api/journey/draft")
     .send({
@@ -280,6 +282,46 @@ test("anonymous approval: signature does not unlock cabinet; activation does, on
     .expect(200);
   assert.equal(cabinetAvailable(x.uid), true);
   assert.equal((await x.client.get("/api/config")).body.cabinetAvailable, true);
+  await x.client.put("/api/journey/position").send({applicationId:a.id,section:0,view:"funded"}).expect(200);
+  assert.equal((await x.client.get("/api/journey")).body.view,"funded");
+  const {juryDestination,preparedJuryCabinet}=await import("../server/jury-cabinets");
+  assert.equal(juryDestination(x.uid),"/apply");
+  assert.equal(preparedJuryCabinet(x.uid),true);
+  db.prepare("INSERT OR REPLACE INTO jury_cabinets VALUES(?,?)").run("green",x.uid);
+  const reporting=(await x.client.get("/api/state").expect(200)).body;
+  const reportingDoc=reporting.documents.find((d:any)=>d.name==="Демо: ОФР и сравнение лет.csv");
+  assert.ok(reportingDoc);
+  await x.client.get(`/api/documents/${reportingDoc.id}/download`).expect(200);
+  const outsider=request.agent(app);await outsider.post("/api/auth/demo").send({}).expect(200);
+  await outsider.get(`/api/documents/${reportingDoc.id}/download`).expect(404);
+  const count=db.prepare("SELECT COUNT(*) n FROM files WHERE user_id=?").get(x.uid)!.n;
+  await x.client.get("/api/state").expect(200);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM files WHERE user_id=?").get(x.uid)!.n,count);
+  const zoned=(await x.client.post("/api/chats").send({businessArea:"Бухгалтерия"}).expect(200)).body;
+  assert.equal(zoned.businessArea,"Бухгалтерия");
+  assert.equal((await x.client.get("/api/state")).body.chats.find((c:any)=>c.id===zoned.id).businessArea,"Бухгалтерия");
+  await x.client.post("/api/chats").send({businessArea:"x".repeat(65)}).expect(422);
+  // Exercise the real cabinet -> provider boundary after issuance. Localized
+  // display labels must never replace the agent's machine-readable status.
+  const originalFetch = globalThis.fetch;
+  const previousAgentUrl = process.env.TEAM_AGENT_URL;
+  let sent: any;
+  process.env.TEAM_AGENT_URL = "http://agent.test";
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    sent = JSON.parse(String(init?.body));
+    return Response.json({ text: "Помогу разобраться с вашим финансированием.", status: "ACTIVE" });
+  }) as typeof fetch;
+  try {
+    const chat = stateOf(x.uid).chats[0];
+    await x.client.post(`/api/chats/${chat.id}/messages`).send({ text: "Здравствуйте" }).expect(200);
+    assert.equal(sent.card.application.status, "ACTIVE");
+    assert.equal(sent.card.application.id, a.id);
+    assert.equal(sent.client_id, x.uid);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousAgentUrl === undefined) delete process.env.TEAM_AGENT_URL;
+    else process.env.TEAM_AGENT_URL = previousAgentUrl;
+  }
   assert.equal(stateOf(x.uid).cabinet?.facility?.applicationId, a.id);
   assert.equal(
     db

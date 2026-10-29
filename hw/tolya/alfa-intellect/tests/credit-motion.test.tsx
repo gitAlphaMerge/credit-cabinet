@@ -7,12 +7,12 @@ const steps: CreditStep[] = [
   { id: "cashflow", label: "Анализ выписок", status: "running" },
   { id: "decision", label: "Подготовка решения", status: "pending" },
 ];
-test("MVP 1 sphere visual exposes only actual completed stages, with no invented percentage", () => {
+test("Push loader exposes only actual completed stages, with no invented percentage", () => {
   const html = renderToStaticMarkup(
     <CreditMotion title="Рассматриваем заявку" steps={steps} />,
   );
-  assert.match(html, /preparation-sphere/);
-  assert.match(html, /preparation-orbit/);
+  assert.match(html, /push-loading-character/);
+  assert.match(html, /push-loading-pattern/);
   assert.match(html, /<strong>1<small> \/ 3/);
   assert.equal((html.match(/class="done"/g) || []).length, 1);
   assert.equal((html.match(/aria-current="step"/g) || []).length, 1);

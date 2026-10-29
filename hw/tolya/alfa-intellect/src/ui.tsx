@@ -1,3 +1,5 @@
+import { BrandMark } from "./BrandMark";
+import { BRAND_NAME } from "./brand-identity";
 import type { ReactNode, ButtonHTMLAttributes } from "react";
 import { useEffect, useId, useRef } from "react";
 import {
@@ -15,11 +17,9 @@ import { formatRate } from "./format-rate";
 export function Brand() {
   return (
     <span className="brand">
-      <span className="brand-symbol">
-        А<span />
-      </span>
+      <BrandMark />
       <span>
-        <span className="brand-name">Умный кредитный кабинет</span>
+        <span className="brand-name">{BRAND_NAME}</span>
         <small>ДЛЯ БИЗНЕСА</small>
       </span>
     </span>
