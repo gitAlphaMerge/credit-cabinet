@@ -40,6 +40,11 @@ export function journeyView(
   return "decision";
 }
 
+/** Entry follows the saved bank state; local back navigation can still open the decision. */
+export function journeyEntryView(a: Parameters<typeof journeyView>[0], position?: Parameters<typeof journeyView>[1]) {
+  return a.lifecycle === "MEETING_SCHEDULED" && a.meeting && !a.error ? "meeting" : journeyView(a, position);
+}
+
 /** Autosaves carry answers; explicit committed navigation owns the form section. */
 export function journeySection(
   id: string,

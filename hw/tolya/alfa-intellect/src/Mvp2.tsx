@@ -33,7 +33,7 @@ import {
   sectionDescriptions,
 } from "./ApplicationWorkspace";
 import { JourneyProgress } from "./JourneyProgress";
-import { journeyView, journeySection } from "../shared/journey-view";
+import { journeyView, journeyEntryView, journeySection } from "../shared/journey-view";
 import { MissingDataStep } from "./MissingDataStep";
 import { CreditContract } from "./CreditDocument";
 import { CreditMotion, CreditTransition } from "./CreditMotion";
@@ -1243,8 +1243,9 @@ export function Mvp2({
   async function open(next: MvpApplication) {
     adopt(next);
     const position = await api("/journey");
-    setView(journeyView(next, position));
-    if (journeyView(next, position) === "meeting")
+    const restoredView = journeyEntryView(next, position);
+    setView(restoredView);
+    if (restoredView === "meeting")
       setSlots(await api("/mvp2/slots"));
     if (position.applicationId === next.id) {
       setSection(position.section ?? 0);

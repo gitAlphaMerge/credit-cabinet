@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { journeyView, journeySection } from "../shared/journey-view";
+import { journeyView, journeyEntryView, journeySection } from "../shared/journey-view";
 import type { MvpApplication } from "../shared/mvp2";
 const approved = {
   id: "a",
@@ -118,6 +118,7 @@ test("a booked manager call restores its card while explicit return to decision 
   assert.equal(journeyView(booked),"meeting");
   assert.equal(journeyView(booked,position("processing")),"meeting");
   assert.equal(journeyView(booked,position("decision")),"decision");
+  assert.equal(journeyEntryView(booked,position("decision")),"meeting");
   assert.equal(journeyView({...booked,meeting:undefined}),"decision");
   assert.equal(journeyView({...booked,decision:"APPROVED",lifecycle:"MANAGER_APPROVED"}),"decision");
 });

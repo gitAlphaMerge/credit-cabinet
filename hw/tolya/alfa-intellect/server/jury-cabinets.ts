@@ -177,7 +177,7 @@ export function juryCabinet(persona: DemoPersona, base: string) {
   const saved = db
     .prepare("SELECT user_id FROM jury_cabinets WHERE persona=?")
     .get(persona.key) as { user_id: string } | undefined;
-  if (saved) {
+  if (saved && preparedJuryCabinet(saved.user_id)) {
     // Кабинеты, собранные до появления ИНН в профиле, дописываются при входе.
     const s = stateOf(saved.user_id);
     if (!s.profile.inn) {
@@ -192,6 +192,12 @@ export function juryCabinet(persona: DemoPersona, base: string) {
     pending.set(persona.key, run);
   }
   return run;
+}
+
+/** A demo left as a draft gets a separate prepared workspace; its previous history survives. */
+export function preparedJuryCabinet(uid: string) {
+  const row = db.prepare("SELECT d.data FROM mvp2_dossiers d JOIN applications a ON a.id=d.application_id WHERE a.user_id=? ORDER BY a.created_at DESC LIMIT 1").get(uid);
+  return !!row && JSON.parse(String(row.data)).lifecycle !== "DRAFT";
 }
 
 /** Reopen the saved result, including a booked call or completed demo disbursement. */

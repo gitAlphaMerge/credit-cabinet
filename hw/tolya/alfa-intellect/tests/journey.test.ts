@@ -208,6 +208,8 @@ test("old direct page URLs and cabinet/manual API paths are closed before activa
 test("private draft and current section survive reload, remain owner-scoped and are not a decision", async () => {
   const x = await guest();
   let a = (await x.client.post("/api/journey/complete").send({ answers })).body;
+  const {preparedJuryCabinet}=await import("../server/jury-cabinets");
+  assert.equal(preparedJuryCabinet(x.uid),false);
   await x.client
     .put("/api/journey/draft")
     .send({
@@ -282,8 +284,9 @@ test("anonymous approval: signature does not unlock cabinet; activation does, on
   assert.equal((await x.client.get("/api/config")).body.cabinetAvailable, true);
   await x.client.put("/api/journey/position").send({applicationId:a.id,section:0,view:"funded"}).expect(200);
   assert.equal((await x.client.get("/api/journey")).body.view,"funded");
-  const {juryDestination}=await import("../server/jury-cabinets");
+  const {juryDestination,preparedJuryCabinet}=await import("../server/jury-cabinets");
   assert.equal(juryDestination(x.uid),"/apply");
+  assert.equal(preparedJuryCabinet(x.uid),true);
   // Exercise the real cabinet -> provider boundary after issuance. Localized
   // display labels must never replace the agent's machine-readable status.
   const originalFetch = globalThis.fetch;
